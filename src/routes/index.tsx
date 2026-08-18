@@ -16,6 +16,7 @@ import { RootLayout } from "@/components/layout/root-layout";
 import { CitizenDashboardPage } from "@/routes/citizen/dashboard";
 import { CitizenIssueDetailsPage } from "@/routes/citizen/issue-details";
 import { CitizenIssuesPage } from "@/routes/citizen/issues";
+import { CitizenNotificationsPage } from "@/routes/citizen/notifications";
 import { CitizenReportPage } from "@/routes/citizen/report";
 import { HomePage } from "@/routes/home";
 import { LoginPage } from "@/routes/login";
@@ -87,17 +88,12 @@ export function AppRoutes() {
           />
           <Route path="issues/:issueId" element={<CitizenIssueDetailsPage />} />
           <Route
-            path="my-issues"
-            element={<Navigate replace to="/app/citizen/issues" />}
+            path="notifications"
+            element={<CitizenNotificationsPage />}
           />
           <Route
-            path="notifications"
-            element={
-              <PlaceholderPage
-                description="Notification history will surface civic updates, verification prompts, and workflow changes."
-                title="Notifications"
-              />
-            }
+            path="my-issues"
+            element={<Navigate replace to="/app/citizen/issues" />}
           />
         </Route>
 
