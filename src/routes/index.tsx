@@ -1,11 +1,8 @@
 import { Navigate, Route, Routes } from "react-router-dom";
 import {
-  Bell,
   Building2,
   CheckCircle2,
-  ClipboardCheck,
   ClipboardList,
-  Gauge,
   UsersRound,
 } from "lucide-react";
 
@@ -18,10 +15,16 @@ import { CitizenIssueDetailsPage } from "@/routes/citizen/issue-details";
 import { CitizenIssuesPage } from "@/routes/citizen/issues";
 import { CitizenNotificationsPage } from "@/routes/citizen/notifications";
 import { CitizenReportPage } from "@/routes/citizen/report";
+import { OfficerDashboardPage } from "@/routes/officer/dashboard";
+import { OfficerIssueDetailsPage } from "@/routes/officer/issue-details";
+import { OfficerIssuesPage } from "@/routes/officer/issues";
 import { HomePage } from "@/routes/home";
 import { LoginPage } from "@/routes/login";
 import { NotFoundPage } from "@/routes/not-found";
 import { PlaceholderPage, DashboardPage } from "@/routes/app-pages";
+import { WorkerAssignedIssueDetailsPage } from "@/routes/worker/issue-details";
+import { WorkerAssignedIssuesPage } from "@/routes/worker/assigned-issues";
+import { WorkerDashboardPage } from "@/routes/worker/dashboard";
 import { SignupPage } from "@/routes/signup";
 import { UnauthorizedPage } from "@/routes/unauthorized";
 
@@ -105,32 +108,9 @@ export function AppRoutes() {
             </RequireRole>
           }
         >
-          <Route
-            index
-            element={
-              <DashboardPage
-                accentNote="Officers get a triage-first workspace for verification, routing, and progress oversight."
-                description="Operational visibility for municipal officers managing civic issue flow."
-                roleCode="MUNICIPAL_OFFICER"
-                stats={[
-                  { icon: ClipboardList, label: "Total Issues", value: "124" },
-                  { icon: Bell, label: "Pending Verification", tone: "warning", value: "21" },
-                  { icon: Gauge, label: "In Progress", tone: "info", value: "18" },
-                  { icon: CheckCircle2, label: "Resolved", tone: "success", value: "85" },
-                ]}
-                title="Municipal Officer Dashboard"
-              />
-            }
-          />
-          <Route
-            path="issues"
-            element={
-              <PlaceholderPage
-                description="Queue, verify, and route civic issues with a clear operational view."
-                title="Issues"
-              />
-            }
-          />
+          <Route index element={<OfficerDashboardPage />} />
+          <Route path="issues" element={<OfficerIssuesPage />} />
+          <Route path="issues/:issueId" element={<OfficerIssueDetailsPage />} />
           <Route
             path="map"
             element={
@@ -168,31 +148,9 @@ export function AppRoutes() {
             </RequireRole>
           }
         >
-          <Route
-            index
-            element={
-              <DashboardPage
-                accentNote="Workers see the assignments that matter now, with a clean path from queue to completion."
-                description="A compact workspace for field execution and progress tracking."
-                roleCode="FIELD_WORKER"
-                stats={[
-                  { icon: ClipboardCheck, label: "Assigned Issues", value: "14" },
-                  { icon: Gauge, label: "In Progress", tone: "info", value: "9" },
-                  { icon: CheckCircle2, label: "Completed", tone: "success", value: "27" },
-                ]}
-                title="Field Worker Dashboard"
-              />
-            }
-          />
-          <Route
-            path="assigned-issues"
-            element={
-              <PlaceholderPage
-                description="Your assigned work queue will live here, ready for progress updates and evidence capture."
-                title="Assigned Issues"
-              />
-            }
-          />
+          <Route index element={<WorkerDashboardPage />} />
+          <Route path="assigned-issues" element={<WorkerAssignedIssuesPage />} />
+          <Route path="assigned-issues/:issueId" element={<WorkerAssignedIssueDetailsPage />} />
           <Route
             path="notifications"
             element={
