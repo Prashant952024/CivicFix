@@ -11,7 +11,7 @@ export function Navbar() {
           <span className="inline-flex h-9 w-9 items-center justify-center rounded-md border border-border bg-card">
             <DatabaseZap className="h-4 w-4" aria-hidden="true" />
           </span>
-          <span>ConsoleLog</span>
+          <span>CivicFix</span>
         </Link>
 
         <Button asChild size="sm" variant="outline">
