@@ -11,6 +11,7 @@ import { Link } from "react-router-dom";
 
 import { useAppSession } from "@/auth/app-session";
 import { CitizenEmptyState } from "@/components/citizen/citizen-empty-state";
+import { IssueImage } from "@/components/issues/issue-image";
 import { Button } from "@/components/ui/button";
 import {
   formatOfficerAssignmentSummary,
@@ -440,7 +441,7 @@ export function OfficerIssuesPage() {
                   <div className="grid gap-5 lg:grid-cols-[0.22fr_1fr]">
                     <div className="overflow-hidden rounded-2xl border border-border/70 bg-surface-elevated">
                       {thumb ? (
-                        <img alt={issue.title} className="h-full min-h-[10rem] w-full object-cover" src={thumb} />
+                        <IssueImage alt={issue.title} className="min-h-[10rem] rounded-none" src={thumb} variant="card" />
                       ) : (
                         <div className="flex min-h-[10rem] items-center justify-center px-4 py-6 text-center">
                           <div>

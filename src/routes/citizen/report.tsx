@@ -11,6 +11,7 @@ import {
 import { Link, useNavigate } from "react-router-dom";
 
 import { useAppSession } from "@/auth/app-session";
+import { IssueImage } from "@/components/issues/issue-image";
 import { Button } from "@/components/ui/button";
 import { citizenIssueCategories, formatCitizenIssueDate, type CitizenIssueCategory } from "@/lib/citizen-issues";
 import { supabase } from "@/lib/supabase";
@@ -297,6 +298,7 @@ function CitizenReportComposer({ profileId }: { profileId: string }) {
   const [submissionStage, setSubmissionStage] = useState<ReportStage>("idle");
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [outcome, setOutcome] = useState<SubmissionOutcome | null>(null);
+  const submissionInFlightRef = useRef(false);
   const imageInputRef = useRef<HTMLInputElement | null>(null);
 
   const previewUrl = useMemo(() => {
@@ -437,7 +439,7 @@ function CitizenReportComposer({ profileId }: { profileId: string }) {
   }
 
   async function handleSubmit() {
-    if (submissionStage !== "idle" || outcome) {
+    if (submissionStage !== "idle" || outcome || submissionInFlightRef.current) {
       return;
     }
 
@@ -462,6 +464,7 @@ function CitizenReportComposer({ profileId }: { profileId: string }) {
 
     setErrors({});
     setSubmitError(null);
+    submissionInFlightRef.current = true;
     setSubmissionStage("saving");
 
     let uploadedIssue: UploadedIssue | null = null;
@@ -591,6 +594,7 @@ function CitizenReportComposer({ profileId }: { profileId: string }) {
         console.error("[CitizenReport] submission failed", submissionError);
       }
     } finally {
+      submissionInFlightRef.current = false;
       setSubmissionStage("idle");
     }
   }
@@ -913,7 +917,14 @@ function CitizenReportComposer({ profileId }: { profileId: string }) {
 
             {previewUrl && compressedImage ? (
               <div className="mt-4 overflow-hidden rounded-2xl border border-border/70 bg-background/40">
-                <img alt="Selected issue preview" className="h-52 w-full object-cover" src={previewUrl} />
+                <IssueImage
+                  alt="Selected issue preview"
+                  className="rounded-none"
+                  emptyLabel="No preview"
+                  imageClassName="object-contain"
+                  src={previewUrl}
+                  variant="preview"
+                />
                 <div className="flex items-center justify-between gap-3 px-4 py-3 text-xs text-muted-foreground">
                   <span>{formatFileSize(compressedImage.size)}</span>
                   <span>{rawImage?.type || compressedImage.type}</span>

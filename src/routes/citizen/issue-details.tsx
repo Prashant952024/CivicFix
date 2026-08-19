@@ -15,6 +15,7 @@ import {
 import { Link, useParams } from "react-router-dom";
 
 import { useAppSession } from "@/auth/app-session";
+import { IssueImage } from "@/components/issues/issue-image";
 import { Button } from "@/components/ui/button";
 import {
   formatCitizenIssueCoordinates,
@@ -25,6 +26,7 @@ import {
   getCitizenIssueStatusLabel,
   getCitizenIssueStatusTone,
   isCitizenIssueResolvedLike,
+  pickCitizenIssueImageByType,
   pickCitizenIssueThumbnail,
   type CitizenResolutionVerificationRow,
 } from "@/lib/citizen-issues";
@@ -210,9 +212,8 @@ export function CitizenIssueDetailsPage() {
   }, [issueId, profileId, refreshNonce, sessionStatus]);
 
   const heroImage = issue ? pickCitizenIssueThumbnail(issue) : null;
-  const issueImages = issue?.issue_images ?? [];
-  const initialImage = issueImages.find((image) => image.image_type === "INITIAL_REPORT") ?? issueImages[0] ?? null;
-  const resolutionImage = issueImages.find((image) => image.image_type === "RESOLUTION_EVIDENCE") ?? null;
+  const initialImage = issue ? pickCitizenIssueImageByType(issue, "INITIAL_REPORT") : null;
+  const resolutionImage = issue ? pickCitizenIssueImageByType(issue, "RESOLUTION_EVIDENCE") : null;
   const locationText = issue ? issue.address_text?.trim() || issue.location_text?.trim() || null : null;
   const coordinates = issue ? formatCitizenIssueCoordinates(issue.latitude, issue.longitude) : null;
   const timelineItems = issue ? buildTimeline(issue) : [];
@@ -388,22 +389,9 @@ export function CitizenIssueDetailsPage() {
       </section>
 
       <section className="grid gap-4 lg:grid-cols-[1.05fr_0.95fr]">
-        <article className="space-y-4">
+        <article className="min-w-0 space-y-4">
           <section className="overflow-hidden rounded-[1.75rem] border border-border/80 bg-surface/90 shadow-lg shadow-black/20">
-            <div className="relative min-h-[18rem] border-b border-border/70 bg-surface-elevated">
-              {heroImage ? (
-                <img alt={issue.title} className="h-full w-full object-cover" src={heroImage} />
-              ) : (
-                <div className="flex min-h-[18rem] h-full items-center justify-center bg-gradient-to-br from-slate-800 via-slate-900 to-background">
-                  <div className="rounded-2xl border border-border/70 bg-background/50 px-5 py-4 text-center">
-                    <ImageIcon className="mx-auto h-5 w-5 text-primary" aria-hidden="true" />
-                    <p className="mt-2 text-xs font-semibold uppercase tracking-[0.22em] text-muted-foreground">
-                      No image attached
-                    </p>
-                  </div>
-                </div>
-              )}
-            </div>
+            <IssueImage alt={issue.title} className="border-b border-border/70" emptyLabel="No image attached" src={heroImage} variant="hero" />
 
             <div className="space-y-5 p-6">
               <div className="grid gap-4 sm:grid-cols-2">
@@ -468,7 +456,14 @@ export function CitizenIssueDetailsPage() {
                       <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">Before</p>
                     </div>
                     {initialImage ? (
-                      <img alt={`${issue.title} before`} className="h-56 w-full object-cover" src={formatCitizenIssueImageUrl(initialImage) ?? heroImage ?? ""} />
+                      <IssueImage
+                        alt={`${issue.title} before`}
+                        className="rounded-none"
+                        emptyLabel="Original image unavailable"
+                        imageClassName="object-contain"
+                        src={formatCitizenIssueImageUrl(initialImage)}
+                        variant="preview"
+                      />
                     ) : (
                       <div className="flex h-56 items-center justify-center px-4 text-center">
                         <p className="text-sm leading-6 text-muted-foreground">Original image is not available.</p>
@@ -480,7 +475,14 @@ export function CitizenIssueDetailsPage() {
                     <div className="border-b border-border/70 px-4 py-3">
                       <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">After</p>
                     </div>
-                    <img alt={`${issue.title} resolution evidence`} className="h-56 w-full object-cover" src={formatCitizenIssueImageUrl(resolutionImage) ?? ""} />
+                    <IssueImage
+                      alt={`${issue.title} resolution evidence`}
+                      className="rounded-none"
+                      emptyLabel="Resolution evidence unavailable"
+                      imageClassName="object-contain"
+                      src={formatCitizenIssueImageUrl(resolutionImage)}
+                      variant="preview"
+                    />
                   </div>
                 </div>
               ) : (
@@ -511,16 +513,16 @@ export function CitizenIssueDetailsPage() {
 
             <div className="space-y-0 p-6">
               {timelineItems.map((item, index) => (
-                <div key={item.id} className="relative pl-8">
+                <div key={item.id} className="relative min-w-0 pl-8">
                   {index < timelineItems.length - 1 ? (
                     <div className="absolute left-[0.55rem] top-8 h-full w-px bg-border/70" />
                   ) : null}
                   <div className="absolute left-0 top-2 h-4 w-4 rounded-full border border-border/70 bg-surface-elevated ring-4 ring-background" />
                   <div className="rounded-2xl border border-border/70 bg-surface-elevated p-4">
                     <div className="flex flex-wrap items-start justify-between gap-4">
-                      <div className="space-y-1">
-                        <p className="text-sm font-medium text-foreground">{item.title}</p>
-                        <p className="text-sm leading-6 text-muted-foreground">{item.description}</p>
+                      <div className="min-w-0 flex-1 space-y-1">
+                        <p className="break-words text-sm font-medium text-foreground">{item.title}</p>
+                        <p className="break-words text-sm leading-6 text-muted-foreground">{item.description}</p>
                       </div>
                       <div className="text-right">
                         <span
@@ -629,7 +631,7 @@ export function CitizenIssueDetailsPage() {
           ) : null}
         </article>
 
-        <aside className="space-y-4">
+        <aside className="min-w-0 space-y-4">
           <section className="rounded-[1.75rem] border border-border/80 bg-surface/90 p-5 shadow-lg shadow-black/20">
             <p className="text-xs font-semibold uppercase tracking-[0.24em] text-muted-foreground">Issue reference</p>
             <div className="mt-3 rounded-2xl border border-border/70 bg-surface-elevated p-4">
@@ -693,10 +695,13 @@ export function CitizenIssueDetailsPage() {
           <section className="rounded-[1.75rem] border border-border/80 bg-surface/90 p-5 shadow-lg shadow-black/20">
             <p className="text-xs font-semibold uppercase tracking-[0.24em] text-muted-foreground">Original report</p>
             {initialImage ? (
-              <img
+              <IssueImage
                 alt={`${issue.title} original report`}
-                className="mt-3 h-48 w-full rounded-2xl object-cover"
-                src={formatCitizenIssueImageUrl(initialImage) ?? heroImage ?? ""}
+                className="mt-3 rounded-2xl"
+                emptyLabel="No image attached"
+                imageClassName="object-contain"
+                src={formatCitizenIssueImageUrl(initialImage)}
+                variant="preview"
               />
             ) : (
               <div className="mt-3 flex h-48 items-center justify-center rounded-2xl border border-border/70 bg-surface-elevated">

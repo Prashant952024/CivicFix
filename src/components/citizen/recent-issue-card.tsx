@@ -1,6 +1,7 @@
-import { CalendarDays, MapPin, MoveRight, Tag } from "lucide-react";
+import { CalendarDays, MapPin, MoveRight } from "lucide-react";
 import { Link } from "react-router-dom";
 
+import { IssueImage } from "@/components/issues/issue-image";
 import { Button } from "@/components/ui/button";
 import type { Database } from "@/types/database";
 
@@ -56,19 +57,16 @@ export function RecentIssueCard({
   return (
     <article className="overflow-hidden rounded-[1.5rem] border border-border/80 bg-surface/90 shadow-sm shadow-black/10">
       <div className="grid gap-0 md:grid-cols-[160px_1fr]">
-        <div className="relative min-h-[10rem] border-b border-border/70 bg-surface-elevated md:min-h-full md:border-b-0 md:border-r">
-          {thumbnailUrl ? (
-            <img alt={issue.title} className="h-full w-full object-cover" src={thumbnailUrl} />
-          ) : (
-            <div className="flex min-h-[10rem] h-full items-center justify-center bg-gradient-to-br from-slate-800 via-slate-900 to-background">
-              <div className="rounded-2xl border border-border/70 bg-background/50 px-4 py-3 text-center">
-                <Tag className="mx-auto h-5 w-5 text-primary" aria-hidden="true" />
-                <p className="mt-2 text-xs font-semibold uppercase tracking-[0.22em] text-muted-foreground">
-                  No image
-                </p>
-              </div>
-            </div>
-          )}
+        <div className="border-b border-border/70 bg-surface-elevated md:border-b-0 md:border-r">
+          <IssueImage
+            alt={issue.title}
+            brokenLabel="Image unavailable"
+            className="min-h-[10rem] rounded-none md:h-full md:min-h-full"
+            emptyLabel="No image"
+            imageClassName="md:h-full"
+            src={thumbnailUrl}
+            variant="card"
+          />
         </div>
 
         <div className="p-5 sm:p-6">

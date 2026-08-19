@@ -4,6 +4,7 @@ import { Link } from "react-router-dom";
 
 import { useAppSession } from "@/auth/app-session";
 import { CitizenEmptyState } from "@/components/citizen/citizen-empty-state";
+import { IssueImage } from "@/components/issues/issue-image";
 import { Button } from "@/components/ui/button";
 import {
   formatWorkerIssueDateTime,
@@ -306,7 +307,7 @@ export function WorkerDashboardPage() {
                       <div className="flex gap-4">
                         <div className="h-20 w-20 shrink-0 overflow-hidden rounded-2xl border border-border/70 bg-background/30">
                           {thumbnail ? (
-                            <img alt={issue.title} className="h-full w-full object-cover" src={thumbnail} />
+                            <IssueImage alt={issue.title} className="h-full w-full rounded-none" src={thumbnail} variant="thumbnail" />
                           ) : (
                             <div className="flex h-full items-center justify-center px-2 text-center text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
                               No image

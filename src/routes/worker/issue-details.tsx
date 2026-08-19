@@ -17,6 +17,7 @@ import {
 import { Link, useParams } from "react-router-dom";
 
 import { useAppSession } from "@/auth/app-session";
+import { IssueImage } from "@/components/issues/issue-image";
 import { Button } from "@/components/ui/button";
 import {
   formatWorkerDepartmentLabel,
@@ -37,6 +38,7 @@ import {
   type WorkerIssueImageRow,
   type WorkerProfileRow,
 } from "@/lib/worker-issues";
+import { pickCitizenIssueImageByType } from "@/lib/citizen-issues";
 import { supabase } from "@/lib/supabase";
 import type { Database } from "@/types/database";
 
@@ -152,7 +154,7 @@ type WorkerResolutionDraftCacheEntry = {
 const workerResolutionDraftCache = new Map<string, WorkerResolutionDraftCacheEntry>();
 
 function isWorkerNextActionStart(status: Database["public"]["Enums"]["issue_status"]) {
-  return status === "ASSIGNED" || status === "VERIFIED" || status === "REOPENED";
+  return status === "ASSIGNED" || status === "REOPENED" || status === "REJECTED";
 }
 
 function isWorkerReadyToSubmitResolution(status: Database["public"]["Enums"]["issue_status"]) {
@@ -462,9 +464,8 @@ export function WorkerAssignedIssueDetailsPage() {
   }, [issueId, profileId, refreshNonce, sessionStatus]);
 
   const heroImage = issue ? pickWorkerIssueThumbnail(issue) : null;
-  const issueImages = issue?.issue_images ?? [];
-  const initialImage = issueImages.find((image) => image.image_type === "INITIAL_REPORT") ?? issueImages[0] ?? null;
-  const resolutionImage = issueImages.find((image) => image.image_type === "RESOLUTION_EVIDENCE") ?? null;
+  const initialImage = issue ? pickCitizenIssueImageByType(issue, "INITIAL_REPORT") : null;
+  const resolutionImage = issue ? pickCitizenIssueImageByType(issue, "RESOLUTION_EVIDENCE") : null;
   const locationText = issue ? issue.address_text?.trim() || issue.location_text?.trim() || null : null;
   const coordinates = issue ? formatWorkerIssueCoordinates(issue.latitude, issue.longitude) : null;
   const timelineItems = issue ? buildTimeline(issue) : [];
@@ -501,8 +502,9 @@ export function WorkerAssignedIssueDetailsPage() {
       })();
 
   const canStartWork = issue ? isWorkerNextActionStart(issue.status) : false;
-  const canSubmitResolution = issue ? isWorkerReadyToSubmitResolution(issue.status) && !resolutionImage : false;
-  const hasResolutionImage = Boolean(resolutionImage);
+  const canSubmitResolution = issue ? isWorkerReadyToSubmitResolution(issue.status) : false;
+  const issueIsFinal = issue ? issue.status === "RESOLVED" || issue.status === "CITIZEN_VERIFIED" : false;
+  const startWorkButtonLabel = issue?.status === "REJECTED" ? "Resume Work" : "Start Work";
 
   function clearResolutionDraft() {
     setCompressedResolutionImage(null);
@@ -570,6 +572,11 @@ export function WorkerAssignedIssueDetailsPage() {
 
   async function handleStartWork() {
     if (!issue || !profileId || actionState !== "idle") {
+      return;
+    }
+
+    if (!canStartWork) {
+      setActionError("This issue is not ready to start from its current status.");
       return;
     }
 
@@ -783,22 +790,9 @@ export function WorkerAssignedIssueDetailsPage() {
       </section>
 
       <section className="grid gap-4 lg:grid-cols-[1.05fr_0.95fr]">
-        <article className="space-y-4">
+        <article className="min-w-0 space-y-4">
           <section className="overflow-hidden rounded-[1.75rem] border border-border/80 bg-surface/90 shadow-lg shadow-black/20">
-            <div className="relative min-h-[18rem] border-b border-border/70 bg-surface-elevated">
-              {heroImage ? (
-                <img alt={issue.title} className="h-full w-full object-cover" src={heroImage} />
-              ) : (
-                <div className="flex min-h-[18rem] h-full items-center justify-center bg-gradient-to-br from-slate-800 via-slate-900 to-background">
-                  <div className="rounded-2xl border border-border/70 bg-background/50 px-5 py-4 text-center">
-                    <ImageIcon className="mx-auto h-5 w-5 text-primary" aria-hidden="true" />
-                    <p className="mt-2 text-xs font-semibold uppercase tracking-[0.22em] text-muted-foreground">
-                      No image attached
-                    </p>
-                  </div>
-                </div>
-              )}
-            </div>
+            <IssueImage alt={issue.title} className="border-b border-border/70" emptyLabel="No image attached" src={heroImage} variant="hero" />
 
             <div className="space-y-5 p-6">
               <div className="grid gap-4 sm:grid-cols-2">
@@ -813,7 +807,7 @@ export function WorkerAssignedIssueDetailsPage() {
               </div>
 
               <div className="grid gap-4 sm:grid-cols-2">
-              <div className="rounded-2xl border border-border/70 bg-surface-elevated p-4 sm:col-span-2">
+                <div className="rounded-2xl border border-border/70 bg-surface-elevated p-4 sm:col-span-2">
                   <div className="flex items-start gap-3">
                     <BadgeCheck className="mt-0.5 h-4 w-4 text-primary" aria-hidden="true" />
                     <div>
@@ -821,7 +815,7 @@ export function WorkerAssignedIssueDetailsPage() {
                       <div className="mt-3 grid gap-3 sm:grid-cols-2">
                         <div className="rounded-2xl border border-border/70 bg-background/30 p-3">
                           <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">Department</p>
-                          <p className="mt-2 text-sm font-medium text-foreground">{formatWorkerDepartmentLabel(currentDepartment)}</p>
+                          <p className="break-words mt-2 text-sm font-medium text-foreground">{formatWorkerDepartmentLabel(currentDepartment)}</p>
                         </div>
                         <div className="rounded-2xl border border-border/70 bg-background/30 p-3">
                           <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">Assigned date</p>
@@ -829,11 +823,11 @@ export function WorkerAssignedIssueDetailsPage() {
                         </div>
                         <div className="rounded-2xl border border-border/70 bg-background/30 p-3">
                           <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">Assigned by</p>
-                          <p className="mt-2 text-sm font-medium text-foreground">{formatWorkerProfileLabel(assignedBy)}</p>
+                          <p className="break-words mt-2 text-sm font-medium text-foreground">{formatWorkerProfileLabel(assignedBy)}</p>
                         </div>
                         <div className="rounded-2xl border border-border/70 bg-background/30 p-3">
                           <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">Current worker</p>
-                          <p className="mt-2 text-sm font-medium text-foreground">
+                          <p className="break-words mt-2 text-sm font-medium text-foreground">
                             {currentWorker ? formatWorkerProfileLabel(currentWorker) : "Current worker assignment unavailable."}
                           </p>
                         </div>
@@ -889,7 +883,14 @@ export function WorkerAssignedIssueDetailsPage() {
                   <div className="border-b border-border/70 px-4 py-3">
                     <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">Citizen image</p>
                   </div>
-                  <img alt={`${issue.title} report image`} className="h-64 w-full object-cover" src={formatWorkerIssueImageUrl(initialImage) ?? heroImage ?? ""} />
+                  <IssueImage
+                    alt={`${issue.title} report image`}
+                    className="rounded-none"
+                    emptyLabel="Original image unavailable"
+                    imageClassName="object-contain"
+                    src={formatWorkerIssueImageUrl(initialImage)}
+                    variant="preview"
+                  />
                 </div>
               ) : (
                 <div className="flex h-64 items-center justify-center rounded-2xl border border-border/70 bg-surface-elevated">
@@ -905,10 +906,10 @@ export function WorkerAssignedIssueDetailsPage() {
                 <div className="mt-4 grid gap-3">
                   {timelineItems.map((item) => (
                     <div key={item.id} className="rounded-2xl border border-border/70 bg-background/30 p-4">
-                      <div className="flex items-start justify-between gap-4">
-                        <div>
-                          <p className="text-sm font-medium text-foreground">{item.title}</p>
-                          <p className="mt-2 text-sm leading-6 text-muted-foreground">{item.description}</p>
+                      <div className="flex flex-wrap items-start justify-between gap-4">
+                        <div className="min-w-0 flex-1">
+                          <p className="break-words text-sm font-medium text-foreground">{item.title}</p>
+                          <p className="mt-2 break-words text-sm leading-6 text-muted-foreground">{item.description}</p>
                         </div>
                         <div className="text-right">
                           <span className={`inline-flex items-center rounded-full border px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] ring-1 ${badgeToneClasses(item.tone)}`}>
@@ -929,7 +930,14 @@ export function WorkerAssignedIssueDetailsPage() {
                   <div className="border-b border-border/70 px-4 py-3">
                     <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">Resolution evidence</p>
                   </div>
-                  <img alt={`${issue.title} resolution evidence`} className="h-56 w-full object-cover" src={formatWorkerIssueImageUrl(resolutionImage) ?? ""} />
+                  <IssueImage
+                    alt={`${issue.title} resolution evidence`}
+                    className="rounded-none"
+                    emptyLabel="Resolution evidence unavailable"
+                    imageClassName="object-contain"
+                    src={formatWorkerIssueImageUrl(resolutionImage)}
+                    variant="preview"
+                  />
                 </div>
               </div>
             ) : null}
@@ -978,7 +986,7 @@ export function WorkerAssignedIssueDetailsPage() {
           </section>
         </article>
 
-        <aside className="space-y-4">
+        <aside className="min-w-0 space-y-4">
           <section className="overflow-hidden rounded-[1.75rem] border border-border/80 bg-surface/90 shadow-lg shadow-black/20">
             <div className="border-b border-border/70 px-6 py-5">
               <div className="flex items-center gap-3">
@@ -1001,10 +1009,28 @@ export function WorkerAssignedIssueDetailsPage() {
               </div>
 
               <div className="flex flex-col gap-3">
-                <Button disabled={actionState !== "idle" || !canStartWork} onClick={() => void handleStartWork()} type="button">
-                  {actionState === "starting" ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : <ThumbsUp className="h-4 w-4" aria-hidden="true" />}
-                  Start Work
-                </Button>
+                {canStartWork ? (
+                  <Button disabled={actionState !== "idle"} onClick={() => void handleStartWork()} type="button">
+                    {actionState === "starting" ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : <ThumbsUp className="h-4 w-4" aria-hidden="true" />}
+                    {startWorkButtonLabel}
+                  </Button>
+                ) : (
+                  <div className="rounded-2xl border border-border/70 bg-background/30 p-4">
+                    <p className="text-sm font-medium text-foreground">
+                      {issue.status === "IN_PROGRESS"
+                        ? "Work in progress"
+                        : issue.status === "UNDER_REVIEW"
+                          ? "Awaiting Officer Review"
+                          : issue.status === "ASSIGNED"
+                            ? "Ready to start work"
+                            : issue.status === "REJECTED"
+                              ? "Work was rejected and can now be resumed"
+                              : issueIsFinal
+                                ? "Resolved"
+                                : "This issue is not ready for a worker action yet."}
+                    </p>
+                  </div>
+                )}
               </div>
 
               <div className="rounded-2xl border border-border/70 bg-surface-elevated p-4">
@@ -1047,59 +1073,82 @@ export function WorkerAssignedIssueDetailsPage() {
                 />
               </label>
 
-              <div className="space-y-3">
-                <label className="flex cursor-pointer flex-col gap-3 rounded-2xl border border-dashed border-border/80 bg-background/30 p-4 transition hover:border-primary/50 hover:bg-background/40">
-                  <span className="flex items-center gap-2 text-sm font-medium text-foreground">
-                    <UploadCloud className="h-4 w-4 text-primary" aria-hidden="true" />
-                    Upload Resolution Evidence
-                  </span>
-                  <span className="text-sm leading-6 text-muted-foreground">
-                    Choose a photo showing the completed field work.
-                  </span>
-                  <input
-                    accept="image/*"
-                    className="hidden"
-                    disabled={imageProcessing}
-                    onChange={(event) => void handleResolutionImageChange(event)}
-                    ref={imageInputRef}
-                    type="file"
-                  />
-                </label>
+              {issue.status === "IN_PROGRESS" ? (
+                <div className="space-y-3">
+                  <label className="flex cursor-pointer flex-col gap-3 rounded-2xl border border-dashed border-border/80 bg-background/30 p-4 transition hover:border-primary/50 hover:bg-background/40">
+                    <span className="flex items-center gap-2 text-sm font-medium text-foreground">
+                      <UploadCloud className="h-4 w-4 text-primary" aria-hidden="true" />
+                      Upload Resolution Evidence
+                    </span>
+                    <span className="text-sm leading-6 text-muted-foreground">
+                      Choose a photo showing the completed field work.
+                    </span>
+                    <input
+                      accept="image/*"
+                      className="hidden"
+                      disabled={imageProcessing}
+                      onChange={(event) => void handleResolutionImageChange(event)}
+                      ref={imageInputRef}
+                      type="file"
+                    />
+                  </label>
 
-                {resolutionPreviewUrl ? (
-                  <div className="overflow-hidden rounded-2xl border border-border/70 bg-surface-elevated">
-                    <div className="border-b border-border/70 px-4 py-3">
-                      <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">Selected preview</p>
-                    </div>
-                    <img alt="Selected resolution evidence preview" className="h-56 w-full object-cover" src={resolutionPreviewUrl} />
-                  </div>
-                ) : null}
-
-                {compressedResolutionImage ? (
-                  <div className="rounded-2xl border border-border/70 bg-surface-elevated p-4">
-                    <div className="flex items-center justify-between gap-3">
-                      <div>
-                        <p className="text-sm font-medium text-foreground">{compressedResolutionImage.name}</p>
-                        <p className="mt-1 text-xs uppercase tracking-[0.18em] text-muted-foreground">
-                          {compressedResolutionImage.type} · {Math.round(compressedResolutionImage.size / 1024)} KB
-                        </p>
+                  {resolutionPreviewUrl ? (
+                    <div className="overflow-hidden rounded-2xl border border-border/70 bg-surface-elevated">
+                      <div className="border-b border-border/70 px-4 py-3">
+                        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">Selected preview</p>
                       </div>
-                      <Button onClick={removeResolutionImage} size="sm" variant="outline" type="button">
-                        <X className="h-4 w-4" aria-hidden="true" />
-                        Remove Image
-                      </Button>
+                      <IssueImage
+                        alt="Selected resolution evidence preview"
+                        className="rounded-none"
+                        emptyLabel="No preview selected"
+                        imageClassName="object-contain"
+                        src={resolutionPreviewUrl}
+                        variant="preview"
+                      />
                     </div>
-                  </div>
-                ) : (
-                  <div className="rounded-2xl border border-dashed border-border/70 bg-background/30 p-4 text-sm leading-6 text-muted-foreground">
-                    Before you submit, choose the finished-work image you want to send to the officer.
-                  </div>
-                )}
-              </div>
+                  ) : null}
 
-              {compressedResolutionImage ? (
+                  {compressedResolutionImage ? (
+                    <div className="rounded-2xl border border-border/70 bg-surface-elevated p-4">
+                      <div className="flex items-center justify-between gap-3">
+                        <div>
+                          <p className="text-sm font-medium text-foreground">{compressedResolutionImage.name}</p>
+                          <p className="mt-1 text-xs uppercase tracking-[0.18em] text-muted-foreground">
+                            {compressedResolutionImage.type} · {Math.round(compressedResolutionImage.size / 1024)} KB
+                          </p>
+                        </div>
+                        <Button onClick={removeResolutionImage} size="sm" variant="outline" type="button">
+                          <X className="h-4 w-4" aria-hidden="true" />
+                          Remove Image
+                        </Button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="rounded-2xl border border-dashed border-border/70 bg-background/30 p-4 text-sm leading-6 text-muted-foreground">
+                      Before you submit, choose the finished-work image you want to send to the officer.
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="rounded-2xl border border-border/70 bg-background/30 p-4">
+                  <p className="text-sm font-medium text-foreground">
+                    {resolutionImage
+                      ? issue.status === "UNDER_REVIEW"
+                        ? "Resolution evidence has already been submitted and is waiting for officer review."
+                        : issue.status === "REJECTED"
+                          ? "The officer rejected the previous submission. Resume work to submit updated evidence."
+                          : issueIsFinal
+                            ? "This issue is already complete."
+                            : "Resolution evidence is not available to upload from this state."
+                      : "Resolution evidence upload is only available after the task is in progress."}
+                  </p>
+                </div>
+              )}
+
+              {compressedResolutionImage && issue.status === "IN_PROGRESS" ? (
                 <Button
-                  disabled={actionState !== "idle" || !canSubmitResolution || imageProcessing || hasResolutionImage}
+                  disabled={actionState !== "idle" || !canSubmitResolution || imageProcessing}
                   onClick={() => void handleSubmitResolution()}
                   type="button"
                 >
@@ -1115,17 +1164,23 @@ export function WorkerAssignedIssueDetailsPage() {
               <div className="rounded-2xl border border-border/70 bg-surface-elevated p-4">
                 <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">Current resolution state</p>
                 <p className="mt-2 text-sm leading-6 text-muted-foreground">
-                  {canStartWork
+                  {issue.status === "ASSIGNED"
                     ? "This task is ready to begin."
-                    : canSubmitResolution
-                      ? "Once the work is complete, submit the evidence for officer review."
+                    : issue.status === "IN_PROGRESS"
+                      ? "Work is in progress. Upload the completed evidence when finished."
                       : issue.status === "UNDER_REVIEW"
                         ? "Resolution evidence has been submitted and is waiting for officer approval."
-                        : hasResolutionImage
-                          ? "Resolution evidence already exists for this issue."
-                          : "This issue is already complete or not ready for a worker action."}
+                        : issue.status === "REJECTED"
+                          ? "The officer rejected the previous submission. Resume work and submit updated evidence."
+                          : issueIsFinal
+                            ? "This issue is already complete."
+                            : "This issue is not ready for a worker action."}
                 </p>
-                {hasResolutionImage ? <p className="mt-2 text-sm font-medium text-emerald-300">Resolution evidence already exists for this issue.</p> : null}
+                {resolutionImage ? (
+                  <p className="mt-2 text-sm font-medium text-emerald-300">
+                    Latest resolution evidence submitted {formatWorkerIssueDateTime(resolutionImage.created_at)}.
+                  </p>
+                ) : null}
               </div>
             </div>
           </section>

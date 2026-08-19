@@ -19,6 +19,7 @@ import {
 import { Link, useParams } from "react-router-dom";
 
 import { useAppSession } from "@/auth/app-session";
+import { IssueImage } from "@/components/issues/issue-image";
 import { Button } from "@/components/ui/button";
 import {
   formatOfficerAssignmentSummary,
@@ -43,6 +44,7 @@ import {
   type OfficerIssuePriority,
   type OfficerProfileRow,
 } from "@/lib/officer-issues";
+import { pickCitizenIssueImageByType } from "@/lib/citizen-issues";
 import { supabase } from "@/lib/supabase";
 import type { Database } from "@/types/database";
 
@@ -152,12 +154,15 @@ export function OfficerIssueDetailsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [refreshNonce, setRefreshNonce] = useState(0);
-  const [actionState, setActionState] = useState<"idle" | "verifying" | "rejecting" | "savingPriority" | "savingRouting" | "approvingResolution">("idle");
+  const [actionState, setActionState] = useState<
+    "idle" | "verifying" | "rejecting" | "savingPriority" | "savingRouting" | "approvingResolution" | "rejectingResolution"
+  >("idle");
   const [actionError, setActionError] = useState<string | null>(null);
   const [actionMessage, setActionMessage] = useState<string | null>(null);
   const [priorityDraft, setPriorityDraft] = useState<OfficerIssuePriority>("LOW");
   const [departmentDraft, setDepartmentDraft] = useState("");
   const [workerDraft, setWorkerDraft] = useState("");
+  const [resolutionDecisionNote, setResolutionDecisionNote] = useState("");
   const profileId = profile?.id;
   const sessionProblem = sessionStatus === "error" ? sessionError ?? "CivicFix profile is unavailable." : null;
 
@@ -301,9 +306,8 @@ export function OfficerIssueDetailsPage() {
   }, [issueId, profileId, refreshNonce, sessionStatus]);
 
   const heroImage = issue ? pickOfficerIssueThumbnail(issue) : null;
-  const issueImages = issue?.issue_images ?? [];
-  const initialImage = issueImages.find((image) => image.image_type === "INITIAL_REPORT") ?? issueImages[0] ?? null;
-  const resolutionImage = issueImages.find((image) => image.image_type === "RESOLUTION_EVIDENCE") ?? null;
+  const initialImage = issue ? pickCitizenIssueImageByType(issue, "INITIAL_REPORT") : null;
+  const resolutionImage = issue ? pickCitizenIssueImageByType(issue, "RESOLUTION_EVIDENCE") : null;
   const locationText = issue ? issue.address_text?.trim() || issue.location_text?.trim() || null : null;
   const coordinates = issue ? formatOfficerIssueCoordinates(issue.latitude, issue.longitude) : null;
   const timelineItems = issue ? buildTimeline(issue) : [];
@@ -328,17 +332,29 @@ export function OfficerIssueDetailsPage() {
   const selectedDepartment = departments.find((department) => department.id === departmentDraft) ?? null;
   const aiConfidence = confidencePercent(aiAnalysis?.confidence_score);
   const hasWorkerRoster = workerOptions.length > 0;
+  const issueIsClosed = issue ? issue.status === "RESOLVED" || issue.status === "CITIZEN_VERIFIED" : false;
+  const canVerifyComplaint = issue ? issue.status === "SUBMITTED" || issue.status === "AI_ANALYZED" : false;
+  const canAssignIssue = issue ? issue.status === "VERIFIED" || issue.status === "REOPENED" : false;
+  const canReviewResolution = issue ? issue.status === "UNDER_REVIEW" : false;
+  const canSavePriority = issue ? !issueIsClosed && priorityDraft !== issue.priority : false;
+  const canSaveRouting = issue ? !issueIsClosed : false;
 
   function refreshIssue(message?: string) {
     if (message) {
       setActionMessage(message);
     }
     setActionState("idle");
+    setResolutionDecisionNote("");
     setRefreshNonce((value) => value + 1);
   }
 
   async function handleStatusDecision(nextStatus: "VERIFIED" | "REJECTED") {
     if (!issue || !profileId || actionState !== "idle") {
+      return;
+    }
+
+    if (!canVerifyComplaint) {
+      setActionError("This issue can no longer be verified or rejected from its current status.");
       return;
     }
 
@@ -378,6 +394,11 @@ export function OfficerIssueDetailsPage() {
       return;
     }
 
+    if (issueIsClosed) {
+      setActionError("Resolved issues are read-only.");
+      return;
+    }
+
     setActionError(null);
     setActionMessage(null);
     setActionState("savingPriority");
@@ -405,6 +426,16 @@ export function OfficerIssueDetailsPage() {
 
   async function handleRoutingSave() {
     if (!issue || !profileId || actionState !== "idle") {
+      return;
+    }
+
+    if (issueIsClosed) {
+      setActionError("Resolved issues are read-only.");
+      return;
+    }
+
+    if (workerDraft && !canAssignIssue) {
+      setActionError("This issue can only be assigned after it has been verified or reopened.");
       return;
     }
 
@@ -483,7 +514,12 @@ export function OfficerIssueDetailsPage() {
   }
 
   async function handleApproveResolution() {
-    if (!issue || !profileId || actionState !== "idle" || !resolutionImage || issue.status === "RESOLVED") {
+    if (!issue || !profileId || actionState !== "idle" || !resolutionImage) {
+      return;
+    }
+
+    if (!canReviewResolution) {
+      setActionError("This resolution can only be approved while the issue is under review.");
       return;
     }
 
@@ -512,7 +548,47 @@ export function OfficerIssueDetailsPage() {
       return;
     }
 
+    setResolutionDecisionNote("");
     refreshIssue("Resolution evidence approved. The issue is now resolved.");
+  }
+
+  async function handleRejectResolution() {
+    if (!issue || !profileId || actionState !== "idle" || !resolutionImage) {
+      return;
+    }
+
+    if (!canReviewResolution) {
+      setActionError("This resolution can only be rejected while the issue is under review.");
+      return;
+    }
+
+    setActionError(null);
+    setActionMessage(null);
+    setActionState("rejectingResolution");
+
+    const { error: insertError } = await supabase.from("issue_status_history").insert({
+      issue_id: issue.id,
+      old_status: issue.status,
+      new_status: "REJECTED",
+      changed_by_profile_id: profileId,
+      notes: resolutionDecisionNote.trim() || "Municipal officer rejected the submitted resolution evidence.",
+    });
+
+    if (insertError) {
+      if (import.meta.env.DEV) {
+        console.error("Officer reject resolution insert failed", insertError);
+      }
+      setActionError(
+        import.meta.env.DEV
+          ? `Failed to reject resolution: ${insertError.message}${insertError.code ? ` (${insertError.code})` : ""}`
+          : "We could not reject the resolution right now. Please try again.",
+      );
+      setActionState("idle");
+      return;
+    }
+
+    setResolutionDecisionNote("");
+    refreshIssue("Resolution evidence rejected. The worker can continue the correction workflow.");
   }
 
   if (sessionProblem || error) {
@@ -610,22 +686,9 @@ export function OfficerIssueDetailsPage() {
       </section>
 
       <section className="grid gap-4 lg:grid-cols-[1.05fr_0.95fr]">
-        <article className="space-y-4">
+        <article className="min-w-0 space-y-4">
           <section className="overflow-hidden rounded-[1.75rem] border border-border/80 bg-surface/90 shadow-lg shadow-black/20">
-            <div className="relative min-h-[18rem] border-b border-border/70 bg-surface-elevated">
-              {heroImage ? (
-                <img alt={issue.title} className="h-full w-full object-cover" src={heroImage} />
-              ) : (
-                <div className="flex min-h-[18rem] h-full items-center justify-center bg-gradient-to-br from-slate-800 via-slate-900 to-background">
-                  <div className="rounded-2xl border border-border/70 bg-background/50 px-5 py-4 text-center">
-                    <ImageIcon className="mx-auto h-5 w-5 text-primary" aria-hidden="true" />
-                    <p className="mt-2 text-xs font-semibold uppercase tracking-[0.22em] text-muted-foreground">
-                      No image attached
-                    </p>
-                  </div>
-                </div>
-              )}
-            </div>
+            <IssueImage alt={issue.title} className="border-b border-border/70" emptyLabel="No image attached" src={heroImage} variant="hero" />
 
             <div className="space-y-5 p-6">
               <div className="grid gap-4 sm:grid-cols-2">
@@ -700,7 +763,14 @@ export function OfficerIssueDetailsPage() {
                   <div className="border-b border-border/70 px-4 py-3">
                     <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">Citizen image</p>
                   </div>
-                  <img alt={`${issue.title} report image`} className="h-64 w-full object-cover" src={formatOfficerIssueImageUrl(initialImage) ?? heroImage ?? ""} />
+                  <IssueImage
+                    alt={`${issue.title} report image`}
+                    className="rounded-none"
+                    emptyLabel="Original image unavailable"
+                    imageClassName="object-contain"
+                    src={formatOfficerIssueImageUrl(initialImage)}
+                    variant="preview"
+                  />
                 </div>
               ) : (
                 <div className="flex h-64 items-center justify-center rounded-2xl border border-border/70 bg-surface-elevated">
@@ -741,10 +811,13 @@ export function OfficerIssueDetailsPage() {
                     <div className="border-b border-border/70 px-4 py-3">
                       <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">Resolution evidence</p>
                     </div>
-                    <img
+                    <IssueImage
                       alt={`${issue.title} resolution evidence`}
-                      className="h-72 w-full object-cover"
-                      src={formatOfficerIssueImageUrl(resolutionImage) ?? ""}
+                      className="rounded-none"
+                      emptyLabel="Resolution evidence unavailable"
+                      imageClassName="object-contain"
+                      src={formatOfficerIssueImageUrl(resolutionImage)}
+                      variant="preview"
                     />
                   </div>
 
@@ -762,22 +835,50 @@ export function OfficerIssueDetailsPage() {
                     <div className="rounded-2xl border border-border/70 bg-background/30 p-4">
                       <p className="text-sm font-medium text-foreground">Current issue status: {statusLabel}</p>
                       <p className="mt-2 text-sm leading-6 text-muted-foreground">
-                        Review the submitted evidence and approve it when the field work is complete.
+                        Review the submitted evidence and choose whether to approve it or send it back for correction.
                       </p>
                     </div>
 
-                    <Button
-                      disabled={actionState !== "idle" || issue.status === "RESOLVED"}
-                      onClick={() => void handleApproveResolution()}
-                      type="button"
-                    >
-                      {actionState === "approvingResolution" ? (
-                        <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
-                      ) : (
-                        <BadgeCheck className="h-4 w-4" aria-hidden="true" />
-                      )}
-                      Approve Resolution
-                    </Button>
+                    {canReviewResolution ? (
+                      <div className="space-y-3">
+                        <label className="space-y-2">
+                          <span className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">Rejection reason</span>
+                          <textarea
+                            className="min-h-24 w-full rounded-2xl border border-border/80 bg-background/50 px-4 py-3 text-sm text-foreground outline-none transition placeholder:text-muted-foreground focus:border-primary/50 focus:ring-2 focus:ring-primary/20"
+                            onChange={(event) => setResolutionDecisionNote(event.target.value)}
+                            placeholder="Explain what needs to be corrected before the worker resubmits."
+                            value={resolutionDecisionNote}
+                          />
+                        </label>
+
+                        <div className="flex flex-col gap-3 sm:flex-row">
+                          <Button disabled={actionState !== "idle"} onClick={() => void handleApproveResolution()} type="button">
+                            {actionState === "approvingResolution" ? (
+                              <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+                            ) : (
+                              <BadgeCheck className="h-4 w-4" aria-hidden="true" />
+                            )}
+                            Approve Resolution
+                          </Button>
+                          <Button disabled={actionState !== "idle"} onClick={() => void handleRejectResolution()} type="button" variant="outline">
+                            {actionState === "rejectingResolution" ? (
+                              <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+                            ) : (
+                              <ThumbsDown className="h-4 w-4" aria-hidden="true" />
+                            )}
+                            Reject Resolution
+                          </Button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="rounded-2xl border border-border/70 bg-background/30 p-4">
+                        <p className="text-sm font-medium text-foreground">
+                          {issue.status === "RESOLVED" || issue.status === "CITIZEN_VERIFIED"
+                            ? "Resolution already processed."
+                            : "Resolution review actions are not available right now."}
+                        </p>
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
@@ -799,14 +900,14 @@ export function OfficerIssueDetailsPage() {
 
             <div className="space-y-0 p-6">
               {timelineItems.map((item, index) => (
-                <div key={item.id} className="relative pl-8">
+                <div key={item.id} className="relative min-w-0 pl-8">
                   {index < timelineItems.length - 1 ? <div className="absolute left-[0.55rem] top-8 h-full w-px bg-border/70" /> : null}
                   <div className="absolute left-0 top-2 h-4 w-4 rounded-full border border-border/70 bg-surface-elevated ring-4 ring-background" />
                   <div className="rounded-2xl border border-border/70 bg-surface-elevated p-4">
                     <div className="flex flex-wrap items-start justify-between gap-4">
-                      <div className="space-y-1">
-                        <p className="text-sm font-medium text-foreground">{item.title}</p>
-                        <p className="text-sm leading-6 text-muted-foreground">{item.description}</p>
+                      <div className="min-w-0 flex-1 space-y-1">
+                        <p className="break-words text-sm font-medium text-foreground">{item.title}</p>
+                        <p className="break-words text-sm leading-6 text-muted-foreground">{item.description}</p>
                       </div>
                       <div className="text-right">
                         <span className={`inline-flex items-center rounded-full border px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] ring-1 ${badgeToneClasses(item.tone)}`}>
@@ -870,7 +971,7 @@ export function OfficerIssueDetailsPage() {
           </section>
         </article>
 
-        <aside className="space-y-4">
+        <aside className="min-w-0 space-y-4">
           <section className="overflow-hidden rounded-[1.75rem] border border-border/80 bg-surface/90 shadow-lg shadow-black/20">
             <div className="border-b border-border/70 px-6 py-5">
               <div className="flex items-center gap-3">
@@ -888,20 +989,46 @@ export function OfficerIssueDetailsPage() {
               <div className="rounded-2xl border border-border/70 bg-surface-elevated p-4">
                 <p className="text-sm font-medium text-foreground">Current status: {statusLabel}</p>
                 <p className="mt-2 text-sm leading-6 text-muted-foreground">
-                  Changing the status writes a new history entry and keeps the existing Supabase RLS boundary intact.
+                  {canVerifyComplaint
+                    ? "Verify or reject the complaint to move it into routing."
+                    : issue.status === "VERIFIED"
+                      ? "Already Verified"
+                      : issue.status === "ASSIGNED"
+                        ? "Assigned and awaiting worker progress"
+                        : issue.status === "IN_PROGRESS"
+                          ? "Work in progress"
+                          : issue.status === "UNDER_REVIEW"
+                            ? "Awaiting Officer Review"
+                            : issue.status === "REJECTED"
+                              ? "Rejected and awaiting worker correction"
+                              : issueIsClosed
+                                ? "Resolved"
+                                : "This issue is outside the verification stage."}
                 </p>
               </div>
 
-              <div className="flex flex-col gap-3 sm:flex-row lg:flex-col">
-                <Button disabled={actionState !== "idle"} onClick={() => void handleStatusDecision("VERIFIED")} type="button">
-                  {actionState === "verifying" ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : <ThumbsUp className="h-4 w-4" aria-hidden="true" />}
-                  Verify Complaint
-                </Button>
-                <Button disabled={actionState !== "idle"} onClick={() => void handleStatusDecision("REJECTED")} type="button" variant="outline">
-                  {actionState === "rejecting" ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : <ThumbsDown className="h-4 w-4" aria-hidden="true" />}
-                  Reject Complaint
-                </Button>
-              </div>
+              {canVerifyComplaint ? (
+                <div className="flex flex-col gap-3 sm:flex-row lg:flex-col">
+                  <Button disabled={actionState !== "idle"} onClick={() => void handleStatusDecision("VERIFIED")} type="button">
+                    {actionState === "verifying" ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : <ThumbsUp className="h-4 w-4" aria-hidden="true" />}
+                    Verify Complaint
+                  </Button>
+                  <Button disabled={actionState !== "idle"} onClick={() => void handleStatusDecision("REJECTED")} type="button" variant="outline">
+                    {actionState === "rejecting" ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : <ThumbsDown className="h-4 w-4" aria-hidden="true" />}
+                    Reject Complaint
+                  </Button>
+                </div>
+              ) : (
+                <div className="rounded-2xl border border-border/70 bg-background/30 p-4">
+                  <p className="text-sm font-medium text-foreground">
+                    {issue.status === "VERIFIED"
+                      ? "Already Verified"
+                      : issueIsClosed
+                        ? "Resolved"
+                        : "Verification actions are no longer available."}
+                  </p>
+                </div>
+              )}
 
               <div className="rounded-2xl border border-border/70 bg-surface-elevated p-4">
                 <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">What happens next</p>
@@ -948,7 +1075,7 @@ export function OfficerIssueDetailsPage() {
                 </p>
               </div>
 
-              <Button disabled={actionState !== "idle" || priorityDraft === issue.priority} onClick={() => void handlePrioritySave()} type="button">
+              <Button disabled={actionState !== "idle" || !canSavePriority} onClick={() => void handlePrioritySave()} type="button">
                 {actionState === "savingPriority" ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : <Save className="h-4 w-4" aria-hidden="true" />}
                 Save Priority
               </Button>
@@ -1012,7 +1139,7 @@ export function OfficerIssueDetailsPage() {
                 </p>
               </div>
 
-              <Button disabled={actionState !== "idle"} onClick={() => void handleRoutingSave()} type="button" variant="outline">
+              <Button disabled={actionState !== "idle" || !canSaveRouting || (workerDraft !== "" && !canAssignIssue)} onClick={() => void handleRoutingSave()} type="button" variant="outline">
                 {actionState === "savingRouting" ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : <UserCog className="h-4 w-4" aria-hidden="true" />}
                 Save Routing
               </Button>

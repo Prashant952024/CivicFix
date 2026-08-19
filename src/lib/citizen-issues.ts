@@ -176,6 +176,31 @@ export function formatCitizenIssueImageUrl(image: CitizenIssueImageRow | null | 
   return data.publicUrl || null;
 }
 
+export function sortCitizenIssueImagesByCreatedAtDesc<T extends CitizenIssueImageRow>(images: T[]) {
+  return [...images].sort((a, b) => {
+    const createdAtDelta = new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+    if (createdAtDelta !== 0) {
+      return createdAtDelta;
+    }
+
+    return b.id.localeCompare(a.id);
+  });
+}
+
+export function pickCitizenIssueImageByTypeLatest<
+  T extends {
+    issue_images?: CitizenIssueImageRow[] | null;
+  },
+>(issue: T, imageType: CitizenIssueImageRow["image_type"]) {
+  const images = issue.issue_images ?? [];
+  return sortCitizenIssueImagesByCreatedAtDesc(images).find((image) => image.image_type === imageType) ?? null;
+}
+
+export function pickCitizenIssueLatestImage<T extends { issue_images?: CitizenIssueImageRow[] | null }>(issue: T) {
+  const images = issue.issue_images ?? [];
+  return sortCitizenIssueImagesByCreatedAtDesc(images)[0] ?? null;
+}
+
 export function pickCitizenIssueThumbnail(issue: {
   issue_images?: CitizenIssueImageRow[] | null;
 }) {
@@ -183,10 +208,19 @@ export function pickCitizenIssueThumbnail(issue: {
   if (images.length === 0) return null;
 
   const preferred =
-    images.find((image) => image.image_type === "INITIAL_REPORT") ??
-    [...images].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())[0];
+    pickCitizenIssueImageByTypeLatest(issue, "INITIAL_REPORT") ??
+    pickCitizenIssueLatestImage(issue);
 
   return formatCitizenIssueImageUrl(preferred);
+}
+
+export function pickCitizenIssueImageByType(
+  issue: {
+    issue_images?: CitizenIssueImageRow[] | null;
+  },
+  imageType: CitizenIssueImageRow["image_type"],
+) {
+  return pickCitizenIssueImageByTypeLatest(issue, imageType);
 }
 
 export function isCitizenIssueResolvedLike(status: CitizenIssueStatus) {
