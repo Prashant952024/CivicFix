@@ -1,11 +1,21 @@
-import { useEffect, useMemo, useState } from "react";
-import { AlertCircle, Filter, Search, SlidersHorizontal, SquareArrowOutUpRight, X } from "lucide-react";
+import { useEffect, useMemo, useState, type ComponentType } from "react";
+import {
+  AlertCircle,
+  ArrowRight,
+  Filter,
+  MapPin,
+  Search,
+  SlidersHorizontal,
+  SquareArrowOutUpRight,
+  X,
+} from "lucide-react";
 import { Link } from "react-router-dom";
 
 import { useAppSession } from "@/auth/app-session";
 import { CitizenEmptyState } from "@/components/citizen/citizen-empty-state";
 import { IssueImage } from "@/components/issues/issue-image";
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import {
   formatWorkerIssueCoordinates,
   formatWorkerIssueDateTime,
@@ -68,6 +78,36 @@ function badgeToneClasses(tone: "default" | "success" | "warning" | "danger" | "
 
 function priorityRank(priority: WorkerIssuePriority) {
   return priority === "URGENT" ? 3 : priority === "HIGH" ? 2 : priority === "MEDIUM" ? 1 : 0;
+}
+
+function QueueMetricCard({
+  label,
+  value,
+  description,
+  icon: Icon,
+  accent,
+}: {
+  label: string;
+  value: number;
+  description: string;
+  icon: ComponentType<{ className?: string }>;
+  accent: string;
+}) {
+  return (
+    <div className={cn("relative overflow-hidden rounded-[1.5rem] border border-white/70 bg-white/82 p-5 shadow-[0_18px_42px_rgba(15,23,42,0.1)]", accent)}>
+      <div className="absolute -right-12 -top-12 h-32 w-32 rounded-full bg-white/35 blur-3xl" aria-hidden="true" />
+      <div className="relative flex items-start justify-between gap-4">
+        <div className="space-y-2">
+          <p className="text-xs font-semibold uppercase tracking-[0.22em] text-muted-foreground">{label}</p>
+          <p className="text-3xl font-semibold tracking-tight text-foreground">{value}</p>
+          <p className="max-w-[16rem] text-sm leading-6 text-muted-foreground">{description}</p>
+        </div>
+        <div className="rounded-2xl border border-white/70 bg-white/80 p-3 text-primary shadow-sm">
+          <Icon className="h-5 w-5" aria-hidden="true" />
+        </div>
+      </div>
+    </div>
+  );
 }
 
 export function WorkerAssignedIssuesPage() {
@@ -213,7 +253,8 @@ export function WorkerAssignedIssuesPage() {
     });
   }, [assignments, categoryFilter, priorityFilter, search, sortOrder, statusFilter]);
 
-  const hasFiltersActive = search.trim().length > 0 || statusFilter !== "all" || priorityFilter !== "all" || categoryFilter !== "all" || sortOrder !== "newest";
+  const hasFiltersActive =
+    search.trim().length > 0 || statusFilter !== "all" || priorityFilter !== "all" || categoryFilter !== "all" || sortOrder !== "newest";
   const statusFilters = getWorkerIssueStatusOptions();
   const totalCount = assignments.length;
 
@@ -227,7 +268,7 @@ export function WorkerAssignedIssuesPage() {
 
   if (sessionProblem || error) {
     return (
-      <section className="rounded-[1.75rem] border border-border/80 bg-surface/90 p-6 shadow-lg shadow-black/20">
+      <section className="rounded-[1.75rem] border border-white/70 bg-white/84 p-6 shadow-[0_18px_42px_rgba(15,23,42,0.12)]">
         <div className="max-w-2xl space-y-4">
           <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-red-200 bg-red-50 text-red-700">
             <AlertCircle className="h-5 w-5" aria-hidden="true" />
@@ -247,17 +288,25 @@ export function WorkerAssignedIssuesPage() {
   if (loading) {
     return (
       <div className="space-y-6">
-        <section className="rounded-[1.75rem] border border-border/80 bg-surface/90 p-6 shadow-lg shadow-black/20">
+        <section className="rounded-[1.75rem] border border-teal-100/80 bg-[linear-gradient(135deg,rgba(15,118,110,0.10)_0%,rgba(2,132,199,0.10)_48%,rgba(124,58,237,0.08)_100%)] p-6 shadow-[0_18px_42px_rgba(15,23,42,0.12)]">
           <div className="space-y-3">
             <div className="h-4 w-44 animate-pulse rounded-full bg-muted/60" />
             <div className="h-9 w-full max-w-3xl animate-pulse rounded-2xl bg-muted/60" />
             <div className="h-4 w-full max-w-2xl animate-pulse rounded-full bg-muted/40" />
           </div>
         </section>
-        <section className="grid gap-4">
-          {Array.from({ length: 3 }).map((_, index) => (
-            <div key={index} className="h-40 animate-pulse rounded-[1.5rem] border border-border/80 bg-surface/90" />
+        <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          {Array.from({ length: 4 }).map((_, index) => (
+            <div key={index} className="h-32 animate-pulse rounded-[1.5rem] border border-white/70 bg-white/80" />
           ))}
+        </section>
+        <section className="space-y-4">
+          <div className="h-6 w-44 animate-pulse rounded-full bg-muted/50" />
+          <div className="grid gap-4">
+            {Array.from({ length: 3 }).map((_, index) => (
+              <div key={index} className="h-40 animate-pulse rounded-[1.75rem] border border-white/70 bg-white/80" />
+            ))}
+          </div>
         </section>
       </div>
     );
@@ -265,27 +314,29 @@ export function WorkerAssignedIssuesPage() {
 
   return (
     <div className="space-y-6">
-      <section className="overflow-hidden rounded-[1.75rem] border border-border/80 bg-surface/90 shadow-lg shadow-black/20">
-        <div className="border-b border-border/70 bg-gradient-to-r from-background/30 to-background/5 px-6 py-5">
+      <section className="relative overflow-hidden rounded-[1.85rem] border border-teal-100/80 bg-[linear-gradient(135deg,rgba(15,118,110,0.12)_0%,rgba(2,132,199,0.10)_42%,rgba(124,58,237,0.08)_100%)] shadow-[0_22px_55px_rgba(15,23,42,0.12)]">
+        <div className="pointer-events-none absolute -right-10 top-0 h-40 w-40 rounded-full bg-sky-400/10 blur-3xl" aria-hidden="true" />
+        <div className="pointer-events-none absolute -left-10 bottom-0 h-48 w-48 rounded-full bg-emerald-400/10 blur-3xl" aria-hidden="true" />
+        <div className="border-b border-white/70 bg-[linear-gradient(135deg,rgba(255,255,255,0.88)_0%,rgba(249,252,251,0.72)_100%)] px-6 py-6 backdrop-blur-sm">
           <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
-            <div className="space-y-3">
-              <div className="inline-flex items-center rounded-full border border-border/70 bg-background/40 px-3 py-1 text-xs font-semibold uppercase tracking-[0.22em] text-muted-foreground">
-                Field work queue
+            <div className="space-y-4">
+              <div className="inline-flex items-center rounded-full border border-sky-200/80 bg-white/80 px-3 py-1 text-xs font-semibold uppercase tracking-[0.22em] text-sky-800 shadow-sm shadow-sky-950/5">
+                Field task queue
               </div>
               <div className="space-y-2">
-                <h2 className="text-3xl font-semibold tracking-tight text-foreground">Assigned Issues</h2>
-                <p className="max-w-3xl text-sm leading-6 text-muted-foreground">
-                  Search and filter the issues routed to you for field execution and completion.
+                <h2 className="text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">Assigned Issues</h2>
+                <p className="max-w-3xl text-sm leading-6 text-muted-foreground sm:text-base">
+                  Search, sort, and prioritize the issues routed to you for field execution and completion.
                 </p>
               </div>
             </div>
 
             <div className="flex flex-col gap-3 sm:flex-row">
-              <div className="inline-flex items-center gap-2 rounded-full border border-border/70 bg-background/40 px-4 py-2 text-sm text-muted-foreground">
+              <div className="inline-flex items-center gap-2 rounded-full border border-sky-200/80 bg-sky-50/80 px-4 py-2 text-sm text-sky-800 shadow-sm shadow-sky-950/5">
                 <Filter className="h-4 w-4" aria-hidden="true" />
                 {filteredAssignments.length} visible
               </div>
-              <Button asChild>
+              <Button asChild className="bg-gradient-to-r from-teal-600 via-cyan-600 to-blue-600 shadow-md shadow-teal-950/15">
                 <Link to="/app/worker">
                   Back to dashboard
                   <SquareArrowOutUpRight className="h-4 w-4" aria-hidden="true" />
@@ -297,38 +348,44 @@ export function WorkerAssignedIssuesPage() {
       </section>
 
       <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <div className="rounded-2xl border border-border/80 bg-surface/90 p-5 shadow-sm shadow-black/10">
-          <p className="text-sm font-medium text-muted-foreground">Assigned Issues</p>
-          <p className="mt-4 text-3xl font-semibold tracking-tight text-foreground">{totalCount}</p>
-        </div>
-        <div className="rounded-2xl border border-border/80 bg-surface/90 p-5 shadow-sm shadow-black/10">
-          <p className="text-sm font-medium text-muted-foreground">In Progress</p>
-          <p className="mt-4 text-3xl font-semibold tracking-tight text-foreground">
-            {assignments.filter((assignment) => assignment.issue?.status === "IN_PROGRESS").length}
-          </p>
-        </div>
-        <div className="rounded-2xl border border-border/80 bg-surface/90 p-5 shadow-sm shadow-black/10">
-          <p className="text-sm font-medium text-muted-foreground">Completed</p>
-          <p className="mt-4 text-3xl font-semibold tracking-tight text-foreground">
-            {assignments.filter((assignment) => assignment.issue?.status === "RESOLVED" || assignment.issue?.status === "CITIZEN_VERIFIED").length}
-          </p>
-        </div>
-        <div className="rounded-2xl border border-border/80 bg-surface/90 p-5 shadow-sm shadow-black/10">
-          <p className="text-sm font-medium text-muted-foreground">High Priority</p>
-          <p className="mt-4 text-3xl font-semibold tracking-tight text-foreground">
-            {assignments.filter((assignment) => assignment.issue?.priority === "HIGH" || assignment.issue?.priority === "URGENT").length}
-          </p>
-        </div>
+        <QueueMetricCard
+          accent="bg-gradient-to-br from-sky-500/14 via-cyan-500/10 to-teal-500/12"
+          description="All live assignments routed to your field queue."
+          icon={Filter}
+          label="Assigned issues"
+          value={totalCount}
+        />
+        <QueueMetricCard
+          accent="bg-gradient-to-br from-amber-500/14 via-orange-500/10 to-red-500/10"
+          description="Tasks that are currently moving in the field."
+          icon={ArrowRight}
+          label="In progress"
+          value={assignments.filter((assignment) => assignment.issue?.status === "IN_PROGRESS").length}
+        />
+        <QueueMetricCard
+          accent="bg-gradient-to-br from-violet-500/14 via-fuchsia-500/10 to-sky-500/10"
+          description="Work submitted and waiting for officer review."
+          icon={SlidersHorizontal}
+          label="Under review"
+          value={assignments.filter((assignment) => assignment.issue?.status === "UNDER_REVIEW").length}
+        />
+        <QueueMetricCard
+          accent="bg-gradient-to-br from-emerald-500/14 via-teal-500/10 to-lime-500/10"
+          description="Completed and closed issues in your queue."
+          icon={MapPin}
+          label="Completed"
+          value={assignments.filter((assignment) => assignment.issue?.status === "RESOLVED" || assignment.issue?.status === "CITIZEN_VERIFIED").length}
+        />
       </section>
 
-      <section className="rounded-[1.75rem] border border-border/80 bg-surface/90 p-5 shadow-lg shadow-black/20">
+      <section className="rounded-[1.75rem] border border-white/70 bg-[linear-gradient(180deg,rgba(255,255,255,0.86)_0%,rgba(243,248,246,0.94)_100%)] p-5 shadow-[0_16px_45px_rgba(15,23,42,0.09)]">
         <div className="grid gap-4 xl:grid-cols-[1.2fr_0.75fr_0.75fr_0.75fr_0.75fr_auto]">
           <label className="relative">
             <span className="sr-only">Search issues</span>
             <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <input
-              className="w-full rounded-2xl border border-border/80 bg-background/50 py-3 pl-11 pr-4 text-sm text-foreground outline-none transition placeholder:text-muted-foreground focus:border-primary/50 focus:ring-2 focus:ring-primary/20"
-              onChange={(event) => setSearch(event.target.value)}
+              className="w-full rounded-2xl border border-border/70 bg-white/82 py-3 pl-11 pr-4 text-sm text-foreground outline-none transition placeholder:text-muted-foreground focus:border-primary/50 focus:ring-2 focus:ring-primary/20"
+              onChange={(event) => setSearch(event.currentTarget.value)}
               placeholder="Search title, location, department, or officer"
               value={search}
             />
@@ -337,8 +394,8 @@ export function WorkerAssignedIssuesPage() {
           <label className="space-y-2">
             <span className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">Status</span>
             <select
-              className="w-full rounded-2xl border border-border/80 bg-background/50 px-4 py-3 text-sm text-foreground outline-none transition focus:border-primary/50 focus:ring-2 focus:ring-primary/20"
-              onChange={(event) => setStatusFilter(event.target.value as "all" | ReturnType<typeof getWorkerIssueStatusFilterBucket>)}
+              className="w-full rounded-2xl border border-border/70 bg-white/82 px-4 py-3 text-sm text-foreground outline-none transition focus:border-primary/50 focus:ring-2 focus:ring-primary/20"
+              onChange={(event) => setStatusFilter(event.currentTarget.value as "all" | ReturnType<typeof getWorkerIssueStatusFilterBucket>)}
               value={statusFilter}
             >
               {statusFilters.map((option) => (
@@ -352,8 +409,8 @@ export function WorkerAssignedIssuesPage() {
           <label className="space-y-2">
             <span className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">Priority</span>
             <select
-              className="w-full rounded-2xl border border-border/80 bg-background/50 px-4 py-3 text-sm text-foreground outline-none transition focus:border-primary/50 focus:ring-2 focus:ring-primary/20"
-              onChange={(event) => setPriorityFilter(event.target.value as "all" | WorkerIssuePriority)}
+              className="w-full rounded-2xl border border-border/70 bg-white/82 px-4 py-3 text-sm text-foreground outline-none transition focus:border-primary/50 focus:ring-2 focus:ring-primary/20"
+              onChange={(event) => setPriorityFilter(event.currentTarget.value as "all" | WorkerIssuePriority)}
               value={priorityFilter}
             >
               {["all", "LOW", "MEDIUM", "HIGH", "URGENT"].map((option) => (
@@ -367,8 +424,8 @@ export function WorkerAssignedIssuesPage() {
           <label className="space-y-2">
             <span className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">Category</span>
             <select
-              className="w-full rounded-2xl border border-border/80 bg-background/50 px-4 py-3 text-sm text-foreground outline-none transition focus:border-primary/50 focus:ring-2 focus:ring-primary/20"
-              onChange={(event) => setCategoryFilter(event.target.value)}
+              className="w-full rounded-2xl border border-border/70 bg-white/82 px-4 py-3 text-sm text-foreground outline-none transition focus:border-primary/50 focus:ring-2 focus:ring-primary/20"
+              onChange={(event) => setCategoryFilter(event.currentTarget.value)}
               value={categoryFilter}
             >
               {categories.map((option) => (
@@ -382,8 +439,8 @@ export function WorkerAssignedIssuesPage() {
           <label className="space-y-2">
             <span className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">Sort</span>
             <select
-              className="w-full rounded-2xl border border-border/80 bg-background/50 px-4 py-3 text-sm text-foreground outline-none transition focus:border-primary/50 focus:ring-2 focus:ring-primary/20"
-              onChange={(event) => setSortOrder(event.target.value as SortOrder)}
+              className="w-full rounded-2xl border border-border/70 bg-white/82 px-4 py-3 text-sm text-foreground outline-none transition focus:border-primary/50 focus:ring-2 focus:ring-primary/20"
+              onChange={(event) => setSortOrder(event.currentTarget.value as SortOrder)}
               value={sortOrder}
             >
               <option value="newest">Newest first</option>
@@ -410,7 +467,7 @@ export function WorkerAssignedIssuesPage() {
               </p>
               <h3 className="mt-1 text-xl font-semibold text-foreground">Your field work queue</h3>
             </div>
-            <div className="inline-flex items-center gap-2 rounded-full border border-border/70 bg-background/40 px-3 py-2 text-xs font-medium text-muted-foreground">
+            <div className="inline-flex items-center gap-2 rounded-full border border-violet-200/70 bg-violet-50/80 px-3 py-2 text-xs font-medium text-violet-800">
               <SlidersHorizontal className="h-4 w-4" aria-hidden="true" />
               {sortOrder === "newest" ? "Newest first" : sortOrder === "oldest" ? "Oldest first" : "Priority first"}
             </div>
@@ -425,44 +482,52 @@ export function WorkerAssignedIssuesPage() {
 
               const thumb = pickWorkerIssueThumbnail(issue);
               const location = formatWorkerIssueCoordinates(issue.latitude, issue.longitude);
+              const isCritical = issue.priority === "HIGH" || issue.priority === "URGENT";
 
               return (
-                <article key={assignment.id} className="rounded-[1.75rem] border border-border/80 bg-surface/90 p-5 shadow-lg shadow-black/20">
-                  <div className="grid gap-5 lg:grid-cols-[0.22fr_1fr]">
-                    <div className="overflow-hidden rounded-2xl border border-border/70 bg-surface-elevated">
-                      {thumb ? (
-                        <IssueImage alt={issue.title} className="min-h-[10rem] rounded-none" src={thumb} variant="card" />
-                      ) : (
-                        <div className="flex min-h-[10rem] items-center justify-center px-4 py-6 text-center">
-                          <div>
-                            <p className="text-xs font-semibold uppercase tracking-[0.22em] text-muted-foreground">No image</p>
-                            <p className="mt-2 text-sm leading-6 text-muted-foreground">Citizen photo not attached.</p>
+                <article
+                  key={assignment.id}
+                  className="overflow-hidden rounded-[1.75rem] border border-white/70 bg-white/86 shadow-[0_16px_42px_rgba(15,23,42,0.12)]"
+                >
+                  <div className="grid gap-0 lg:grid-cols-[0.34fr_1fr]">
+                    <div className="bg-gradient-to-br from-slate-50 via-white to-teal-50 p-4 lg:p-5">
+                      <div className="overflow-hidden rounded-[1.35rem] border border-white/70 bg-surface-elevated shadow-sm">
+                        {thumb ? (
+                          <IssueImage alt={issue.title} className="min-h-[12rem] rounded-none" src={thumb} variant="card" />
+                        ) : (
+                          <div className="flex min-h-[12rem] items-center justify-center px-4 py-6 text-center">
+                            <div className="space-y-2">
+                              <Search className="mx-auto h-6 w-6 text-primary" aria-hidden="true" />
+                              <p className="text-xs font-semibold uppercase tracking-[0.22em] text-muted-foreground">No image</p>
+                              <p className="text-sm leading-6 text-muted-foreground">Citizen photo not attached.</p>
+                            </div>
                           </div>
-                        </div>
-                      )}
+                        )}
+                      </div>
                     </div>
 
-                    <div className="space-y-4">
+                    <div className="min-w-0 space-y-5 p-5 lg:p-6">
                       <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
-                        <div className="space-y-3">
+                        <div className="min-w-0 space-y-3">
                           <div className="flex flex-wrap items-center gap-2">
                             <span className={`inline-flex items-center rounded-full border px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] ring-1 ${badgeToneClasses(getWorkerIssueStatusTone(issue.status))}`}>
                               {getWorkerIssueStatusLabel(issue.status)}
                             </span>
-                            <span className={`inline-flex items-center rounded-full border px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] ring-1 ${badgeToneClasses(getWorkerIssuePriorityTone(issue.priority))}`}>
+                            <span className={`inline-flex items-center rounded-full border px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] ring-1 ${badgeToneClasses(isCritical ? "danger" : getWorkerIssuePriorityTone(issue.priority))}`}>
                               Priority {formatWorkerIssuePriority(issue.priority)}
                             </span>
-                            <span className="inline-flex items-center rounded-full border border-border/70 bg-background/40 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+                            <span className="inline-flex items-center rounded-full border border-sky-200/80 bg-sky-50/80 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-sky-800">
                               {issue.category}
                             </span>
                           </div>
-                          <div className="space-y-1">
-                            <h4 className="text-2xl font-semibold tracking-tight text-foreground">{issue.title}</h4>
-                            <p className="max-w-3xl text-sm leading-6 text-muted-foreground">{issue.description}</p>
+
+                          <div className="space-y-2">
+                            <h4 className="break-words text-2xl font-semibold tracking-tight text-foreground">{issue.title}</h4>
+                            <p className="max-w-3xl break-words text-sm leading-6 text-muted-foreground">{issue.description}</p>
                           </div>
                         </div>
 
-                        <Button asChild size="sm" variant="outline">
+                        <Button asChild size="sm" className="shrink-0 bg-gradient-to-r from-teal-600 via-cyan-600 to-blue-600 shadow-md shadow-teal-950/15" variant="default">
                           <Link to={`/app/worker/assigned-issues/${issue.id}`}>
                             Open issue
                             <SquareArrowOutUpRight className="h-4 w-4" aria-hidden="true" />
@@ -471,21 +536,21 @@ export function WorkerAssignedIssuesPage() {
                       </div>
 
                       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-                        <div className="rounded-2xl border border-border/70 bg-surface-elevated p-4">
-                          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">Assigned</p>
+                        <div className="rounded-2xl border border-border/70 bg-gradient-to-br from-sky-50/80 to-teal-50/70 p-4">
+                          <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">Assigned</p>
                           <p className="mt-2 text-sm font-medium text-foreground">{formatWorkerIssueDateTime(assignment.assigned_at)}</p>
                         </div>
-                        <div className="rounded-2xl border border-border/70 bg-surface-elevated p-4">
-                          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">Location</p>
-                          <p className="mt-2 text-sm font-medium text-foreground">{location ?? "No GPS captured"}</p>
+                        <div className="rounded-2xl border border-border/70 bg-gradient-to-br from-emerald-50/80 to-teal-50/70 p-4">
+                          <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">Location</p>
+                          <p className="mt-2 break-words text-sm font-medium text-foreground">{location ?? "No GPS captured"}</p>
                         </div>
-                        <div className="rounded-2xl border border-border/70 bg-surface-elevated p-4">
-                          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">Department</p>
-                          <p className="mt-2 text-sm font-medium text-foreground">{assignment.department?.name ?? "Unassigned"}</p>
+                        <div className="rounded-2xl border border-border/70 bg-gradient-to-br from-violet-50/80 to-sky-50/70 p-4">
+                          <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">Department</p>
+                          <p className="mt-2 break-words text-sm font-medium text-foreground">{assignment.department?.name ?? "Unassigned"}</p>
                         </div>
-                        <div className="rounded-2xl border border-border/70 bg-surface-elevated p-4">
-                          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">Assigned by</p>
-                          <p className="mt-2 text-sm font-medium text-foreground">
+                        <div className="rounded-2xl border border-border/70 bg-gradient-to-br from-amber-50/80 to-orange-50/70 p-4">
+                          <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">Assigned by</p>
+                          <p className="mt-2 break-words text-sm font-medium text-foreground">
                             {assignment.assigned_by?.full_name?.trim() || assignment.assigned_by?.email || "Municipal officer"}
                           </p>
                         </div>
