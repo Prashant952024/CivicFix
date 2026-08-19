@@ -44,14 +44,14 @@ function getTypeTone(type: CitizenNotificationRow["notification_type"]) {
 
 function toneClasses(tone: "default" | "success" | "warning" | "danger" | "info") {
   return tone === "success"
-    ? "bg-emerald-500/10 text-emerald-300 ring-emerald-500/20"
+    ? "bg-emerald-50 text-emerald-700 ring-emerald-200"
     : tone === "warning"
-      ? "bg-amber-500/10 text-amber-300 ring-amber-500/20"
+      ? "bg-amber-50 text-amber-700 ring-amber-200"
       : tone === "danger"
-        ? "bg-red-500/10 text-red-300 ring-red-500/20"
+        ? "bg-red-50 text-red-700 ring-red-200"
         : tone === "info"
-          ? "bg-blue-500/10 text-blue-300 ring-blue-500/20"
-          : "bg-slate-500/10 text-slate-300 ring-slate-500/20";
+          ? "bg-sky-50 text-sky-700 ring-sky-200"
+          : "bg-slate-100 text-slate-700 ring-slate-200";
 }
 
 export function CitizenNotificationsPage() {
@@ -130,7 +130,7 @@ export function CitizenNotificationsPage() {
     return (
       <section className="rounded-[1.75rem] border border-border/80 bg-surface/90 p-6 shadow-lg shadow-black/20">
         <div className="max-w-2xl space-y-4">
-          <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-red-500/20 bg-red-500/10 text-red-300">
+          <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-red-200 bg-red-50 text-red-700">
             <AlertCircle className="h-5 w-5" aria-hidden="true" />
           </div>
           <div className="space-y-2">
@@ -188,9 +188,9 @@ export function CitizenNotificationsPage() {
               </div>
               <div className="inline-flex items-center gap-2 rounded-full border border-border/70 bg-background/40 px-4 py-2 text-sm text-muted-foreground">
                 {unreadCount > 0 ? (
-                  <MailWarning className="h-4 w-4 text-amber-300" aria-hidden="true" />
+                  <MailWarning className="h-4 w-4 text-amber-700" aria-hidden="true" />
                 ) : (
-                  <MailCheck className="h-4 w-4 text-emerald-300" aria-hidden="true" />
+                  <MailCheck className="h-4 w-4 text-emerald-700" aria-hidden="true" />
                 )}
                 {unreadCount} unread
               </div>
@@ -232,8 +232,8 @@ export function CitizenNotificationsPage() {
                             <span
                               className={`inline-flex items-center rounded-full border px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] ring-1 ${
                                 notification.is_read
-                                  ? "bg-slate-500/10 text-slate-300 ring-slate-500/20"
-                                  : "bg-amber-500/10 text-amber-300 ring-amber-500/20"
+                                  ? "bg-slate-100 text-slate-700 ring-slate-200"
+                                  : "bg-amber-50 text-amber-700 ring-amber-200"
                               }`}
                             >
                               {notification.is_read ? "Read" : "Unread"}

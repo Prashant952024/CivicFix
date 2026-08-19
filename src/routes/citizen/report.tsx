@@ -250,7 +250,7 @@ export function CitizenReportPage() {
     return (
       <section className="rounded-[1.75rem] border border-border/80 bg-surface/90 p-6 shadow-lg shadow-black/20">
         <div className="max-w-2xl space-y-4">
-          <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-red-500/20 bg-red-500/10 text-red-300">
+          <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-red-200 bg-red-50 text-red-700">
             <AlertCircle className="h-5 w-5" aria-hidden="true" />
           </div>
           <div className="space-y-2">
@@ -617,9 +617,9 @@ function CitizenReportComposer({ profileId }: { profileId: string }) {
 
   if (outcome?.kind === "success") {
     return (
-      <section className="overflow-hidden rounded-[1.75rem] border border-emerald-500/20 bg-surface/90 shadow-lg shadow-black/20">
-        <div className="border-b border-border/70 bg-emerald-500/10 px-6 py-5">
-          <div className="flex items-center gap-3 text-emerald-300">
+      <section className="overflow-hidden rounded-[1.75rem] border border-emerald-200 bg-surface/90 shadow-lg shadow-black/20">
+        <div className="border-b border-border/70 bg-emerald-50 px-6 py-5">
+          <div className="flex items-center gap-3 text-emerald-700">
             <CheckCircle2 className="h-5 w-5" aria-hidden="true" />
             <p className="text-xs font-semibold uppercase tracking-[0.24em]">Report Submitted Successfully</p>
           </div>
@@ -684,9 +684,9 @@ function CitizenReportComposer({ profileId }: { profileId: string }) {
 
   if (outcome?.kind === "partial-error") {
     return (
-      <section className="overflow-hidden rounded-[1.75rem] border border-amber-500/20 bg-surface/90 shadow-lg shadow-black/20">
-        <div className="border-b border-border/70 bg-amber-500/10 px-6 py-5">
-          <div className="flex items-center gap-3 text-amber-300">
+      <section className="overflow-hidden rounded-[1.75rem] border border-amber-200 bg-surface/90 shadow-lg shadow-black/20">
+        <div className="border-b border-border/70 bg-amber-50 px-6 py-5">
+          <div className="flex items-center gap-3 text-amber-700">
             <AlertCircle className="h-5 w-5" aria-hidden="true" />
             <p className="text-xs font-semibold uppercase tracking-[0.24em]">Photo upload problem</p>
           </div>
@@ -713,7 +713,7 @@ function CitizenReportComposer({ profileId }: { profileId: string }) {
                 <dd className="mt-1 text-sm font-medium text-foreground">{formatCitizenIssueDate(outcome.submittedAt)}</dd>
               </div>
             </dl>
-            <div className="mt-4 rounded-2xl border border-amber-500/20 bg-amber-500/10 p-4 text-sm leading-6 text-foreground">
+            <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm leading-6 text-foreground">
               {outcome.message}
             </div>
           </div>
@@ -756,7 +756,7 @@ function CitizenReportComposer({ profileId }: { profileId: string }) {
                 placeholder="Large pothole on the main road"
                 value={title}
               />
-              {errors.title ? <p className="text-sm text-red-300">{errors.title}</p> : null}
+              {errors.title ? <p className="text-sm text-red-700">{errors.title}</p> : null}
             </label>
 
             <label className="space-y-2 sm:col-span-2">
@@ -769,7 +769,7 @@ function CitizenReportComposer({ profileId }: { profileId: string }) {
                 value={description}
               />
               <div className="flex items-center justify-between gap-4">
-                {errors.description ? <p className="text-sm text-red-300">{errors.description}</p> : <span />}
+                {errors.description ? <p className="text-sm text-red-700">{errors.description}</p> : <span />}
                 <p className="text-xs text-muted-foreground">{description.length}/1200</p>
               </div>
             </label>
@@ -790,7 +790,7 @@ function CitizenReportComposer({ profileId }: { profileId: string }) {
                   </option>
                 ))}
               </select>
-              {errors.category ? <p className="text-sm text-red-300">{errors.category}</p> : null}
+              {errors.category ? <p className="text-sm text-red-700">{errors.category}</p> : null}
             </label>
 
             <label className="space-y-2">
@@ -802,7 +802,7 @@ function CitizenReportComposer({ profileId }: { profileId: string }) {
                 placeholder="Jubilee Hills, Road No. 36"
                 value={locationText}
               />
-              {errors.location ? <p className="text-sm text-red-300">{errors.location}</p> : null}
+              {errors.location ? <p className="text-sm text-red-700">{errors.location}</p> : null}
             </label>
           </div>
 
@@ -832,17 +832,17 @@ function CitizenReportComposer({ profileId }: { profileId: string }) {
             </div>
 
             <div className="mt-3 space-y-2">
-              {geoError ? <p className="text-sm text-amber-300">{geoError}</p> : null}
+              {geoError ? <p className="text-sm text-amber-700">{geoError}</p> : null}
               {locationStatus === "detected" && latitude && longitude ? (
-                <div className="rounded-2xl border border-emerald-500/20 bg-emerald-500/10 p-4 text-sm text-foreground">
-                  <p className="font-medium text-emerald-200">Location detected</p>
+                <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-foreground">
+                  <p className="font-medium text-emerald-700">Location detected</p>
                   <p className="mt-1 text-muted-foreground">Latitude: {latitude}</p>
                   <p className="text-muted-foreground">Longitude: {longitude}</p>
                   <p className="text-muted-foreground">
                     Accuracy: approximately {locationAccuracyMeters !== null ? Math.round(locationAccuracyMeters) : "unknown"} meters
                   </p>
                   {locationAccuracyMeters !== null && locationAccuracyMeters > 100 ? (
-                    <p className="mt-1 text-xs uppercase tracking-[0.16em] text-amber-200">
+                    <p className="mt-1 text-xs uppercase tracking-[0.16em] text-amber-700">
                       Browser reported a coarse location fix.
                     </p>
                   ) : null}
@@ -913,7 +913,7 @@ function CitizenReportComposer({ profileId }: { profileId: string }) {
               </div>
             </div>
 
-            {errors.image ? <p className="mt-3 text-sm text-red-300">{errors.image}</p> : null}
+            {errors.image ? <p className="mt-3 text-sm text-red-700">{errors.image}</p> : null}
 
             {previewUrl && compressedImage ? (
               <div className="mt-4 overflow-hidden rounded-2xl border border-border/70 bg-background/40">
@@ -937,7 +937,7 @@ function CitizenReportComposer({ profileId }: { profileId: string }) {
             <p className="text-xs font-semibold uppercase tracking-[0.24em] text-muted-foreground">Submission status</p>
             <div className="mt-4 flex items-center gap-3 rounded-2xl border border-border/70 bg-background/40 px-4 py-3">
               {submissionStage === "idle" ? (
-                <CheckCircle2 className="h-4 w-4 text-emerald-300" aria-hidden="true" />
+                <CheckCircle2 className="h-4 w-4 text-emerald-700" aria-hidden="true" />
               ) : (
                 <Loader2 className="h-4 w-4 animate-spin text-primary" aria-hidden="true" />
               )}
@@ -952,7 +952,7 @@ function CitizenReportComposer({ profileId }: { profileId: string }) {
             </div>
 
             {submitError ? (
-              <div className="mt-4 rounded-2xl border border-red-500/20 bg-red-500/10 p-4 text-sm leading-6 text-red-100">
+              <div className="mt-4 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm leading-6 text-red-800">
                 {submitError}
               </div>
             ) : null}

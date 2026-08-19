@@ -67,14 +67,14 @@ type CategoryOption = { key: string; label: string };
 
 function badgeToneClasses(tone: "default" | "success" | "warning" | "danger" | "info") {
   return tone === "success"
-    ? "bg-emerald-500/10 text-emerald-300 ring-emerald-500/20"
+    ? "bg-emerald-50 text-emerald-700 ring-emerald-200"
     : tone === "warning"
-      ? "bg-amber-500/10 text-amber-300 ring-amber-500/20"
+      ? "bg-amber-50 text-amber-700 ring-amber-200"
       : tone === "danger"
-        ? "bg-red-500/10 text-red-300 ring-red-500/20"
+        ? "bg-red-50 text-red-700 ring-red-200"
         : tone === "info"
-          ? "bg-blue-500/10 text-blue-300 ring-blue-500/20"
-          : "bg-slate-500/10 text-slate-300 ring-slate-500/20";
+          ? "bg-sky-50 text-sky-700 ring-sky-200"
+          : "bg-slate-100 text-slate-700 ring-slate-200";
 }
 
 function priorityRank(priority: OfficerIssuePriority) {
@@ -234,7 +234,7 @@ export function OfficerIssuesPage() {
     return (
       <section className="rounded-[1.75rem] border border-border/80 bg-surface/90 p-6 shadow-lg shadow-black/20">
         <div className="max-w-2xl space-y-4">
-          <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-red-500/20 bg-red-500/10 text-red-300">
+          <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-red-200 bg-red-50 text-red-700">
             <AlertCircle className="h-5 w-5" aria-hidden="true" />
           </div>
           <div className="space-y-2">

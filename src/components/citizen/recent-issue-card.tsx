@@ -43,21 +43,21 @@ export function RecentIssueCard({
 }: RecentIssueCardProps) {
   const statusClasses =
     statusTone === "success"
-      ? "bg-emerald-500/10 text-emerald-300 ring-emerald-500/20"
+      ? "bg-emerald-50 text-emerald-700 ring-emerald-200"
       : statusTone === "warning"
-        ? "bg-amber-500/10 text-amber-300 ring-amber-500/20"
+        ? "bg-amber-50 text-amber-700 ring-amber-200"
         : statusTone === "danger"
-          ? "bg-red-500/10 text-red-300 ring-red-500/20"
+          ? "bg-rose-50 text-rose-700 ring-rose-200"
           : statusTone === "info"
-            ? "bg-blue-500/10 text-blue-300 ring-blue-500/20"
-            : "bg-slate-500/10 text-slate-300 ring-slate-500/20";
+            ? "bg-sky-50 text-sky-700 ring-sky-200"
+            : "bg-teal-50 text-teal-700 ring-teal-200";
 
   const locationText = issue.address_text?.trim() || issue.location_text?.trim();
 
   return (
-    <article className="overflow-hidden rounded-[1.5rem] border border-border/80 bg-surface/90 shadow-sm shadow-black/10">
+    <article className="overflow-hidden rounded-[1.5rem] border border-border/70 bg-white/84 shadow-sm shadow-teal-950/8 transition-all hover:-translate-y-0.5 hover:shadow-lg">
       <div className="grid min-w-0 gap-0 md:grid-cols-[160px_minmax(0,1fr)]">
-        <div className="overflow-hidden border-b border-border/70 bg-surface-elevated md:self-stretch md:border-b-0 md:border-r">
+        <div className="overflow-hidden border-b border-border/70 bg-[linear-gradient(135deg,rgba(15,118,110,0.08)_0%,rgba(2,132,199,0.08)_100%)] md:self-stretch md:border-b-0 md:border-r">
           <IssueImage
             alt={issue.title}
             brokenLabel="Image unavailable"
@@ -72,13 +72,13 @@ export function RecentIssueCard({
           <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
             <div className="min-w-0 space-y-3">
               <div className="flex flex-wrap items-center gap-2">
-                <span className="inline-flex items-center rounded-full border border-border/70 bg-background/40 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+                <span className="inline-flex items-center rounded-full border border-border/70 bg-white/75 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
                   {issue.category}
                 </span>
                 <span className={`inline-flex items-center rounded-full border px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] ring-1 ${statusClasses}`}>
                   {statusLabel}
                 </span>
-                <span className="inline-flex items-center rounded-full border border-border/70 bg-background/40 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+                <span className="inline-flex items-center rounded-full border border-border/70 bg-white/75 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
                   Priority {formatPriorityLabel(issue.priority)}
                 </span>
               </div>

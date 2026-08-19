@@ -34,61 +34,62 @@
 }
 
 :root {
-  color-scheme: dark;
-  --background: oklch(13.5% 0.02 260);
-  --surface: oklch(17% 0.02 260);
-  --surface-elevated: oklch(20% 0.02 260);
-  --foreground: oklch(97% 0.01 95);
-  --card: oklch(18% 0.02 260);
-  --card-foreground: oklch(97% 0.01 95);
-  --popover: oklch(18% 0.02 260);
-  --popover-foreground: oklch(97% 0.01 95);
-  --primary: oklch(62% 0.16 255);
-  --primary-foreground: oklch(98% 0.01 95);
-  --secondary: oklch(22% 0.02 260);
-  --secondary-foreground: oklch(96% 0.01 95);
-  --muted: oklch(19% 0.02 260);
-  --muted-foreground: oklch(72% 0.02 260);
-  --accent: oklch(26% 0.06 170);
-  --accent-foreground: oklch(97% 0.01 95);
-  --destructive: oklch(58% 0.22 25);
-  --success: oklch(67% 0.17 150);
-  --success-foreground: oklch(98% 0.01 95);
-  --warning: oklch(75% 0.14 80);
-  --warning-foreground: oklch(18% 0.02 260);
-  --danger: oklch(58% 0.22 25);
-  --border: oklch(28% 0.02 260);
-  --input: oklch(28% 0.02 260);
-  --ring: oklch(62% 0.16 255);
-  --radius: 0.75rem;
+  color-scheme: light;
+  --background: #eef4f1;
+  --surface: #f7faf8;
+  --surface-elevated: #e7f1eb;
+  --foreground: #16312b;
+  --card: #fbfcfb;
+  --card-foreground: #16312b;
+  --popover: #fbfcfb;
+  --popover-foreground: #16312b;
+  --primary: #0f766e;
+  --primary-foreground: #ffffff;
+  --secondary: #dbece6;
+  --secondary-foreground: #16312b;
+  --muted: #d8e5df;
+  --muted-foreground: #5f7068;
+  --accent: #d6ece8;
+  --accent-foreground: #16312b;
+  --destructive: #dc2626;
+  --success: #059669;
+  --success-foreground: #ffffff;
+  --warning: #d97706;
+  --warning-foreground: #16312b;
+  --danger: #dc2626;
+  --border: #c9d7d1;
+  --input: #c9d7d1;
+  --ring: #0f766e;
+  --radius: 0.9rem;
 }
 
 .dark {
-  --background: oklch(11.5% 0.02 260);
-  --surface: oklch(15.5% 0.02 260);
-  --surface-elevated: oklch(18.5% 0.02 260);
-  --foreground: oklch(97% 0.01 95);
-  --card: oklch(16.5% 0.02 260);
-  --card-foreground: oklch(97% 0.01 95);
-  --popover: oklch(16.5% 0.02 260);
-  --popover-foreground: oklch(97% 0.01 95);
-  --primary: oklch(66% 0.15 255);
-  --primary-foreground: oklch(98% 0.01 95);
-  --secondary: oklch(21% 0.02 260);
-  --secondary-foreground: oklch(97% 0.01 95);
-  --muted: oklch(18% 0.02 260);
-  --muted-foreground: oklch(70% 0.02 260);
-  --accent: oklch(24% 0.06 170);
-  --accent-foreground: oklch(97% 0.01 95);
-  --destructive: oklch(60% 0.22 25);
-  --success: oklch(68% 0.17 150);
-  --success-foreground: oklch(98% 0.01 95);
-  --warning: oklch(78% 0.13 82);
-  --warning-foreground: oklch(18% 0.02 260);
-  --danger: oklch(60% 0.22 25);
-  --border: oklch(27% 0.02 260);
-  --input: oklch(27% 0.02 260);
-  --ring: oklch(66% 0.15 255);
+  color-scheme: light;
+  --background: #eef4f1;
+  --surface: #f7faf8;
+  --surface-elevated: #e7f1eb;
+  --foreground: #16312b;
+  --card: #fbfcfb;
+  --card-foreground: #16312b;
+  --popover: #fbfcfb;
+  --popover-foreground: #16312b;
+  --primary: #0f766e;
+  --primary-foreground: #ffffff;
+  --secondary: #dbece6;
+  --secondary-foreground: #16312b;
+  --muted: #d8e5df;
+  --muted-foreground: #5f7068;
+  --accent: #d6ece8;
+  --accent-foreground: #16312b;
+  --destructive: #dc2626;
+  --success: #059669;
+  --success-foreground: #ffffff;
+  --warning: #d97706;
+  --warning-foreground: #16312b;
+  --danger: #dc2626;
+  --border: #c9d7d1;
+  --input: #c9d7d1;
+  --ring: #0f766e;
 }
 
 @layer base {
@@ -103,9 +104,23 @@
   body {
     @apply min-h-screen bg-background text-foreground antialiased;
     background-image:
-      radial-gradient(circle at top left, color-mix(in oklab, var(--accent) 18%, transparent), transparent 30%),
-      radial-gradient(circle at top right, color-mix(in oklab, var(--primary) 12%, transparent), transparent 26%),
-      linear-gradient(to bottom, color-mix(in oklab, var(--background) 92%, black), var(--background));
+      radial-gradient(circle at 10% 8%, color-mix(in srgb, #059669 20%, transparent), transparent 28%),
+      radial-gradient(circle at 88% 12%, color-mix(in srgb, #0284c7 18%, transparent), transparent 30%),
+      radial-gradient(circle at 52% 100%, color-mix(in srgb, #7c3aed 12%, transparent), transparent 34%),
+      radial-gradient(circle at 80% 78%, color-mix(in srgb, #d97706 8%, transparent), transparent 28%),
+      linear-gradient(180deg, #f9fcfb 0%, var(--background) 48%, #e8f2ee 100%);
+    background-attachment: fixed;
+  }
+
+  input,
+  textarea,
+  select {
+    @apply bg-surface text-foreground;
+  }
+
+  input::placeholder,
+  textarea::placeholder {
+    color: var(--muted-foreground);
   }
 
   a {
@@ -113,7 +128,7 @@
   }
 
   ::selection {
-    background: color-mix(in oklab, var(--primary) 24%, transparent);
+    background: color-mix(in srgb, var(--primary) 18%, white);
     color: var(--foreground);
   }
 }

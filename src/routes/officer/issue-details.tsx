@@ -92,14 +92,14 @@ type TimelineItem = {
 
 function badgeToneClasses(tone: "default" | "success" | "warning" | "danger" | "info") {
   return tone === "success"
-    ? "bg-emerald-500/10 text-emerald-300 ring-emerald-500/20"
+    ? "bg-emerald-50 text-emerald-700 ring-emerald-200"
     : tone === "warning"
-      ? "bg-amber-500/10 text-amber-300 ring-amber-500/20"
+      ? "bg-amber-50 text-amber-700 ring-amber-200"
       : tone === "danger"
-        ? "bg-red-500/10 text-red-300 ring-red-500/20"
+        ? "bg-red-50 text-red-700 ring-red-200"
         : tone === "info"
-          ? "bg-blue-500/10 text-blue-300 ring-blue-500/20"
-          : "bg-slate-500/10 text-slate-300 ring-slate-500/20";
+          ? "bg-sky-50 text-sky-700 ring-sky-200"
+          : "bg-slate-100 text-slate-700 ring-slate-200";
 }
 
 function buildTimeline(issue: IssueRow): TimelineItem[] {
@@ -595,7 +595,7 @@ export function OfficerIssueDetailsPage() {
     return (
       <section className="rounded-[1.75rem] border border-border/80 bg-surface/90 p-6 shadow-lg shadow-black/20">
         <div className="max-w-2xl space-y-4">
-          <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-red-500/20 bg-red-500/10 text-red-300">
+          <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-red-200 bg-red-50 text-red-700">
             <AlertCircle className="h-5 w-5" aria-hidden="true" />
           </div>
           <div className="space-y-2">
@@ -673,13 +673,13 @@ export function OfficerIssueDetailsPage() {
         </div>
 
         {actionMessage ? (
-          <div className="border-b border-emerald-500/20 bg-emerald-500/10 px-6 py-4 text-sm font-medium text-emerald-100">
+          <div className="border-b border-emerald-200 bg-emerald-50 px-6 py-4 text-sm font-medium text-emerald-800">
             {actionMessage}
           </div>
         ) : null}
 
         {actionError ? (
-          <div className="border-b border-red-500/20 bg-red-500/10 px-6 py-4 text-sm font-medium text-red-100">
+          <div className="border-b border-red-200 bg-red-50 px-6 py-4 text-sm font-medium text-red-800">
             {actionError}
           </div>
         ) : null}
@@ -925,7 +925,7 @@ export function OfficerIssueDetailsPage() {
           <section className="overflow-hidden rounded-[1.75rem] border border-border/80 bg-surface/90 shadow-lg shadow-black/20">
             <div className="border-b border-border/70 px-6 py-5">
               <div className="flex items-center gap-3">
-                <div className="rounded-2xl border border-border/70 bg-background/40 p-3 text-primary">
+                <div className="rounded-2xl border border-violet-200 bg-violet-50 p-3 text-violet-700">
                   <ShieldAlert className="h-5 w-5" aria-hidden="true" />
                 </div>
                 <div>
@@ -936,8 +936,8 @@ export function OfficerIssueDetailsPage() {
             </div>
 
             <div className="grid gap-4 p-6 lg:grid-cols-2">
-              <div className="rounded-2xl border border-border/70 bg-surface-elevated p-5">
-                <p className="text-xs font-semibold uppercase tracking-[0.24em] text-muted-foreground">AI recommendation</p>
+              <div className="rounded-2xl border border-violet-200 bg-violet-50/70 p-5 shadow-sm shadow-violet-950/5">
+                <p className="text-xs font-semibold uppercase tracking-[0.24em] text-violet-700">AI recommendation</p>
                 {aiAnalysis ? (
                   <div className="mt-4 grid gap-3 text-sm">
                     <p className="text-foreground">Category: <span className="text-muted-foreground">{aiAnalysis.category_recommendation || "Not provided"}</span></p>
@@ -948,7 +948,7 @@ export function OfficerIssueDetailsPage() {
                     <p className="text-foreground">Provider: <span className="text-muted-foreground">{aiAnalysis.provider} · {aiAnalysis.model}</span></p>
                   </div>
                 ) : (
-                  <div className="mt-4 rounded-2xl border border-border/70 bg-background/30 p-4">
+                  <div className="mt-4 rounded-2xl border border-violet-200 bg-white/80 p-4">
                     <p className="text-sm font-medium text-foreground">AI analysis pending.</p>
                     <p className="mt-2 text-sm leading-6 text-muted-foreground">
                       When analysis data exists, CivicFix will show the recommendation here for comparison.

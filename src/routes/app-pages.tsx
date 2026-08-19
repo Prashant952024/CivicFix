@@ -49,22 +49,36 @@ export function DashboardPage({ roleCode, title, description, stats, accentNote 
         {stats.map(({ label, value, tone = "default", icon: Icon }) => (
           <div
             key={label}
-            className="rounded-2xl border border-border/80 bg-surface/90 p-5 shadow-sm shadow-black/10"
+            className="relative overflow-hidden rounded-2xl border border-border/70 bg-surface/95 p-5 shadow-sm shadow-emerald-950/5"
           >
+            <div
+              className={[
+                "absolute inset-x-0 top-0 h-1",
+                tone === "success"
+                  ? "bg-gradient-to-r from-emerald-500 via-emerald-400 to-emerald-500"
+                  : tone === "warning"
+                    ? "bg-gradient-to-r from-amber-500 via-amber-400 to-amber-500"
+                    : tone === "danger"
+                      ? "bg-gradient-to-r from-orange-500 via-orange-400 to-orange-500"
+                      : tone === "info"
+                        ? "bg-gradient-to-r from-sky-500 via-sky-400 to-sky-500"
+                        : "bg-gradient-to-r from-teal-500 via-teal-400 to-emerald-500",
+              ].join(" ")}
+            />
             <div className="flex items-center justify-between gap-4">
               <p className="text-sm font-medium text-muted-foreground">{label}</p>
               <span
                 className={[
-                  "inline-flex h-9 w-9 items-center justify-center rounded-full",
+                  "inline-flex h-9 w-9 items-center justify-center rounded-full ring-1",
                   tone === "success"
-                    ? "bg-emerald-500/10 text-emerald-300"
+                    ? "bg-emerald-50 text-emerald-700 ring-emerald-200"
                     : tone === "warning"
-                      ? "bg-amber-500/10 text-amber-300"
+                      ? "bg-amber-50 text-amber-700 ring-amber-200"
                       : tone === "danger"
-                        ? "bg-red-500/10 text-red-300"
+                        ? "bg-orange-50 text-orange-700 ring-orange-200"
                         : tone === "info"
-                          ? "bg-blue-500/10 text-blue-300"
-                          : "bg-primary/10 text-primary",
+                          ? "bg-sky-50 text-sky-700 ring-sky-200"
+                          : "bg-teal-50 text-teal-700 ring-teal-200",
                 ].join(" ")}
               >
                 <Icon className="h-4 w-4" aria-hidden="true" />

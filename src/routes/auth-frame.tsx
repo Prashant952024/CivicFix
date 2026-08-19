@@ -26,8 +26,8 @@ export function AuthFrame({ eyebrow, title, description, children, primaryCta }:
         <BrandMark />
 
         <div className="space-y-4">
-          <div className="inline-flex items-center gap-2 rounded-full border border-border/80 bg-surface-elevated px-3 py-1 text-xs font-semibold uppercase tracking-[0.24em] text-muted-foreground">
-            <Sparkles className="h-3.5 w-3.5 text-primary" aria-hidden="true" />
+          <div className="inline-flex items-center gap-2 rounded-full border border-teal-200/80 bg-gradient-to-r from-[#0f766e]/12 via-[#0284c7]/12 to-[#059669]/12 px-3 py-1 text-xs font-semibold uppercase tracking-[0.24em] text-[#0f5f59]">
+            <Sparkles className="h-3.5 w-3.5 text-[#0f766e]" aria-hidden="true" />
             {eyebrow}
           </div>
           <div className="space-y-3">
@@ -40,8 +40,11 @@ export function AuthFrame({ eyebrow, title, description, children, primaryCta }:
 
         <div className="grid gap-3 sm:grid-cols-3">
           {benefitRows.map((item) => (
-            <div key={item} className="rounded-2xl border border-border/70 bg-surface-elevated p-4">
-              <ShieldCheck className="h-4 w-4 text-success" aria-hidden="true" />
+            <div
+              key={item}
+              className="rounded-2xl border border-border/70 bg-[linear-gradient(135deg,rgba(15,118,110,0.08)_0%,rgba(2,132,199,0.06)_55%,rgba(124,58,237,0.05)_100%)] p-4 shadow-sm shadow-black/5"
+            >
+              <ShieldCheck className="h-4 w-4 text-emerald-600" aria-hidden="true" />
               <p className="mt-3 text-sm leading-6 text-muted-foreground">{item}</p>
             </div>
           ))}
@@ -60,7 +63,7 @@ export function AuthFrame({ eyebrow, title, description, children, primaryCta }:
         </div>
 
         {primaryCta ? (
-          <div className="inline-flex items-center gap-2 rounded-full border border-border/70 bg-background/60 px-3 py-1 text-xs text-muted-foreground">
+          <div className="inline-flex items-center gap-2 rounded-full border border-sky-200/80 bg-gradient-to-r from-[#0284c7]/10 to-[#7c3aed]/10 px-3 py-1 text-xs text-sky-900">
             <span>{primaryCta.label}</span>
             <Button asChild size="sm" variant="link" className="h-auto px-0 py-0 text-xs">
               <Link to={primaryCta.href}>Open</Link>
@@ -69,8 +72,8 @@ export function AuthFrame({ eyebrow, title, description, children, primaryCta }:
         ) : null}
       </section>
 
-      <section className="rounded-[1.75rem] border border-border/80 bg-surface/90 p-4 shadow-2xl shadow-black/30">
-        <div className="rounded-[1.45rem] border border-border/70 bg-background/70 p-4 sm:p-6">
+      <section className="rounded-[1.75rem] border border-teal-100/80 bg-[linear-gradient(135deg,rgba(15,118,110,0.12)_0%,rgba(2,132,199,0.10)_50%,rgba(124,58,237,0.08)_100%)] p-4 shadow-2xl shadow-teal-950/15">
+        <div className="rounded-[1.45rem] border border-border/70 bg-[linear-gradient(180deg,rgba(255,255,255,0.92)_0%,rgba(247,250,248,0.92)_100%)] p-4 shadow-inner shadow-white/80 sm:p-6">
           {children}
         </div>
       </section>

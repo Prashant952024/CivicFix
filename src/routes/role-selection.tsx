@@ -59,37 +59,37 @@ const roleCards: RoleCard[] = [
 
 function toneClasses(tone: RoleCard["tone"], selected: boolean) {
   if (selected) {
-    return "border-primary/50 bg-primary/10 shadow-lg shadow-black/20";
+    return "border-primary/40 bg-[linear-gradient(135deg,rgba(15,118,110,0.12)_0%,rgba(2,132,199,0.10)_52%,rgba(5,150,105,0.12)_100%)] shadow-xl shadow-teal-950/15 ring-1 ring-teal-200/80";
   }
 
   switch (tone) {
     case "success":
-      return "border-emerald-500/15 bg-surface-elevated/80 hover:border-emerald-500/30";
+      return "border-emerald-200 bg-[linear-gradient(180deg,rgba(236,253,245,0.95)_0%,rgba(224,253,242,0.85)_100%)] hover:border-emerald-300 hover:shadow-lg hover:shadow-emerald-950/10";
     case "info":
-      return "border-blue-500/15 bg-surface-elevated/80 hover:border-blue-500/30";
+      return "border-sky-200 bg-[linear-gradient(180deg,rgba(239,246,255,0.95)_0%,rgba(224,242,254,0.85)_100%)] hover:border-sky-300 hover:shadow-lg hover:shadow-sky-950/10";
     case "warning":
-      return "border-amber-500/15 bg-surface-elevated/80 hover:border-amber-500/30";
+      return "border-amber-200 bg-[linear-gradient(180deg,rgba(255,251,235,0.95)_0%,rgba(254,243,199,0.85)_100%)] hover:border-amber-300 hover:shadow-lg hover:shadow-amber-950/10";
     case "danger":
-      return "border-red-500/15 bg-surface-elevated/80 hover:border-red-500/30";
+      return "border-purple-200 bg-[linear-gradient(180deg,rgba(250,245,255,0.95)_0%,rgba(243,232,255,0.85)_100%)] hover:border-purple-300 hover:shadow-lg hover:shadow-purple-950/10";
     default:
-      return "border-border/70 bg-surface-elevated/80 hover:border-border";
+      return "border-border/70 bg-[linear-gradient(180deg,rgba(244,248,246,0.96)_0%,rgba(232,243,238,0.88)_100%)] hover:border-border hover:shadow-lg hover:shadow-teal-950/8";
   }
 }
 
 function toneChipClasses(tone: RoleCard["tone"], selected: boolean) {
   if (selected) {
-    return "border-primary/40 bg-primary/15 text-primary";
+    return "border-primary/40 bg-white/70 text-[#0f5f59]";
   }
 
   switch (tone) {
     case "success":
-      return "border-emerald-500/20 bg-emerald-500/10 text-emerald-300";
+      return "border-emerald-200 bg-emerald-50 text-emerald-700";
     case "info":
-      return "border-blue-500/20 bg-blue-500/10 text-blue-300";
+      return "border-sky-200 bg-sky-50 text-sky-700";
     case "warning":
-      return "border-amber-500/20 bg-amber-500/10 text-amber-300";
+      return "border-amber-200 bg-amber-50 text-amber-700";
     case "danger":
-      return "border-red-500/20 bg-red-500/10 text-red-300";
+      return "border-purple-200 bg-purple-50 text-purple-700";
     default:
       return "border-border/70 bg-background/40 text-muted-foreground";
   }
@@ -171,7 +171,7 @@ export function RoleSelectionPage() {
     return (
       <div className="mx-auto grid min-h-[calc(100vh-81px)] w-full max-w-6xl place-items-center px-4 py-8 sm:px-6 lg:px-8">
         <div className="max-w-2xl space-y-4 rounded-[1.75rem] border border-border/80 bg-surface/90 p-6 shadow-lg shadow-black/20">
-          <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-red-500/20 bg-red-500/10 text-red-300">
+          <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-red-200 bg-red-50 text-red-700">
             <AlertCircle className="h-5 w-5" aria-hidden="true" />
           </div>
           <div className="space-y-2">
@@ -201,11 +201,11 @@ export function RoleSelectionPage() {
     <div className="mx-auto flex min-h-[calc(100vh-81px)] w-full max-w-6xl flex-col gap-6 px-4 py-8 sm:px-6 lg:px-8">
       <BrandMark />
 
-      <section className="overflow-hidden rounded-[2rem] border border-border/80 bg-surface/90 shadow-2xl shadow-black/20">
-        <div className="border-b border-border/70 bg-gradient-to-r from-background/30 to-background/5 px-6 py-6 sm:px-8 sm:py-7">
+      <section className="overflow-hidden rounded-[2rem] border border-teal-100/80 bg-[linear-gradient(180deg,rgba(251,253,252,0.94)_0%,rgba(237,245,243,0.9)_100%)] shadow-2xl shadow-teal-950/12">
+        <div className="border-b border-teal-100/80 bg-[linear-gradient(135deg,rgba(15,118,110,0.10)_0%,rgba(2,132,199,0.08)_52%,rgba(124,58,237,0.08)_100%)] px-6 py-6 sm:px-8 sm:py-7">
           <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
             <div className="space-y-3">
-              <div className="inline-flex items-center rounded-full border border-border/70 bg-background/40 px-3 py-1 text-xs font-semibold uppercase tracking-[0.22em] text-muted-foreground">
+              <div className="inline-flex items-center rounded-full border border-teal-200/80 bg-white/60 px-3 py-1 text-xs font-semibold uppercase tracking-[0.22em] text-[#0f5f59] shadow-sm shadow-teal-950/5">
                 Login step
               </div>
               <div className="space-y-2">
@@ -218,7 +218,7 @@ export function RoleSelectionPage() {
               </div>
             </div>
 
-            <div className="rounded-2xl border border-border/70 bg-background/40 px-4 py-3 text-sm text-muted-foreground">
+            <div className="rounded-2xl border border-border/70 bg-white/65 px-4 py-3 text-sm text-muted-foreground shadow-sm shadow-black/5">
               <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">Signed in as</p>
               <p className="mt-2 font-medium text-foreground">{displayNameFromClerk(user)}</p>
               <p className="mt-1 text-xs text-muted-foreground">{user.primaryEmailAddress?.emailAddress ?? "Clerk account"}</p>
@@ -227,7 +227,7 @@ export function RoleSelectionPage() {
         </div>
 
         {(actionError || error) && (
-          <div className="border-b border-red-500/20 bg-red-500/10 px-6 py-4 text-sm font-medium text-red-100">
+          <div className="border-b border-red-200 bg-red-50 px-6 py-4 text-sm font-medium text-red-800">
             <div className="flex items-start gap-3">
               <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
               <p>{actionError ?? error}</p>
@@ -239,6 +239,14 @@ export function RoleSelectionPage() {
           {roleCards.map((card) => {
             const selected = selectedRole === card.code;
             const Icon = card.icon;
+            const iconTone =
+              card.tone === "success"
+                ? "bg-emerald-100 text-emerald-700"
+                : card.tone === "info"
+                  ? "bg-sky-100 text-sky-700"
+                  : card.tone === "warning"
+                    ? "bg-amber-100 text-amber-700"
+                    : "bg-purple-100 text-purple-700";
 
             return (
               <button
@@ -254,7 +262,7 @@ export function RoleSelectionPage() {
                 ].join(" ")}
               >
                 <div className="flex items-start justify-between gap-3">
-                  <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-border/70 bg-background/40 text-primary">
+                  <div className={`flex h-12 w-12 items-center justify-center rounded-2xl border border-white/60 ${iconTone} shadow-sm`}>
                     <Icon className="h-5 w-5" aria-hidden="true" />
                   </div>
                   <span className={`rounded-full border px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] ${toneChipClasses(card.tone, selected)}`}>
@@ -270,7 +278,7 @@ export function RoleSelectionPage() {
         </div>
       </section>
 
-      <section className="grid gap-4 rounded-[1.75rem] border border-border/80 bg-surface/90 p-6 shadow-lg shadow-black/20 lg:grid-cols-[1fr_auto] lg:items-center">
+      <section className="grid gap-4 rounded-[1.75rem] border border-border/80 bg-[linear-gradient(135deg,rgba(15,118,110,0.10)_0%,rgba(2,132,199,0.08)_52%,rgba(124,58,237,0.08)_100%)] p-6 shadow-lg shadow-teal-950/10 lg:grid-cols-[1fr_auto] lg:items-center">
         <div className="space-y-2">
           <p className="text-sm font-semibold uppercase tracking-[0.24em] text-muted-foreground">Selected role</p>
           <h2 className="text-2xl font-semibold tracking-tight text-foreground">{selectedCard.title}</h2>
@@ -318,7 +326,7 @@ export function RoleSelectionPage() {
       </section>
 
       {!hasProfile ? (
-        <section className="rounded-[1.75rem] border border-border/80 bg-surface/90 p-6 shadow-sm shadow-black/10">
+        <section className="rounded-[1.75rem] border border-border/80 bg-white/80 p-6 shadow-sm shadow-black/10">
           <div className="flex items-start gap-3">
             <div className="rounded-2xl border border-border/70 bg-background/40 p-3 text-primary">
               <ShieldCheck className="h-5 w-5" aria-hidden="true" />

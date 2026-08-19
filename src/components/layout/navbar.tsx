@@ -9,7 +9,7 @@ export function Navbar() {
   const { isSignedIn } = useAuth();
 
   return (
-    <header className="sticky top-0 z-40 border-b border-border/80 bg-background/80 backdrop-blur-xl">
+    <header className="sticky top-0 z-40 border-b border-border/70 bg-surface/80 backdrop-blur-xl">
       <div className="mx-auto flex w-full max-w-6xl items-center justify-between gap-4 px-4 py-4 sm:px-6 lg:px-8">
         <BrandMark />
 

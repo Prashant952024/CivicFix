@@ -62,7 +62,7 @@ const roleCards: RoleCard[] = [
 ];
 
 function toneClasses(tone: RoleCard["tone"], selected: boolean) {
-  const selectedBase = "border-primary/50 bg-primary/10 shadow-lg shadow-black/20";
+  const selectedBase = "border-primary/35 bg-primary/5 shadow-lg shadow-emerald-950/10";
 
   if (selected) {
     return selectedBase;
@@ -70,13 +70,13 @@ function toneClasses(tone: RoleCard["tone"], selected: boolean) {
 
   switch (tone) {
     case "success":
-      return "border-emerald-500/15 bg-surface-elevated/80 hover:border-emerald-500/30";
+      return "border-emerald-200 bg-surface-elevated/80 hover:border-emerald-300";
     case "info":
-      return "border-blue-500/15 bg-surface-elevated/80 hover:border-blue-500/30";
+      return "border-sky-200 bg-surface-elevated/80 hover:border-sky-300";
     case "warning":
-      return "border-amber-500/15 bg-surface-elevated/80 hover:border-amber-500/30";
+      return "border-amber-200 bg-surface-elevated/80 hover:border-amber-300";
     case "danger":
-      return "border-red-500/15 bg-surface-elevated/80 hover:border-red-500/30";
+      return "border-red-200 bg-surface-elevated/80 hover:border-red-300";
     default:
       return "border-border/70 bg-surface-elevated/80 hover:border-border";
   }
@@ -89,13 +89,13 @@ function toneChipClasses(tone: RoleCard["tone"], selected: boolean) {
 
   switch (tone) {
     case "success":
-      return "border-emerald-500/20 bg-emerald-500/10 text-emerald-300";
+      return "border-emerald-200 bg-emerald-50 text-emerald-700";
     case "info":
-      return "border-blue-500/20 bg-blue-500/10 text-blue-300";
+      return "border-sky-200 bg-sky-50 text-sky-700";
     case "warning":
-      return "border-amber-500/20 bg-amber-500/10 text-amber-300";
+      return "border-amber-200 bg-amber-50 text-amber-700";
     case "danger":
-      return "border-red-500/20 bg-red-500/10 text-red-300";
+      return "border-red-200 bg-red-50 text-red-700";
     default:
       return "border-border/70 bg-background/40 text-muted-foreground";
   }
@@ -249,8 +249,8 @@ export function RoleOnboardingPage() {
             className={[
               "border-b px-6 py-4 text-sm font-medium",
               actionError || error
-                ? "border-red-500/20 bg-red-500/10 text-red-100"
-                : "border-emerald-500/20 bg-emerald-500/10 text-emerald-100",
+                ? "border-red-200 bg-red-50 text-red-800"
+                : "border-emerald-200 bg-emerald-50 text-emerald-800",
             ].join(" ")}
           >
             <div className="flex items-start gap-3">

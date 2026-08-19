@@ -74,7 +74,7 @@ export function CitizenPlaceholderPage({
           </div>
 
           <div className="mt-5 rounded-2xl border border-border/70 bg-background/40 p-4">
-            <ListChecks className="h-5 w-5 text-emerald-300" aria-hidden="true" />
+            <ListChecks className="h-5 w-5 text-emerald-700" aria-hidden="true" />
             <p className="mt-3 text-sm font-medium text-foreground">Phase-ready shell</p>
             <p className="mt-1 text-sm leading-6 text-muted-foreground">
               The current app shell, authentication, and RLS remain intact for the next implementation step.

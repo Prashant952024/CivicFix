@@ -40,12 +40,6 @@ function createEmptyData(): DashboardData {
   };
 }
 
-function getGreetingPeriod(hour: number) {
-  if (hour < 12) return "morning";
-  if (hour < 18) return "afternoon";
-  return "evening";
-}
-
 function getDisplayName(userName: string | null | undefined, profileName: string | null | undefined) {
   return userName?.trim() || profileName?.trim() || "CivicFix citizen";
 }
@@ -65,8 +59,6 @@ export function CitizenDashboardPage() {
   const sessionProblem = sessionStatus === "error" ? sessionError ?? "CivicFix profile is unavailable." : null;
 
   const displayName = getDisplayName(user?.fullName, profile?.full_name);
-  const greeting = getGreetingPeriod(new Date().getHours());
-
   useEffect(() => {
     if (sessionStatus !== "ready" || !profileId) {
       return;
@@ -151,9 +143,9 @@ export function CitizenDashboardPage() {
 
   if (sessionProblem || error) {
     return (
-      <section className="rounded-[1.75rem] border border-border/80 bg-surface/90 p-6 shadow-lg shadow-black/20">
+      <section className="rounded-[1.75rem] border border-border/80 bg-white/82 p-6 shadow-lg shadow-teal-950/10">
         <div className="max-w-2xl space-y-4">
-          <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-red-500/20 bg-red-500/10 text-red-300">
+          <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-red-200 bg-red-50 text-red-700">
             <AlertCircle className="h-5 w-5" aria-hidden="true" />
           </div>
           <div className="space-y-2">
@@ -171,7 +163,7 @@ export function CitizenDashboardPage() {
   if (!isUserLoaded || loading) {
     return (
       <div className="space-y-6">
-        <section className="rounded-[1.75rem] border border-border/80 bg-surface/90 p-6 shadow-lg shadow-black/20">
+        <section className="rounded-[1.75rem] border border-teal-100/80 bg-[linear-gradient(135deg,rgba(15,118,110,0.10)_0%,rgba(2,132,199,0.08)_52%,rgba(5,150,105,0.08)_100%)] p-6 shadow-lg shadow-teal-950/10">
           <div className="space-y-3">
             <div className="h-4 w-40 animate-pulse rounded-full bg-muted/60" />
             <div className="h-9 w-full max-w-md animate-pulse rounded-2xl bg-muted/60" />
@@ -181,7 +173,7 @@ export function CitizenDashboardPage() {
 
         <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
           {Array.from({ length: 4 }).map((_, index) => (
-            <div key={index} className="rounded-2xl border border-border/80 bg-surface/90 p-5">
+            <div key={index} className="rounded-2xl border border-border/80 bg-white/82 p-5">
               <div className="h-4 w-24 animate-pulse rounded-full bg-muted/50" />
               <div className="mt-5 h-8 w-16 animate-pulse rounded-2xl bg-muted/50" />
             </div>
@@ -202,18 +194,18 @@ export function CitizenDashboardPage() {
 
   return (
     <div className="space-y-6">
-      <section className="rounded-[1.75rem] border border-border/80 bg-surface/90 p-6 shadow-lg shadow-black/20">
+      <section className="relative isolate overflow-hidden rounded-[1.75rem] border border-teal-100/80 bg-[linear-gradient(135deg,rgba(15,118,110,0.11)_0%,rgba(2,132,199,0.10)_48%,rgba(124,58,237,0.08)_100%)] p-6 shadow-lg shadow-teal-950/10">
+        <div className="pointer-events-none absolute -right-8 top-0 h-32 w-32 rounded-full bg-[#0284c7]/15 blur-3xl" aria-hidden="true" />
+        <div className="pointer-events-none absolute bottom-0 left-10 h-36 w-36 rounded-full bg-[#059669]/15 blur-3xl" aria-hidden="true" />
         <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
           <div className="space-y-3">
-            <div className="inline-flex items-center rounded-full border border-border/70 bg-background/40 px-3 py-1 text-xs font-semibold uppercase tracking-[0.22em] text-muted-foreground">
+            <div className="inline-flex items-center rounded-full border border-teal-200/80 bg-white/60 px-3 py-1 text-xs font-semibold uppercase tracking-[0.22em] text-[#0f5f59] shadow-sm shadow-teal-950/5">
               My Civic Issues
             </div>
             <div className="space-y-2">
-              <h2 className="text-3xl font-semibold tracking-tight text-foreground">
-                Good {greeting}, {displayName} <span aria-hidden="true">👋</span>
-              </h2>
+              <h2 className="text-3xl font-semibold tracking-tight text-foreground">Community impact dashboard</h2>
               <p className="max-w-2xl text-sm leading-6 text-muted-foreground">
-                Track, verify, and follow up on the civic reports you submitted.
+                Track, verify, and follow up on the civic reports you submitted, {displayName}.
               </p>
             </div>
           </div>

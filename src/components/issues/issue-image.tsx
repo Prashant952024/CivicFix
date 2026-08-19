@@ -82,8 +82,8 @@ export function IssueImage({
   if (!src || isBroken) {
     return (
       <div className={cn(frameClassName, styles.fallback)}>
-        <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-slate-800 via-slate-900 to-background p-4 text-center">
-          <div className="max-w-[16rem] rounded-2xl border border-border/70 bg-background/50 px-4 py-3">
+        <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-emerald-50 via-surface to-background p-4 text-center">
+          <div className="max-w-[16rem] rounded-2xl border border-border/70 bg-surface/90 px-4 py-3 shadow-sm shadow-emerald-950/5">
             <ImageIcon className="mx-auto h-5 w-5 text-primary" aria-hidden="true" />
             <p className={cn("mt-2 font-semibold uppercase tracking-[0.22em] text-muted-foreground", styles.labelSize)}>
               {isBroken ? brokenLabel : emptyLabel}
@@ -99,7 +99,7 @@ export function IssueImage({
       {!isLoaded ? (
         <div
           className={cn(
-            "absolute inset-0 animate-pulse bg-[linear-gradient(135deg,rgba(255,255,255,0.03),rgba(255,255,255,0.08),rgba(255,255,255,0.03))]",
+            "absolute inset-0 animate-pulse bg-[linear-gradient(135deg,rgba(22,101,52,0.03),rgba(255,255,255,0.8),rgba(22,101,52,0.03))]",
             styles.skeleton,
           )}
         />

@@ -68,14 +68,14 @@ type TimelineItem = {
 
 function statusToneClasses(tone: "default" | "success" | "warning" | "danger" | "info") {
   return tone === "success"
-    ? "bg-emerald-500/10 text-emerald-300 ring-emerald-500/20"
+    ? "bg-emerald-50 text-emerald-700 ring-emerald-200"
     : tone === "warning"
-      ? "bg-amber-500/10 text-amber-300 ring-amber-500/20"
+      ? "bg-amber-50 text-amber-700 ring-amber-200"
       : tone === "danger"
-        ? "bg-red-500/10 text-red-300 ring-red-500/20"
+        ? "bg-red-50 text-red-700 ring-red-200"
         : tone === "info"
-          ? "bg-blue-500/10 text-blue-300 ring-blue-500/20"
-          : "bg-slate-500/10 text-slate-300 ring-slate-500/20";
+          ? "bg-sky-50 text-sky-700 ring-sky-200"
+          : "bg-slate-100 text-slate-700 ring-slate-200";
 }
 
 function formatStatusPair(history: IssueHistoryRow) {
@@ -299,7 +299,7 @@ export function CitizenIssueDetailsPage() {
     return (
       <section className="rounded-[1.75rem] border border-border/80 bg-surface/90 p-6 shadow-lg shadow-black/20">
         <div className="max-w-2xl space-y-4">
-          <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-red-500/20 bg-red-500/10 text-red-300">
+          <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-red-200 bg-red-50 text-red-700">
             <AlertCircle className="h-5 w-5" aria-hidden="true" />
           </div>
           <div className="space-y-2">
@@ -376,13 +376,13 @@ export function CitizenIssueDetailsPage() {
         </div>
 
         {actionMessage ? (
-          <div className="border-b border-emerald-500/20 bg-emerald-500/10 px-6 py-4 text-sm font-medium text-emerald-100">
+          <div className="border-b border-emerald-200 bg-emerald-50 px-6 py-4 text-sm font-medium text-emerald-800">
             {actionMessage}
           </div>
         ) : null}
 
         {actionError ? (
-          <div className="border-b border-red-500/20 bg-red-500/10 px-6 py-4 text-sm font-medium text-red-100">
+          <div className="border-b border-red-200 bg-red-50 px-6 py-4 text-sm font-medium text-red-800">
             {actionError}
           </div>
         ) : null}
@@ -543,7 +543,7 @@ export function CitizenIssueDetailsPage() {
             <section className="overflow-hidden rounded-[1.75rem] border border-border/80 bg-surface/90 shadow-lg shadow-black/20">
               <div className="border-b border-border/70 px-6 py-5">
                 <div className="flex items-center gap-3">
-                  <div className="rounded-2xl border border-border/70 bg-background/40 p-3 text-primary">
+                  <div className="rounded-2xl border border-teal-200 bg-teal-50 p-3 text-teal-700">
                     <CheckCircle2 className="h-5 w-5" aria-hidden="true" />
                   </div>
                   <div>
@@ -557,15 +557,15 @@ export function CitizenIssueDetailsPage() {
 
               <div className="space-y-4 p-6">
                 {verification?.result === "VERIFIED" ? (
-                  <div className="rounded-2xl border border-emerald-500/20 bg-emerald-500/10 p-5">
-                    <p className="text-sm font-semibold text-emerald-200">Thank you for verifying the resolution.</p>
+                  <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-5">
+                    <p className="text-sm font-semibold text-emerald-700">Thank you for verifying the resolution.</p>
                     <p className="mt-2 text-sm leading-6 text-muted-foreground">
                       You confirmed that the issue has been resolved on {formatCitizenIssueDateTime(verification.created_at)}.
                     </p>
                   </div>
                 ) : verification?.result === "UNRESOLVED" ? (
-                  <div className="rounded-2xl border border-amber-500/20 bg-amber-500/10 p-5">
-                    <p className="text-sm font-semibold text-amber-200">You marked this issue as still existing.</p>
+                  <div className="rounded-2xl border border-amber-200 bg-amber-50 p-5">
+                    <p className="text-sm font-semibold text-amber-700">You marked this issue as still existing.</p>
                     <p className="mt-2 text-sm leading-6 text-muted-foreground">
                       CivicFix recorded your feedback on {formatCitizenIssueDateTime(verification.created_at)}.
                     </p>
@@ -584,8 +584,8 @@ export function CitizenIssueDetailsPage() {
                     </div>
                   </div>
                 ) : isCitizenIssueResolvedLike(issue.status) ? (
-                  <div className="rounded-2xl border border-blue-500/20 bg-blue-500/10 p-5">
-                    <p className="text-sm font-semibold text-blue-200">Has this issue been resolved?</p>
+                  <div className="rounded-2xl border border-sky-200 bg-sky-50 p-5">
+                    <p className="text-sm font-semibold text-sky-700">Has this issue been resolved?</p>
                     <p className="mt-2 text-sm leading-6 text-muted-foreground">
                       Your confirmation helps CivicFix close the loop on community reports.
                     </p>
@@ -619,8 +619,8 @@ export function CitizenIssueDetailsPage() {
                 )}
 
                 {issue.status === "REOPENED" ? (
-                  <div className="rounded-2xl border border-amber-500/20 bg-amber-500/10 p-5">
-                    <p className="text-sm font-semibold text-amber-200">This complaint has been reopened.</p>
+                  <div className="rounded-2xl border border-orange-200 bg-orange-50 p-5">
+                    <p className="text-sm font-semibold text-orange-700">This complaint has been reopened.</p>
                     <p className="mt-2 text-sm leading-6 text-muted-foreground">
                       The issue will be sent back for further attention.
                     </p>
