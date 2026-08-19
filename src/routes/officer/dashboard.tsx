@@ -91,19 +91,19 @@ export function OfficerDashboardPage() {
 
   const stats = useMemo(() => {
     const totalIssues = issues.length;
-    const pendingVerification = countStatus(issues, ["SUBMITTED", "AI_ANALYZED", "UNDER_REVIEW"]);
-    const verifiedIssues = countStatus(issues, ["VERIFIED"]);
+    const pendingVerification = countStatus(issues, ["SUBMITTED", "AI_ANALYZED"]);
+    const assignedIssues = countStatus(issues, ["ASSIGNED"]);
     const inProgressIssues = countStatus(issues, ["ASSIGNED", "IN_PROGRESS", "REOPENED"]);
+    const underReviewIssues = countStatus(issues, ["UNDER_REVIEW"]);
     const resolvedIssues = countStatus(issues, ["RESOLVED", "CITIZEN_VERIFIED"]);
-    const highPriorityIssues = issues.filter((issue) => issue.priority === "HIGH" || issue.priority === "URGENT").length;
 
     return {
       totalIssues,
       pendingVerification,
-      verifiedIssues,
+      assignedIssues,
       inProgressIssues,
+      underReviewIssues,
       resolvedIssues,
-      highPriorityIssues,
     };
   }, [issues]);
 
@@ -149,17 +149,18 @@ export function OfficerDashboardPage() {
 
   return (
     <div className="space-y-6">
-      <section className="relative overflow-hidden rounded-[1.75rem] border border-teal-100/80 bg-[linear-gradient(135deg,rgba(15,118,110,0.10)_0%,rgba(2,132,199,0.10)_48%,rgba(79,70,229,0.08)_100%)] shadow-lg shadow-teal-950/10">
-        <div className="pointer-events-none absolute -right-8 top-0 h-36 w-36 rounded-full bg-[#0284c7]/15 blur-3xl" aria-hidden="true" />
-        <div className="pointer-events-none absolute bottom-0 left-6 h-40 w-40 rounded-full bg-[#0f766e]/15 blur-3xl" aria-hidden="true" />
-        <div className="border-b border-teal-100/70 bg-[linear-gradient(135deg,rgba(255,255,255,0.76)_0%,rgba(247,250,248,0.72)_100%)] px-6 py-5 backdrop-blur-sm">
+      <section className="relative overflow-hidden rounded-[1.85rem] border border-teal-100/80 bg-[linear-gradient(135deg,rgba(15,118,110,0.14)_0%,rgba(2,132,199,0.12)_46%,rgba(79,70,229,0.10)_100%)] shadow-2xl shadow-teal-950/12">
+        <div className="pointer-events-none absolute -right-8 top-0 h-36 w-36 rounded-full bg-[#0284c7]/18 blur-3xl" aria-hidden="true" />
+        <div className="pointer-events-none absolute bottom-0 left-6 h-40 w-40 rounded-full bg-[#0f766e]/18 blur-3xl" aria-hidden="true" />
+        <div className="pointer-events-none absolute right-1/3 top-8 h-28 w-28 rounded-full bg-[#7c3aed]/12 blur-3xl" aria-hidden="true" />
+        <div className="border-b border-white/50 bg-[linear-gradient(135deg,rgba(255,255,255,0.82)_0%,rgba(247,250,248,0.76)_100%)] px-6 py-6 backdrop-blur-md">
           <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
             <div className="space-y-3">
-              <div className="inline-flex items-center rounded-full border border-sky-200/80 bg-white/75 px-3 py-1 text-xs font-semibold uppercase tracking-[0.22em] text-[#0f5f59] shadow-sm shadow-teal-950/5">
-                Municipal officer workspace
+              <div className="inline-flex items-center rounded-full border border-sky-200/80 bg-white/80 px-3 py-1 text-xs font-semibold uppercase tracking-[0.22em] text-[#0f5f59] shadow-sm shadow-teal-950/5">
+                Municipal operations
               </div>
               <div className="space-y-2">
-                <h2 className="text-3xl font-semibold tracking-tight text-foreground">Municipal Officer Dashboard</h2>
+                <h2 className="text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">Municipal Officer Dashboard</h2>
                 <p className="max-w-3xl text-sm leading-6 text-muted-foreground">
                   Live operational visibility for verification, triage, and assignment. This view is powered by current Supabase data.
                 </p>
@@ -167,11 +168,11 @@ export function OfficerDashboardPage() {
             </div>
 
             <div className="flex flex-col gap-3 sm:flex-row">
-              <div className="inline-flex items-center gap-2 rounded-full border border-sky-200/80 bg-white/75 px-4 py-2 text-sm text-sky-900 shadow-sm shadow-sky-950/5">
+              <div className="inline-flex items-center gap-2 rounded-full border border-sky-200/80 bg-white/80 px-4 py-2 text-sm text-sky-900 shadow-sm shadow-sky-950/5">
                 <TrendingUp className="h-4 w-4" aria-hidden="true" />
                 Live queue
               </div>
-              <Button asChild>
+              <Button asChild className="shadow-md shadow-teal-950/15">
                 <Link to="/app/officer/issues">
                   Open issue queue
                   <ArrowRight className="h-4 w-4" aria-hidden="true" />
@@ -186,14 +187,14 @@ export function OfficerDashboardPage() {
         {[
           { label: "Total Issues", value: stats.totalIssues, icon: ClipboardList, tone: "default" as const },
           { label: "Pending Verification", value: stats.pendingVerification, icon: Bell, tone: "warning" as const },
-          { label: "Verified Issues", value: stats.verifiedIssues, icon: CheckCircle2, tone: "info" as const },
-          { label: "In Progress", value: stats.inProgressIssues, icon: Gauge, tone: "info" as const },
+          { label: "Assigned", value: stats.assignedIssues, icon: CheckCircle2, tone: "info" as const },
+          { label: "In Progress", value: stats.inProgressIssues, icon: Gauge, tone: "danger" as const },
+          { label: "Under Review", value: stats.underReviewIssues, icon: TrendingUp, tone: "default" as const },
           { label: "Resolved", value: stats.resolvedIssues, icon: CheckCircle2, tone: "success" as const },
-          { label: "High Priority", value: stats.highPriorityIssues, icon: Bell, tone: "danger" as const },
         ].map(({ label, value, icon: Icon, tone }) => (
           <div
             key={label}
-            className="relative overflow-hidden rounded-2xl border border-border/70 bg-white/84 p-5 shadow-sm shadow-teal-950/8 backdrop-blur-sm"
+            className="relative overflow-hidden rounded-2xl border border-border/70 bg-[linear-gradient(180deg,rgba(255,255,255,0.88)_0%,rgba(244,248,246,0.88)_100%)] p-5 shadow-sm shadow-teal-950/8 backdrop-blur-sm transition hover:-translate-y-0.5 hover:shadow-md"
           >
             <div
               className={[
@@ -202,11 +203,13 @@ export function OfficerDashboardPage() {
                   ? "bg-gradient-to-r from-emerald-500 via-emerald-400 to-emerald-500"
                   : label === "Pending Verification"
                     ? "bg-gradient-to-r from-amber-500 via-amber-400 to-amber-500"
-                    : label === "High Priority"
+                    : label === "In Progress"
                       ? "bg-gradient-to-r from-orange-500 via-orange-400 to-orange-500"
-                    : label === "Verified Issues"
-                      ? "bg-gradient-to-r from-sky-500 via-sky-400 to-sky-500"
-                      : "bg-gradient-to-r from-teal-500 via-teal-400 to-emerald-500",
+                      : label === "Under Review"
+                        ? "bg-gradient-to-r from-violet-500 via-violet-400 to-indigo-500"
+                        : label === "Assigned"
+                          ? "bg-gradient-to-r from-sky-500 via-sky-400 to-indigo-500"
+                          : "bg-gradient-to-r from-teal-500 via-teal-400 to-emerald-500",
               ].join(" ")}
             />
             <div className="flex items-center justify-between gap-4">
@@ -222,7 +225,7 @@ export function OfficerDashboardPage() {
                         ? "bg-orange-50 text-orange-700 ring-orange-200"
                         : tone === "info"
                           ? "bg-sky-50 text-sky-700 ring-sky-200"
-                          : "bg-teal-50 text-teal-700 ring-teal-200",
+                          : "bg-violet-50 text-violet-700 ring-violet-200",
                 ].join(" ")}
               >
                 <Icon className="h-4 w-4" aria-hidden="true" />
@@ -234,7 +237,7 @@ export function OfficerDashboardPage() {
       </section>
 
       <section className="grid gap-4 lg:grid-cols-[1.2fr_0.8fr]">
-        <div className="rounded-[1.75rem] border border-border/80 bg-surface/90 p-6 shadow-lg shadow-black/20">
+        <div className="rounded-[1.85rem] border border-teal-100/80 bg-[linear-gradient(135deg,rgba(255,255,255,0.88)_0%,rgba(239,246,244,0.9)_55%,rgba(229,243,247,0.88)_100%)] p-6 shadow-lg shadow-teal-950/10">
           <div className="flex items-center justify-between gap-4">
             <div>
               <p className="text-sm font-medium text-muted-foreground">Triage queue</p>
@@ -245,12 +248,12 @@ export function OfficerDashboardPage() {
             </Button>
           </div>
 
-            <div className="mt-6 space-y-3">
+          <div className="mt-6 space-y-3">
             {recentIssues.length > 0 ? (
               recentIssues.map((issue) => (
                 <Link
                   key={issue.id}
-                  className="block rounded-2xl border border-border/70 bg-[linear-gradient(135deg,rgba(15,118,110,0.06)_0%,rgba(2,132,199,0.05)_52%,rgba(5,150,105,0.05)_100%)] p-4 transition hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-md"
+                  className="block rounded-2xl border border-border/70 bg-[linear-gradient(135deg,rgba(15,118,110,0.07)_0%,rgba(2,132,199,0.06)_42%,rgba(124,58,237,0.05)_100%)] p-4 transition hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-md"
                   to={`/app/officer/issues/${issue.id}`}
                 >
                   <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
@@ -259,18 +262,22 @@ export function OfficerDashboardPage() {
                         <span className={`inline-flex items-center rounded-full border px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] ring-1 ${badgeToneClasses(getOfficerIssueStatusTone(issue.status))}`}>
                           {getOfficerIssueStatusLabel(issue.status)}
                         </span>
-                <span className={`inline-flex items-center rounded-full border px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] ring-1 ${
-                  issue.priority === "URGENT"
-                    ? "bg-orange-50 text-orange-700 ring-orange-200"
-                    : issue.priority === "HIGH"
-                      ? "bg-amber-50 text-amber-700 ring-amber-200"
-                      : issue.priority === "MEDIUM"
-                        ? "bg-sky-50 text-sky-700 ring-sky-200"
-                        : "bg-teal-50 text-teal-700 ring-teal-200"
-                }`}>
+                        <span
+                          className={`inline-flex items-center rounded-full border px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] ring-1 ${
+                            issue.priority === "URGENT"
+                              ? "bg-rose-50 text-rose-700 ring-rose-200"
+                              : issue.priority === "HIGH"
+                                ? "bg-orange-50 text-orange-700 ring-orange-200"
+                                : issue.priority === "MEDIUM"
+                                  ? "bg-amber-50 text-amber-700 ring-amber-200"
+                                  : "bg-sky-50 text-sky-700 ring-sky-200"
+                          }`}
+                        >
                           Priority {issue.priority}
                         </span>
-                        <span className={`inline-flex items-center rounded-full border px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] ring-1 ${badgeToneClasses(issue.severity === "CRITICAL" ? "danger" : issue.severity === "HIGH" ? "warning" : issue.severity === "MEDIUM" ? "info" : "success")}`}>
+                        <span
+                          className={`inline-flex items-center rounded-full border px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] ring-1 ${badgeToneClasses(issue.severity === "CRITICAL" ? "danger" : issue.severity === "HIGH" ? "warning" : issue.severity === "MEDIUM" ? "info" : "success")}`}
+                        >
                           Severity {getOfficerIssueSeverityLabel(issue.severity)}
                         </span>
                       </div>
@@ -291,7 +298,7 @@ export function OfficerDashboardPage() {
                 </Link>
               ))
             ) : (
-              <div className="rounded-2xl border border-border/70 bg-[linear-gradient(135deg,rgba(15,118,110,0.08)_0%,rgba(2,132,199,0.06)_100%)] p-5">
+              <div className="rounded-2xl border border-border/70 bg-[linear-gradient(135deg,rgba(15,118,110,0.08)_0%,rgba(2,132,199,0.06)_50%,rgba(124,58,237,0.06)_100%)] p-5">
                 <p className="text-sm font-medium text-foreground">No issues in the municipal queue yet.</p>
                 <p className="mt-2 text-sm leading-6 text-muted-foreground">
                   Once citizens submit reports, they will appear here for verification and routing.
@@ -301,13 +308,13 @@ export function OfficerDashboardPage() {
           </div>
         </div>
 
-        <div className="rounded-[1.75rem] border border-border/80 bg-[linear-gradient(135deg,rgba(15,118,110,0.08)_0%,rgba(2,132,199,0.06)_100%)] p-6 shadow-lg shadow-teal-950/10">
+        <div className="rounded-[1.85rem] border border-teal-100/80 bg-[linear-gradient(135deg,rgba(15,118,110,0.10)_0%,rgba(2,132,199,0.08)_50%,rgba(124,58,237,0.08)_100%)] p-6 shadow-lg shadow-teal-950/10">
           <p className="text-xs font-semibold uppercase tracking-[0.24em] text-muted-foreground">Workflow</p>
           <div className="mt-4 grid gap-3">
             {["REPORT", "ANALYZE", "PRIORITIZE", "ASSIGN", "RESOLVE", "VERIFY"].map((step, index) => (
               <div
                 key={step}
-                className="flex items-center gap-3 rounded-2xl border border-border/70 bg-white/75 px-4 py-3 shadow-sm shadow-black/5"
+                className="flex items-center gap-3 rounded-2xl border border-border/70 bg-white/78 px-4 py-3 shadow-sm shadow-black/5"
               >
                 <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-[#0f766e] to-[#0284c7] text-xs font-bold text-white shadow-sm shadow-teal-950/10">
                   {index + 1}

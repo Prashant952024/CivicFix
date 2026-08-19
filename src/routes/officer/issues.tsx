@@ -17,7 +17,6 @@ import {
   formatOfficerAssignmentSummary,
   formatOfficerIssueDateTime,
   formatOfficerIssueCoordinates,
-  getOfficerIssuePriorityTone,
   getOfficerIssueSeverityLabel,
   getOfficerIssueSeverityTone,
   getOfficerIssueStatusFilterBucket,
@@ -232,7 +231,7 @@ export function OfficerIssuesPage() {
 
   if (sessionProblem || error) {
     return (
-      <section className="rounded-[1.75rem] border border-border/80 bg-surface/90 p-6 shadow-lg shadow-black/20">
+      <section className="rounded-[1.75rem] border border-border/80 bg-white/82 p-6 shadow-lg shadow-teal-950/10">
         <div className="max-w-2xl space-y-4">
           <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-red-200 bg-red-50 text-red-700">
             <AlertCircle className="h-5 w-5" aria-hidden="true" />
@@ -252,7 +251,7 @@ export function OfficerIssuesPage() {
   if (loading) {
     return (
       <div className="space-y-6">
-        <section className="rounded-[1.75rem] border border-border/80 bg-surface/90 p-6 shadow-lg shadow-black/20">
+        <section className="rounded-[1.75rem] border border-teal-100/80 bg-[linear-gradient(135deg,rgba(15,118,110,0.10)_0%,rgba(2,132,199,0.08)_48%,rgba(124,58,237,0.08)_100%)] p-6 shadow-lg shadow-teal-950/10">
           <div className="space-y-3">
             <div className="h-4 w-44 animate-pulse rounded-full bg-muted/60" />
             <div className="h-9 w-full max-w-3xl animate-pulse rounded-2xl bg-muted/60" />
@@ -270,15 +269,17 @@ export function OfficerIssuesPage() {
 
   return (
     <div className="space-y-6">
-      <section className="overflow-hidden rounded-[1.75rem] border border-border/80 bg-surface/90 shadow-lg shadow-black/20">
-        <div className="border-b border-border/70 bg-gradient-to-r from-background/30 to-background/5 px-6 py-5">
+      <section className="relative overflow-hidden rounded-[1.85rem] border border-teal-100/80 bg-[linear-gradient(135deg,rgba(15,118,110,0.12)_0%,rgba(2,132,199,0.10)_50%,rgba(79,70,229,0.08)_100%)] shadow-2xl shadow-teal-950/10">
+        <div className="pointer-events-none absolute -right-8 top-0 h-36 w-36 rounded-full bg-[#0284c7]/15 blur-3xl" aria-hidden="true" />
+        <div className="pointer-events-none absolute bottom-0 left-6 h-40 w-40 rounded-full bg-[#0f766e]/15 blur-3xl" aria-hidden="true" />
+        <div className="border-b border-white/50 bg-[linear-gradient(135deg,rgba(255,255,255,0.82)_0%,rgba(247,250,248,0.76)_100%)] px-6 py-6 backdrop-blur-md">
           <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
             <div className="space-y-3">
-              <div className="inline-flex items-center rounded-full border border-border/70 bg-background/40 px-3 py-1 text-xs font-semibold uppercase tracking-[0.22em] text-muted-foreground">
+              <div className="inline-flex items-center rounded-full border border-sky-200/80 bg-white/80 px-3 py-1 text-xs font-semibold uppercase tracking-[0.22em] text-[#0f5f59] shadow-sm shadow-teal-950/5">
                 Municipal queue
               </div>
               <div className="space-y-2">
-                <h2 className="text-3xl font-semibold tracking-tight text-foreground">Issue Management</h2>
+                <h2 className="text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">Issue Management</h2>
                 <p className="max-w-3xl text-sm leading-6 text-muted-foreground">
                   Search, triage, and route live civic issues by status, priority, category, and assignment context.
                 </p>
@@ -286,11 +287,11 @@ export function OfficerIssuesPage() {
             </div>
 
             <div className="flex flex-col gap-3 sm:flex-row">
-              <div className="inline-flex items-center gap-2 rounded-full border border-border/70 bg-background/40 px-4 py-2 text-sm text-muted-foreground">
+              <div className="inline-flex items-center gap-2 rounded-full border border-sky-200/80 bg-white/80 px-4 py-2 text-sm text-sky-900 shadow-sm shadow-sky-950/5">
                 <Filter className="h-4 w-4" aria-hidden="true" />
                 {filteredIssues.length} visible
               </div>
-              <Button asChild>
+              <Button asChild className="shadow-md shadow-teal-950/15">
                 <Link to="/app/officer">
                   Back to dashboard
                   <SquareArrowOutUpRight className="h-4 w-4" aria-hidden="true" />
@@ -302,37 +303,37 @@ export function OfficerIssuesPage() {
       </section>
 
       <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <div className="rounded-2xl border border-border/80 bg-surface/90 p-5 shadow-sm shadow-black/10">
+        <div className="rounded-2xl border border-border/80 bg-[linear-gradient(135deg,rgba(15,118,110,0.10)_0%,rgba(2,132,199,0.08)_100%)] p-5 shadow-sm shadow-teal-950/8">
           <p className="text-sm font-medium text-muted-foreground">Total Issues</p>
           <p className="mt-4 text-3xl font-semibold tracking-tight text-foreground">{totalCount}</p>
         </div>
-        <div className="rounded-2xl border border-border/80 bg-surface/90 p-5 shadow-sm shadow-black/10">
+        <div className="rounded-2xl border border-border/80 bg-[linear-gradient(135deg,rgba(217,119,6,0.12)_0%,rgba(251,191,36,0.08)_100%)] p-5 shadow-sm shadow-amber-950/8">
           <p className="text-sm font-medium text-muted-foreground">Pending Verification</p>
           <p className="mt-4 text-3xl font-semibold tracking-tight text-foreground">
             {issues.filter((issue) => getOfficerIssueStatusFilterBucket(issue.status) === "pending").length}
           </p>
         </div>
-        <div className="rounded-2xl border border-border/80 bg-surface/90 p-5 shadow-sm shadow-black/10">
+        <div className="rounded-2xl border border-border/80 bg-[linear-gradient(135deg,rgba(79,70,229,0.12)_0%,rgba(2,132,199,0.08)_100%)] p-5 shadow-sm shadow-indigo-950/8">
+          <p className="text-sm font-medium text-muted-foreground">Assigned</p>
+          <p className="mt-4 text-3xl font-semibold tracking-tight text-foreground">
+            {issues.filter((issue) => issue.status === "ASSIGNED").length}
+          </p>
+        </div>
+        <div className="rounded-2xl border border-border/80 bg-[linear-gradient(135deg,rgba(249,115,22,0.12)_0%,rgba(234,179,8,0.08)_100%)] p-5 shadow-sm shadow-orange-950/8">
           <p className="text-sm font-medium text-muted-foreground">In Progress</p>
           <p className="mt-4 text-3xl font-semibold tracking-tight text-foreground">
             {issues.filter((issue) => getOfficerIssueStatusFilterBucket(issue.status) === "inProgress").length}
           </p>
         </div>
-        <div className="rounded-2xl border border-border/80 bg-surface/90 p-5 shadow-sm shadow-black/10">
-          <p className="text-sm font-medium text-muted-foreground">High Priority</p>
-          <p className="mt-4 text-3xl font-semibold tracking-tight text-foreground">
-            {issues.filter((issue) => issue.priority === "HIGH" || issue.priority === "URGENT").length}
-          </p>
-        </div>
       </section>
 
-      <section className="rounded-[1.75rem] border border-border/80 bg-surface/90 p-5 shadow-lg shadow-black/20">
+      <section className="rounded-[1.75rem] border border-teal-100/80 bg-[linear-gradient(135deg,rgba(255,255,255,0.88)_0%,rgba(239,246,244,0.9)_100%)] p-5 shadow-lg shadow-teal-950/10">
         <div className="grid gap-4 xl:grid-cols-[1.2fr_0.75fr_0.75fr_0.75fr_0.75fr_auto]">
           <label className="relative">
             <span className="sr-only">Search issues</span>
             <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <input
-              className="w-full rounded-2xl border border-border/80 bg-background/50 py-3 pl-11 pr-4 text-sm text-foreground outline-none transition placeholder:text-muted-foreground focus:border-primary/50 focus:ring-2 focus:ring-primary/20"
+              className="w-full rounded-2xl border border-border/80 bg-white/80 py-3 pl-11 pr-4 text-sm text-foreground outline-none transition placeholder:text-muted-foreground focus:border-primary/50 focus:ring-2 focus:ring-primary/20"
               onChange={(event) => setSearch(event.target.value)}
               placeholder="Search title, location, reporter, department, or worker"
               value={search}
@@ -342,7 +343,7 @@ export function OfficerIssuesPage() {
           <label className="space-y-2">
             <span className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">Status</span>
             <select
-              className="w-full rounded-2xl border border-border/80 bg-background/50 px-4 py-3 text-sm text-foreground outline-none transition focus:border-primary/50 focus:ring-2 focus:ring-primary/20"
+              className="w-full rounded-2xl border border-border/80 bg-white/80 px-4 py-3 text-sm text-foreground outline-none transition focus:border-primary/50 focus:ring-2 focus:ring-primary/20"
               onChange={(event) => setStatusFilter(event.target.value as "all" | ReturnType<typeof getOfficerIssueStatusFilterBucket>)}
               value={statusFilter}
             >
@@ -357,7 +358,7 @@ export function OfficerIssuesPage() {
           <label className="space-y-2">
             <span className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">Priority</span>
             <select
-              className="w-full rounded-2xl border border-border/80 bg-background/50 px-4 py-3 text-sm text-foreground outline-none transition focus:border-primary/50 focus:ring-2 focus:ring-primary/20"
+              className="w-full rounded-2xl border border-border/80 bg-white/80 px-4 py-3 text-sm text-foreground outline-none transition focus:border-primary/50 focus:ring-2 focus:ring-primary/20"
               onChange={(event) => setPriorityFilter(event.target.value as "all" | OfficerIssuePriority)}
               value={priorityFilter}
             >
@@ -372,7 +373,7 @@ export function OfficerIssuesPage() {
           <label className="space-y-2">
             <span className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">Category</span>
             <select
-              className="w-full rounded-2xl border border-border/80 bg-background/50 px-4 py-3 text-sm text-foreground outline-none transition focus:border-primary/50 focus:ring-2 focus:ring-primary/20"
+              className="w-full rounded-2xl border border-border/80 bg-white/80 px-4 py-3 text-sm text-foreground outline-none transition focus:border-primary/50 focus:ring-2 focus:ring-primary/20"
               onChange={(event) => setCategoryFilter(event.target.value)}
               value={categoryFilter}
             >
@@ -387,7 +388,7 @@ export function OfficerIssuesPage() {
           <label className="space-y-2">
             <span className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">Sort</span>
             <select
-              className="w-full rounded-2xl border border-border/80 bg-background/50 px-4 py-3 text-sm text-foreground outline-none transition focus:border-primary/50 focus:ring-2 focus:ring-primary/20"
+              className="w-full rounded-2xl border border-border/80 bg-white/80 px-4 py-3 text-sm text-foreground outline-none transition focus:border-primary/50 focus:ring-2 focus:ring-primary/20"
               onChange={(event) => setSortOrder(event.target.value as SortOrder)}
               value={sortOrder}
             >
@@ -416,7 +417,7 @@ export function OfficerIssuesPage() {
               </p>
               <h3 className="mt-1 text-xl font-semibold text-foreground">Municipal operations queue</h3>
             </div>
-            <div className="inline-flex items-center gap-2 rounded-full border border-border/70 bg-background/40 px-3 py-2 text-xs font-medium text-muted-foreground">
+            <div className="inline-flex items-center gap-2 rounded-full border border-border/70 bg-white/75 px-3 py-2 text-xs font-medium text-muted-foreground shadow-sm shadow-black/5">
               <SlidersHorizontal className="h-4 w-4" aria-hidden="true" />
               {sortOrder === "newest"
                 ? "Newest first"
@@ -437,13 +438,30 @@ export function OfficerIssuesPage() {
               const aiAnalysis = issue.issue_ai_analysis?.[0] ?? null;
 
               return (
-                <article key={issue.id} className="rounded-[1.75rem] border border-border/80 bg-surface/90 p-5 shadow-lg shadow-black/20">
-                  <div className="grid gap-5 lg:grid-cols-[0.22fr_1fr]">
-                    <div className="overflow-hidden rounded-2xl border border-border/70 bg-surface-elevated">
+                <article
+                  key={issue.id}
+                  className="overflow-hidden rounded-[1.85rem] border border-border/80 bg-[linear-gradient(135deg,rgba(255,255,255,0.9)_0%,rgba(239,246,244,0.92)_58%,rgba(229,243,247,0.88)_100%)] shadow-lg shadow-teal-950/10"
+                >
+                  <div
+                    className={[
+                      "h-1",
+                      issue.status === "RESOLVED" || issue.status === "CITIZEN_VERIFIED"
+                        ? "bg-gradient-to-r from-emerald-500 via-emerald-400 to-green-500"
+                        : issue.status === "UNDER_REVIEW"
+                          ? "bg-gradient-to-r from-violet-500 via-indigo-400 to-violet-500"
+                          : issue.status === "IN_PROGRESS"
+                            ? "bg-gradient-to-r from-orange-500 via-orange-400 to-amber-500"
+                            : issue.status === "ASSIGNED"
+                              ? "bg-gradient-to-r from-sky-500 via-cyan-400 to-indigo-500"
+                              : "bg-gradient-to-r from-teal-500 via-sky-400 to-teal-500",
+                    ].join(" ")}
+                  />
+                  <div className="grid gap-5 p-5 lg:grid-cols-[0.32fr_1fr]">
+                    <div className="overflow-hidden rounded-2xl border border-teal-100/80 bg-[linear-gradient(135deg,rgba(15,118,110,0.08)_0%,rgba(2,132,199,0.08)_100%)] lg:aspect-[4/3]">
                       {thumb ? (
-                        <IssueImage alt={issue.title} className="min-h-[10rem] rounded-none" src={thumb} variant="card" />
+                        <IssueImage alt={issue.title} className="rounded-none" src={thumb} variant="thumbnail" />
                       ) : (
-                        <div className="flex min-h-[10rem] items-center justify-center px-4 py-6 text-center">
+                        <div className="flex aspect-[4/3] min-h-[10rem] items-center justify-center px-4 py-6 text-center">
                           <div>
                             <p className="text-xs font-semibold uppercase tracking-[0.22em] text-muted-foreground">No image</p>
                             <p className="mt-2 text-sm leading-6 text-muted-foreground">Citizen photo not attached.</p>
@@ -456,16 +474,30 @@ export function OfficerIssuesPage() {
                       <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
                         <div className="space-y-3">
                           <div className="flex flex-wrap items-center gap-2">
-                            <span className={`inline-flex items-center rounded-full border px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] ring-1 ${badgeToneClasses(getOfficerIssueStatusTone(issue.status))}`}>
+                            <span
+                              className={`inline-flex items-center rounded-full border px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] ring-1 ${badgeToneClasses(getOfficerIssueStatusTone(issue.status))}`}
+                            >
                               {getOfficerIssueStatusLabel(issue.status)}
                             </span>
-                            <span className={`inline-flex items-center rounded-full border px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] ring-1 ${badgeToneClasses(getOfficerIssuePriorityTone(issue.priority))}`}>
+                            <span
+                              className={`inline-flex items-center rounded-full border px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] ring-1 ${
+                                issue.priority === "URGENT"
+                                  ? "bg-rose-50 text-rose-700 ring-rose-200"
+                                  : issue.priority === "HIGH"
+                                    ? "bg-orange-50 text-orange-700 ring-orange-200"
+                                    : issue.priority === "MEDIUM"
+                                      ? "bg-amber-50 text-amber-700 ring-amber-200"
+                                      : "bg-sky-50 text-sky-700 ring-sky-200"
+                              }`}
+                            >
                               Priority {issue.priority}
                             </span>
-                            <span className={`inline-flex items-center rounded-full border px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] ring-1 ${badgeToneClasses(getOfficerIssueSeverityTone(issue.severity))}`}>
+                            <span
+                              className={`inline-flex items-center rounded-full border px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] ring-1 ${badgeToneClasses(getOfficerIssueSeverityTone(issue.severity))}`}
+                            >
                               Severity {getOfficerIssueSeverityLabel(issue.severity)}
                             </span>
-                            <span className="inline-flex items-center rounded-full border border-border/70 bg-background/40 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+                            <span className="inline-flex items-center rounded-full border border-border/70 bg-white/75 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
                               {issue.category}
                             </span>
                           </div>
@@ -484,29 +516,29 @@ export function OfficerIssuesPage() {
                       </div>
 
                       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-                        <div className="rounded-2xl border border-border/70 bg-surface-elevated p-4">
+                        <div className="rounded-2xl border border-border/70 bg-white/70 p-4 shadow-sm shadow-black/5">
                           <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">Reported</p>
                           <p className="mt-2 text-sm font-medium text-foreground">{formatOfficerIssueDateTime(issue.created_at)}</p>
                         </div>
-                        <div className="rounded-2xl border border-border/70 bg-surface-elevated p-4">
+                        <div className="rounded-2xl border border-border/70 bg-white/70 p-4 shadow-sm shadow-black/5">
                           <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">Location</p>
                           <p className="mt-2 text-sm font-medium text-foreground">{location ?? "No GPS captured"}</p>
                           {issue.location_text || issue.address_text ? (
                             <p className="mt-2 text-sm leading-6 text-muted-foreground">{issue.address_text?.trim() || issue.location_text?.trim()}</p>
                           ) : null}
                         </div>
-                        <div className="rounded-2xl border border-border/70 bg-surface-elevated p-4">
+                        <div className="rounded-2xl border border-border/70 bg-white/70 p-4 shadow-sm shadow-black/5">
                           <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">Department</p>
                           <p className="mt-2 text-sm font-medium text-foreground">{assignmentSummary.departmentLabel}</p>
                         </div>
-                        <div className="rounded-2xl border border-border/70 bg-surface-elevated p-4">
+                        <div className="rounded-2xl border border-border/70 bg-white/70 p-4 shadow-sm shadow-black/5">
                           <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">Worker</p>
                           <p className="mt-2 text-sm font-medium text-foreground">{assignmentSummary.workerLabel}</p>
                         </div>
                       </div>
 
                       <div className="grid gap-3 lg:grid-cols-[1fr_0.9fr]">
-                        <div className="rounded-2xl border border-border/70 bg-surface-elevated p-4">
+                        <div className="rounded-2xl border border-border/70 bg-[linear-gradient(135deg,rgba(15,118,110,0.06)_0%,rgba(2,132,199,0.05)_100%)] p-4">
                           <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">Citizen / report</p>
                           <p className="mt-2 text-sm font-medium text-foreground">
                             {issue.reporter_profile?.full_name?.trim() || issue.reporter_profile?.email || "Reporter profile unavailable"}
@@ -514,7 +546,7 @@ export function OfficerIssuesPage() {
                           {issue.reporter_profile?.phone ? <p className="mt-2 text-sm leading-6 text-muted-foreground">{issue.reporter_profile.phone}</p> : null}
                         </div>
 
-                        <div className="rounded-2xl border border-border/70 bg-surface-elevated p-4">
+                        <div className="rounded-2xl border border-border/70 bg-[linear-gradient(135deg,rgba(124,58,237,0.06)_0%,rgba(2,132,199,0.05)_100%)] p-4">
                           <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">AI recommendation</p>
                           {aiAnalysis ? (
                             <div className="mt-2 grid gap-2 text-sm">
