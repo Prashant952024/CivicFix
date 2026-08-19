@@ -2,19 +2,27 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useAuth, useUser } from "@clerk/react";
 
 import { supabase } from "@/lib/supabase";
+import type { CivicFixRoleCode } from "@/lib/civicfix";
 import type { Database } from "@/types/database";
 
 type ProfileRow = Database["public"]["Tables"]["profiles"]["Row"];
+type ProfileWithRoleCode = ProfileRow & {
+  role?: {
+    code: CivicFixRoleCode;
+  } | null;
+};
 
 export type CivicFixProfileSyncStatus = "idle" | "syncing" | "ready" | "error";
 
 type SyncResult = {
   profile: ProfileRow | null;
+  roleCode: CivicFixRoleCode | null;
   error: string | null;
   status: CivicFixProfileSyncStatus;
 };
 
-const PROFILE_SELECT = "id, clerk_user_id, full_name, email, phone, role_id, department_id, created_at, updated_at";
+const PROFILE_SELECT =
+  "id, clerk_user_id, full_name, email, phone, role_id, department_id, created_at, updated_at, role:roles(code)";
 
 function displayNameFromClerkUser(user: ReturnType<typeof useUser>["user"]) {
   const fullName = user?.fullName?.trim();
@@ -68,7 +76,7 @@ async function loadCurrentProfile(clerkUserId: string) {
     throw error;
   }
 
-  return data;
+  return data as ProfileWithRoleCode | null;
 }
 
 export function useCivicFixProfileSync(): SyncResult & { refresh: () => Promise<void> } {
@@ -80,6 +88,7 @@ export function useCivicFixProfileSync(): SyncResult & { refresh: () => Promise<
   const clerkEmailRef = useRef(clerkEmail);
   const [status, setStatus] = useState<CivicFixProfileSyncStatus>("idle");
   const [profile, setProfile] = useState<ProfileRow | null>(null);
+  const [roleCode, setRoleCode] = useState<CivicFixRoleCode | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -90,6 +99,7 @@ export function useCivicFixProfileSync(): SyncResult & { refresh: () => Promise<
   const syncProfile = useCallback(async () => {
     if (!isLoaded || !isSignedIn || !userId) {
       setProfile(null);
+      setRoleCode(null);
       setError(null);
       setStatus("idle");
       return;
@@ -102,9 +112,11 @@ export function useCivicFixProfileSync(): SyncResult & { refresh: () => Promise<
       const currentProfile = await loadCurrentProfile(userId);
       const nextFullName = clerkFullNameRef.current;
       const nextEmail = clerkEmailRef.current ?? currentProfile?.email ?? null;
+      const currentRoleCode = currentProfile?.role?.code ?? null;
 
       if (!currentProfile) {
         setProfile(null);
+        setRoleCode(null);
         setStatus("ready");
         return;
       }
@@ -125,14 +137,18 @@ export function useCivicFixProfileSync(): SyncResult & { refresh: () => Promise<
           throw updateError;
         }
 
-        setProfile(updated ?? currentProfile);
+        const nextProfile = (updated as ProfileWithRoleCode | null) ?? currentProfile;
+        setProfile(nextProfile);
+        setRoleCode(nextProfile.role?.code ?? currentRoleCode);
       } else {
         setProfile(currentProfile);
+        setRoleCode(currentRoleCode);
       }
 
       setStatus("ready");
     } catch (syncError) {
       setError(safeErrorMessage(syncError));
+      setRoleCode(null);
       setStatus("error");
     }
   }, [
@@ -143,7 +159,6 @@ export function useCivicFixProfileSync(): SyncResult & { refresh: () => Promise<
 
   useEffect(() => {
     let cancelled = false;
-
     queueMicrotask(() => {
       if (!cancelled) {
         void syncProfile();
@@ -157,5 +172,5 @@ export function useCivicFixProfileSync(): SyncResult & { refresh: () => Promise<
     // while still refreshing if the active Clerk user changes.
   }, [syncProfile]);
 
-  return { profile, error, status, refresh: syncProfile };
+  return { profile, roleCode, error, status, refresh: syncProfile };
 }

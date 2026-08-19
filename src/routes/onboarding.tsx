@@ -194,7 +194,7 @@ export function RoleOnboardingPage() {
     }
   }
 
-  if (!isLoaded || status === "syncing" || status === "resolving") {
+  if (!isLoaded || status === "syncing") {
     return (
       <div className="mx-auto grid min-h-[calc(100vh-81px)] w-full max-w-6xl place-items-center px-4 py-8 sm:px-6 lg:px-8">
         <div className="rounded-2xl border border-border/80 bg-surface/90 px-5 py-4 text-sm text-muted-foreground shadow-sm shadow-black/20">

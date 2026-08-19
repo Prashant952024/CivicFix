@@ -1,8 +1,8 @@
-import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
+import { createContext, useContext, useMemo, type ReactNode } from "react";
 import { Outlet } from "react-router-dom";
 
 import { useCivicFixProfileSync } from "@/auth/use-civicfix-profile-sync";
-import { loadCivicFixRoleCode, type CivicFixRoleCode } from "@/lib/civicfix";
+import { type CivicFixRoleCode } from "@/lib/civicfix";
 import type { Database } from "@/types/database";
 
 type ProfileRow = Database["public"]["Tables"]["profiles"]["Row"];
@@ -11,7 +11,7 @@ type AppSessionState = {
   profile: ProfileRow | null;
   roleCode: CivicFixRoleCode | null;
   needsOnboarding: boolean;
-  status: "idle" | "syncing" | "resolving" | "ready" | "error";
+  status: "idle" | "syncing" | "ready" | "error";
   error: string | null;
   refresh: () => Promise<void>;
 };
@@ -20,93 +20,83 @@ const AppSessionContext = createContext<AppSessionState | null>(null);
 
 export function AppSessionProvider({ children }: { children?: ReactNode }) {
   const profileSync = useCivicFixProfileSync();
-  const [roleCode, setRoleCode] = useState<CivicFixRoleCode | null>(null);
-  const [needsOnboarding, setNeedsOnboarding] = useState(false);
-  const [roleStatus, setRoleStatus] = useState<AppSessionState["status"]>("idle");
-  const [roleError, setRoleError] = useState<string | null>(null);
 
-  useEffect(() => {
-    let cancelled = false;
-
-    async function resolveRole() {
-      if (profileSync.status === "idle") {
-        setRoleCode(null);
-        setNeedsOnboarding(false);
-        setRoleStatus("idle");
-        setRoleError(null);
-        return;
-      }
-
-      if (profileSync.status === "syncing") {
-        setRoleCode(null);
-        setNeedsOnboarding(false);
-        setRoleStatus("syncing");
-        setRoleError(null);
-        return;
-      }
-
-      if (profileSync.status === "error") {
-        setRoleCode(null);
-        setNeedsOnboarding(false);
-        setRoleStatus("error");
-        setRoleError(profileSync.error ?? "CivicFix profile synchronization failed.");
-        return;
-      }
-
-      if (!profileSync.profile) {
-        setRoleCode(null);
-        setNeedsOnboarding(true);
-        setRoleStatus("ready");
-        setRoleError(null);
-        return;
-      }
-
-      setNeedsOnboarding(false);
-
-      if (!profileSync.profile.role_id) {
-        setRoleCode(null);
-        setRoleStatus("error");
-        setRoleError("CivicFix profile is missing a role assignment.");
-        return;
-      }
-
-      setRoleStatus("resolving");
-      setRoleError(null);
-
-      const nextRoleCode = await loadCivicFixRoleCode(profileSync.profile.role_id);
-      if (cancelled) {
-        return;
-      }
-
-      if (!nextRoleCode) {
-        setRoleCode(null);
-        setRoleStatus("error");
-        setRoleError("Could not resolve the CivicFix role for the current profile.");
-        return;
-      }
-
-      setRoleCode(nextRoleCode);
-      setRoleStatus("ready");
+  const value = useMemo<AppSessionState>(() => {
+    if (profileSync.status === "idle") {
+      return {
+        profile: null,
+        roleCode: null,
+        needsOnboarding: false,
+        status: "idle",
+        error: null,
+        refresh: profileSync.refresh,
+      };
     }
 
-    void resolveRole();
+    if (profileSync.status === "syncing") {
+      return {
+        profile: null,
+        roleCode: null,
+        needsOnboarding: false,
+        status: "syncing",
+        error: null,
+        refresh: profileSync.refresh,
+      };
+    }
 
-    return () => {
-      cancelled = true;
-    };
-  }, [profileSync.error, profileSync.profile, profileSync.status]);
+    if (profileSync.status === "error") {
+      return {
+        profile: null,
+        roleCode: null,
+        needsOnboarding: false,
+        status: "error",
+        error: profileSync.error ?? "CivicFix profile synchronization failed.",
+        refresh: profileSync.refresh,
+      };
+    }
 
-  const value = useMemo<AppSessionState>(
-    () => ({
+    if (!profileSync.profile) {
+      return {
+        profile: null,
+        roleCode: null,
+        needsOnboarding: true,
+        status: "ready",
+        error: null,
+        refresh: profileSync.refresh,
+      };
+    }
+
+    if (!profileSync.profile.role_id) {
+      return {
+        profile: profileSync.profile,
+        roleCode: null,
+        needsOnboarding: false,
+        status: "error",
+        error: "CivicFix profile is missing a role assignment.",
+        refresh: profileSync.refresh,
+      };
+    }
+
+    if (!profileSync.roleCode) {
+      return {
+        profile: profileSync.profile,
+        roleCode: null,
+        needsOnboarding: false,
+        status: "error",
+        error: "Could not resolve the CivicFix role for the current profile.",
+        refresh: profileSync.refresh,
+      };
+    }
+
+    return {
       profile: profileSync.profile,
-      roleCode,
-      needsOnboarding,
-      status: roleStatus,
-      error: roleError,
+      roleCode: profileSync.roleCode,
+      needsOnboarding: false,
+      status: "ready",
+      error: null,
       refresh: profileSync.refresh,
-    }),
-    [needsOnboarding, profileSync.profile, profileSync.refresh, roleCode, roleError, roleStatus],
-  );
+    };
+  }, [profileSync.error, profileSync.profile, profileSync.refresh, profileSync.roleCode, profileSync.status]);
 
   return <AppSessionContext.Provider value={value}>{children ?? <Outlet />}</AppSessionContext.Provider>;
 }

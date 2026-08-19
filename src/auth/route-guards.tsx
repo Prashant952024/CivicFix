@@ -56,7 +56,7 @@ export function RequireRole({ allowedRoles, children, redirectTo = "/unauthorize
   const { isLoaded, isSignedIn } = useAuth();
   const appSession = useAppSession();
 
-  if (!isLoaded || appSession.status === "syncing" || appSession.status === "idle" || appSession.status === "resolving") {
+  if (!isLoaded || appSession.status === "syncing" || appSession.status === "idle") {
     return <LoadingState label="Loading CivicFix profile..." />;
   }
 
@@ -91,7 +91,7 @@ export function RedirectToRoleDashboard() {
   const appSession = useAppSession();
   const location = useLocation();
 
-  if (!isLoaded || appSession.status === "syncing" || appSession.status === "idle" || appSession.status === "resolving") {
+  if (!isLoaded || appSession.status === "syncing" || appSession.status === "idle") {
     return <LoadingState label="Routing you to CivicFix..." />;
   }
 
