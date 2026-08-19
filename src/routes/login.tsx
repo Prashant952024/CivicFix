@@ -18,8 +18,8 @@ export function LoginPage() {
           </p>
         </div>
 
-        <SignIn
-          forceRedirectUrl="/app"
+      <SignIn
+          forceRedirectUrl="/app/role-selection"
           path="/login"
           routing="path"
           signUpUrl="/signup"

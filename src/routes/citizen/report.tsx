@@ -61,6 +61,36 @@ type DebugSupabaseError = {
 const MAX_IMAGE_DIMENSION = 1600;
 const IMAGE_QUALITY = 0.82;
 
+type CitizenReportDraft = {
+  title: string;
+  description: string;
+  category: CitizenIssueCategory | "";
+  locationText: string;
+  latitude: string | null;
+  longitude: string | null;
+  locationAccuracyMeters: number | null;
+  locationStatus: LocationStatus;
+  rawImage: File | null;
+  compressedImage: File | null;
+};
+
+const citizenReportDraftCache = new Map<string, CitizenReportDraft>();
+
+function createEmptyCitizenReportDraft(): CitizenReportDraft {
+  return {
+    title: "",
+    description: "",
+    category: "",
+    locationText: "",
+    latitude: null,
+    longitude: null,
+    locationAccuracyMeters: null,
+    locationStatus: "idle",
+    rawImage: null,
+    compressedImage: null,
+  };
+}
+
 function safeFileBaseName(name: string) {
   const stripped = name.replace(/\.[^.]+$/, "");
   const normalized = stripped.replace(/[^a-z0-9-_]+/gi, "-").replace(/^-+|-+$/g, "");
@@ -211,18 +241,55 @@ function getStageLabel(stage: ReportStage) {
 }
 
 export function CitizenReportPage() {
-  const navigate = useNavigate();
   const { profile, status: sessionStatus, error: sessionError } = useAppSession();
-  const [title, setTitle] = useState("");
-  const [description, setDescription] = useState("");
-  const [category, setCategory] = useState<CitizenIssueCategory | "">("");
-  const [locationText, setLocationText] = useState("");
-  const [latitude, setLatitude] = useState<string | null>(null);
-  const [longitude, setLongitude] = useState<string | null>(null);
-  const [locationAccuracyMeters, setLocationAccuracyMeters] = useState<number | null>(null);
-  const [locationStatus, setLocationStatus] = useState<LocationStatus>("idle");
-  const [rawImage, setRawImage] = useState<File | null>(null);
-  const [compressedImage, setCompressedImage] = useState<File | null>(null);
+  const profileId = profile?.id;
+  const sessionProblem = sessionStatus === "error" ? sessionError ?? "CivicFix profile is unavailable." : null;
+
+  if (sessionProblem) {
+    return (
+      <section className="rounded-[1.75rem] border border-border/80 bg-surface/90 p-6 shadow-lg shadow-black/20">
+        <div className="max-w-2xl space-y-4">
+          <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-red-500/20 bg-red-500/10 text-red-300">
+            <AlertCircle className="h-5 w-5" aria-hidden="true" />
+          </div>
+          <div className="space-y-2">
+            <h2 className="text-2xl font-semibold tracking-tight text-foreground">Report form unavailable</h2>
+            <p className="text-sm leading-6 text-muted-foreground">{sessionProblem}</p>
+          </div>
+          <Button asChild>
+            <Link to="/app/citizen">Back to Dashboard</Link>
+          </Button>
+        </div>
+      </section>
+    );
+  }
+
+  if (!profileId || sessionStatus !== "ready") {
+    return (
+      <div className="grid min-h-[40vh] place-items-center px-4 text-sm text-muted-foreground">
+        <div className="rounded-2xl border border-border/70 bg-card px-5 py-4 shadow-sm">
+          Loading Citizen report form...
+        </div>
+      </div>
+    );
+  }
+
+  return <CitizenReportComposer key={profileId} profileId={profileId} />;
+}
+
+function CitizenReportComposer({ profileId }: { profileId: string }) {
+  const navigate = useNavigate();
+  const initialDraft = citizenReportDraftCache.get(profileId) ?? createEmptyCitizenReportDraft();
+  const [title, setTitle] = useState(initialDraft.title);
+  const [description, setDescription] = useState(initialDraft.description);
+  const [category, setCategory] = useState<CitizenIssueCategory | "">(initialDraft.category);
+  const [locationText, setLocationText] = useState(initialDraft.locationText);
+  const [latitude, setLatitude] = useState<string | null>(initialDraft.latitude);
+  const [longitude, setLongitude] = useState<string | null>(initialDraft.longitude);
+  const [locationAccuracyMeters, setLocationAccuracyMeters] = useState<number | null>(initialDraft.locationAccuracyMeters);
+  const [locationStatus, setLocationStatus] = useState<LocationStatus>(initialDraft.locationStatus);
+  const [rawImage, setRawImage] = useState<File | null>(initialDraft.rawImage);
+  const [compressedImage, setCompressedImage] = useState<File | null>(initialDraft.compressedImage);
   const [imageProcessing, setImageProcessing] = useState(false);
   const [errors, setErrors] = useState<FormErrors>({});
   const [geoError, setGeoError] = useState<string | null>(null);
@@ -231,8 +298,6 @@ export function CitizenReportPage() {
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [outcome, setOutcome] = useState<SubmissionOutcome | null>(null);
   const imageInputRef = useRef<HTMLInputElement | null>(null);
-  const profileId = profile?.id;
-  const sessionProblem = sessionStatus === "error" ? sessionError ?? "CivicFix profile is unavailable." : null;
 
   const previewUrl = useMemo(() => {
     if (!compressedImage) {
@@ -250,6 +315,36 @@ export function CitizenReportPage() {
     };
   }, [previewUrl]);
 
+  useEffect(() => {
+    citizenReportDraftCache.set(
+      profileId,
+      {
+        title,
+        description,
+        category,
+        locationText,
+        latitude,
+        longitude,
+        locationAccuracyMeters,
+        locationStatus,
+        rawImage,
+        compressedImage,
+      },
+    );
+  }, [
+    category,
+    compressedImage,
+    description,
+    latitude,
+    locationAccuracyMeters,
+    locationStatus,
+    locationText,
+    longitude,
+    profileId,
+    rawImage,
+    title,
+  ]);
+
   function resetImageSelection({ clearError = false }: { clearError?: boolean } = {}) {
     setRawImage(null);
     setCompressedImage(null);
@@ -259,6 +354,10 @@ export function CitizenReportPage() {
     if (imageInputRef.current) {
       imageInputRef.current.value = "";
     }
+  }
+
+  function clearCitizenReportDraft() {
+    citizenReportDraftCache.delete(profileId);
   }
 
   async function handleImageChange(event: ChangeEvent<HTMLInputElement>) {
@@ -338,7 +437,7 @@ export function CitizenReportPage() {
   }
 
   async function handleSubmit() {
-    if (!profileId || submissionStage !== "idle" || outcome) {
+    if (submissionStage !== "idle" || outcome) {
       return;
     }
 
@@ -468,6 +567,7 @@ export function CitizenReportPage() {
         title: trimmedTitle,
         category,
       });
+      clearCitizenReportDraft();
       setSubmissionStage("idle");
       return;
     } catch (submissionError) {
@@ -482,6 +582,7 @@ export function CitizenReportPage() {
           submittedAt: uploadedIssue.created_at,
           message,
         });
+        clearCitizenReportDraft();
       } else {
         setSubmitError(message);
       }
@@ -509,25 +610,6 @@ export function CitizenReportPage() {
       window.clearTimeout(timer);
     };
   }, [navigate, outcome]);
-
-  if (sessionProblem) {
-    return (
-      <section className="rounded-[1.75rem] border border-border/80 bg-surface/90 p-6 shadow-lg shadow-black/20">
-        <div className="max-w-2xl space-y-4">
-          <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-red-500/20 bg-red-500/10 text-red-300">
-            <AlertCircle className="h-5 w-5" aria-hidden="true" />
-          </div>
-          <div className="space-y-2">
-            <h2 className="text-2xl font-semibold tracking-tight text-foreground">Report form unavailable</h2>
-            <p className="text-sm leading-6 text-muted-foreground">{sessionProblem}</p>
-          </div>
-          <Button asChild>
-            <Link to="/app/citizen">Back to Dashboard</Link>
-          </Button>
-        </div>
-      </section>
-    );
-  }
 
   if (outcome?.kind === "success") {
     return (

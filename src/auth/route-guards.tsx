@@ -65,6 +65,9 @@ export function RequireRole({ allowedRoles, children, redirectTo = "/unauthorize
   }
 
   if (appSession.status === "error" || !appSession.profile) {
+    if (appSession.needsOnboarding) {
+      return <Navigate replace to="/app/onboarding" />;
+    }
     return <Navigate replace to={redirectTo} state={{ reason: appSession.error ?? "Missing CivicFix profile." }} />;
   }
 
@@ -97,6 +100,9 @@ export function RedirectToRoleDashboard() {
   }
 
   if (appSession.status === "error" || !appSession.profile) {
+    if (appSession.needsOnboarding) {
+      return <Navigate replace to="/app/onboarding" state={{ from: location.pathname }} />;
+    }
     return <Navigate replace to="/unauthorized" state={{ reason: appSession.error ?? "Missing CivicFix profile." }} />;
   }
 

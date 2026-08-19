@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useAuth, useUser } from "@clerk/react";
 
 import { supabase } from "@/lib/supabase";
@@ -57,20 +57,6 @@ function safeErrorMessage(error: unknown) {
   return "Unknown profile synchronization error.";
 }
 
-async function loadCitizenRoleId() {
-  const { data, error } = await supabase.from("roles").select("id, code").eq("code", "CITIZEN").maybeSingle();
-
-  if (error) {
-    throw error;
-  }
-
-  if (!data) {
-    throw new Error("CITIZEN role seed data is missing.");
-  }
-
-  return data.id;
-}
-
 async function loadCurrentProfile(clerkUserId: string) {
   const { data, error } = await supabase
     .from("profiles")
@@ -88,9 +74,18 @@ async function loadCurrentProfile(clerkUserId: string) {
 export function useCivicFixProfileSync(): SyncResult & { refresh: () => Promise<void> } {
   const { isLoaded, isSignedIn, userId } = useAuth();
   const { user } = useUser();
+  const clerkFullName = displayNameFromClerkUser(user);
+  const clerkEmail = user?.primaryEmailAddress?.emailAddress ?? null;
+  const clerkFullNameRef = useRef(displayNameFromClerkUser(user));
+  const clerkEmailRef = useRef(clerkEmail);
   const [status, setStatus] = useState<CivicFixProfileSyncStatus>("idle");
   const [profile, setProfile] = useState<ProfileRow | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    clerkFullNameRef.current = clerkFullName;
+    clerkEmailRef.current = clerkEmail;
+  }, [clerkEmail, clerkFullName]);
 
   const syncProfile = useCallback(async () => {
     if (!isLoaded || !isSignedIn || !userId) {
@@ -105,39 +100,11 @@ export function useCivicFixProfileSync(): SyncResult & { refresh: () => Promise<
 
     try {
       const currentProfile = await loadCurrentProfile(userId);
-      const nextFullName = displayNameFromClerkUser(user);
-      const nextEmail = user?.primaryEmailAddress?.emailAddress ?? currentProfile?.email ?? null;
+      const nextFullName = clerkFullNameRef.current;
+      const nextEmail = clerkEmailRef.current ?? currentProfile?.email ?? null;
 
       if (!currentProfile) {
-        const citizenRoleId = await loadCitizenRoleId();
-        const { data: inserted, error: insertError } = await supabase
-          .from("profiles")
-          .insert({
-            clerk_user_id: userId,
-            full_name: nextFullName,
-            email: nextEmail,
-            phone: null,
-            role_id: citizenRoleId,
-            department_id: null,
-          })
-          .select(PROFILE_SELECT)
-          .single();
-
-        if (insertError) {
-          if (insertError.code === "23505") {
-            const retryProfile = await loadCurrentProfile(userId);
-            if (!retryProfile) {
-              throw new Error("Profile already exists, but it could not be loaded again.");
-            }
-            setProfile(retryProfile);
-            setStatus("ready");
-            return;
-          }
-
-          throw insertError;
-        }
-
-        setProfile(inserted);
+        setProfile(null);
         setStatus("ready");
         return;
       }
@@ -171,7 +138,6 @@ export function useCivicFixProfileSync(): SyncResult & { refresh: () => Promise<
   }, [
     isLoaded,
     isSignedIn,
-    user,
     userId,
   ]);
 

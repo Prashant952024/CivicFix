@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ChangeEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
 import {
   AlertCircle,
   ArrowLeft,
@@ -117,7 +117,7 @@ function buildTimeline(issue: IssueRow): TimelineItem[] {
     },
     ...historyItems.map((history) => ({
       id: history.id,
-      title: getWorkerIssueStatusLabel(history.new_status),
+      title: getWorkerTimelineStatusLabel(history.new_status),
       description: history.notes || formatHistoryTransition(history),
       timestamp: history.created_at,
       tone: getWorkerIssueStatusTone(history.new_status),
@@ -133,11 +133,29 @@ function formatHistoryTransition(history: IssueHistoryRow) {
   return `${oldStatus} -> ${newStatus}`;
 }
 
-function isWorkerNextActionStart(status: Database["public"]["Enums"]["issue_status"]) {
-  return status === "ASSIGNED" || status === "REOPENED";
+function getWorkerTimelineStatusLabel(status: Database["public"]["Enums"]["issue_status"]) {
+  if (status === "UNDER_REVIEW") {
+    return "Submitted for Review";
+  }
+
+  return getWorkerIssueStatusLabel(status);
 }
 
-function isWorkerNextActionResolve(status: Database["public"]["Enums"]["issue_status"]) {
+type WorkerResolutionDraftCacheEntry = {
+  compressedResolutionImage: File | null;
+  resolutionNote: string;
+  actionMessage: string | null;
+  actionError: string | null;
+  actionState: "idle" | "starting" | "submitting";
+};
+
+const workerResolutionDraftCache = new Map<string, WorkerResolutionDraftCacheEntry>();
+
+function isWorkerNextActionStart(status: Database["public"]["Enums"]["issue_status"]) {
+  return status === "ASSIGNED" || status === "VERIFIED" || status === "REOPENED";
+}
+
+function isWorkerReadyToSubmitResolution(status: Database["public"]["Enums"]["issue_status"]) {
   return status === "IN_PROGRESS";
 }
 
@@ -235,15 +253,87 @@ export function WorkerAssignedIssueDetailsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [refreshNonce, setRefreshNonce] = useState(0);
-  const [actionState, setActionState] = useState<"idle" | "starting" | "resolving" | "uploading">("idle");
+  const [actionState, setActionState] = useState<"idle" | "starting" | "submitting">("idle");
   const [actionError, setActionError] = useState<string | null>(null);
   const [actionMessage, setActionMessage] = useState<string | null>(null);
   const [resolutionNote, setResolutionNote] = useState("");
   const [compressedResolutionImage, setCompressedResolutionImage] = useState<File | null>(null);
   const [imageProcessing, setImageProcessing] = useState(false);
   const imageInputRef = useRef<HTMLInputElement | null>(null);
+  const draftHydratedRef = useRef(false);
   const profileId = profile?.id;
   const sessionProblem = sessionStatus === "error" ? sessionError ?? "CivicFix profile is unavailable." : null;
+
+  useEffect(() => {
+    draftHydratedRef.current = false;
+
+    if (!issueId) {
+      return;
+    }
+
+    const cachedDraft = workerResolutionDraftCache.get(issueId);
+    let cancelled = false;
+    queueMicrotask(() => {
+      if (cancelled) {
+        return;
+      }
+
+      setResolutionNote(cachedDraft?.resolutionNote ?? "");
+      setCompressedResolutionImage(cachedDraft?.compressedResolutionImage ?? null);
+      setActionMessage(cachedDraft?.actionMessage ?? null);
+      setActionError(cachedDraft?.actionError ?? null);
+      setActionState(cachedDraft?.actionState ?? "idle");
+      draftHydratedRef.current = true;
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [issueId]);
+
+  useEffect(() => {
+    if (!issueId || !draftHydratedRef.current) {
+      return;
+    }
+
+    workerResolutionDraftCache.set(issueId, {
+      compressedResolutionImage,
+      resolutionNote,
+      actionMessage,
+      actionError,
+      actionState,
+    });
+  }, [actionError, actionMessage, actionState, compressedResolutionImage, issueId, resolutionNote]);
+
+  const resolutionPreviewUrl = useMemo(() => {
+    if (!compressedResolutionImage) {
+      return null;
+    }
+
+    return URL.createObjectURL(compressedResolutionImage);
+  }, [compressedResolutionImage]);
+
+  useEffect(() => {
+    return () => {
+      if (resolutionPreviewUrl) {
+        URL.revokeObjectURL(resolutionPreviewUrl);
+      }
+    };
+  }, [resolutionPreviewUrl]);
+
+  useEffect(() => {
+    if (actionState !== "submitting") {
+      return;
+    }
+
+    const handleBeforeUnload = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+      event.returnValue = "";
+    };
+
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
+  }, [actionState]);
 
   useEffect(() => {
     if (sessionStatus !== "ready" || !profileId || !issueId) {
@@ -410,11 +500,22 @@ export function WorkerAssignedIssueDetailsPage() {
         return `The model recommends ${parts.join(" and ")} for field execution and routing.`;
       })();
 
-  const hasWorkerWorkAction = issue ? isWorkerNextActionStart(issue.status) || isWorkerNextActionResolve(issue.status) : false;
+  const canStartWork = issue ? isWorkerNextActionStart(issue.status) : false;
+  const canSubmitResolution = issue ? isWorkerReadyToSubmitResolution(issue.status) && !resolutionImage : false;
   const hasResolutionImage = Boolean(resolutionImage);
 
-  function clearResolutionImage() {
+  function clearResolutionDraft() {
     setCompressedResolutionImage(null);
+    setResolutionNote("");
+    setActionError(null);
+    if (imageInputRef.current) {
+      imageInputRef.current.value = "";
+    }
+  }
+
+  function clearResolutionImageSelection() {
+    setCompressedResolutionImage(null);
+    setActionError(null);
     if (imageInputRef.current) {
       imageInputRef.current.value = "";
     }
@@ -423,13 +524,13 @@ export function WorkerAssignedIssueDetailsPage() {
   async function handleResolutionImageChange(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0] ?? null;
     if (!file) {
-      clearResolutionImage();
+      clearResolutionImageSelection();
       return;
     }
 
     if (!file.type.startsWith("image/")) {
       setActionError("Please choose an image file for resolution evidence.");
-      clearResolutionImage();
+      clearResolutionImageSelection();
       return;
     }
 
@@ -448,7 +549,7 @@ export function WorkerAssignedIssueDetailsPage() {
           ? `We could not prepare that image: ${imageError instanceof Error ? imageError.message : "Unknown image error"}`
           : "We could not prepare that image right now. Please try another file.",
       );
-      clearResolutionImage();
+      clearResolutionDraft();
     } finally {
       setImageProcessing(false);
     }
@@ -460,8 +561,11 @@ export function WorkerAssignedIssueDetailsPage() {
     }
     setActionState("idle");
     setRefreshNonce((value) => value + 1);
-    clearResolutionImage();
-    setResolutionNote("");
+    clearResolutionDraft();
+    setActionError(null);
+    if (issueId) {
+      workerResolutionDraftCache.delete(issueId);
+    }
   }
 
   async function handleStartWork() {
@@ -497,57 +601,67 @@ export function WorkerAssignedIssueDetailsPage() {
     refreshIssue("Work has been marked as in progress.");
   }
 
-  async function handleResolveWork() {
-    if (!issue || !profileId || actionState !== "idle" || !isWorkerNextActionResolve(issue.status)) {
+  function removeResolutionImage() {
+    clearResolutionImageSelection();
+  }
+
+  async function handleSubmitResolution() {
+    if (!issue || !profileId || actionState !== "idle") {
+      return;
+    }
+
+    if (!canSubmitResolution) {
+      setActionError("This issue is no longer waiting on a worker resolution submission.");
+      return;
+    }
+
+    if (!compressedResolutionImage) {
+      setActionError("Please select a resolution evidence image before submitting.");
       return;
     }
 
     setActionError(null);
     setActionMessage(null);
-    setActionState("resolving");
+    setActionState("submitting");
 
     let uploadedPath: string | null = null;
     let uploadedImageId: string | null = null;
 
     try {
-      if (compressedResolutionImage) {
-        setActionState("uploading");
-        uploadedPath = `${profileId}/${issue.id}/${crypto.randomUUID()}.jpg`;
-        const { error: uploadError } = await supabase.storage.from("resolution-images").upload(uploadedPath, compressedResolutionImage, {
-          contentType: compressedResolutionImage.type,
-          upsert: false,
-        });
+      uploadedPath = `${profileId}/${issue.id}/${crypto.randomUUID()}.jpg`;
+      const { error: uploadError } = await supabase.storage.from("resolution-images").upload(uploadedPath, compressedResolutionImage, {
+        contentType: compressedResolutionImage.type,
+        upsert: false,
+      });
 
-        if (uploadError) {
-          throw uploadError;
-        }
-
-        const { data: imageData, error: imageInsertError } = await supabase
-          .from("issue_images")
-          .insert({
-            issue_id: issue.id,
-            storage_bucket: "resolution-images",
-            storage_path: uploadedPath,
-            image_type: "RESOLUTION_EVIDENCE",
-            uploaded_by_profile_id: profileId,
-          })
-          .select("id")
-          .single();
-
-        if (imageInsertError) {
-          throw imageInsertError;
-        }
-
-        uploadedImageId = imageData.id;
+      if (uploadError) {
+        throw uploadError;
       }
 
-      setActionState("resolving");
+      const { data: imageData, error: imageInsertError } = await supabase
+        .from("issue_images")
+        .insert({
+          issue_id: issue.id,
+          storage_bucket: "resolution-images",
+          storage_path: uploadedPath,
+          image_type: "RESOLUTION_EVIDENCE",
+          uploaded_by_profile_id: profileId,
+        })
+        .select("id")
+        .single();
+
+      if (imageInsertError) {
+        throw imageInsertError;
+      }
+
+      uploadedImageId = imageData.id;
+
       const { error: historyError } = await supabase.from("issue_status_history").insert({
         issue_id: issue.id,
         old_status: issue.status,
-        new_status: "RESOLVED",
+        new_status: "UNDER_REVIEW",
         changed_by_profile_id: profileId,
-        notes: resolutionNote.trim() || "Field worker marked the issue as resolved.",
+        notes: resolutionNote.trim() || "Field worker submitted resolution evidence for officer review.",
       });
 
       if (historyError) {
@@ -568,14 +682,14 @@ export function WorkerAssignedIssueDetailsPage() {
 
       setActionError(
         import.meta.env.DEV
-          ? `Failed to mark the issue resolved: ${resolveError instanceof Error ? resolveError.message : "Unknown error"}`
-          : "We could not mark the issue resolved right now. Please try again.",
+          ? `Failed to submit resolution evidence: ${resolveError instanceof Error ? resolveError.message : "Unknown error"}`
+          : "We could not submit the resolution evidence right now. Please try again.",
       );
       setActionState("idle");
       return;
     }
 
-    refreshIssue("The issue has been marked as resolved.");
+    refreshIssue("Resolution evidence submitted successfully.");
   }
 
   if (sessionProblem || error) {
@@ -887,7 +1001,7 @@ export function WorkerAssignedIssueDetailsPage() {
               </div>
 
               <div className="flex flex-col gap-3">
-                <Button disabled={actionState !== "idle" || !isWorkerNextActionStart(issue.status)} onClick={() => void handleStartWork()} type="button">
+                <Button disabled={actionState !== "idle" || !canStartWork} onClick={() => void handleStartWork()} type="button">
                   {actionState === "starting" ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : <ThumbsUp className="h-4 w-4" aria-hidden="true" />}
                   Start Work
                 </Button>
@@ -910,7 +1024,7 @@ export function WorkerAssignedIssueDetailsPage() {
                 </div>
                 <div>
                   <p className="text-xs font-semibold uppercase tracking-[0.24em] text-muted-foreground">Resolution evidence</p>
-                  <h3 className="mt-1 text-lg font-semibold text-foreground">Mark as resolved</h3>
+                  <h3 className="mt-1 text-lg font-semibold text-foreground">Upload Resolution Evidence</h3>
                 </div>
               </div>
             </div>
@@ -919,7 +1033,7 @@ export function WorkerAssignedIssueDetailsPage() {
               <div className="rounded-2xl border border-border/70 bg-surface-elevated p-4">
                 <p className="text-sm font-medium text-foreground">Current priority: {formatWorkerIssuePriority(issue.priority)}</p>
                 <p className="mt-2 text-sm leading-6 text-muted-foreground">
-                  Add a short completion note and, if needed, upload resolution evidence from the field.
+                  Upload a photo of the fixed issue, add a short note if needed, and submit it for officer review.
                 </p>
               </div>
 
@@ -937,10 +1051,10 @@ export function WorkerAssignedIssueDetailsPage() {
                 <label className="flex cursor-pointer flex-col gap-3 rounded-2xl border border-dashed border-border/80 bg-background/30 p-4 transition hover:border-primary/50 hover:bg-background/40">
                   <span className="flex items-center gap-2 text-sm font-medium text-foreground">
                     <UploadCloud className="h-4 w-4 text-primary" aria-hidden="true" />
-                    Resolution image
+                    Upload Resolution Evidence
                   </span>
                   <span className="text-sm leading-6 text-muted-foreground">
-                    Optional. Upload a photo showing the completed field work.
+                    Choose a photo showing the completed field work.
                   </span>
                   <input
                     accept="image/*"
@@ -952,6 +1066,15 @@ export function WorkerAssignedIssueDetailsPage() {
                   />
                 </label>
 
+                {resolutionPreviewUrl ? (
+                  <div className="overflow-hidden rounded-2xl border border-border/70 bg-surface-elevated">
+                    <div className="border-b border-border/70 px-4 py-3">
+                      <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">Selected preview</p>
+                    </div>
+                    <img alt="Selected resolution evidence preview" className="h-56 w-full object-cover" src={resolutionPreviewUrl} />
+                  </div>
+                ) : null}
+
                 {compressedResolutionImage ? (
                   <div className="rounded-2xl border border-border/70 bg-surface-elevated p-4">
                     <div className="flex items-center justify-between gap-3">
@@ -961,32 +1084,46 @@ export function WorkerAssignedIssueDetailsPage() {
                           {compressedResolutionImage.type} · {Math.round(compressedResolutionImage.size / 1024)} KB
                         </p>
                       </div>
-                      <Button onClick={clearResolutionImage} size="sm" variant="outline" type="button">
+                      <Button onClick={removeResolutionImage} size="sm" variant="outline" type="button">
                         <X className="h-4 w-4" aria-hidden="true" />
-                        Remove
+                        Remove Image
                       </Button>
                     </div>
                   </div>
-                ) : null}
+                ) : (
+                  <div className="rounded-2xl border border-dashed border-border/70 bg-background/30 p-4 text-sm leading-6 text-muted-foreground">
+                    Before you submit, choose the finished-work image you want to send to the officer.
+                  </div>
+                )}
               </div>
 
-              <Button disabled={actionState !== "idle" || !isWorkerNextActionResolve(issue.status)} onClick={() => void handleResolveWork()} type="button">
-                {actionState === "uploading" || actionState === "resolving" ? (
-                  <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
-                ) : (
-                  <Save className="h-4 w-4" aria-hidden="true" />
-                )}
-                Mark as Resolved
-              </Button>
+              {compressedResolutionImage ? (
+                <Button
+                  disabled={actionState !== "idle" || !canSubmitResolution || imageProcessing || hasResolutionImage}
+                  onClick={() => void handleSubmitResolution()}
+                  type="button"
+                >
+                  {actionState === "submitting" ? (
+                    <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+                  ) : (
+                    <Save className="h-4 w-4" aria-hidden="true" />
+                  )}
+                  {actionState === "submitting" ? "Submitting..." : "Submit Resolution"}
+                </Button>
+              ) : null}
 
               <div className="rounded-2xl border border-border/70 bg-surface-elevated p-4">
                 <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">Current resolution state</p>
                 <p className="mt-2 text-sm leading-6 text-muted-foreground">
-                  {hasWorkerWorkAction
-                    ? "This task is ready for the next field action."
-                    : issue.status === "IN_PROGRESS"
-                      ? "You can mark this issue as resolved once the work is complete."
-                      : "This issue is already complete or not ready for a worker action."}
+                  {canStartWork
+                    ? "This task is ready to begin."
+                    : canSubmitResolution
+                      ? "Once the work is complete, submit the evidence for officer review."
+                      : issue.status === "UNDER_REVIEW"
+                        ? "Resolution evidence has been submitted and is waiting for officer approval."
+                        : hasResolutionImage
+                          ? "Resolution evidence already exists for this issue."
+                          : "This issue is already complete or not ready for a worker action."}
                 </p>
                 {hasResolutionImage ? <p className="mt-2 text-sm font-medium text-emerald-300">Resolution evidence already exists for this issue.</p> : null}
               </div>

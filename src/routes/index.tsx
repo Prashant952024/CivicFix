@@ -7,7 +7,7 @@ import {
 } from "lucide-react";
 
 import { AppSessionProvider } from "@/auth/app-session";
-import { PublicOnly, RedirectToRoleDashboard, RequireAuth, RequireRole } from "@/auth/route-guards";
+import { PublicOnly, RequireAuth, RequireRole } from "@/auth/route-guards";
 import { AppLayout } from "@/components/layout/app-layout";
 import { RootLayout } from "@/components/layout/root-layout";
 import { CitizenDashboardPage } from "@/routes/citizen/dashboard";
@@ -21,6 +21,8 @@ import { OfficerIssuesPage } from "@/routes/officer/issues";
 import { HomePage } from "@/routes/home";
 import { LoginPage } from "@/routes/login";
 import { NotFoundPage } from "@/routes/not-found";
+import { RoleOnboardingPage } from "@/routes/onboarding";
+import { RoleSelectionPage } from "@/routes/role-selection";
 import { PlaceholderPage, DashboardPage } from "@/routes/app-pages";
 import { WorkerAssignedIssueDetailsPage } from "@/routes/worker/issue-details";
 import { WorkerAssignedIssuesPage } from "@/routes/worker/assigned-issues";
@@ -37,23 +39,38 @@ export function AppRoutes() {
       </Route>
 
       <Route
-        path="login"
+        path="login/*"
         element={
-          <PublicOnly redirectTo="/app">
+          <PublicOnly redirectTo="/app/role-selection">
             <LoginPage />
           </PublicOnly>
         }
       />
       <Route
-        path="signup"
+        path="signup/*"
         element={
-          <PublicOnly redirectTo="/app">
+          <PublicOnly redirectTo="/app/role-selection">
             <SignupPage />
           </PublicOnly>
         }
       />
       <Route path="unauthorized" element={<UnauthorizedPage />} />
       <Route path="404" element={<NotFoundPage />} />
+      <Route
+        path="role-selection"
+        element={<Navigate replace to="/app/role-selection" />}
+      />
+
+      <Route
+        path="app/role-selection"
+        element={
+          <RequireAuth redirectTo="/login">
+            <AppSessionProvider>
+              <RoleSelectionPage />
+            </AppSessionProvider>
+          </RequireAuth>
+        }
+      />
 
       <Route
         path="app"
@@ -62,8 +79,9 @@ export function AppRoutes() {
             <AppSessionProvider />
           </RequireAuth>
         }
-      >
-        <Route index element={<RedirectToRoleDashboard />} />
+        >
+        <Route index element={<Navigate replace to="/app/role-selection" />} />
+        <Route path="onboarding" element={<RoleOnboardingPage />} />
 
         <Route
           path="citizen"

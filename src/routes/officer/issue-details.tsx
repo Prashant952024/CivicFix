@@ -117,12 +117,20 @@ function buildTimeline(issue: IssueRow): TimelineItem[] {
     firstItem,
     ...historyItems.map((history) => ({
       id: history.id,
-      title: getOfficerIssueStatusLabel(history.new_status),
+      title: getOfficerTimelineStatusLabel(history.new_status),
       description: history.notes || `${history.old_status ? getOfficerIssueStatusLabel(history.old_status) : "Created"} -> ${getOfficerIssueStatusLabel(history.new_status)}`,
       timestamp: history.created_at,
       tone: getOfficerIssueStatusTone(history.new_status),
     })),
   ];
+}
+
+function getOfficerTimelineStatusLabel(status: Database["public"]["Enums"]["issue_status"]) {
+  if (status === "UNDER_REVIEW") {
+    return "Submitted for Review";
+  }
+
+  return getOfficerIssueStatusLabel(status);
 }
 
 function confidencePercent(value: number | null | undefined) {
@@ -144,7 +152,7 @@ export function OfficerIssueDetailsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [refreshNonce, setRefreshNonce] = useState(0);
-  const [actionState, setActionState] = useState<"idle" | "verifying" | "rejecting" | "savingPriority" | "savingRouting">("idle");
+  const [actionState, setActionState] = useState<"idle" | "verifying" | "rejecting" | "savingPriority" | "savingRouting" | "approvingResolution">("idle");
   const [actionError, setActionError] = useState<string | null>(null);
   const [actionMessage, setActionMessage] = useState<string | null>(null);
   const [priorityDraft, setPriorityDraft] = useState<OfficerIssuePriority>("LOW");
@@ -295,6 +303,7 @@ export function OfficerIssueDetailsPage() {
   const heroImage = issue ? pickOfficerIssueThumbnail(issue) : null;
   const issueImages = issue?.issue_images ?? [];
   const initialImage = issueImages.find((image) => image.image_type === "INITIAL_REPORT") ?? issueImages[0] ?? null;
+  const resolutionImage = issueImages.find((image) => image.image_type === "RESOLUTION_EVIDENCE") ?? null;
   const locationText = issue ? issue.address_text?.trim() || issue.location_text?.trim() || null : null;
   const coordinates = issue ? formatOfficerIssueCoordinates(issue.latitude, issue.longitude) : null;
   const timelineItems = issue ? buildTimeline(issue) : [];
@@ -471,6 +480,39 @@ export function OfficerIssueDetailsPage() {
     }
 
     refreshIssue("Routing updated successfully.");
+  }
+
+  async function handleApproveResolution() {
+    if (!issue || !profileId || actionState !== "idle" || !resolutionImage || issue.status === "RESOLVED") {
+      return;
+    }
+
+    setActionError(null);
+    setActionMessage(null);
+    setActionState("approvingResolution");
+
+    const { error: insertError } = await supabase.from("issue_status_history").insert({
+      issue_id: issue.id,
+      old_status: issue.status,
+      new_status: "RESOLVED",
+      changed_by_profile_id: profileId,
+      notes: "Municipal officer approved the submitted resolution evidence.",
+    });
+
+    if (insertError) {
+      if (import.meta.env.DEV) {
+        console.error("Officer approve resolution insert failed", insertError);
+      }
+      setActionError(
+        import.meta.env.DEV
+          ? `Failed to approve resolution: ${insertError.message}${insertError.code ? ` (${insertError.code})` : ""}`
+          : "We could not approve the resolution right now. Please try again.",
+      );
+      setActionState("idle");
+      return;
+    }
+
+    refreshIssue("Resolution evidence approved. The issue is now resolved.");
   }
 
   if (sessionProblem || error) {
@@ -691,6 +733,55 @@ export function OfficerIssueDetailsPage() {
                 </div>
               </div>
             </div>
+
+            {resolutionImage ? (
+              <div className="border-t border-border/70 p-6">
+                <div className="grid gap-4 lg:grid-cols-[1.1fr_0.9fr]">
+                  <div className="overflow-hidden rounded-2xl border border-border/70 bg-surface-elevated">
+                    <div className="border-b border-border/70 px-4 py-3">
+                      <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">Resolution evidence</p>
+                    </div>
+                    <img
+                      alt={`${issue.title} resolution evidence`}
+                      className="h-72 w-full object-cover"
+                      src={formatOfficerIssueImageUrl(resolutionImage) ?? ""}
+                    />
+                  </div>
+
+                  <div className="space-y-4 rounded-2xl border border-border/70 bg-surface-elevated p-5">
+                    <div>
+                      <p className="text-xs font-semibold uppercase tracking-[0.24em] text-muted-foreground">Submitted by worker</p>
+                      <p className="mt-2 text-sm font-medium text-foreground">
+                        {assignment?.worker ? formatOfficerProfileLabel(assignment.worker) : "Worker unavailable"}
+                      </p>
+                      <p className="mt-2 text-sm leading-6 text-muted-foreground">
+                        Submitted {formatOfficerIssueDateTime(resolutionImage.created_at)}
+                      </p>
+                    </div>
+
+                    <div className="rounded-2xl border border-border/70 bg-background/30 p-4">
+                      <p className="text-sm font-medium text-foreground">Current issue status: {statusLabel}</p>
+                      <p className="mt-2 text-sm leading-6 text-muted-foreground">
+                        Review the submitted evidence and approve it when the field work is complete.
+                      </p>
+                    </div>
+
+                    <Button
+                      disabled={actionState !== "idle" || issue.status === "RESOLVED"}
+                      onClick={() => void handleApproveResolution()}
+                      type="button"
+                    >
+                      {actionState === "approvingResolution" ? (
+                        <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+                      ) : (
+                        <BadgeCheck className="h-4 w-4" aria-hidden="true" />
+                      )}
+                      Approve Resolution
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            ) : null}
           </section>
 
           <section className="overflow-hidden rounded-[1.75rem] border border-border/80 bg-surface/90 shadow-lg shadow-black/20">

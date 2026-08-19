@@ -50,6 +50,16 @@ export async function loadCivicFixRoleCode(roleId: string) {
   return data.code;
 }
 
+export async function loadCivicFixRoleId(roleCode: CivicFixRoleCode) {
+  const { data, error } = await supabase.from("roles").select("id").eq("code", roleCode).maybeSingle();
+
+  if (error || !data) {
+    return null;
+  }
+
+  return data.id;
+}
+
 export type CivicFixRoleNavItem = {
   label: string;
   path: string;
