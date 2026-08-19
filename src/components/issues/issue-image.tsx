@@ -26,35 +26,35 @@ const VARIANT_STYLES: Record<
   }
 > = {
   thumbnail: {
-    frame: "relative aspect-[4/3] overflow-hidden bg-surface-elevated",
-    image: "h-full w-full object-cover",
+    frame: "relative aspect-[4/3] w-full min-w-0 max-w-full overflow-hidden bg-surface-elevated",
+    image: "block h-full w-full object-cover object-center",
     fallback: "aspect-[4/3]",
     skeleton: "aspect-[4/3]",
     labelSize: "text-[11px]",
   },
   card: {
-    frame: "relative aspect-[16/10] overflow-hidden bg-surface-elevated",
-    image: "h-full w-full object-cover",
+    frame: "relative aspect-[16/10] w-full min-w-0 max-w-full overflow-hidden bg-surface-elevated",
+    image: "block h-full w-full object-cover object-center",
     fallback: "aspect-[16/10]",
     skeleton: "aspect-[16/10]",
     labelSize: "text-[11px]",
   },
   hero: {
-    frame: "relative flex min-h-[18rem] max-h-[32rem] items-center justify-center overflow-hidden bg-surface-elevated",
+    frame: "relative flex min-h-[18rem] max-h-[32rem] w-full min-w-0 max-w-full items-center justify-center overflow-hidden bg-surface-elevated",
     image: "max-h-[32rem] w-full object-contain",
     fallback: "min-h-[18rem] max-h-[32rem]",
     skeleton: "min-h-[18rem] max-h-[32rem]",
     labelSize: "text-xs",
   },
   detail: {
-    frame: "relative flex min-h-[14rem] max-h-[70vh] items-center justify-center overflow-hidden bg-surface-elevated",
+    frame: "relative flex min-h-[14rem] max-h-[70vh] w-full min-w-0 max-w-full items-center justify-center overflow-hidden bg-surface-elevated",
     image: "max-h-[70vh] w-full object-contain",
     fallback: "min-h-[14rem] max-h-[70vh]",
     skeleton: "min-h-[14rem] max-h-[70vh]",
     labelSize: "text-xs",
   },
   preview: {
-    frame: "relative flex min-h-[12rem] max-h-64 items-center justify-center overflow-hidden bg-surface-elevated",
+    frame: "relative flex min-h-[12rem] max-h-64 w-full min-w-0 max-w-full items-center justify-center overflow-hidden bg-surface-elevated",
     image: "max-h-64 w-full object-contain",
     fallback: "min-h-[12rem] max-h-64",
     skeleton: "min-h-[12rem] max-h-64",

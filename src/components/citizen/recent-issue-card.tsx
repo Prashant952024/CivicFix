@@ -56,20 +56,19 @@ export function RecentIssueCard({
 
   return (
     <article className="overflow-hidden rounded-[1.5rem] border border-border/80 bg-surface/90 shadow-sm shadow-black/10">
-      <div className="grid gap-0 md:grid-cols-[160px_1fr]">
-        <div className="border-b border-border/70 bg-surface-elevated md:border-b-0 md:border-r">
+      <div className="grid min-w-0 gap-0 md:grid-cols-[160px_minmax(0,1fr)]">
+        <div className="overflow-hidden border-b border-border/70 bg-surface-elevated md:self-stretch md:border-b-0 md:border-r">
           <IssueImage
             alt={issue.title}
             brokenLabel="Image unavailable"
-            className="min-h-[10rem] rounded-none md:h-full md:min-h-full"
+            className="rounded-none md:h-full md:aspect-auto"
             emptyLabel="No image"
-            imageClassName="md:h-full"
             src={thumbnailUrl}
             variant="card"
           />
         </div>
 
-        <div className="p-5 sm:p-6">
+        <div className="min-w-0 p-5 sm:p-6">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
             <div className="min-w-0 space-y-3">
               <div className="flex flex-wrap items-center gap-2">
@@ -85,20 +84,20 @@ export function RecentIssueCard({
               </div>
 
               <div className="space-y-1">
-                <h3 className="text-lg font-semibold tracking-tight text-foreground">{issue.title}</h3>
+                <h3 className="break-words text-lg font-semibold tracking-tight text-foreground">{issue.title}</h3>
                 <p className="line-clamp-2 text-sm leading-6 text-muted-foreground">{issue.description}</p>
               </div>
             </div>
 
-            <div className="flex shrink-0 flex-col gap-3 text-sm text-muted-foreground lg:items-end">
+            <div className="min-w-0 flex shrink-0 flex-col gap-3 text-sm text-muted-foreground lg:items-end">
               <div className="inline-flex items-center gap-2">
                 <CalendarDays className="h-4 w-4" aria-hidden="true" />
                 <span>{formatDate(issue.created_at)}</span>
               </div>
               {locationText ? (
-                <div className="inline-flex items-center gap-2 lg:max-w-[18rem] lg:justify-end lg:text-right">
+                <div className="inline-flex min-w-0 items-center gap-2 lg:max-w-[18rem] lg:justify-end lg:text-right">
                   <MapPin className="h-4 w-4 shrink-0" aria-hidden="true" />
-                  <span className="line-clamp-2">{locationText}</span>
+                  <span className="break-words line-clamp-2">{locationText}</span>
                 </div>
               ) : null}
             </div>
