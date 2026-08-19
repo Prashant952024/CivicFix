@@ -1,11 +1,5 @@
 import { Navigate, Route, Routes } from "react-router-dom";
 import { Suspense, lazy } from "react";
-import {
-  Building2,
-  CheckCircle2,
-  ClipboardList,
-  UsersRound,
-} from "lucide-react";
 
 import { AppSessionProvider } from "@/auth/app-session";
 import { PublicOnly, RequireAuth, RequireRole } from "@/auth/route-guards";
@@ -26,7 +20,6 @@ const OfficerDashboardPage = lazy(() => import("@/routes/officer/dashboard").the
 const OfficerIssueDetailsPage = lazy(() => import("@/routes/officer/issue-details").then((module) => ({ default: module.OfficerIssueDetailsPage })));
 const OfficerIssuesPage = lazy(() => import("@/routes/officer/issues").then((module) => ({ default: module.OfficerIssuesPage })));
 const PlaceholderPage = lazy(() => import("@/routes/app-pages").then((module) => ({ default: module.PlaceholderPage })));
-const DashboardPage = lazy(() => import("@/routes/app-pages").then((module) => ({ default: module.DashboardPage })));
 const WorkerAssignedIssueDetailsPage = lazy(() =>
   import("@/routes/worker/issue-details").then((module) => ({ default: module.WorkerAssignedIssueDetailsPage })),
 );
@@ -34,6 +27,11 @@ const WorkerAssignedIssuesPage = lazy(() =>
   import("@/routes/worker/assigned-issues").then((module) => ({ default: module.WorkerAssignedIssuesPage })),
 );
 const WorkerDashboardPage = lazy(() => import("@/routes/worker/dashboard").then((module) => ({ default: module.WorkerDashboardPage })));
+const AdminDashboardPage = lazy(() => import("@/routes/admin/dashboard").then((module) => ({ default: module.AdminDashboardPage })));
+const AdminUsersPage = lazy(() => import("@/routes/admin/users").then((module) => ({ default: module.AdminUsersPage })));
+const AdminIssuesPage = lazy(() => import("@/routes/admin/issues").then((module) => ({ default: module.AdminIssuesPage })));
+const AdminAnalyticsPage = lazy(() => import("@/routes/admin/analytics").then((module) => ({ default: module.AdminAnalyticsPage })));
+const AdminDepartmentsPage = lazy(() => import("@/routes/admin/departments").then((module) => ({ default: module.AdminDepartmentsPage })));
 const SignupPage = lazy(() => import("@/routes/signup").then((module) => ({ default: module.SignupPage })));
 const UnauthorizedPage = lazy(() => import("@/routes/unauthorized").then((module) => ({ default: module.UnauthorizedPage })));
 
@@ -178,59 +176,11 @@ export function AppRoutes() {
               </RequireRole>
             }
           >
-            <Route
-              index
-              element={
-                <DashboardPage
-                  accentNote="Administrators oversee the platform, the people on it, and the systems behind it."
-                  description="A high-level administrative workspace for CivicFix platform operations."
-                  roleCode="ADMIN"
-                  stats={[
-                    { icon: UsersRound, label: "Total Users", value: "248" },
-                    { icon: ClipboardList, label: "Total Issues", value: "1,024" },
-                    { icon: Building2, label: "Departments", tone: "info", value: "9" },
-                    { icon: CheckCircle2, label: "Resolved Issues", tone: "success", value: "742" },
-                  ]}
-                  title="Admin Dashboard"
-                />
-              }
-            />
-            <Route
-              path="users"
-              element={
-                <PlaceholderPage
-                  description="User administration, role oversight, and profile management will live here."
-                  title="Users"
-                />
-              }
-            />
-            <Route
-              path="departments"
-              element={
-                <PlaceholderPage
-                  description="Manage municipal departments and their civic routing responsibilities."
-                  title="Departments"
-                />
-              }
-            />
-            <Route
-              path="issues"
-              element={
-                <PlaceholderPage
-                  description="Administrative issue controls, escalations, and system-wide oversight will appear here."
-                  title="Issues"
-                />
-              }
-            />
-            <Route
-              path="analytics"
-              element={
-                <PlaceholderPage
-                  description="Platform metrics and operational performance dashboards will live here."
-                  title="Analytics"
-                />
-              }
-            />
+            <Route index element={<AdminDashboardPage />} />
+            <Route path="users" element={<AdminUsersPage />} />
+            <Route path="departments" element={<AdminDepartmentsPage />} />
+            <Route path="issues" element={<AdminIssuesPage />} />
+            <Route path="analytics" element={<AdminAnalyticsPage />} />
           </Route>
         </Route>
 
