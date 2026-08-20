@@ -8,7 +8,7 @@ import { supabase } from "@/lib/supabase";
 import type { Database } from "@/types/database";
 
 type DepartmentRow = Database["public"]["Tables"]["departments"]["Row"];
-type IssueRow = Pick<Database["public"]["Tables"]["issues"]["Row"], "id" | "department_id">;
+type IssueRow = Pick<Database["public"]["Tables"]["issues"]["Row"], "id" | "department_id" | "status" | "created_at" | "updated_at">;
 type ProfileRow = Pick<Database["public"]["Tables"]["profiles"]["Row"], "id" | "department_id" | "role_id"> & {
   role?: Pick<Database["public"]["Tables"]["roles"]["Row"], "code" | "name"> | null;
 };
@@ -18,6 +18,18 @@ type DepartmentDraft = {
   description: string;
   is_active: boolean;
 };
+
+function isResolvedLikeStatus(status: IssueRow["status"]) {
+  return status === "RESOLVED" || status === "CITIZEN_VERIFIED";
+}
+
+function getDepartmentWorkloadTone(openCount: number, totalCount: number) {
+  const ratio = totalCount > 0 ? openCount / totalCount : 0;
+  if (ratio >= 0.75) return "danger";
+  if (ratio >= 0.45) return "warning";
+  if (ratio > 0) return "info";
+  return "success";
+}
 
 export function AdminDepartmentsPage() {
   const { profile, status: sessionStatus, error: sessionError } = useAppSession();
@@ -29,7 +41,9 @@ export function AdminDepartmentsPage() {
   const [error, setError] = useState<string | null>(null);
   const [savingDepartmentId, setSavingDepartmentId] = useState<string | null>(null);
   const [refreshNonce, setRefreshNonce] = useState(0);
+  const [lastRefreshedAt, setLastRefreshedAt] = useState<string | null>(null);
   const sessionProblem = sessionStatus === "error" ? sessionError ?? "CivicFix profile is unavailable." : null;
+  const snapshotTimeMs = lastRefreshedAt ? new Date(lastRefreshedAt).getTime() : null;
 
   useEffect(() => {
     if (sessionStatus !== "ready" || !profile?.id) {
@@ -44,7 +58,7 @@ export function AdminDepartmentsPage() {
 
       const [departmentsResult, issuesResult, profilesResult] = await Promise.all([
         supabase.from("departments").select("id, name, description, is_active, created_at, updated_at").order("name", { ascending: true }),
-        supabase.from("issues").select("id, department_id"),
+        supabase.from("issues").select("id, department_id, status, created_at, updated_at"),
         supabase.from("profiles").select("id, department_id, role_id, role:roles(code, name)"),
       ]);
 
@@ -78,6 +92,7 @@ export function AdminDepartmentsPage() {
           ]),
         ),
       );
+      setLastRefreshedAt(new Date().toISOString());
       setLoading(false);
     }
 
@@ -96,6 +111,34 @@ export function AdminDepartmentsPage() {
     }
     return counts;
   }, [issues]);
+
+  const workloadByDepartment = useMemo(() => {
+    const summaries = new Map<string, { total: number; open: number; resolved: number; reopened: number; stale: number }>();
+    const staleThresholdMs = 21 * 24 * 60 * 60 * 1000;
+
+    for (const issue of issues) {
+      if (!issue.department_id) continue;
+
+      const current = summaries.get(issue.department_id) ?? { total: 0, open: 0, resolved: 0, reopened: 0, stale: 0 };
+      current.total += 1;
+      if (issue.status === "REOPENED") {
+        current.reopened += 1;
+      }
+
+      if (isResolvedLikeStatus(issue.status)) {
+        current.resolved += 1;
+      } else {
+        current.open += 1;
+        if (snapshotTimeMs && snapshotTimeMs - new Date(issue.updated_at).getTime() > staleThresholdMs) {
+          current.stale += 1;
+        }
+      }
+
+      summaries.set(issue.department_id, current);
+    }
+
+    return summaries;
+  }, [issues, snapshotTimeMs]);
 
   const staffCounts = useMemo(() => {
     const counts = new Map<string, number>();
@@ -218,6 +261,9 @@ export function AdminDepartmentsPage() {
 
           const issueCount = issueCounts.get(department.id) ?? 0;
           const staffCount = staffCounts.get(department.id) ?? 0;
+          const workload = workloadByDepartment.get(department.id) ?? { total: 0, open: 0, resolved: 0, reopened: 0, stale: 0 };
+          const workloadTone = getDepartmentWorkloadTone(workload.open, workload.total);
+          const resolutionRate = workload.total > 0 ? Math.round((workload.resolved / workload.total) * 100) : 0;
 
           return (
             <article key={department.id} className="rounded-[1.75rem] border border-border/80 bg-surface/90 p-6 shadow-lg shadow-teal-950/5">
@@ -241,12 +287,46 @@ export function AdminDepartmentsPage() {
                     <span>•</span>
                     <span>{department.is_active ? "Active" : "Inactive"}</span>
                   </div>
+                  <div className="grid gap-2 sm:grid-cols-4">
+                    <div className="rounded-2xl border border-border/70 bg-surface-elevated p-3">
+                      <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">Open</p>
+                      <p className="mt-2 text-2xl font-semibold text-foreground">{workload.open}</p>
+                    </div>
+                    <div className="rounded-2xl border border-border/70 bg-surface-elevated p-3">
+                      <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">Resolved</p>
+                      <p className="mt-2 text-2xl font-semibold text-foreground">{workload.resolved}</p>
+                    </div>
+                    <div className="rounded-2xl border border-border/70 bg-surface-elevated p-3">
+                      <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">Stale</p>
+                      <p className="mt-2 text-2xl font-semibold text-foreground">{workload.stale}</p>
+                    </div>
+                    <div className="rounded-2xl border border-border/70 bg-surface-elevated p-3">
+                      <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">Closed rate</p>
+                      <p className="mt-2 text-2xl font-semibold text-foreground">{resolutionRate}%</p>
+                    </div>
+                  </div>
                 </div>
 
-                <Button disabled={savingDepartmentId === department.id} onClick={() => void saveDepartment(department)} type="button">
-                  <Save className="h-4 w-4" aria-hidden="true" />
-                  Save changes
-                </Button>
+                <div className="flex flex-col items-start gap-3 lg:items-end">
+                  <span
+                    className={[
+                      "inline-flex rounded-full border px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] ring-1",
+                      workloadTone === "success"
+                        ? "bg-emerald-50 text-emerald-700 ring-emerald-200"
+                        : workloadTone === "warning"
+                          ? "bg-amber-50 text-amber-700 ring-amber-200"
+                          : workloadTone === "danger"
+                            ? "bg-rose-50 text-rose-700 ring-rose-200"
+                            : "bg-sky-50 text-sky-700 ring-sky-200",
+                    ].join(" ")}
+                  >
+                    {workloadTone === "success" ? "Healthy" : workloadTone === "warning" ? "Busy" : workloadTone === "danger" ? "Overloaded" : "Balanced"}
+                  </span>
+                  <Button disabled={savingDepartmentId === department.id} onClick={() => void saveDepartment(department)} type="button">
+                    <Save className="h-4 w-4" aria-hidden="true" />
+                    Save changes
+                  </Button>
+                </div>
               </div>
 
               <div className="mt-5 grid gap-4 xl:grid-cols-[1fr_1.3fr_auto]">

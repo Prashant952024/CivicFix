@@ -28,6 +28,7 @@ const WorkerAssignedIssuesPage = lazy(() =>
 );
 const WorkerDashboardPage = lazy(() => import("@/routes/worker/dashboard").then((module) => ({ default: module.WorkerDashboardPage })));
 const AdminDashboardPage = lazy(() => import("@/routes/admin/dashboard").then((module) => ({ default: module.AdminDashboardPage })));
+const AdminIssueDetailPage = lazy(() => import("@/routes/admin/issue-details").then((module) => ({ default: module.AdminIssueDetailPage })));
 const AdminUsersPage = lazy(() => import("@/routes/admin/users").then((module) => ({ default: module.AdminUsersPage })));
 const AdminIssuesPage = lazy(() => import("@/routes/admin/issues").then((module) => ({ default: module.AdminIssuesPage })));
 const AdminAnalyticsPage = lazy(() => import("@/routes/admin/analytics").then((module) => ({ default: module.AdminAnalyticsPage })));
@@ -180,6 +181,7 @@ export function AppRoutes() {
             <Route path="users" element={<AdminUsersPage />} />
             <Route path="departments" element={<AdminDepartmentsPage />} />
             <Route path="issues" element={<AdminIssuesPage />} />
+            <Route path="issues/:issueId" element={<AdminIssueDetailPage />} />
             <Route path="analytics" element={<AdminAnalyticsPage />} />
           </Route>
         </Route>

@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { AlertCircle, Filter, Search, SlidersHorizontal, SortAsc, RefreshCw } from "lucide-react";
+import { Link } from "react-router-dom";
 
 import { useAppSession } from "@/auth/app-session";
 import { IssueImage } from "@/components/issues/issue-image";
@@ -531,6 +532,12 @@ export function AdminIssuesPage() {
                       <span>{issue.issue_images?.length ?? 0} image attachment(s)</span>
                       <span>•</span>
                       <span>{getAdminInitials(issue.reporter_profile?.full_name || issue.reporter_profile?.email || "Citizen")}</span>
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Button asChild size="sm" variant="outline">
+                        <Link to={`/app/admin/issues/${issue.id}`}>Inspect issue</Link>
+                      </Button>
                     </div>
                   </div>
                 </div>

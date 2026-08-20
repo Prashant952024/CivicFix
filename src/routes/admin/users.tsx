@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { AlertCircle, CheckCircle2, Loader2, Mail, RefreshCw, Search, ShieldCheck, SlidersHorizontal, UserPlus, UsersRound, X } from "lucide-react";
 import { useAuth } from "@clerk/react";
+import { useLocation } from "react-router-dom";
 
 import { useAppSession } from "@/auth/app-session";
 import { Button } from "@/components/ui/button";
@@ -39,6 +40,7 @@ const DEFAULT_CREATE_FORM: CreateUserFormState = {
 export function AdminUsersPage() {
   const { getToken } = useAuth();
   const { profile, status: sessionStatus, error: sessionError } = useAppSession();
+  const location = useLocation();
   const [profiles, setProfiles] = useState<ProfileRow[]>([]);
   const [roles, setRoles] = useState<RoleRow[]>([]);
   const [departments, setDepartments] = useState<DepartmentRow[]>([]);
@@ -173,6 +175,22 @@ export function AdminUsersPage() {
     setCreateSuccess(null);
     setCreateModalOpen(true);
   }
+
+  useEffect(() => {
+    const shouldOpenCreateModal =
+      Boolean(location.state && typeof location.state === "object" && (location.state as { openCreateModal?: boolean }).openCreateModal);
+
+    if (shouldOpenCreateModal) {
+      const handle = window.setTimeout(() => {
+        setCreateForm(DEFAULT_CREATE_FORM);
+        setCreateError(null);
+        setCreateSuccess(null);
+        setCreateModalOpen(true);
+      }, 0);
+
+      return () => window.clearTimeout(handle);
+    }
+  }, [location.key, location.state]);
 
   function closeCreateModal() {
     if (createSubmitting) {
