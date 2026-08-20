@@ -1,5 +1,6 @@
-import { useEffect, useMemo, useState } from "react";
-import { AlertCircle, Search, SlidersHorizontal, RefreshCw, ShieldCheck, UsersRound } from "lucide-react";
+import { useEffect, useMemo, useState, type FormEvent } from "react";
+import { AlertCircle, CheckCircle2, Loader2, Mail, RefreshCw, Search, ShieldCheck, SlidersHorizontal, UserPlus, UsersRound, X } from "lucide-react";
+import { useAuth } from "@clerk/react";
 
 import { useAppSession } from "@/auth/app-session";
 import { Button } from "@/components/ui/button";
@@ -15,6 +16,12 @@ type ProfileRow = Database["public"]["Tables"]["profiles"]["Row"] & {
 type RoleRow = Pick<Database["public"]["Tables"]["roles"]["Row"], "id" | "code" | "name" | "description" | "is_system_role">;
 type DepartmentRow = Pick<Database["public"]["Tables"]["departments"]["Row"], "id" | "name" | "is_active">;
 type IssueRow = Pick<Database["public"]["Tables"]["issues"]["Row"], "id" | "reporter_profile_id" | "updated_at">;
+type ManagedRoleCode = "MUNICIPAL_OFFICER" | "FIELD_WORKER";
+type CreateUserFormState = {
+  fullName: string;
+  email: string;
+  roleCode: ManagedRoleCode;
+};
 
 type UserRecord = ProfileRow & {
   issueCount: number;
@@ -23,8 +30,14 @@ type UserRecord = ProfileRow & {
 
 const PAGE_SIZE = 10;
 type RoleFilter = "all" | "CITIZEN" | "MUNICIPAL_OFFICER" | "FIELD_WORKER" | "ADMIN";
+const DEFAULT_CREATE_FORM: CreateUserFormState = {
+  fullName: "",
+  email: "",
+  roleCode: "MUNICIPAL_OFFICER",
+};
 
 export function AdminUsersPage() {
+  const { getToken } = useAuth();
   const { profile, status: sessionStatus, error: sessionError } = useAppSession();
   const [profiles, setProfiles] = useState<ProfileRow[]>([]);
   const [roles, setRoles] = useState<RoleRow[]>([]);
@@ -38,6 +51,11 @@ export function AdminUsersPage() {
   const [page, setPage] = useState(1);
   const [savingUserId, setSavingUserId] = useState<string | null>(null);
   const [refreshNonce, setRefreshNonce] = useState(0);
+  const [createModalOpen, setCreateModalOpen] = useState(false);
+  const [createSubmitting, setCreateSubmitting] = useState(false);
+  const [createError, setCreateError] = useState<string | null>(null);
+  const [createSuccess, setCreateSuccess] = useState<string | null>(null);
+  const [createForm, setCreateForm] = useState<CreateUserFormState>(DEFAULT_CREATE_FORM);
   const sessionProblem = sessionStatus === "error" ? sessionError ?? "CivicFix profile is unavailable." : null;
 
   useEffect(() => {
@@ -116,7 +134,7 @@ export function AdminUsersPage() {
     return users.filter((user) => {
       const matchesSearch =
         !query ||
-        [user.full_name, user.email, user.phone, user.clerk_user_id, user.role?.name, user.department?.name]
+        [user.full_name, user.email, user.phone, user.role?.name, user.department?.name]
           .filter(Boolean)
           .some((value) => String(value).toLowerCase().includes(query));
       const matchesRole = roleFilter === "all" || user.role?.code === roleFilter;
@@ -128,7 +146,9 @@ export function AdminUsersPage() {
   const totalPages = Math.max(1, Math.ceil(filteredUsers.length / PAGE_SIZE));
   const currentPage = Math.min(page, totalPages);
   const visibleUsers = filteredUsers.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
-  const roleOptions = roles;
+  const managedRoleOptions = roles.filter(
+    (role) => role.code === "MUNICIPAL_OFFICER" || role.code === "FIELD_WORKER",
+  );
 
   async function updateRole(user: ProfileRow, nextRoleId: string) {
     if (!profile?.id || user.id === profile.id || user.role_id === nextRoleId) {
@@ -145,6 +165,90 @@ export function AdminUsersPage() {
     }
 
     setRefreshNonce((value) => value + 1);
+  }
+
+  function openCreateModal() {
+    setCreateForm(DEFAULT_CREATE_FORM);
+    setCreateError(null);
+    setCreateSuccess(null);
+    setCreateModalOpen(true);
+  }
+
+  function closeCreateModal() {
+    if (createSubmitting) {
+      return;
+    }
+
+    setCreateModalOpen(false);
+    setCreateError(null);
+  }
+
+  async function submitCreateUser(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    const fullName = createForm.fullName.trim();
+    const email = createForm.email.trim().toLowerCase();
+    const roleCode = createForm.roleCode;
+
+    if (!fullName) {
+      setCreateError("Full name is required.");
+      return;
+    }
+
+    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      setCreateError("A valid email is required.");
+      return;
+    }
+
+    if (!roleCode) {
+      setCreateError("Please choose a role.");
+      return;
+    }
+
+    setCreateSubmitting(true);
+    setCreateError(null);
+    setCreateSuccess(null);
+
+    try {
+      const token = await getToken();
+      if (!token) {
+        throw new Error("Clerk session token is unavailable.");
+      }
+
+      const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/admin-create-user`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          fullName,
+          email,
+          roleCode,
+        }),
+      });
+
+      const payload = (await response.json().catch(() => ({}))) as { error?: string; user?: { fullName?: string; email?: string; roleName?: string } };
+
+      if (!response.ok) {
+        throw new Error(payload.error ?? "Unable to create the new user.");
+      }
+
+      setCreateSuccess(
+        `User created successfully: ${payload.user?.fullName ?? fullName} · ${payload.user?.roleName ?? roleCode} · ${payload.user?.email ?? email}`,
+      );
+      setCreateModalOpen(false);
+      setCreateForm(DEFAULT_CREATE_FORM);
+      setRefreshNonce((value) => value + 1);
+    } catch (submitError) {
+      const message = submitError instanceof Error ? submitError.message : "Unable to create the new user.";
+      setCreateError(message);
+      if (import.meta.env.DEV) {
+        console.error("Admin user creation failed", submitError);
+      }
+    } finally {
+      setCreateSubmitting(false);
+    }
   }
 
   if (sessionProblem || error) {
@@ -240,7 +344,7 @@ export function AdminUsersPage() {
                 setSearch(event.target.value);
                 setPage(1);
               }}
-              placeholder="Search name, email, phone, role, department, or clerk ID"
+              placeholder="Search name, email, phone, role, or department"
               value={search}
             />
           </label>
@@ -256,7 +360,7 @@ export function AdminUsersPage() {
               value={roleFilter}
             >
               <option value="all">All roles</option>
-              {roleOptions.map((role) => (
+              {managedRoleOptions.map((role) => (
                 <option key={role.id} value={role.code}>
                   {role.name}
                 </option>
@@ -283,11 +387,35 @@ export function AdminUsersPage() {
             </select>
           </label>
 
-          <Button onClick={() => setRefreshNonce((value) => value + 1)} type="button" variant="outline">
-            Refresh
-          </Button>
+          <div className="flex gap-2">
+            <Button onClick={openCreateModal} type="button">
+              <UserPlus className="mr-2 h-4 w-4" aria-hidden="true" />
+              Create User
+            </Button>
+            <Button onClick={() => setRefreshNonce((value) => value + 1)} type="button" variant="outline">
+              Refresh
+            </Button>
+          </div>
         </div>
       </section>
+
+      {createSuccess ? (
+        <div className="flex items-start gap-3 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-emerald-900 shadow-sm shadow-emerald-950/5">
+          <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0" aria-hidden="true" />
+          <div className="min-w-0">
+            <p className="font-medium">User created</p>
+            <p className="text-sm leading-6">{createSuccess}</p>
+          </div>
+          <button
+            className="ml-auto rounded-full p-1 text-emerald-700 transition hover:bg-emerald-100"
+            onClick={() => setCreateSuccess(null)}
+            type="button"
+            aria-label="Dismiss success message"
+          >
+            <X className="h-4 w-4" aria-hidden="true" />
+          </button>
+        </div>
+      ) : null}
 
       <section className="rounded-[1.75rem] border border-border/80 bg-surface/90 p-6 shadow-lg shadow-teal-950/5">
         <div className="flex flex-wrap items-center justify-between gap-3">
@@ -310,21 +438,20 @@ export function AdminUsersPage() {
             <div>Action</div>
           </div>
 
-          <div className="divide-y divide-border/70">
-            {visibleUsers.length > 0 ? (
-              visibleUsers.map((user) => {
-                const currentRoleId = user.role_id;
-                const isSelf = user.id === profile?.id;
-                return (
+            <div className="divide-y divide-border/70">
+              {visibleUsers.length > 0 ? (
+                visibleUsers.map((user) => {
+                  const isSelf = user.id === profile?.id;
+                  return (
                   <div key={user.id} className="grid grid-cols-[1.3fr_0.9fr_0.8fr_0.9fr_0.8fr_auto] gap-3 px-4 py-4">
                     <div className="min-w-0">
                       <div className="flex items-center gap-3">
                         <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-sky-100 via-teal-100 to-emerald-100 text-sm font-semibold text-teal-900 ring-1 ring-teal-200">
-                          {getAdminInitials(user.full_name || user.email || user.clerk_user_id)}
+                          {getAdminInitials(user.full_name || user.email || user.phone || "User")}
                         </div>
                         <div className="min-w-0">
                           <p className="truncate font-medium text-foreground">{user.full_name || "Unnamed user"}</p>
-                          <p className="truncate text-sm text-muted-foreground">{user.email || user.clerk_user_id}</p>
+                          <p className="truncate text-sm text-muted-foreground">{user.email || "No email on file"}</p>
                           {user.phone ? <p className="truncate text-xs text-muted-foreground">{user.phone}</p> : null}
                         </div>
                       </div>
@@ -344,7 +471,6 @@ export function AdminUsersPage() {
                       >
                         {user.role?.name ?? "Citizen"}
                       </span>
-                      <p className="text-xs text-muted-foreground">Role ID: {currentRoleId.slice(0, 8)}</p>
                     </div>
 
                     <div>
@@ -369,7 +495,7 @@ export function AdminUsersPage() {
                         className="w-44 rounded-2xl border border-border/80 bg-white/80 px-3 py-2 text-sm text-foreground outline-none transition focus:border-primary/50 focus:ring-2 focus:ring-primary/20 disabled:cursor-not-allowed disabled:opacity-50"
                         disabled={isSelf || savingUserId === user.id}
                         onChange={(event) => void updateRole(user, event.target.value)}
-                        value={currentRoleId}
+                        value={user.role_id}
                       >
                         {roles.map((role) => (
                           <option key={role.id} value={role.id}>
@@ -412,6 +538,115 @@ export function AdminUsersPage() {
           </div>
         </div>
       </section>
+
+      {createModalOpen ? (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/55 px-4 py-6 backdrop-blur-sm"
+          onClick={closeCreateModal}
+          role="presentation"
+        >
+          <div
+            className="w-full max-w-2xl rounded-[1.75rem] border border-border/80 bg-surface/95 p-6 shadow-2xl shadow-slate-950/30"
+            onClick={(event) => event.stopPropagation()}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="create-user-title"
+          >
+            <div className="flex items-start justify-between gap-4">
+              <div className="space-y-2">
+                <div className="inline-flex items-center rounded-full border border-sky-200 bg-sky-50 px-3 py-1 text-xs font-semibold uppercase tracking-[0.22em] text-sky-800">
+                  <UserPlus className="mr-2 h-3.5 w-3.5" aria-hidden="true" />
+                  New account
+                </div>
+                <div>
+                  <h3 id="create-user-title" className="text-2xl font-semibold tracking-tight text-foreground">
+                    Create a CivicFix field account
+                  </h3>
+                  <p className="mt-2 text-sm leading-6 text-muted-foreground">
+                    This uses Clerk for authentication and syncs a matching Supabase profile with the chosen operational role.
+                  </p>
+                </div>
+              </div>
+              <button
+                className="rounded-full p-2 text-muted-foreground transition hover:bg-muted hover:text-foreground"
+                onClick={closeCreateModal}
+                type="button"
+                aria-label="Close create user dialog"
+              >
+                <X className="h-5 w-5" aria-hidden="true" />
+              </button>
+            </div>
+
+            {createError ? (
+              <div className="mt-5 flex items-start gap-3 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-red-900">
+                <AlertCircle className="mt-0.5 h-5 w-5 shrink-0" aria-hidden="true" />
+                <p className="text-sm leading-6">{createError}</p>
+              </div>
+            ) : null}
+
+            <form className="mt-5 space-y-5" onSubmit={(event) => void submitCreateUser(event)}>
+              <div className="grid gap-4 md:grid-cols-2">
+                <label className="space-y-2">
+                  <span className="text-sm font-medium text-foreground">Full name</span>
+                  <input
+                    className="w-full rounded-2xl border border-border/80 bg-white/85 px-4 py-3 text-sm text-foreground outline-none transition placeholder:text-muted-foreground focus:border-primary/50 focus:ring-2 focus:ring-primary/20"
+                    onChange={(event) => setCreateForm((value) => ({ ...value, fullName: event.target.value }))}
+                    placeholder="Aarav Mehta"
+                    value={createForm.fullName}
+                  />
+                </label>
+
+                <label className="space-y-2">
+                  <span className="text-sm font-medium text-foreground">Email</span>
+                  <div className="relative">
+                    <Mail className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
+                    <input
+                      autoComplete="email"
+                      className="w-full rounded-2xl border border-border/80 bg-white/85 py-3 pl-11 pr-4 text-sm text-foreground outline-none transition placeholder:text-muted-foreground focus:border-primary/50 focus:ring-2 focus:ring-primary/20"
+                      onChange={(event) => setCreateForm((value) => ({ ...value, email: event.target.value }))}
+                      placeholder="aarav@example.com"
+                      value={createForm.email}
+                    />
+                  </div>
+                </label>
+              </div>
+
+              <label className="space-y-2">
+                <span className="text-sm font-medium text-foreground">Role</span>
+                <select
+                  className="w-full rounded-2xl border border-border/80 bg-white/85 px-4 py-3 text-sm text-foreground outline-none transition focus:border-primary/50 focus:ring-2 focus:ring-primary/20"
+                  onChange={(event) =>
+                    setCreateForm((value) => ({
+                      ...value,
+                      roleCode: event.target.value as ManagedRoleCode,
+                    }))
+                  }
+                  value={createForm.roleCode}
+                >
+                  {managedRoleOptions.map((role) => (
+                    <option key={role.id} value={role.code}>
+                      {role.name}
+                    </option>
+                  ))}
+                </select>
+                <p className="text-xs leading-5 text-muted-foreground">
+                  Only Municipal Officer and Field Worker accounts can be created here. Admin accounts stay outside this flow.
+                </p>
+              </label>
+
+              <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+                <Button onClick={closeCreateModal} type="button" variant="outline">
+                  Cancel
+                </Button>
+                <Button disabled={createSubmitting} type="submit">
+                  {createSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden="true" /> : null}
+                  {createSubmitting ? "Creating..." : "Create User"}
+                </Button>
+              </div>
+            </form>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }
