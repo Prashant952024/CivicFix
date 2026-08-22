@@ -2,7 +2,7 @@ import * as React from "react";
 import { cn } from "@/lib/utils";
 
 export interface BadgeProps extends React.HTMLAttributes<HTMLDivElement> {
-  variant?: "default" | "success" | "warning" | "danger" | "info" | "outline" | "teal" | "sky" | "amber" | "emerald";
+  variant?: "default" | "success" | "warning" | "danger" | "info" | "outline" | "teal" | "sky" | "amber" | "emerald" | "violet";
   size?: "sm" | "default" | "lg";
 }
 
@@ -16,6 +16,7 @@ const badgeVariantClasses = {
   info: "border-sky-200 bg-sky-50 text-sky-700 ring-sky-200",
   sky: "border-sky-200 bg-sky-50 text-sky-700 ring-sky-200",
   teal: "border-teal-200 bg-teal-50 text-teal-800 ring-teal-200",
+  violet: "border-violet-200 bg-violet-50 text-violet-700 ring-violet-200",
   outline: "border-border/80 bg-transparent text-foreground",
 } as const;
 

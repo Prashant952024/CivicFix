@@ -1,28 +1,32 @@
 import { useEffect, useMemo, useState } from "react";
 import {
   AlertCircle,
-  ArrowLeft,
   BadgeCheck,
+  Bot,
   Building2,
-  Clock3,
+  CheckCircle2,
+  ExternalLink,
   History,
-  ImageIcon,
   Loader2,
   MapPin,
+  Phone,
   Save,
   ShieldAlert,
-  SquarePen,
   ThumbsDown,
   ThumbsUp,
+  User,
   UserCog,
+  XCircle,
 } from "lucide-react";
 import { Link, useParams } from "react-router-dom";
 
 import { useAppSession } from "@/auth/app-session";
 import { IssueImage } from "@/components/issues/issue-image";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { PageHeader } from "@/components/ui/page-header";
 import {
-  formatOfficerAssignmentSummary,
   formatOfficerDepartmentLabel,
   formatOfficerIssueCoordinates,
   formatOfficerIssueDate,
@@ -30,7 +34,6 @@ import {
   formatOfficerIssueImageUrl,
   formatOfficerIssuePriority,
   formatOfficerProfileLabel,
-  getOfficerIssuePriorityTone,
   getOfficerIssueSeverityLabel,
   getOfficerIssueSeverityTone,
   getOfficerIssueStatusLabel,
@@ -90,18 +93,6 @@ type TimelineItem = {
   tone: "default" | "success" | "warning" | "danger" | "info";
 };
 
-function badgeToneClasses(tone: "default" | "success" | "warning" | "danger" | "info") {
-  return tone === "success"
-    ? "bg-emerald-50 text-emerald-700 ring-emerald-200"
-    : tone === "warning"
-      ? "bg-amber-50 text-amber-700 ring-amber-200"
-      : tone === "danger"
-        ? "bg-red-50 text-red-700 ring-red-200"
-        : tone === "info"
-          ? "bg-sky-50 text-sky-700 ring-sky-200"
-          : "bg-slate-100 text-slate-700 ring-slate-200";
-}
-
 function buildTimeline(issue: IssueRow): TimelineItem[] {
   const historyItems = [...(issue.issue_status_history ?? [])].sort(
     (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime(),
@@ -110,7 +101,7 @@ function buildTimeline(issue: IssueRow): TimelineItem[] {
   const firstItem: TimelineItem = {
     id: "submitted",
     title: "Submitted",
-    description: "Citizen report created in CivicFix.",
+    description: "Citizen report registered in CivicFix.",
     timestamp: issue.created_at,
     tone: "default",
   };
@@ -120,7 +111,7 @@ function buildTimeline(issue: IssueRow): TimelineItem[] {
     ...historyItems.map((history) => ({
       id: history.id,
       title: getOfficerTimelineStatusLabel(history.new_status),
-      description: history.notes || `${history.old_status ? getOfficerIssueStatusLabel(history.old_status) : "Created"} -> ${getOfficerIssueStatusLabel(history.new_status)}`,
+      description: history.notes || `${history.old_status ? getOfficerIssueStatusLabel(history.old_status) : "Created"} → ${getOfficerIssueStatusLabel(history.new_status)}`,
       timestamp: history.created_at,
       tone: getOfficerIssueStatusTone(history.new_status),
     })),
@@ -315,8 +306,6 @@ export function OfficerIssueDetailsPage() {
   const statusLabel = issue ? getOfficerIssueStatusLabel(issue.status) : "";
   const severityTone = issue ? getOfficerIssueSeverityTone(issue.severity) : "default";
   const severityLabel = issue ? getOfficerIssueSeverityLabel(issue.severity) : "";
-  const priorityTone = issue ? getOfficerIssuePriorityTone(issue.priority) : "default";
-  const currentAssignmentSummary = formatOfficerAssignmentSummary(assignment);
 
   const workerOptions = useMemo(
     () =>
@@ -328,8 +317,6 @@ export function OfficerIssueDetailsPage() {
     [departments, workers],
   );
 
-  const selectedWorker = workers.find((worker) => worker.id === workerDraft) ?? null;
-  const selectedDepartment = departments.find((department) => department.id === departmentDraft) ?? null;
   const aiConfidence = confidencePercent(aiAnalysis?.confidence_score);
   const hasWorkerRoster = workerOptions.length > 0;
   const issueIsClosed = issue ? issue.status === "RESOLVED" || issue.status === "CITIZEN_VERIFIED" : false;
@@ -593,14 +580,14 @@ export function OfficerIssueDetailsPage() {
 
   if (sessionProblem || error) {
     return (
-      <section className="rounded-[1.75rem] border border-border/80 bg-surface/90 p-6 shadow-lg shadow-black/20">
+      <Card className="page-container-detail p-6 sm:p-8">
         <div className="max-w-2xl space-y-4">
           <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-red-200 bg-red-50 text-red-700">
-            <AlertCircle className="h-5 w-5" aria-hidden="true" />
+            <AlertCircle className="h-6 w-6" aria-hidden="true" />
           </div>
-          <div className="space-y-2">
-            <h2 className="text-2xl font-semibold tracking-tight text-foreground">Issue unavailable</h2>
-            <p className="text-sm leading-6 text-muted-foreground">{sessionProblem ?? error}</p>
+          <div className="space-y-1.5">
+            <h2 className="text-2xl font-bold tracking-tight text-foreground">Issue unavailable</h2>
+            <p className="text-sm leading-relaxed text-muted-foreground">{sessionProblem ?? error}</p>
           </div>
           <div className="flex flex-col gap-3 sm:flex-row">
             <Button asChild>
@@ -611,542 +598,548 @@ export function OfficerIssueDetailsPage() {
             </Button>
           </div>
         </div>
-      </section>
+      </Card>
     );
   }
 
   if (loading || !issue) {
     return (
-      <div className="space-y-6">
-        <section className="rounded-[1.75rem] border border-border/80 bg-surface/90 p-6 shadow-lg shadow-black/20">
+      <div className="page-container-detail space-y-6">
+        <Card className="p-6 sm:p-8">
           <div className="space-y-3">
             <div className="h-4 w-48 animate-pulse rounded-full bg-muted/60" />
-            <div className="h-9 w-full max-w-3xl animate-pulse rounded-2xl bg-muted/60" />
-            <div className="h-4 w-full max-w-2xl animate-pulse rounded-full bg-muted/40" />
+            <div className="h-8 w-full max-w-2xl animate-pulse rounded-2xl bg-muted/60" />
+            <div className="h-4 w-full max-w-lg animate-pulse rounded-full bg-muted/40" />
           </div>
-        </section>
-
-        <section className="grid gap-4 lg:grid-cols-[1.05fr_0.95fr]">
-          <div className="h-[34rem] animate-pulse rounded-[1.75rem] border border-border/80 bg-surface/90" />
-          <div className="h-[34rem] animate-pulse rounded-[1.75rem] border border-border/80 bg-surface/90" />
-        </section>
+        </Card>
+        <div className="grid gap-6 lg:grid-cols-[1.5fr_1fr]">
+          <div className="h-[32rem] animate-pulse rounded-2xl border border-border/80 bg-surface/90" />
+          <div className="h-[32rem] animate-pulse rounded-2xl border border-border/80 bg-surface/90" />
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="space-y-6">
-      <section className="overflow-hidden rounded-[1.75rem] border border-border/80 bg-surface/90 shadow-lg shadow-black/20">
-        <div className="border-b border-border/70 bg-gradient-to-r from-background/30 to-background/5 px-6 py-5">
-          <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
-            <div className="space-y-3">
-              <Button asChild variant="ghost" className="w-fit px-0 text-muted-foreground hover:bg-transparent hover:text-foreground">
-                <Link to="/app/officer/issues">
-                  <ArrowLeft className="h-4 w-4" aria-hidden="true" />
-                  Back to Issues
-                </Link>
+    <div className="page-container-detail space-y-6 sm:space-y-8">
+      {/* Top Header */}
+      <PageHeader
+        backHref="/app/officer/issues"
+        backLabel="Back to Queue"
+        tag={`REF #${issue.id.slice(0, 8).toUpperCase()}`}
+        title={issue.title}
+        description={`Reported on ${formatOfficerIssueDate(issue.created_at)} · Last updated ${formatOfficerIssueDateTime(issue.updated_at)}`}
+        actions={
+          <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
+            <Badge variant={statusTone} size="default">
+              {statusLabel}
+            </Badge>
+            <Badge
+              variant={issue.priority === "URGENT" ? "danger" : issue.priority === "HIGH" ? "warning" : "default"}
+              size="default"
+            >
+              Priority {issue.priority}
+            </Badge>
+            <Badge variant={severityTone} size="default">
+              Severity {severityLabel}
+            </Badge>
+            <Badge variant="outline" size="default" className="bg-white/80">
+              {issue.category}
+            </Badge>
+          </div>
+        }
+      />
+
+      {/* Action Alerts & Flash Messages */}
+      {actionMessage ? (
+        <Card className="border-l-4 border-l-emerald-500 bg-emerald-50/80 p-4 text-sm font-semibold text-emerald-900 shadow-sm">
+          <div className="flex items-center gap-2">
+            <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" aria-hidden="true" />
+            <span>{actionMessage}</span>
+          </div>
+        </Card>
+      ) : null}
+
+      {actionError ? (
+        <Card className="border-l-4 border-l-rose-500 bg-rose-50/80 p-4 text-sm font-semibold text-rose-900 shadow-sm">
+          <div className="flex items-center gap-2">
+            <XCircle className="h-4 w-4 text-rose-600 shrink-0" aria-hidden="true" />
+            <span>{actionError}</span>
+          </div>
+        </Card>
+      ) : null}
+
+      {/* Contextual Action Banner at Top when Officer Input is required */}
+      {canVerifyComplaint ? (
+        <Card className="border-2 border-amber-300 bg-[linear-gradient(135deg,rgba(254,243,199,0.9)_0%,rgba(255,251,235,0.95)_100%)] p-5 sm:p-6 shadow-md">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="space-y-1">
+              <div className="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-amber-900">
+                <ShieldAlert className="h-4 w-4 text-amber-700" aria-hidden="true" />
+                <span>Action Required: Complaint Triage</span>
+              </div>
+              <h3 className="text-lg font-bold text-amber-950">
+                This citizen report is awaiting officer verification.
+              </h3>
+              <p className="text-xs sm:text-sm text-amber-900/90 leading-relaxed max-w-2xl">
+                Verify this issue to make it eligible for departmental routing and field worker dispatch, or reject if invalid.
+              </p>
+            </div>
+
+            <div className="flex items-center gap-2.5 shrink-0">
+              <Button
+                disabled={actionState !== "idle"}
+                onClick={() => void handleStatusDecision("VERIFIED")}
+                type="button"
+                className="bg-emerald-600 hover:bg-emerald-700 text-white min-h-[44px]"
+              >
+                {actionState === "verifying" ? (
+                  <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+                ) : (
+                  <ThumbsUp className="h-4 w-4 mr-1.5" aria-hidden="true" />
+                )}
+                Verify Complaint
               </Button>
-              <div className="space-y-2">
-                <p className="text-xs font-semibold uppercase tracking-[0.24em] text-muted-foreground">
-                  Issue #{issue.id.slice(0, 8).toUpperCase()}
-                </p>
-                <h2 className="text-3xl font-semibold tracking-tight text-foreground">{issue.title}</h2>
-                <p className="max-w-3xl text-sm leading-6 text-muted-foreground">{issue.description}</p>
-              </div>
-            </div>
-
-            <div className="flex flex-wrap gap-2">
-              <span className={`inline-flex items-center rounded-full border px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] ring-1 ${badgeToneClasses(statusTone)}`}>
-                {statusLabel}
-              </span>
-              <span className={`inline-flex items-center rounded-full border px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] ring-1 ${badgeToneClasses(priorityTone)}`}>
-                Priority {formatOfficerIssuePriority(issue.priority)}
-              </span>
-              <span className={`inline-flex items-center rounded-full border px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] ring-1 ${badgeToneClasses(severityTone)}`}>
-                Severity {severityLabel}
-              </span>
-              <span className="inline-flex items-center rounded-full border border-border/70 bg-background/40 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-                {issue.category}
-              </span>
+              <Button
+                disabled={actionState !== "idle"}
+                onClick={() => void handleStatusDecision("REJECTED")}
+                type="button"
+                variant="outline"
+                className="border-amber-300 bg-white/80 hover:bg-rose-50 hover:text-rose-700 min-h-[44px]"
+              >
+                {actionState === "rejecting" ? (
+                  <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+                ) : (
+                  <ThumbsDown className="h-4 w-4 mr-1.5" aria-hidden="true" />
+                )}
+                Reject Complaint
+              </Button>
             </div>
           </div>
-        </div>
+        </Card>
+      ) : null}
 
-        {actionMessage ? (
-          <div className="border-b border-emerald-200 bg-emerald-50 px-6 py-4 text-sm font-medium text-emerald-800">
-            {actionMessage}
-          </div>
-        ) : null}
-
-        {actionError ? (
-          <div className="border-b border-red-200 bg-red-50 px-6 py-4 text-sm font-medium text-red-800">
-            {actionError}
-          </div>
-        ) : null}
-      </section>
-
-      <section className="grid gap-4 lg:grid-cols-[1.05fr_0.95fr]">
-        <article className="min-w-0 space-y-4">
-          <section className="overflow-hidden rounded-[1.75rem] border border-border/80 bg-surface/90 shadow-lg shadow-black/20">
-            <IssueImage alt={issue.title} className="border-b border-border/70" emptyLabel="No image attached" src={heroImage} variant="hero" />
-
-            <div className="space-y-5 p-6">
-              <div className="grid gap-4 sm:grid-cols-2">
-                <div className="rounded-2xl border border-border/70 bg-surface-elevated p-4">
-                  <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">Created</p>
-                  <p className="mt-2 text-sm font-medium text-foreground">{formatOfficerIssueDate(issue.created_at)}</p>
-                </div>
-                <div className="rounded-2xl border border-border/70 bg-surface-elevated p-4">
-                  <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">Updated</p>
-                  <p className="mt-2 text-sm font-medium text-foreground">{formatOfficerIssueDateTime(issue.updated_at)}</p>
-                </div>
-              </div>
-
-              <div className="grid gap-4 sm:grid-cols-2">
-                <div className="rounded-2xl border border-border/70 bg-surface-elevated p-4 sm:col-span-2">
-                  <div className="flex items-start gap-3">
-                    <BadgeCheck className="mt-0.5 h-4 w-4 text-primary" aria-hidden="true" />
-                    <div>
-                      <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">Citizen / report</p>
-                      <p className="mt-2 text-sm font-medium text-foreground">
-                        {issue.reporter_profile?.full_name?.trim() || issue.reporter_profile?.email || "Reporter profile unavailable"}
-                      </p>
-                      {issue.reporter_profile?.phone ? <p className="mt-2 text-sm leading-6 text-muted-foreground">{issue.reporter_profile.phone}</p> : null}
-                    </div>
-                  </div>
-                </div>
-
-                {locationText ? (
-                  <div className="rounded-2xl border border-border/70 bg-surface-elevated p-4 sm:col-span-2">
-                    <div className="flex items-start gap-3">
-                      <MapPin className="mt-0.5 h-4 w-4 text-primary" aria-hidden="true" />
-                      <div>
-                        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">Location</p>
-                        <p className="mt-2 text-sm leading-6 text-foreground">{locationText}</p>
-                      </div>
-                    </div>
-                  </div>
-                ) : null}
-
-                {coordinates ? (
-                  <div className="rounded-2xl border border-border/70 bg-surface-elevated p-4 sm:col-span-2">
-                    <div className="flex items-start gap-3">
-                      <Clock3 className="mt-0.5 h-4 w-4 text-primary" aria-hidden="true" />
-                      <div>
-                        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">GPS</p>
-                        <p className="mt-2 text-sm leading-6 text-foreground">{coordinates}</p>
-                        <a
-                          className="mt-2 inline-flex text-sm font-medium text-primary hover:underline"
-                          href={`https://www.google.com/maps?q=${issue.latitude},${issue.longitude}`}
-                          rel="noreferrer"
-                          target="_blank"
-                        >
-                          Open in Maps
-                        </a>
-                      </div>
-                    </div>
-                  </div>
-                ) : null}
-              </div>
-            </div>
-          </section>
-
-          <section className="overflow-hidden rounded-[1.75rem] border border-border/80 bg-surface/90 shadow-lg shadow-black/20">
-            <div className="border-b border-border/70 px-6 py-5">
-              <p className="text-xs font-semibold uppercase tracking-[0.24em] text-muted-foreground">Issue evidence</p>
-              <h3 className="mt-1 text-lg font-semibold text-foreground">Photo and status context</h3>
-            </div>
-
-            <div className="grid gap-4 p-6 lg:grid-cols-2">
-              {initialImage ? (
-                <div className="overflow-hidden rounded-2xl border border-border/70 bg-surface-elevated">
-                  <div className="border-b border-border/70 px-4 py-3">
-                    <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">Citizen image</p>
-                  </div>
-                  <IssueImage
-                    alt={`${issue.title} report image`}
-                    className="rounded-none"
-                    emptyLabel="Original image unavailable"
-                    imageClassName="object-contain"
-                    src={formatOfficerIssueImageUrl(initialImage)}
-                    variant="preview"
-                  />
-                </div>
-              ) : (
-                <div className="flex h-64 items-center justify-center rounded-2xl border border-border/70 bg-surface-elevated">
-                  <div className="text-center">
-                    <ImageIcon className="mx-auto h-5 w-5 text-primary" aria-hidden="true" />
-                    <p className="mt-2 text-xs font-semibold uppercase tracking-[0.22em] text-muted-foreground">No image attached</p>
-                  </div>
-                </div>
-              )}
-
-              <div className="rounded-2xl border border-border/70 bg-surface-elevated p-5">
-                <p className="text-xs font-semibold uppercase tracking-[0.24em] text-muted-foreground">Operational snapshot</p>
-                <div className="mt-4 grid gap-3">
-                  <div className="rounded-2xl border border-border/70 bg-background/30 p-4">
-                    <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">Current status</p>
-                    <p className="mt-2 text-sm font-medium text-foreground">{statusLabel}</p>
-                  </div>
-                  <div className="rounded-2xl border border-border/70 bg-background/30 p-4">
-                    <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">Current department</p>
-                    <p className="mt-2 text-sm font-medium text-foreground">{issue.department?.name ?? currentAssignmentSummary.departmentLabel}</p>
-                  </div>
-                  <div className="rounded-2xl border border-border/70 bg-background/30 p-4">
-                    <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">Current worker</p>
-                    <p className="mt-2 text-sm font-medium text-foreground">{assignment?.worker ? formatOfficerProfileLabel(assignment.worker) : currentAssignmentSummary.workerLabel}</p>
-                  </div>
-                  <div className="rounded-2xl border border-border/70 bg-background/30 p-4">
-                    <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">Resolved at</p>
-                    <p className="mt-2 text-sm font-medium text-foreground">{issue.resolved_at ? formatOfficerIssueDateTime(issue.resolved_at) : "Not resolved yet"}</p>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {resolutionImage ? (
-              <div className="border-t border-border/70 p-6">
-                <div className="grid gap-4 lg:grid-cols-[1.1fr_0.9fr]">
-                  <div className="overflow-hidden rounded-2xl border border-border/70 bg-surface-elevated">
-                    <div className="border-b border-border/70 px-4 py-3">
-                      <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">Resolution evidence</p>
-                    </div>
-                    <IssueImage
-                      alt={`${issue.title} resolution evidence`}
-                      className="rounded-none"
-                      emptyLabel="Resolution evidence unavailable"
-                      imageClassName="object-contain"
-                      src={formatOfficerIssueImageUrl(resolutionImage)}
-                      variant="preview"
-                    />
-                  </div>
-
-                  <div className="space-y-4 rounded-2xl border border-border/70 bg-surface-elevated p-5">
-                    <div>
-                      <p className="text-xs font-semibold uppercase tracking-[0.24em] text-muted-foreground">Submitted by worker</p>
-                      <p className="mt-2 text-sm font-medium text-foreground">
-                        {assignment?.worker ? formatOfficerProfileLabel(assignment.worker) : "Worker unavailable"}
-                      </p>
-                      <p className="mt-2 text-sm leading-6 text-muted-foreground">
-                        Submitted {formatOfficerIssueDateTime(resolutionImage.created_at)}
-                      </p>
-                    </div>
-
-                    <div className="rounded-2xl border border-border/70 bg-background/30 p-4">
-                      <p className="text-sm font-medium text-foreground">Current issue status: {statusLabel}</p>
-                      <p className="mt-2 text-sm leading-6 text-muted-foreground">
-                        Review the submitted evidence and choose whether to approve it or send it back for correction.
-                      </p>
-                    </div>
-
-                    {canReviewResolution ? (
-                      <div className="space-y-3">
-                        <label className="space-y-2">
-                          <span className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">Rejection reason</span>
-                          <textarea
-                            className="min-h-24 w-full rounded-2xl border border-border/80 bg-background/50 px-4 py-3 text-sm text-foreground outline-none transition placeholder:text-muted-foreground focus:border-primary/50 focus:ring-2 focus:ring-primary/20"
-                            onChange={(event) => setResolutionDecisionNote(event.target.value)}
-                            placeholder="Explain what needs to be corrected before the worker resubmits."
-                            value={resolutionDecisionNote}
-                          />
-                        </label>
-
-                        <div className="flex flex-col gap-3 sm:flex-row">
-                          <Button disabled={actionState !== "idle"} onClick={() => void handleApproveResolution()} type="button">
-                            {actionState === "approvingResolution" ? (
-                              <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
-                            ) : (
-                              <BadgeCheck className="h-4 w-4" aria-hidden="true" />
-                            )}
-                            Approve Resolution
-                          </Button>
-                          <Button disabled={actionState !== "idle"} onClick={() => void handleRejectResolution()} type="button" variant="outline">
-                            {actionState === "rejectingResolution" ? (
-                              <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
-                            ) : (
-                              <ThumbsDown className="h-4 w-4" aria-hidden="true" />
-                            )}
-                            Reject Resolution
-                          </Button>
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="rounded-2xl border border-border/70 bg-background/30 p-4">
-                        <p className="text-sm font-medium text-foreground">
-                          {issue.status === "RESOLVED" || issue.status === "CITIZEN_VERIFIED"
-                            ? "Resolution already processed."
-                            : "Resolution review actions are not available right now."}
-                        </p>
-                      </div>
-                    )}
-                  </div>
-                </div>
+      {/* Main 2-Column Operational Grid */}
+      <div className="grid gap-6 lg:grid-cols-[1.5fr_1fr] items-start">
+        {/* Left Operational Rail (Narrative & Evidence) */}
+        <div className="space-y-6 min-w-0">
+          {/* Card 1: Citizen Report & Location Details */}
+          <Card className="overflow-hidden">
+            {heroImage ? (
+              <div className="overflow-hidden border-b border-border/70 bg-surface-elevated max-h-[420px]">
+                <IssueImage
+                  alt={issue.title}
+                  className="w-full object-contain max-h-[420px]"
+                  src={heroImage}
+                  variant="hero"
+                />
               </div>
             ) : null}
-          </section>
 
-          <section className="overflow-hidden rounded-[1.75rem] border border-border/80 bg-surface/90 shadow-lg shadow-black/20">
-            <div className="border-b border-border/70 px-6 py-5">
-              <div className="flex items-center gap-3">
-                <div className="rounded-2xl border border-border/70 bg-background/40 p-3 text-primary">
-                  <History className="h-5 w-5" aria-hidden="true" />
+            <div className="p-5 sm:p-6 space-y-5">
+              <div>
+                <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                  Citizen Problem Description
+                </p>
+                <p className="mt-2 text-sm sm:text-base leading-relaxed text-foreground whitespace-pre-wrap">
+                  {issue.description}
+                </p>
+              </div>
+
+              {/* Citizen & Geo Grid */}
+              <div className="grid gap-3 sm:grid-cols-2 pt-2 border-t border-border/60 text-xs">
+                {/* Reporter */}
+                <div className="rounded-xl border border-border/70 bg-background/50 p-3 space-y-1">
+                  <div className="flex items-center gap-1.5 font-bold uppercase tracking-wider text-muted-foreground text-[10px]">
+                    <User className="h-3.5 w-3.5 text-primary" aria-hidden="true" />
+                    <span>Citizen Reporter</span>
+                  </div>
+                  <p className="text-sm font-semibold text-foreground">
+                    {issue.reporter_profile?.full_name?.trim() || issue.reporter_profile?.email || "Reporter profile unavailable"}
+                  </p>
+                  {issue.reporter_profile?.phone ? (
+                    <p className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
+                      <Phone className="h-3 w-3" aria-hidden="true" />
+                      <span>{issue.reporter_profile.phone}</span>
+                    </p>
+                  ) : null}
                 </div>
-                <div>
-                  <p className="text-xs font-semibold uppercase tracking-[0.24em] text-muted-foreground">Status timeline</p>
-                  <h3 className="mt-1 text-lg font-semibold text-foreground">Issue progress history</h3>
+
+                {/* Location Text */}
+                <div className="rounded-xl border border-border/70 bg-background/50 p-3 space-y-1">
+                  <div className="flex items-center gap-1.5 font-bold uppercase tracking-wider text-muted-foreground text-[10px]">
+                    <MapPin className="h-3.5 w-3.5 text-primary" aria-hidden="true" />
+                    <span>Location / Landmark</span>
+                  </div>
+                  <p className="text-sm font-semibold text-foreground">
+                    {locationText || "No address text provided"}
+                  </p>
+                  {coordinates ? (
+                    <a
+                      href={`https://www.google.com/maps?q=${issue.latitude},${issue.longitude}`}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="inline-flex items-center gap-1 text-xs font-semibold text-primary hover:underline mt-0.5"
+                    >
+                      <span>GPS: {coordinates}</span>
+                      <ExternalLink className="h-3 w-3" aria-hidden="true" />
+                    </a>
+                  ) : null}
                 </div>
               </div>
             </div>
+          </Card>
 
-            <div className="space-y-0 p-6">
-              {timelineItems.map((item, index) => (
-                <div key={item.id} className="relative min-w-0 pl-8">
-                  {index < timelineItems.length - 1 ? <div className="absolute left-[0.55rem] top-8 h-full w-px bg-border/70" /> : null}
-                  <div className="absolute left-0 top-2 h-4 w-4 rounded-full border border-border/70 bg-surface-elevated ring-4 ring-background" />
-                  <div className="rounded-2xl border border-border/70 bg-surface-elevated p-4">
-                    <div className="flex flex-wrap items-start justify-between gap-4">
-                      <div className="min-w-0 flex-1 space-y-1">
-                        <p className="break-words text-sm font-medium text-foreground">{item.title}</p>
-                        <p className="break-words text-sm leading-6 text-muted-foreground">{item.description}</p>
-                      </div>
-                      <div className="text-right">
-                        <span className={`inline-flex items-center rounded-full border px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] ring-1 ${badgeToneClasses(item.tone)}`}>
-                          {item.title}
-                        </span>
-                        <p className="mt-2 text-xs text-muted-foreground">{formatOfficerIssueDateTime(item.timestamp)}</p>
-                      </div>
+          {/* Card 2: Resolution Evidence Card (When Worker Submits Resolution) */}
+          {resolutionImage ? (
+            <Card className="overflow-hidden border-2 border-teal-200 bg-[linear-gradient(135deg,rgba(255,255,255,0.95)_0%,rgba(240,249,248,0.92)_100%)]">
+              <div className="border-b border-teal-100 px-5 py-4 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <BadgeCheck className="h-5 w-5 text-emerald-600" aria-hidden="true" />
+                  <h3 className="text-base font-bold text-foreground">
+                    Field Worker Resolution Evidence
+                  </h3>
+                </div>
+                <Badge variant={issue.status === "RESOLVED" ? "success" : "info"} size="sm">
+                  {issue.status === "RESOLVED" ? "Approved & Closed" : "Submitted for Review"}
+                </Badge>
+              </div>
+
+              <div className="p-5 sm:p-6 space-y-5">
+                {/* Before & After Comparison Grid */}
+                <div className="grid gap-4 sm:grid-cols-2">
+                  {/* Initial Citizen Photo */}
+                  <div className="space-y-2">
+                    <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                      Before (Citizen Report)
+                    </p>
+                    <div className="overflow-hidden rounded-xl border border-border/70 bg-background/60 aspect-[4/3]">
+                      {initialImage ? (
+                        <IssueImage
+                          alt="Citizen Report"
+                          className="h-full w-full object-contain"
+                          src={formatOfficerIssueImageUrl(initialImage)}
+                          variant="preview"
+                        />
+                      ) : (
+                        <div className="flex h-full items-center justify-center p-4 text-xs text-muted-foreground">
+                          No initial photo
+                        </div>
+                      )}
                     </div>
+                  </div>
+
+                  {/* Resolution Proof Photo */}
+                  <div className="space-y-2">
+                    <p className="text-xs font-bold uppercase tracking-wider text-emerald-800">
+                      After (Worker Proof)
+                    </p>
+                    <div className="overflow-hidden rounded-xl border-2 border-emerald-200 bg-background/60 aspect-[4/3]">
+                      <IssueImage
+                        alt="Resolution Proof"
+                        className="h-full w-full object-contain"
+                        src={formatOfficerIssueImageUrl(resolutionImage)}
+                        variant="preview"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="rounded-xl border border-border/70 bg-white/80 p-3.5 text-xs text-muted-foreground">
+                  <p>
+                    Submitted by worker:{" "}
+                    <span className="font-semibold text-foreground">
+                      {assignment?.worker ? formatOfficerProfileLabel(assignment.worker) : "Field Worker"}
+                    </span>{" "}
+                    on {formatOfficerIssueDateTime(resolutionImage.created_at)}
+                  </p>
+                </div>
+
+                {/* Resolution Decision Action (Only when UNDER_REVIEW) */}
+                {canReviewResolution ? (
+                  <div className="space-y-3 pt-3 border-t border-border/70">
+                    <label className="block space-y-1.5">
+                      <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                        Rejection Feedback (Required if rejecting)
+                      </span>
+                      <textarea
+                        className="w-full rounded-xl border border-border/80 bg-background/80 px-3.5 py-2.5 text-sm text-foreground outline-none placeholder:text-muted-foreground focus:border-primary focus:ring-2 focus:ring-primary/20 min-h-[80px]"
+                        onChange={(event) => setResolutionDecisionNote(event.target.value)}
+                        placeholder="Specify instructions for what requires correction before resubmission..."
+                        value={resolutionDecisionNote}
+                      />
+                    </label>
+
+                    <div className="flex flex-col sm:flex-row gap-3">
+                      <Button
+                        disabled={actionState !== "idle"}
+                        onClick={() => void handleApproveResolution()}
+                        type="button"
+                        className="bg-emerald-600 hover:bg-emerald-700 text-white flex-1 min-h-[44px]"
+                      >
+                        {actionState === "approvingResolution" ? (
+                          <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+                        ) : (
+                          <BadgeCheck className="h-4 w-4 mr-1.5" aria-hidden="true" />
+                        )}
+                        Approve Resolution & Close Issue
+                      </Button>
+                      <Button
+                        disabled={actionState !== "idle"}
+                        onClick={() => void handleRejectResolution()}
+                        type="button"
+                        variant="outline"
+                        className="border-rose-200 text-rose-700 hover:bg-rose-50 flex-1 min-h-[44px]"
+                      >
+                        {actionState === "rejectingResolution" ? (
+                          <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+                        ) : (
+                          <ThumbsDown className="h-4 w-4 mr-1.5" aria-hidden="true" />
+                        )}
+                        Reject Resolution Evidence
+                      </Button>
+                    </div>
+                  </div>
+                ) : null}
+              </div>
+            </Card>
+          ) : null}
+
+          {/* Card 3: Status History / Audit Trail Timeline */}
+          <Card className="p-5 sm:p-6">
+            <div className="flex items-center gap-2 mb-4">
+              <History className="h-4 w-4 text-primary" aria-hidden="true" />
+              <h3 className="text-base font-bold text-foreground">
+                Audit Trail & Status History
+              </h3>
+            </div>
+
+            <div className="relative pl-6 space-y-6 before:absolute before:left-[11px] before:top-2 before:bottom-2 before:w-[2px] before:bg-border/80">
+              {timelineItems.map((item) => (
+                <div key={item.id} className="relative group">
+                  {/* Timeline Dot */}
+                  <div className="absolute -left-6 top-1 h-3.5 w-3.5 rounded-full border-2 border-background bg-primary ring-2 ring-primary/20" />
+
+                  <div className="space-y-1">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <p className="text-sm font-bold text-foreground">{item.title}</p>
+                      <span className="text-xs text-muted-foreground">
+                        {formatOfficerIssueDateTime(item.timestamp)}
+                      </span>
+                    </div>
+                    <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed">
+                      {item.description}
+                    </p>
                   </div>
                 </div>
               ))}
             </div>
-          </section>
+          </Card>
 
-          <section className="overflow-hidden rounded-[1.75rem] border border-border/80 bg-surface/90 shadow-lg shadow-black/20">
-            <div className="border-b border-border/70 px-6 py-5">
-              <div className="flex items-center gap-3">
-                <div className="rounded-2xl border border-violet-200 bg-violet-50 p-3 text-violet-700">
-                  <ShieldAlert className="h-5 w-5" aria-hidden="true" />
-                </div>
-                <div>
-                  <p className="text-xs font-semibold uppercase tracking-[0.24em] text-muted-foreground">AI comparison</p>
-                  <h3 className="mt-1 text-lg font-semibold text-foreground">AI recommendation vs officer decision</h3>
-                </div>
+          {/* Card 4: AI Recommendation Analysis Card */}
+          <Card className="p-5 sm:p-6 border-violet-200 bg-[linear-gradient(135deg,rgba(255,255,255,0.95)_0%,rgba(245,243,255,0.85)_100%)]">
+            <div className="flex items-center justify-between gap-2 mb-3">
+              <div className="flex items-center gap-2">
+                <Bot className="h-5 w-5 text-violet-700" aria-hidden="true" />
+                <h3 className="text-base font-bold text-violet-950">
+                  AI Classification & Recommendations
+                </h3>
               </div>
+              {aiAnalysis ? (
+                <Badge variant="violet" size="sm">
+                  Confidence {aiConfidence}
+                </Badge>
+              ) : null}
             </div>
 
-            <div className="grid gap-4 p-6 lg:grid-cols-2">
-              <div className="rounded-2xl border border-violet-200 bg-violet-50/70 p-5 shadow-sm shadow-violet-950/5">
-                <p className="text-xs font-semibold uppercase tracking-[0.24em] text-violet-700">AI recommendation</p>
-                {aiAnalysis ? (
-                  <div className="mt-4 grid gap-3 text-sm">
-                    <p className="text-foreground">Category: <span className="text-muted-foreground">{aiAnalysis.category_recommendation || "Not provided"}</span></p>
-                    <p className="text-foreground">Severity: <span className="text-muted-foreground">{aiAnalysis.severity_recommendation || "Not provided"}</span></p>
-                    <p className="text-foreground">Priority: <span className="text-muted-foreground">{aiAnalysis.priority_recommendation || "Not provided"}</span></p>
-                    <p className="text-foreground">Department: <span className="text-muted-foreground">{aiAnalysis.department_recommendation || "Not provided"}</span></p>
-                    <p className="text-foreground">Confidence: <span className="text-muted-foreground">{aiConfidence}</span></p>
-                    <p className="text-foreground">Provider: <span className="text-muted-foreground">{aiAnalysis.provider} · {aiAnalysis.model}</span></p>
-                  </div>
-                ) : (
-                  <div className="mt-4 rounded-2xl border border-violet-200 bg-white/80 p-4">
-                    <p className="text-sm font-medium text-foreground">AI analysis pending.</p>
-                    <p className="mt-2 text-sm leading-6 text-muted-foreground">
-                      When analysis data exists, CivicFix will show the recommendation here for comparison.
-                    </p>
-                  </div>
-                )}
-              </div>
-
-              <div className="rounded-2xl border border-border/70 bg-surface-elevated p-5">
-                <p className="text-xs font-semibold uppercase tracking-[0.24em] text-muted-foreground">Officer decision</p>
-                <div className="mt-4 grid gap-3 text-sm">
-                  <p className="text-foreground">Category: <span className="text-muted-foreground">{issue.category}</span></p>
-                  <p className="text-foreground">Severity: <span className="text-muted-foreground">{severityLabel}</span></p>
-                  <p className="text-foreground">Priority: <span className="text-muted-foreground">{formatOfficerIssuePriority(priorityDraft)}</span></p>
-                  <p className="text-foreground">Department: <span className="text-muted-foreground">{selectedDepartment?.name || issue.department?.name || "Unassigned"}</span></p>
-                  <p className="text-foreground">Worker: <span className="text-muted-foreground">{selectedWorker ? formatOfficerProfileLabel(selectedWorker) : assignment?.worker ? formatOfficerProfileLabel(assignment.worker) : "Unassigned"}</span></p>
-                </div>
-              </div>
-            </div>
-          </section>
-        </article>
-
-        <aside className="min-w-0 space-y-4">
-          <section className="overflow-hidden rounded-[1.75rem] border border-border/80 bg-surface/90 shadow-lg shadow-black/20">
-            <div className="border-b border-border/70 px-6 py-5">
-              <div className="flex items-center gap-3">
-                <div className="rounded-2xl border border-border/70 bg-background/40 p-3 text-primary">
-                  <SquarePen className="h-5 w-5" aria-hidden="true" />
-                </div>
-                <div>
-                  <p className="text-xs font-semibold uppercase tracking-[0.24em] text-muted-foreground">Officer actions</p>
-                  <h3 className="mt-1 text-lg font-semibold text-foreground">Verify or reject</h3>
-                </div>
-              </div>
-            </div>
-
-            <div className="space-y-4 p-6">
-              <div className="rounded-2xl border border-border/70 bg-surface-elevated p-4">
-                <p className="text-sm font-medium text-foreground">Current status: {statusLabel}</p>
-                <p className="mt-2 text-sm leading-6 text-muted-foreground">
-                  {canVerifyComplaint
-                    ? "Verify or reject the complaint to move it into routing."
-                    : issue.status === "VERIFIED"
-                      ? "Already Verified"
-                      : issue.status === "ASSIGNED"
-                        ? "Assigned and awaiting worker progress"
-                        : issue.status === "IN_PROGRESS"
-                          ? "Work in progress"
-                          : issue.status === "UNDER_REVIEW"
-                            ? "Awaiting Officer Review"
-                            : issue.status === "REJECTED"
-                              ? "Rejected and awaiting worker correction"
-                              : issueIsClosed
-                                ? "Resolved"
-                                : "This issue is outside the verification stage."}
-                </p>
-              </div>
-
-              {canVerifyComplaint ? (
-                <div className="flex flex-col gap-3 sm:flex-row lg:flex-col">
-                  <Button disabled={actionState !== "idle"} onClick={() => void handleStatusDecision("VERIFIED")} type="button">
-                    {actionState === "verifying" ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : <ThumbsUp className="h-4 w-4" aria-hidden="true" />}
-                    Verify Complaint
-                  </Button>
-                  <Button disabled={actionState !== "idle"} onClick={() => void handleStatusDecision("REJECTED")} type="button" variant="outline">
-                    {actionState === "rejecting" ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : <ThumbsDown className="h-4 w-4" aria-hidden="true" />}
-                    Reject Complaint
-                  </Button>
-                </div>
-              ) : (
-                <div className="rounded-2xl border border-border/70 bg-background/30 p-4">
-                  <p className="text-sm font-medium text-foreground">
-                    {issue.status === "VERIFIED"
-                      ? "Already Verified"
-                      : issueIsClosed
-                        ? "Resolved"
-                        : "Verification actions are no longer available."}
+            {aiAnalysis ? (
+              <div className="grid gap-2.5 sm:grid-cols-2 text-xs pt-1">
+                <div className="rounded-xl border border-violet-100 bg-white/80 p-3">
+                  <span className="text-muted-foreground font-semibold">Recommended Category</span>
+                  <p className="text-sm font-bold text-foreground mt-0.5">
+                    {aiAnalysis.category_recommendation || "Not provided"}
                   </p>
                 </div>
+                <div className="rounded-xl border border-violet-100 bg-white/80 p-3">
+                  <span className="text-muted-foreground font-semibold">Recommended Severity</span>
+                  <p className="text-sm font-bold text-foreground mt-0.5">
+                    {aiAnalysis.severity_recommendation || "Not provided"}
+                  </p>
+                </div>
+                <div className="rounded-xl border border-violet-100 bg-white/80 p-3">
+                  <span className="text-muted-foreground font-semibold">Recommended Priority</span>
+                  <p className="text-sm font-bold text-foreground mt-0.5">
+                    {aiAnalysis.priority_recommendation || "Not provided"}
+                  </p>
+                </div>
+                <div className="rounded-xl border border-violet-100 bg-white/80 p-3">
+                  <span className="text-muted-foreground font-semibold">Recommended Department</span>
+                  <p className="text-sm font-bold text-foreground mt-0.5">
+                    {aiAnalysis.department_recommendation || "Not provided"}
+                  </p>
+                </div>
+              </div>
+            ) : (
+              <p className="text-xs text-muted-foreground">
+                No automated AI analysis is associated with this report.
+              </p>
+            )}
+          </Card>
+        </div>
+
+        {/* Right Officer Control Sidebar Rail */}
+        <div className="space-y-5 min-w-0">
+          {/* Section A: Priority & Urgency Control */}
+          <Card className="p-5 sm:p-6 space-y-4">
+            <div className="flex items-center gap-2">
+              <ShieldAlert className="h-4 w-4 text-primary" aria-hidden="true" />
+              <h3 className="text-base font-bold text-foreground">
+                Urgency & Priority
+              </h3>
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold uppercase tracking-wider text-muted-foreground mb-1.5">
+                Dispatch Priority
+              </label>
+              <select
+                className="w-full rounded-xl border border-border/80 bg-background/80 px-3.5 py-2.5 text-sm font-medium text-foreground outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20"
+                onChange={(event) => setPriorityDraft(event.target.value as OfficerIssuePriority)}
+                value={priorityDraft}
+                disabled={issueIsClosed}
+              >
+                {["LOW", "MEDIUM", "HIGH", "URGENT"].map((priority) => (
+                  <option key={priority} value={priority}>
+                    {priority}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="rounded-xl border border-border/70 bg-surface-elevated p-3 text-xs text-muted-foreground">
+              Current level: <span className="font-semibold text-foreground">{formatOfficerIssuePriority(issue.priority)}</span>
+            </div>
+
+            <Button
+              disabled={actionState !== "idle" || !canSavePriority}
+              onClick={() => void handlePrioritySave()}
+              type="button"
+              className="w-full min-h-[44px]"
+            >
+              {actionState === "savingPriority" ? (
+                <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+              ) : (
+                <Save className="h-4 w-4 mr-1.5" aria-hidden="true" />
               )}
+              Save Priority
+            </Button>
+          </Card>
 
-              <div className="rounded-2xl border border-border/70 bg-surface-elevated p-4">
-                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">What happens next</p>
-                <p className="mt-2 text-sm leading-6 text-muted-foreground">
-                  Verification moves the issue forward in the municipal workflow. Rejection records a clear officer decision with audit history.
-                </p>
-              </div>
-            </div>
-          </section>
-
-          <section className="overflow-hidden rounded-[1.75rem] border border-border/80 bg-surface/90 shadow-lg shadow-black/20">
-            <div className="border-b border-border/70 px-6 py-5">
-              <div className="flex items-center gap-3">
-                <div className="rounded-2xl border border-border/70 bg-background/40 p-3 text-primary">
-                  <BadgeCheck className="h-5 w-5" aria-hidden="true" />
-                </div>
-                <div>
-                  <p className="text-xs font-semibold uppercase tracking-[0.24em] text-muted-foreground">Priority management</p>
-                  <h3 className="mt-1 text-lg font-semibold text-foreground">Set urgency</h3>
-                </div>
-              </div>
+          {/* Section B: Department & Worker Routing */}
+          <Card className="p-5 sm:p-6 space-y-4">
+            <div className="flex items-center gap-2">
+              <Building2 className="h-4 w-4 text-primary" aria-hidden="true" />
+              <h3 className="text-base font-bold text-foreground">
+                Department & Worker Routing
+              </h3>
             </div>
 
-            <div className="space-y-4 p-6">
-              <label className="space-y-2">
-                <span className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">Priority</span>
-                <select
-                  className="w-full rounded-2xl border border-border/80 bg-background/50 px-4 py-3 text-sm text-foreground outline-none transition focus:border-primary/50 focus:ring-2 focus:ring-primary/20"
-                  onChange={(event) => setPriorityDraft(event.target.value as OfficerIssuePriority)}
-                  value={priorityDraft}
-                >
-                  {["LOW", "MEDIUM", "HIGH", "URGENT"].map((priority) => (
-                    <option key={priority} value={priority}>
-                      {priority}
-                    </option>
-                  ))}
-                </select>
+            <div>
+              <label className="block text-xs font-bold uppercase tracking-wider text-muted-foreground mb-1.5">
+                Responsible Department
               </label>
-
-              <div className="rounded-2xl border border-border/70 bg-surface-elevated p-4">
-                <p className="text-sm font-medium text-foreground">Current priority: {formatOfficerIssuePriority(issue.priority)}</p>
-                <p className="mt-2 text-sm leading-6 text-muted-foreground">
-                  Priority reflects urgency. Severity reflects the seriousness of the underlying civic problem.
-                </p>
-              </div>
-
-              <Button disabled={actionState !== "idle" || !canSavePriority} onClick={() => void handlePrioritySave()} type="button">
-                {actionState === "savingPriority" ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : <Save className="h-4 w-4" aria-hidden="true" />}
-                Save Priority
-              </Button>
-            </div>
-          </section>
-
-          <section className="overflow-hidden rounded-[1.75rem] border border-border/80 bg-surface/90 shadow-lg shadow-black/20">
-            <div className="border-b border-border/70 px-6 py-5">
-              <div className="flex items-center gap-3">
-                <div className="rounded-2xl border border-border/70 bg-background/40 p-3 text-primary">
-                  <Building2 className="h-5 w-5" aria-hidden="true" />
-                </div>
-                <div>
-                  <p className="text-xs font-semibold uppercase tracking-[0.24em] text-muted-foreground">Routing</p>
-                  <h3 className="mt-1 text-lg font-semibold text-foreground">Assign department and worker</h3>
-                </div>
-              </div>
+              <select
+                className="w-full rounded-xl border border-border/80 bg-background/80 px-3.5 py-2.5 text-sm font-medium text-foreground outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20"
+                onChange={(event) => setDepartmentDraft(event.target.value)}
+                value={departmentDraft}
+                disabled={issueIsClosed}
+              >
+                <option value="">Unassigned Department</option>
+                {departments.map((dept) => (
+                  <option key={dept.id} value={dept.id}>
+                    {dept.name}
+                  </option>
+                ))}
+              </select>
             </div>
 
-            <div className="space-y-4 p-6">
-              <label className="space-y-2">
-                <span className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">Department</span>
-                <select
-                  className="w-full rounded-2xl border border-border/80 bg-background/50 px-4 py-3 text-sm text-foreground outline-none transition focus:border-primary/50 focus:ring-2 focus:ring-primary/20"
-                  onChange={(event) => setDepartmentDraft(event.target.value)}
-                  value={departmentDraft}
-                >
-                  <option value="">Unassigned</option>
-                  {departments.map((department) => (
-                    <option key={department.id} value={department.id}>
-                      {department.name}
-                    </option>
-                  ))}
-                </select>
+            <div>
+              <label className="block text-xs font-bold uppercase tracking-wider text-muted-foreground mb-1.5">
+                Assign Field Worker
               </label>
-
-              <label className="space-y-2">
-                <span className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">Field worker</span>
-                <select
-                  className="w-full rounded-2xl border border-border/80 bg-background/50 px-4 py-3 text-sm text-foreground outline-none transition focus:border-primary/50 focus:ring-2 focus:ring-primary/20"
-                  onChange={(event) => setWorkerDraft(event.target.value)}
-                  value={workerDraft}
-                  disabled={!hasWorkerRoster}
-                >
-                  <option value="">{hasWorkerRoster ? "Unassigned" : "No field workers available"}</option>
-                  {workerOptions.map((worker) => (
-                    <option key={worker.id} value={worker.id}>
-                      {worker.label}
-                    </option>
-                  ))}
-                </select>
-              </label>
-
-              <div className="rounded-2xl border border-border/70 bg-surface-elevated p-4">
-                <p className="text-sm font-medium text-foreground">Current department: {issue.department?.name ?? "Unassigned"}</p>
-                <p className="mt-2 text-sm font-medium text-foreground">
-                  Current worker: {assignment?.worker ? formatOfficerProfileLabel(assignment.worker) : "Unassigned"}
+              <select
+                className="w-full rounded-xl border border-border/80 bg-background/80 px-3.5 py-2.5 text-sm font-medium text-foreground outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20"
+                onChange={(event) => setWorkerDraft(event.target.value)}
+                value={workerDraft}
+                disabled={issueIsClosed || !hasWorkerRoster}
+              >
+                <option value="">{hasWorkerRoster ? "Unassigned Worker" : "No field workers available"}</option>
+                {workerOptions.map((worker) => (
+                  <option key={worker.id} value={worker.id}>
+                    {worker.label} {worker.departmentLabel ? `(${worker.departmentLabel})` : ""}
+                  </option>
+                ))}
+              </select>
+              {!canAssignIssue && workerDraft !== "" ? (
+                <p className="text-[11px] text-amber-700 mt-1">
+                  * Note: Worker assignment requires the complaint to be verified first.
                 </p>
-                <p className="mt-2 text-sm leading-6 text-muted-foreground">
-                  This uses the live department and assignment tables already protected by Supabase RLS.
-                </p>
-              </div>
-
-              <Button disabled={actionState !== "idle" || !canSaveRouting || (workerDraft !== "" && !canAssignIssue)} onClick={() => void handleRoutingSave()} type="button" variant="outline">
-                {actionState === "savingRouting" ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : <UserCog className="h-4 w-4" aria-hidden="true" />}
-                Save Routing
-              </Button>
+              ) : null}
             </div>
-          </section>
-        </aside>
-      </section>
+
+            <div className="rounded-xl border border-border/70 bg-surface-elevated p-3 text-xs space-y-1">
+              <p className="text-muted-foreground">
+                Active Dept: <span className="font-semibold text-foreground">{issue.department?.name ?? "Unassigned"}</span>
+              </p>
+              <p className="text-muted-foreground">
+                Active Worker:{" "}
+                <span className="font-semibold text-foreground">
+                  {assignment?.worker ? formatOfficerProfileLabel(assignment.worker) : "Unassigned"}
+                </span>
+              </p>
+            </div>
+
+            <Button
+              disabled={actionState !== "idle" || !canSaveRouting || (workerDraft !== "" && !canAssignIssue)}
+              onClick={() => void handleRoutingSave()}
+              type="button"
+              variant="outline"
+              className="w-full min-h-[44px]"
+            >
+              {actionState === "savingRouting" ? (
+                <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+              ) : (
+                <UserCog className="h-4 w-4 mr-1.5" aria-hidden="true" />
+              )}
+              Save Routing Assignment
+            </Button>
+          </Card>
+
+          {/* Section C: Operational Snapshot Summary */}
+          <Card className="p-5 sm:p-6 space-y-3 bg-surface-elevated">
+            <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+              Operational Status
+            </h4>
+            <div className="space-y-2 text-xs">
+              <div className="flex justify-between py-1 border-b border-border/60">
+                <span className="text-muted-foreground">Status</span>
+                <span className="font-semibold text-foreground">{statusLabel}</span>
+              </div>
+              <div className="flex justify-between py-1 border-b border-border/60">
+                <span className="text-muted-foreground">Severity</span>
+                <span className="font-semibold text-foreground">{severityLabel}</span>
+              </div>
+              <div className="flex justify-between py-1 border-b border-border/60">
+                <span className="text-muted-foreground">Resolved Date</span>
+                <span className="font-semibold text-foreground">
+                  {issue.resolved_at ? formatOfficerIssueDate(issue.resolved_at) : "Pending resolution"}
+                </span>
+              </div>
+            </div>
+          </Card>
+        </div>
+      </div>
     </div>
   );
 }
+

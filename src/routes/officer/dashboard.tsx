@@ -1,12 +1,26 @@
 import { useEffect, useMemo, useState } from "react";
-import { AlertCircle, ArrowRight, Bell, CheckCircle2, ClipboardList, Gauge, TrendingUp } from "lucide-react";
+import {
+  AlertCircle,
+  ArrowRight,
+  Bell,
+  CheckCircle2,
+  ClipboardList,
+  Gauge,
+  ShieldAlert,
+  ShieldCheck,
+  TrendingUp,
+  UserCheck,
+} from "lucide-react";
 import { Link } from "react-router-dom";
 
 import { useAppSession } from "@/auth/app-session";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
 import {
   formatOfficerIssueDateTime,
   getOfficerIssueSeverityLabel,
+  getOfficerIssueSeverityTone,
   getOfficerIssueStatusLabel,
   getOfficerIssueStatusTone,
   type OfficerIssueStatus,
@@ -16,25 +30,13 @@ import type { Database } from "@/types/database";
 
 type DashboardIssueRow = Pick<
   Database["public"]["Tables"]["issues"]["Row"],
-  "id" | "title" | "category" | "status" | "priority" | "created_at" | "severity"
+  "id" | "title" | "category" | "status" | "priority" | "created_at" | "severity" | "location_text" | "address_text"
 > & {
   department?: Pick<Database["public"]["Tables"]["departments"]["Row"], "name"> | null;
 };
 
 function countStatus(issues: DashboardIssueRow[], match: Array<OfficerIssueStatus>) {
   return issues.filter((issue) => match.includes(issue.status)).length;
-}
-
-function badgeToneClasses(tone: "default" | "success" | "warning" | "danger" | "info") {
-  return tone === "success"
-    ? "bg-emerald-50 text-emerald-700 ring-emerald-200"
-    : tone === "warning"
-      ? "bg-amber-50 text-amber-700 ring-amber-200"
-      : tone === "danger"
-        ? "bg-red-50 text-red-700 ring-red-200"
-      : tone === "info"
-          ? "bg-sky-50 text-sky-700 ring-sky-200"
-          : "bg-teal-50 text-teal-700 ring-teal-200";
 }
 
 export function OfficerDashboardPage() {
@@ -60,7 +62,7 @@ export function OfficerDashboardPage() {
       const { data, error: loadError } = await supabase
         .from("issues")
         .select(
-          "id, title, category, status, priority, created_at, severity, department:departments(name)",
+          "id, title, category, status, priority, created_at, severity, location_text, address_text, department:departments(name)",
         )
         .order("created_at", { ascending: false });
 
@@ -107,227 +109,360 @@ export function OfficerDashboardPage() {
     };
   }, [issues]);
 
+  // Operational action queue: Issues that require immediate officer attention
+  const needsAttentionIssues = useMemo(() => {
+    return issues
+      .filter((issue) =>
+        issue.status === "SUBMITTED" ||
+        issue.status === "AI_ANALYZED" ||
+        issue.status === "UNDER_REVIEW" ||
+        issue.status === "REOPENED" ||
+        issue.priority === "URGENT",
+      )
+      .slice(0, 5);
+  }, [issues]);
+
   const recentIssues = useMemo(() => issues.slice(0, 6), [issues]);
 
   if (sessionProblem || error) {
     return (
-      <section className="rounded-[1.75rem] border border-border/80 bg-white/82 p-6 shadow-lg shadow-teal-950/10">
+      <Card className="page-container-standard p-6 sm:p-8">
         <div className="max-w-2xl space-y-4">
           <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-red-200 bg-red-50 text-red-700">
-            <AlertCircle className="h-5 w-5" aria-hidden="true" />
+            <AlertCircle className="h-6 w-6" aria-hidden="true" />
           </div>
-          <div className="space-y-2">
-            <h2 className="text-2xl font-semibold tracking-tight text-foreground">Unable to load officer dashboard</h2>
-            <p className="text-sm leading-6 text-muted-foreground">{sessionProblem ?? error}</p>
+          <div className="space-y-1.5">
+            <h2 className="text-2xl font-bold tracking-tight text-foreground">Unable to load officer dashboard</h2>
+            <p className="text-sm leading-relaxed text-muted-foreground">{sessionProblem ?? error}</p>
           </div>
           <Button onClick={() => setRefreshNonce((value) => value + 1)} type="button">
             Try Again
           </Button>
         </div>
-      </section>
+      </Card>
     );
   }
 
   if (loading) {
     return (
-      <div className="space-y-6">
-        <section className="rounded-[1.75rem] border border-teal-100/80 bg-[linear-gradient(135deg,rgba(15,118,110,0.10)_0%,rgba(2,132,199,0.08)_52%,rgba(79,70,229,0.08)_100%)] p-6 shadow-lg shadow-teal-950/10">
+      <div className="page-container-standard space-y-6">
+        <Card className="p-6 sm:p-8">
           <div className="space-y-3">
             <div className="h-4 w-44 animate-pulse rounded-full bg-muted/60" />
-            <div className="h-9 w-full max-w-3xl animate-pulse rounded-2xl bg-muted/60" />
-            <div className="h-4 w-full max-w-2xl animate-pulse rounded-full bg-muted/40" />
+            <div className="h-8 w-full max-w-xl animate-pulse rounded-2xl bg-muted/60" />
+            <div className="h-4 w-full max-w-lg animate-pulse rounded-full bg-muted/40" />
           </div>
-        </section>
-        <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+        </Card>
+        <div className="grid gap-3.5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
           {Array.from({ length: 6 }).map((_, index) => (
-            <div key={index} className="h-32 animate-pulse rounded-[1.5rem] border border-border/80 bg-surface/90" />
+            <div key={index} className="h-24 animate-pulse rounded-2xl border border-border/80 bg-surface/90" />
           ))}
-        </section>
+        </div>
+        <div className="h-64 animate-pulse rounded-2xl border border-border/80 bg-surface/80" />
       </div>
     );
   }
 
+  const metricCards = [
+    { label: "Total Reports", value: stats.totalIssues, icon: ClipboardList, tone: "default" as const },
+    { label: "Pending Triage", value: stats.pendingVerification, icon: Bell, tone: "warning" as const },
+    { label: "Assigned", value: stats.assignedIssues, icon: UserCheck, tone: "info" as const },
+    { label: "In Progress", value: stats.inProgressIssues, icon: Gauge, tone: "danger" as const },
+    { label: "Under Review", value: stats.underReviewIssues, icon: ShieldAlert, tone: "default" as const },
+    { label: "Resolved", value: stats.resolvedIssues, icon: CheckCircle2, tone: "success" as const },
+  ];
+
   return (
-    <div className="space-y-6">
-      <section className="relative overflow-hidden rounded-[1.85rem] border border-teal-100/80 bg-[linear-gradient(135deg,rgba(15,118,110,0.14)_0%,rgba(2,132,199,0.12)_46%,rgba(79,70,229,0.10)_100%)] shadow-2xl shadow-teal-950/12">
-        <div className="pointer-events-none absolute -right-8 top-0 h-36 w-36 rounded-full bg-[#0284c7]/18 blur-3xl" aria-hidden="true" />
-        <div className="pointer-events-none absolute bottom-0 left-6 h-40 w-40 rounded-full bg-[#0f766e]/18 blur-3xl" aria-hidden="true" />
-        <div className="pointer-events-none absolute right-1/3 top-8 h-28 w-28 rounded-full bg-[#7c3aed]/12 blur-3xl" aria-hidden="true" />
-        <div className="border-b border-white/50 bg-[linear-gradient(135deg,rgba(255,255,255,0.82)_0%,rgba(247,250,248,0.76)_100%)] px-6 py-6 backdrop-blur-md">
-          <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
-            <div className="space-y-3">
-              <div className="inline-flex items-center rounded-full border border-sky-200/80 bg-white/80 px-3 py-1 text-xs font-semibold uppercase tracking-[0.22em] text-[#0f5f59] shadow-sm shadow-teal-950/5">
-                Municipal operations
-              </div>
-              <div className="space-y-2">
-                <h2 className="text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">Municipal Officer Dashboard</h2>
-                <p className="max-w-3xl text-sm leading-6 text-muted-foreground">
-                  Live operational visibility for verification, triage, and assignment. This view is powered by current Supabase data.
-                </p>
-              </div>
+    <div className="page-container-standard space-y-6 sm:space-y-8">
+      {/* Officer Operational Hero */}
+      <section className="relative overflow-hidden rounded-[2rem] border border-teal-100/90 bg-[linear-gradient(135deg,rgba(15,118,110,0.14)_0%,rgba(2,132,199,0.12)_46%,rgba(79,70,229,0.08)_100%)] p-6 sm:p-8 shadow-xl shadow-teal-950/8">
+        <div className="pointer-events-none absolute -right-8 top-0 h-40 w-40 rounded-full bg-sky-400/20 blur-3xl" aria-hidden="true" />
+        <div className="pointer-events-none absolute -bottom-10 left-6 h-40 w-40 rounded-full bg-emerald-400/20 blur-3xl" aria-hidden="true" />
+
+        <div className="relative flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
+          <div className="space-y-2.5 max-w-2xl">
+            <div className="inline-flex items-center gap-1.5 rounded-full border border-sky-200/90 bg-white/90 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.22em] text-[#0f5f59] shadow-sm shadow-teal-950/5">
+              <TrendingUp className="h-3.5 w-3.5 text-[#0f766e]" aria-hidden="true" />
+              <span>Municipal Operations Center</span>
             </div>
 
-            <div className="flex flex-col gap-3 sm:flex-row">
-              <div className="inline-flex items-center gap-2 rounded-full border border-sky-200/80 bg-white/80 px-4 py-2 text-sm text-sky-900 shadow-sm shadow-sky-950/5">
-                <TrendingUp className="h-4 w-4" aria-hidden="true" />
-                Live queue
-              </div>
-              <Button asChild className="shadow-md shadow-teal-950/15">
-                <Link to="/app/officer/issues">
-                  Open issue queue
-                  <ArrowRight className="h-4 w-4" aria-hidden="true" />
-                </Link>
-              </Button>
-            </div>
+            <h1 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold tracking-tight text-foreground">
+              Officer Operations Dashboard
+            </h1>
+
+            <p className="text-sm sm:text-base leading-relaxed text-muted-foreground">
+              Monitor incoming citizen reports, verify complaints, prioritize civic hazards, and route tasks to municipal field workers.
+            </p>
           </div>
-        </div>
-      </section>
 
-      <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-        {[
-          { label: "Total Issues", value: stats.totalIssues, icon: ClipboardList, tone: "default" as const },
-          { label: "Pending Verification", value: stats.pendingVerification, icon: Bell, tone: "warning" as const },
-          { label: "Assigned", value: stats.assignedIssues, icon: CheckCircle2, tone: "info" as const },
-          { label: "In Progress", value: stats.inProgressIssues, icon: Gauge, tone: "danger" as const },
-          { label: "Under Review", value: stats.underReviewIssues, icon: TrendingUp, tone: "default" as const },
-          { label: "Resolved", value: stats.resolvedIssues, icon: CheckCircle2, tone: "success" as const },
-        ].map(({ label, value, icon: Icon, tone }) => (
-          <div
-            key={label}
-            className="relative overflow-hidden rounded-2xl border border-border/70 bg-[linear-gradient(180deg,rgba(255,255,255,0.88)_0%,rgba(244,248,246,0.88)_100%)] p-5 shadow-sm shadow-teal-950/8 backdrop-blur-sm transition hover:-translate-y-0.5 hover:shadow-md"
-          >
-            <div
-              className={[
-                "absolute inset-x-0 top-0 h-1",
-                label === "Resolved"
-                  ? "bg-gradient-to-r from-emerald-500 via-emerald-400 to-emerald-500"
-                  : label === "Pending Verification"
-                    ? "bg-gradient-to-r from-amber-500 via-amber-400 to-amber-500"
-                    : label === "In Progress"
-                      ? "bg-gradient-to-r from-orange-500 via-orange-400 to-orange-500"
-                      : label === "Under Review"
-                        ? "bg-gradient-to-r from-violet-500 via-violet-400 to-indigo-500"
-                        : label === "Assigned"
-                          ? "bg-gradient-to-r from-sky-500 via-sky-400 to-indigo-500"
-                          : "bg-gradient-to-r from-teal-500 via-teal-400 to-emerald-500",
-              ].join(" ")}
-            />
-            <div className="flex items-center justify-between gap-4">
-              <p className="text-sm font-medium text-muted-foreground">{label}</p>
-              <span
-                className={[
-                  "inline-flex h-9 w-9 items-center justify-center rounded-full ring-1",
-                  tone === "success"
-                    ? "bg-emerald-50 text-emerald-700 ring-emerald-200"
-                    : tone === "warning"
-                      ? "bg-amber-50 text-amber-700 ring-amber-200"
-                      : tone === "danger"
-                        ? "bg-orange-50 text-orange-700 ring-orange-200"
-                        : tone === "info"
-                          ? "bg-sky-50 text-sky-700 ring-sky-200"
-                          : "bg-violet-50 text-violet-700 ring-violet-200",
-                ].join(" ")}
-              >
-                <Icon className="h-4 w-4" aria-hidden="true" />
-              </span>
-            </div>
-            <p className="mt-4 text-3xl font-semibold tracking-tight text-foreground">{value}</p>
-          </div>
-        ))}
-      </section>
-
-      <section className="grid gap-4 lg:grid-cols-[1.2fr_0.8fr]">
-        <div className="rounded-[1.85rem] border border-teal-100/80 bg-[linear-gradient(135deg,rgba(255,255,255,0.88)_0%,rgba(239,246,244,0.9)_55%,rgba(229,243,247,0.88)_100%)] p-6 shadow-lg shadow-teal-950/10">
-          <div className="flex items-center justify-between gap-4">
-            <div>
-              <p className="text-sm font-medium text-muted-foreground">Triage queue</p>
-              <h3 className="mt-1 text-xl font-semibold text-foreground">Recent operational issues</h3>
-            </div>
-            <Button asChild size="sm" variant="outline">
-              <Link to="/app/officer/issues">View all</Link>
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 shrink-0">
+            <Button asChild size="lg" className="shadow-lg shadow-teal-950/15 hover:shadow-xl">
+              <Link to="/app/officer/issues">
+                <span>Open Work Queue</span>
+                <ArrowRight className="h-4 w-4 ml-1.5" aria-hidden="true" />
+              </Link>
             </Button>
           </div>
+        </div>
+      </section>
 
-          <div className="mt-6 space-y-3">
-            {recentIssues.length > 0 ? (
-              recentIssues.map((issue) => (
-                <Link
+      {/* Compact Operational Metrics Bar (6 metrics) */}
+      <section aria-label="Operational metrics">
+        <div className="grid gap-3 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-6">
+          {metricCards.map(({ label, value, icon: Icon, tone }) => {
+            const accentClass =
+              tone === "success"
+                ? "border-t-emerald-500"
+                : tone === "warning"
+                  ? "border-t-amber-500"
+                  : tone === "danger"
+                    ? "border-t-rose-500"
+                    : tone === "info"
+                      ? "border-t-sky-500"
+                      : "border-t-teal-500";
+
+            return (
+              <Card
+                key={label}
+                className={`p-4 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md border-t-4 ${accentClass}`}
+              >
+                <div className="flex items-center justify-between gap-2">
+                  <p className="text-xs font-semibold text-muted-foreground truncate">{label}</p>
+                  <Icon className="h-4 w-4 text-muted-foreground shrink-0" aria-hidden="true" />
+                </div>
+                <p className="mt-2 text-2xl font-bold tracking-tight text-foreground">{value}</p>
+              </Card>
+            );
+          })}
+        </div>
+      </section>
+
+      {/* NEEDS ATTENTION SECTION (Most Important Section for Officer) */}
+      <section className="space-y-4" aria-label="Issues needing attention">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="flex h-2.5 w-2.5 rounded-full bg-amber-500 animate-pulse" aria-hidden="true" />
+              <p className="text-xs font-bold uppercase tracking-[0.2em] text-amber-800">
+                Action Required
+              </p>
+            </div>
+            <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-foreground mt-0.5">
+              Needs Officer Attention ({needsAttentionIssues.length})
+            </h2>
+          </div>
+          <Button asChild size="sm" variant="outline">
+            <Link to="/app/officer/issues">View Full Queue</Link>
+          </Button>
+        </div>
+
+        {needsAttentionIssues.length > 0 ? (
+          <div className="grid gap-3">
+            {needsAttentionIssues.map((issue) => {
+              const statusTone = getOfficerIssueStatusTone(issue.status);
+              const statusLabel = getOfficerIssueStatusLabel(issue.status);
+              const location = issue.address_text?.trim() || issue.location_text?.trim();
+
+              const actionHint =
+                issue.status === "SUBMITTED" || issue.status === "AI_ANALYZED"
+                  ? "Verify Complaint"
+                  : issue.status === "UNDER_REVIEW"
+                    ? "Review Resolution Proof"
+                    : issue.status === "REOPENED"
+                      ? "Reassign Worker"
+                      : "Review Urgency";
+
+              return (
+                <Card
                   key={issue.id}
-                  className="block rounded-2xl border border-border/70 bg-[linear-gradient(135deg,rgba(15,118,110,0.07)_0%,rgba(2,132,199,0.06)_42%,rgba(124,58,237,0.05)_100%)] p-4 transition hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-md"
-                  to={`/app/officer/issues/${issue.id}`}
+                  className="p-4 sm:p-5 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md border-l-4 border-l-amber-500"
                 >
-                  <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-                    <div className="space-y-3">
+                  <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                    <div className="space-y-2 min-w-0 flex-1">
                       <div className="flex flex-wrap items-center gap-2">
-                        <span className={`inline-flex items-center rounded-full border px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] ring-1 ${badgeToneClasses(getOfficerIssueStatusTone(issue.status))}`}>
-                          {getOfficerIssueStatusLabel(issue.status)}
-                        </span>
-                        <span
-                          className={`inline-flex items-center rounded-full border px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] ring-1 ${
-                            issue.priority === "URGENT"
-                              ? "bg-rose-50 text-rose-700 ring-rose-200"
-                              : issue.priority === "HIGH"
-                                ? "bg-orange-50 text-orange-700 ring-orange-200"
-                                : issue.priority === "MEDIUM"
-                                  ? "bg-amber-50 text-amber-700 ring-amber-200"
-                                  : "bg-sky-50 text-sky-700 ring-sky-200"
-                          }`}
+                        <Badge variant={statusTone} size="sm">
+                          {statusLabel}
+                        </Badge>
+                        <Badge
+                          variant={issue.priority === "URGENT" ? "danger" : issue.priority === "HIGH" ? "warning" : "default"}
+                          size="sm"
                         >
                           Priority {issue.priority}
-                        </span>
-                        <span
-                          className={`inline-flex items-center rounded-full border px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] ring-1 ${badgeToneClasses(issue.severity === "CRITICAL" ? "danger" : issue.severity === "HIGH" ? "warning" : issue.severity === "MEDIUM" ? "info" : "success")}`}
-                        >
-                          Severity {getOfficerIssueSeverityLabel(issue.severity)}
-                        </span>
-                      </div>
-                      <div className="space-y-1">
-                        <h4 className="text-lg font-semibold tracking-tight text-foreground">{issue.title}</h4>
-                        <p className="text-sm leading-6 text-muted-foreground">
+                        </Badge>
+                        <Badge variant="outline" size="sm" className="bg-white/80">
                           {issue.category}
-                          {issue.department?.name ? ` · ${issue.department.name}` : ""}
-                        </p>
+                        </Badge>
+                        {issue.department?.name ? (
+                          <Badge variant="teal" size="sm">
+                            {issue.department.name}
+                          </Badge>
+                        ) : null}
+                      </div>
+
+                      <div>
+                        <Link
+                          to={`/app/officer/issues/${issue.id}`}
+                          className="block hover:text-primary transition-colors"
+                        >
+                          <h3 className="text-base sm:text-lg font-bold text-foreground line-clamp-1">
+                            {issue.title}
+                          </h3>
+                        </Link>
+                        {location ? (
+                          <p className="text-xs text-muted-foreground mt-0.5 truncate">
+                            📍 {location}
+                          </p>
+                        ) : null}
                       </div>
                     </div>
 
-                    <div className="text-sm text-muted-foreground lg:text-right">
-                      <p>{formatOfficerIssueDateTime(issue.created_at)}</p>
-                      <p className="mt-2 text-xs uppercase tracking-[0.18em] text-muted-foreground">Open issue</p>
+                    <div className="flex items-center gap-3 shrink-0">
+                      <div className="text-right hidden sm:block text-xs text-muted-foreground">
+                        <p>{formatOfficerIssueDateTime(issue.created_at)}</p>
+                      </div>
+                      <Button asChild size="sm" className="shadow-sm">
+                        <Link to={`/app/officer/issues/${issue.id}`}>
+                          <span>{actionHint}</span>
+                          <ArrowRight className="h-3.5 w-3.5 ml-1" aria-hidden="true" />
+                        </Link>
+                      </Button>
                     </div>
                   </div>
-                </Link>
-              ))
-            ) : (
-              <div className="rounded-2xl border border-border/70 bg-[linear-gradient(135deg,rgba(15,118,110,0.08)_0%,rgba(2,132,199,0.06)_50%,rgba(124,58,237,0.06)_100%)] p-5">
-                <p className="text-sm font-medium text-foreground">No issues in the municipal queue yet.</p>
-                <p className="mt-2 text-sm leading-6 text-muted-foreground">
-                  Once citizens submit reports, they will appear here for verification and routing.
-                </p>
-              </div>
-            )}
+                </Card>
+              );
+            })}
           </div>
+        ) : (
+          <Card className="p-6 text-center bg-surface-elevated">
+            <CheckCircle2 className="mx-auto h-8 w-8 text-emerald-600" aria-hidden="true" />
+            <h3 className="mt-2 text-base font-bold text-foreground">You are all caught up!</h3>
+            <p className="text-xs text-muted-foreground max-w-sm mx-auto mt-1">
+              No pending complaints currently require verification or review.
+            </p>
+          </Card>
+        )}
+      </section>
+
+      {/* RECENT OPERATIONAL ISSUES QUEUE */}
+      <section className="space-y-4" aria-label="Recent operational activity">
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <p className="text-xs font-bold uppercase tracking-[0.2em] text-primary">
+              Live Registry
+            </p>
+            <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-foreground mt-0.5">
+              Recent Operational Issues
+            </h2>
+          </div>
+          <Button asChild size="sm" variant="outline">
+            <Link to="/app/officer/issues">View All ({issues.length})</Link>
+          </Button>
         </div>
 
-        <div className="rounded-[1.85rem] border border-teal-100/80 bg-[linear-gradient(135deg,rgba(15,118,110,0.10)_0%,rgba(2,132,199,0.08)_50%,rgba(124,58,237,0.08)_100%)] p-6 shadow-lg shadow-teal-950/10">
-          <p className="text-xs font-semibold uppercase tracking-[0.24em] text-muted-foreground">Workflow</p>
-          <div className="mt-4 grid gap-3">
-            {["REPORT", "ANALYZE", "PRIORITIZE", "ASSIGN", "RESOLVE", "VERIFY"].map((step, index) => (
-              <div
-                key={step}
-                className="flex items-center gap-3 rounded-2xl border border-border/70 bg-white/78 px-4 py-3 shadow-sm shadow-black/5"
-              >
-                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-[#0f766e] to-[#0284c7] text-xs font-bold text-white shadow-sm shadow-teal-950/10">
-                  {index + 1}
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-foreground">{step}</p>
-                  <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">Municipal operations</p>
-                </div>
-              </div>
-            ))}
+        {recentIssues.length > 0 ? (
+          <div className="grid gap-3">
+            {recentIssues.map((issue) => {
+              const statusTone = getOfficerIssueStatusTone(issue.status);
+              const statusLabel = getOfficerIssueStatusLabel(issue.status);
+              const severityTone = getOfficerIssueSeverityTone(issue.severity);
+              const severityLabel = getOfficerIssueSeverityLabel(issue.severity);
+
+              return (
+                <Card
+                  key={issue.id}
+                  className="p-4 sm:p-5 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md"
+                >
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div className="space-y-1.5 min-w-0 flex-1">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <Badge variant={statusTone} size="sm">
+                          {statusLabel}
+                        </Badge>
+                        <Badge variant="outline" size="sm" className="bg-white/80">
+                          {issue.category}
+                        </Badge>
+                        <Badge variant={issue.priority === "URGENT" ? "danger" : "default"} size="sm">
+                          Priority {issue.priority}
+                        </Badge>
+                        <Badge variant={severityTone} size="sm">
+                          Severity {severityLabel}
+                        </Badge>
+                      </div>
+
+                      <Link
+                        to={`/app/officer/issues/${issue.id}`}
+                        className="block hover:text-primary transition-colors"
+                      >
+                        <h3 className="text-base font-bold text-foreground truncate">
+                          {issue.title}
+                        </h3>
+                      </Link>
+
+                      <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                        <span>{formatOfficerIssueDateTime(issue.created_at)}</span>
+                        {issue.department?.name ? <span>• Dept: {issue.department.name}</span> : null}
+                      </div>
+                    </div>
+
+                    <Button asChild size="sm" variant="outline" className="shrink-0">
+                      <Link to={`/app/officer/issues/${issue.id}`}>
+                        <span>Manage</span>
+                        <ArrowRight className="h-3.5 w-3.5 ml-1" aria-hidden="true" />
+                      </Link>
+                    </Button>
+                  </div>
+                </Card>
+              );
+            })}
           </div>
-        </div>
+        ) : (
+          <Card className="p-6 text-center bg-surface-elevated">
+            <p className="text-sm font-semibold text-foreground">No issues in the municipal registry yet.</p>
+            <p className="text-xs text-muted-foreground mt-1">
+              When citizens file reports, they will appear here for verification and routing.
+            </p>
+          </Card>
+        )}
+      </section>
+
+      {/* Municipal Workflow Summary Card */}
+      <section aria-label="Municipal workflow guide">
+        <Card className="p-6 sm:p-8 bg-[linear-gradient(135deg,rgba(255,255,255,0.95)_0%,rgba(240,248,247,0.90)_100%)]">
+          <div className="grid gap-6 md:grid-cols-3 items-center">
+            <div className="space-y-1.5 md:col-span-1">
+              <div className="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-[0.2em] text-[#0f766e]">
+                <ShieldCheck className="h-4 w-4" aria-hidden="true" />
+                <span>Operating Protocol</span>
+              </div>
+              <h3 className="text-lg sm:text-xl font-bold text-foreground">
+                Municipal Triage Pipeline
+              </h3>
+              <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed">
+                Standardized 5-step operational protocol from citizen report intake to resolution verification.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 md:col-span-2">
+              {[
+                { step: "1", title: "Verify", desc: "Triage complaint" },
+                { step: "2", title: "Prioritize", desc: "Set urgency" },
+                { step: "3", title: "Assign", desc: "Route to worker" },
+                { step: "4", title: "Review", desc: "Inspect proof" },
+                { step: "5", title: "Resolve", desc: "Close loop" },
+              ].map((item) => (
+                <div key={item.step} className="rounded-xl border border-teal-100 bg-white/90 p-3 text-center shadow-sm">
+                  <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-primary text-white text-xs font-bold">
+                    {item.step}
+                  </span>
+                  <p className="mt-1.5 text-xs font-bold text-foreground">{item.title}</p>
+                  <p className="text-[10px] text-muted-foreground mt-0.5">{item.desc}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </Card>
       </section>
     </div>
   );
 }
+
