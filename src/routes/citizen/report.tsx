@@ -1,18 +1,24 @@
 import { useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
 import {
   AlertCircle,
+  Camera,
   CheckCircle2,
+  Image as ImageIcon,
   Loader2,
+  MapPin,
   Navigation2,
   Paperclip,
-  UploadCloud,
+  Sparkles,
   X,
 } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 
 import { useAppSession } from "@/auth/app-session";
 import { IssueImage } from "@/components/issues/issue-image";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { PageHeader } from "@/components/ui/page-header";
 import { citizenIssueCategories, formatCitizenIssueDate, type CitizenIssueCategory } from "@/lib/citizen-issues";
 import { supabase } from "@/lib/supabase";
 import type { Database } from "@/types/database";
@@ -231,11 +237,11 @@ function buildUserFacingError(operation: string, error: unknown) {
 function getStageLabel(stage: ReportStage) {
   switch (stage) {
     case "saving":
-      return "Saving report";
+      return "Creating issue record...";
     case "uploading":
-      return "Uploading photo";
+      return "Uploading compressed photo...";
     case "finalizing":
-      return "Finalizing submission";
+      return "Finalizing municipal report...";
     default:
       return "Ready to submit";
   }
@@ -248,28 +254,29 @@ export function CitizenReportPage() {
 
   if (sessionProblem) {
     return (
-      <section className="rounded-[1.75rem] border border-border/80 bg-surface/90 p-6 shadow-lg shadow-black/20">
-        <div className="max-w-2xl space-y-4">
+      <Card className="page-container-form p-6 sm:p-8">
+        <div className="space-y-4">
           <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-red-200 bg-red-50 text-red-700">
-            <AlertCircle className="h-5 w-5" aria-hidden="true" />
+            <AlertCircle className="h-6 w-6" aria-hidden="true" />
           </div>
-          <div className="space-y-2">
-            <h2 className="text-2xl font-semibold tracking-tight text-foreground">Report form unavailable</h2>
-            <p className="text-sm leading-6 text-muted-foreground">{sessionProblem}</p>
+          <div className="space-y-1.5">
+            <h2 className="text-2xl font-bold tracking-tight text-foreground">Report form unavailable</h2>
+            <p className="text-sm leading-relaxed text-muted-foreground">{sessionProblem}</p>
           </div>
           <Button asChild>
             <Link to="/app/citizen">Back to Dashboard</Link>
           </Button>
         </div>
-      </section>
+      </Card>
     );
   }
 
   if (!profileId || sessionStatus !== "ready") {
     return (
-      <div className="grid min-h-[40vh] place-items-center px-4 text-sm text-muted-foreground">
-        <div className="rounded-2xl border border-border/70 bg-card px-5 py-4 shadow-sm">
-          Loading Citizen report form...
+      <div className="page-container-form flex min-h-[40vh] items-center justify-center">
+        <div className="flex items-center gap-3 rounded-2xl border border-border/70 bg-surface/90 px-6 py-4 shadow-sm">
+          <Loader2 className="h-5 w-5 animate-spin text-primary" aria-hidden="true" />
+          <span className="text-sm font-medium text-muted-foreground">Loading report form...</span>
         </div>
       </div>
     );
@@ -449,10 +456,10 @@ function CitizenReportComposer({ profileId }: { profileId: string }) {
     const trimmedLocation = locationText.trim();
     const imageToUpload = compressedImage;
 
-    if (!trimmedTitle) nextErrors.title = "Issue title is required.";
-    if (!trimmedDescription) nextErrors.description = "Issue description is required.";
-    if (!category) nextErrors.category = "Please choose a category.";
-    if (!trimmedLocation) nextErrors.location = "Please add a location.";
+    if (!trimmedTitle) nextErrors.title = "Please provide an issue title.";
+    if (!trimmedDescription) nextErrors.description = "Please provide a description of the problem.";
+    if (!category) nextErrors.category = "Please select an issue category.";
+    if (!trimmedLocation) nextErrors.location = "Please enter the location or landmark.";
     if (!imageToUpload) {
       setErrors((current) => ({ ...current, image: undefined }));
     }
@@ -608,178 +615,166 @@ function CitizenReportComposer({ profileId }: { profileId: string }) {
       void navigate(`/app/citizen/issues/${outcome.issueId}`, {
         state: { submitted: true },
       });
-    }, 1200);
+    }, 1500);
 
     return () => {
       window.clearTimeout(timer);
     };
   }, [navigate, outcome]);
 
+  // Success Confirmation View
   if (outcome?.kind === "success") {
     return (
-      <section className="overflow-hidden rounded-[1.75rem] border border-emerald-200 bg-surface/90 shadow-lg shadow-black/20">
-        <div className="border-b border-border/70 bg-emerald-50 px-6 py-5">
-          <div className="flex items-center gap-3 text-emerald-700">
-            <CheckCircle2 className="h-5 w-5" aria-hidden="true" />
-            <p className="text-xs font-semibold uppercase tracking-[0.24em]">Report Submitted Successfully</p>
-          </div>
-          <h2 className="mt-3 text-3xl font-semibold tracking-tight text-foreground">Your civic report is live</h2>
-          <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">
-            CivicFix has recorded your report and attached the photo to the issue record.
-          </p>
-        </div>
-
-        <div className="grid gap-4 p-6 lg:grid-cols-[1.1fr_0.9fr]">
-          <div className="rounded-2xl border border-border/70 bg-surface-elevated p-5">
-            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-muted-foreground">Submission</p>
-            <dl className="mt-4 grid gap-4 sm:grid-cols-2">
-              <div>
-                <dt className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-                  Issue reference
-                </dt>
-                <dd className="mt-1 break-all text-sm font-medium text-foreground">{outcome.issueId}</dd>
-              </div>
-              <div>
-                <dt className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-                  Status
-                </dt>
-                <dd className="mt-1 text-sm font-medium text-foreground">{outcome.status}</dd>
-              </div>
-              <div>
-                <dt className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-                  Submitted
-                </dt>
-                <dd className="mt-1 text-sm font-medium text-foreground">{formatCitizenIssueDate(outcome.submittedAt)}</dd>
-              </div>
-              <div>
-                <dt className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-                  Category
-                </dt>
-                <dd className="mt-1 text-sm font-medium text-foreground">{outcome.category}</dd>
-              </div>
-            </dl>
-            <div className="mt-4 rounded-2xl border border-border/70 bg-background/40 p-4">
-              <p className="text-sm font-medium text-foreground">{outcome.title}</p>
-              <p className="mt-1 text-sm leading-6 text-muted-foreground">
-                The report is now in your citizen dashboard and will appear in My Issues.
-              </p>
+      <div className="page-container-form space-y-6">
+        <Card className="overflow-hidden border-emerald-300 shadow-xl">
+          <div className="border-b border-emerald-200 bg-gradient-to-r from-emerald-50 via-teal-50 to-emerald-50 p-6 sm:p-8 text-center">
+            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-emerald-600 text-white shadow-lg shadow-emerald-950/15">
+              <CheckCircle2 className="h-7 w-7" aria-hidden="true" />
             </div>
+            <p className="mt-4 text-xs font-bold uppercase tracking-[0.24em] text-emerald-800">
+              Report Filed Successfully
+            </p>
+            <h2 className="mt-1.5 text-2xl sm:text-3xl font-extrabold text-foreground">
+              Your civic report is live!
+            </h2>
+            <p className="mt-2 text-sm text-muted-foreground max-w-md mx-auto">
+              CivicFix has recorded your report and assigned it reference number{" "}
+              <span className="font-mono font-bold text-foreground">#{outcome.issueId.slice(0, 8).toUpperCase()}</span>.
+            </p>
           </div>
 
-          <div className="rounded-2xl border border-border/70 bg-surface-elevated p-5">
-            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-muted-foreground">Next steps</p>
-            <div className="mt-4 flex flex-col gap-3">
-              <Button asChild>
-                <Link to="/app/citizen/issues">View My Issues</Link>
+          <div className="p-6 sm:p-8 space-y-6">
+            <div className="rounded-2xl border border-border/70 bg-surface-elevated p-4 sm:p-5">
+              <p className="text-xs font-bold uppercase tracking-[0.2em] text-muted-foreground">
+                Report Summary
+              </p>
+              <dl className="mt-3.5 grid gap-3 sm:grid-cols-2 text-sm">
+                <div>
+                  <dt className="text-xs font-semibold text-muted-foreground">Title</dt>
+                  <dd className="font-semibold text-foreground mt-0.5">{outcome.title}</dd>
+                </div>
+                <div>
+                  <dt className="text-xs font-semibold text-muted-foreground">Category</dt>
+                  <dd className="font-semibold text-foreground mt-0.5">{outcome.category}</dd>
+                </div>
+                <div>
+                  <dt className="text-xs font-semibold text-muted-foreground">Status</dt>
+                  <dd className="mt-0.5">
+                    <Badge variant="teal" size="sm">
+                      {outcome.status}
+                    </Badge>
+                  </dd>
+                </div>
+                <div>
+                  <dt className="text-xs font-semibold text-muted-foreground">Submitted At</dt>
+                  <dd className="font-medium text-foreground mt-0.5">
+                    {formatCitizenIssueDate(outcome.submittedAt)}
+                  </dd>
+                </div>
+              </dl>
+            </div>
+
+            <div className="flex flex-col sm:flex-row gap-3">
+              <Button asChild size="lg" className="flex-1">
+                <Link to={`/app/citizen/issues/${outcome.issueId}`}>View My Issue Now</Link>
               </Button>
-              <Button asChild variant="outline">
+              <Button asChild size="lg" variant="outline">
                 <Link to="/app/citizen">Back to Dashboard</Link>
               </Button>
             </div>
           </div>
-        </div>
-      </section>
+        </Card>
+      </div>
     );
   }
 
+  // Partial Error (Issue saved, image failed)
   if (outcome?.kind === "partial-error") {
     return (
-      <section className="overflow-hidden rounded-[1.75rem] border border-amber-200 bg-surface/90 shadow-lg shadow-black/20">
-        <div className="border-b border-border/70 bg-amber-50 px-6 py-5">
-          <div className="flex items-center gap-3 text-amber-700">
-            <AlertCircle className="h-5 w-5" aria-hidden="true" />
-            <p className="text-xs font-semibold uppercase tracking-[0.24em]">Photo upload problem</p>
+      <div className="page-container-form space-y-6">
+        <Card className="overflow-hidden border-amber-300 shadow-xl">
+          <div className="border-b border-amber-200 bg-amber-50 p-6 sm:p-8 text-center">
+            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-amber-500 text-white shadow-lg">
+              <AlertCircle className="h-7 w-7" aria-hidden="true" />
+            </div>
+            <p className="mt-4 text-xs font-bold uppercase tracking-[0.24em] text-amber-800">
+              Report Saved with Notice
+            </p>
+            <h2 className="mt-1.5 text-2xl sm:text-3xl font-extrabold text-foreground">
+              Your report was created
+            </h2>
+            <p className="mt-2 text-sm text-muted-foreground max-w-md mx-auto">
+              The issue was recorded in the database, but the image attachment could not be completed.
+            </p>
           </div>
-          <h2 className="mt-3 text-3xl font-semibold tracking-tight text-foreground">Your report was saved</h2>
-          <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">
-            The issue exists in Supabase, but the image attachment step did not finish cleanly.
-          </p>
-        </div>
 
-        <div className="grid gap-4 p-6 lg:grid-cols-[1.1fr_0.9fr]">
-          <div className="rounded-2xl border border-border/70 bg-surface-elevated p-5">
-            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-muted-foreground">Saved issue</p>
-            <dl className="mt-4 grid gap-4 sm:grid-cols-2">
-              <div>
-                <dt className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-                  Issue reference
-                </dt>
-                <dd className="mt-1 break-all text-sm font-medium text-foreground">{outcome.issueId}</dd>
-              </div>
-              <div>
-                <dt className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-                  Submitted
-                </dt>
-                <dd className="mt-1 text-sm font-medium text-foreground">{formatCitizenIssueDate(outcome.submittedAt)}</dd>
-              </div>
-            </dl>
-            <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm leading-6 text-foreground">
+          <div className="p-6 sm:p-8 space-y-6">
+            <div className="rounded-2xl border border-amber-200 bg-amber-50/70 p-4 text-sm text-amber-900">
               {outcome.message}
             </div>
-          </div>
 
-          <div className="rounded-2xl border border-border/70 bg-surface-elevated p-5">
-            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-muted-foreground">Next steps</p>
-            <div className="mt-4 flex flex-col gap-3">
-              <Button asChild>
+            <div className="flex flex-col sm:flex-row gap-3">
+              <Button asChild size="lg" className="flex-1">
                 <Link to="/app/citizen/issues">View My Issues</Link>
               </Button>
-              <Button asChild variant="outline">
+              <Button asChild size="lg" variant="outline">
                 <Link to="/app/citizen">Back to Dashboard</Link>
               </Button>
             </div>
           </div>
-        </div>
-      </section>
+        </Card>
+      </div>
     );
   }
 
+  // Active Report Form
   return (
-    <section className="overflow-hidden rounded-[1.75rem] border border-border/80 bg-surface/90 shadow-lg shadow-black/20">
-      <div className="border-b border-border/70 px-6 py-5">
-        <p className="text-xs font-semibold uppercase tracking-[0.24em] text-muted-foreground">Citizen report intake</p>
-        <h2 className="mt-2 text-3xl font-semibold tracking-tight text-foreground">Report an Issue</h2>
-        <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">
-          Share what you saw, add a location, and attach a photo so the city can act quickly.
-        </p>
-      </div>
+    <div className="page-container-form space-y-6 sm:space-y-8">
+      <PageHeader
+        tag="Citizen Intake"
+        title="Report a Civic Issue"
+        description="Submit a complaint about civic infrastructure, sanitation, or safety. Your report will be routed directly to municipal officers for review and assignment."
+        backHref="/app/citizen"
+        backLabel="Back to Dashboard"
+      />
 
-      <div className="grid gap-6 p-6 lg:grid-cols-[1.1fr_0.9fr]">
-        <div className="space-y-5">
-          <div className="grid gap-5 sm:grid-cols-2">
-            <label className="space-y-2 sm:col-span-2">
-              <span className="text-sm font-medium text-foreground">Issue title</span>
-              <input
-                className="w-full rounded-2xl border border-border/80 bg-background/50 px-4 py-3 text-sm text-foreground outline-none transition placeholder:text-muted-foreground focus:border-primary/50 focus:ring-2 focus:ring-primary/20"
-                maxLength={120}
-                onChange={(event) => setTitle(event.target.value)}
-                placeholder="Large pothole on the main road"
-                value={title}
-              />
-              {errors.title ? <p className="text-sm text-red-700">{errors.title}</p> : null}
-            </label>
-
-            <label className="space-y-2 sm:col-span-2">
-              <span className="text-sm font-medium text-foreground">Description</span>
-              <textarea
-                className="min-h-36 w-full resize-y rounded-2xl border border-border/80 bg-background/50 px-4 py-3 text-sm text-foreground outline-none transition placeholder:text-muted-foreground focus:border-primary/50 focus:ring-2 focus:ring-primary/20"
-                maxLength={1200}
-                onChange={(event) => setDescription(event.target.value)}
-                placeholder="Tell us what happened, how long it has been there, and any safety concerns."
-                value={description}
-              />
-              <div className="flex items-center justify-between gap-4">
-                {errors.description ? <p className="text-sm text-red-700">{errors.description}</p> : <span />}
-                <p className="text-xs text-muted-foreground">{description.length}/1200</p>
-              </div>
-            </label>
+      {/* Guided Form Layout */}
+      <form onSubmit={(e) => { e.preventDefault(); void handleSubmit(); }} className="space-y-6">
+        {/* Step 1: Describe Problem */}
+        <Card className="p-5 sm:p-7">
+          <div className="flex items-center gap-3 border-b border-border/60 pb-4">
+            <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-primary text-white text-xs font-bold shadow-sm">
+              1
+            </div>
+            <div>
+              <h2 className="text-lg font-bold text-foreground">Describe the Problem</h2>
+              <p className="text-xs text-muted-foreground">What civic issue are you reporting?</p>
+            </div>
           </div>
 
-          <div className="grid gap-5 sm:grid-cols-2">
-            <label className="space-y-2">
-              <span className="text-sm font-medium text-foreground">Category</span>
+          <div className="mt-5 space-y-4">
+            <div>
+              <label htmlFor="issue-title" className="block text-sm font-semibold text-foreground">
+                Issue Title <span className="text-red-500">*</span>
+              </label>
+              <input
+                id="issue-title"
+                className="mt-1.5 w-full rounded-xl border border-border/80 bg-background/60 px-4 py-3 text-sm text-foreground outline-none transition placeholder:text-muted-foreground focus:border-primary focus:ring-2 focus:ring-primary/20"
+                maxLength={120}
+                onChange={(event) => setTitle(event.target.value)}
+                placeholder="e.g. Broken streetlight, overflowing garbage bin, deep pothole"
+                value={title}
+              />
+              {errors.title ? <p className="mt-1.5 text-xs font-medium text-red-600">{errors.title}</p> : null}
+            </div>
+
+            <div>
+              <label htmlFor="issue-category" className="block text-sm font-semibold text-foreground">
+                Category <span className="text-red-500">*</span>
+              </label>
               <select
-                className="w-full rounded-2xl border border-border/80 bg-background/50 px-4 py-3 text-sm text-foreground outline-none transition focus:border-primary/50 focus:ring-2 focus:ring-primary/20"
+                id="issue-category"
+                className="mt-1.5 w-full rounded-xl border border-border/80 bg-background/60 px-4 py-3 text-sm text-foreground outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20 cursor-pointer"
                 onChange={(event) => setCategory(event.target.value as CitizenIssueCategory | "")}
                 value={category}
               >
@@ -790,184 +785,257 @@ function CitizenReportComposer({ profileId }: { profileId: string }) {
                   </option>
                 ))}
               </select>
-              {errors.category ? <p className="text-sm text-red-700">{errors.category}</p> : null}
-            </label>
+              {errors.category ? <p className="mt-1.5 text-xs font-medium text-red-600">{errors.category}</p> : null}
+            </div>
 
-            <label className="space-y-2">
-              <span className="text-sm font-medium text-foreground">Location</span>
-              <input
-                className="w-full rounded-2xl border border-border/80 bg-background/50 px-4 py-3 text-sm text-foreground outline-none transition placeholder:text-muted-foreground focus:border-primary/50 focus:ring-2 focus:ring-primary/20"
-                maxLength={160}
-                onChange={(event) => setLocationText(event.target.value)}
-                placeholder="Jubilee Hills, Road No. 36"
-                value={locationText}
+            <div>
+              <div className="flex items-center justify-between">
+                <label htmlFor="issue-description" className="block text-sm font-semibold text-foreground">
+                  Description <span className="text-red-500">*</span>
+                </label>
+                <span className="text-xs text-muted-foreground">{description.length}/1200</span>
+              </div>
+              <textarea
+                id="issue-description"
+                className="mt-1.5 min-h-32 w-full resize-y rounded-xl border border-border/80 bg-background/60 px-4 py-3 text-sm text-foreground outline-none transition placeholder:text-muted-foreground focus:border-primary focus:ring-2 focus:ring-primary/20"
+                maxLength={1200}
+                onChange={(event) => setDescription(event.target.value)}
+                placeholder="Provide details about the issue: exact spot, safety hazards, how long it has been present..."
+                value={description}
               />
-              {errors.location ? <p className="text-sm text-red-700">{errors.location}</p> : null}
-            </label>
+              {errors.description ? <p className="mt-1.5 text-xs font-medium text-red-600">{errors.description}</p> : null}
+            </div>
+          </div>
+        </Card>
+
+        {/* Step 2: Location */}
+        <Card className="p-5 sm:p-7">
+          <div className="flex items-center gap-3 border-b border-border/60 pb-4">
+            <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-primary text-white text-xs font-bold shadow-sm">
+              2
+            </div>
+            <div>
+              <h2 className="text-lg font-bold text-foreground">Specify Location</h2>
+              <p className="text-xs text-muted-foreground">Where is the issue located?</p>
+            </div>
           </div>
 
-          <div className="rounded-2xl border border-border/70 bg-surface-elevated p-5">
-            <div className="flex flex-wrap items-start justify-between gap-4">
-              <div className="space-y-1">
-                <p className="text-sm font-medium text-foreground">GPS coordinates</p>
-                <p className="text-sm leading-6 text-muted-foreground">
-                  Capture your current position, or continue manually if location access is blocked.
-                </p>
-              </div>
-              <Button disabled={geoLoading} onClick={handleCurrentLocation} type="button" variant="outline">
-                {geoLoading ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : <Navigation2 className="h-4 w-4" aria-hidden="true" />}
-                Use My Current Location
-              </Button>
+          <div className="mt-5 space-y-4">
+            <div>
+              <label htmlFor="issue-location" className="block text-sm font-semibold text-foreground">
+                Location & Landmark <span className="text-red-500">*</span>
+              </label>
+              <input
+                id="issue-location"
+                className="mt-1.5 w-full rounded-xl border border-border/80 bg-background/60 px-4 py-3 text-sm text-foreground outline-none transition placeholder:text-muted-foreground focus:border-primary focus:ring-2 focus:ring-primary/20"
+                maxLength={160}
+                onChange={(event) => setLocationText(event.target.value)}
+                placeholder="e.g. Near Metro Pillar 142, Jubilee Hills Road No. 36"
+                value={locationText}
+              />
+              {errors.location ? <p className="mt-1.5 text-xs font-medium text-red-600">{errors.location}</p> : null}
             </div>
 
-            <div className="mt-4 grid gap-3 sm:grid-cols-2">
-              <div className="rounded-2xl border border-border/70 bg-background/40 p-4">
-                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">Latitude</p>
-                <p className="mt-2 text-sm font-medium text-foreground">{latitude ?? "Not captured yet"}</p>
-              </div>
-              <div className="rounded-2xl border border-border/70 bg-background/40 p-4">
-                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">Longitude</p>
-                <p className="mt-2 text-sm font-medium text-foreground">{longitude ?? "Not captured yet"}</p>
-              </div>
-            </div>
-
-            <div className="mt-3 space-y-2">
-              {geoError ? <p className="text-sm text-amber-700">{geoError}</p> : null}
-              {locationStatus === "detected" && latitude && longitude ? (
-                <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-foreground">
-                  <p className="font-medium text-emerald-700">Location detected</p>
-                  <p className="mt-1 text-muted-foreground">Latitude: {latitude}</p>
-                  <p className="text-muted-foreground">Longitude: {longitude}</p>
-                  <p className="text-muted-foreground">
-                    Accuracy: approximately {locationAccuracyMeters !== null ? Math.round(locationAccuracyMeters) : "unknown"} meters
+            {/* GPS Capture Button & Information */}
+            <div className="rounded-2xl border border-teal-100 bg-gradient-to-br from-teal-50/70 via-surface to-sky-50/60 p-4 sm:p-5">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div className="space-y-1">
+                  <p className="text-sm font-bold text-foreground flex items-center gap-1.5">
+                    <MapPin className="h-4 w-4 text-primary" aria-hidden="true" />
+                    <span>GPS Geolocation</span>
                   </p>
-                  {locationAccuracyMeters !== null && locationAccuracyMeters > 100 ? (
-                    <p className="mt-1 text-xs uppercase tracking-[0.16em] text-amber-700">
-                      Browser reported a coarse location fix.
-                    </p>
-                  ) : null}
+                  <p className="text-xs text-muted-foreground">
+                    Attaching coordinates helps workers find the exact spot quickly.
+                  </p>
                 </div>
+
+                <Button
+                  disabled={geoLoading}
+                  onClick={handleCurrentLocation}
+                  type="button"
+                  variant="outline"
+                  className="shrink-0 bg-white shadow-sm hover:bg-teal-50 min-h-[44px]"
+                >
+                  {geoLoading ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin text-primary mr-1" aria-hidden="true" />
+                      <span>Detecting GPS...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Navigation2 className="h-4 w-4 text-primary mr-1" aria-hidden="true" />
+                      <span>Use My Current Location</span>
+                    </>
+                  )}
+                </Button>
+              </div>
+
+              {locationStatus === "detected" && latitude && longitude ? (
+                <div className="mt-3.5 flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50/90 px-3.5 py-2.5 text-xs text-emerald-900">
+                  <CheckCircle2 className="h-4 w-4 text-emerald-700 shrink-0" aria-hidden="true" />
+                  <span className="font-medium">
+                    Coordinates captured: {latitude}, {longitude}
+                    {locationAccuracyMeters !== null ? ` (±${Math.round(locationAccuracyMeters)}m)` : ""}
+                  </span>
+                </div>
+              ) : null}
+
+              {geoError ? (
+                <p className="mt-3 text-xs font-medium text-amber-800 bg-amber-50 border border-amber-200 rounded-xl p-3">
+                  {geoError}
+                </p>
               ) : null}
             </div>
           </div>
-        </div>
+        </Card>
 
-        <div className="space-y-5">
-          <div className="rounded-[1.5rem] border border-border/70 bg-surface-elevated p-5">
-            <div className="flex items-center justify-between gap-4">
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.24em] text-muted-foreground">
-                  Photo upload
-                </p>
-                <h3 className="mt-2 text-lg font-semibold text-foreground">Attach a clear image</h3>
+        {/* Step 3: Photo Attachment */}
+        <Card className="p-5 sm:p-7">
+          <div className="flex items-center justify-between border-b border-border/60 pb-4">
+            <div className="flex items-center gap-3">
+              <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-primary text-white text-xs font-bold shadow-sm">
+                3
               </div>
-              <span className="rounded-full border border-border/70 bg-background/40 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-                Optional
-              </span>
+              <div>
+                <h2 className="text-lg font-bold text-foreground">Attach Photo</h2>
+                <p className="text-xs text-muted-foreground">Provide photographic evidence of the issue</p>
+              </div>
             </div>
+            <Badge variant="default" size="sm">Optional</Badge>
+          </div>
 
-            <div className="mt-4 rounded-2xl border border-dashed border-border/70 bg-background/30 p-4">
-              <input
-                accept="image/*"
-                className="hidden"
-                disabled={imageProcessing || submissionStage !== "idle"}
-                onChange={(event) => void handleImageChange(event)}
-                ref={imageInputRef}
-                type="file"
-              />
-              <div className="flex flex-col gap-3">
-                <div className="flex items-start gap-3">
-                  <div className="rounded-2xl border border-border/70 bg-surface-elevated p-3 text-primary">
-                    <UploadCloud className="h-5 w-5" aria-hidden="true" />
-                  </div>
-                  <div className="space-y-1">
-                    <p className="text-sm font-medium text-foreground">
-                      {compressedImage ? compressedImage.name : "Choose an image from your device"}
-                    </p>
-                <p className="text-sm leading-6 text-muted-foreground">JPG or PNG images are compressed in the browser before upload.</p>
-                  </div>
+          <div className="mt-5 space-y-4">
+            <input
+              accept="image/*"
+              className="hidden"
+              disabled={imageProcessing || submissionStage !== "idle"}
+              onChange={(event) => void handleImageChange(event)}
+              ref={imageInputRef}
+              type="file"
+            />
+
+            {!compressedImage ? (
+              <div
+                onClick={() => imageInputRef.current?.click()}
+                className="flex flex-col items-center justify-center rounded-2xl border-2 border-dashed border-teal-200/80 bg-teal-50/30 p-6 sm:p-8 text-center transition hover:border-primary/60 hover:bg-teal-50/60 cursor-pointer"
+              >
+                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white text-primary shadow-sm ring-1 ring-teal-200/60">
+                  <Camera className="h-6 w-6" aria-hidden="true" />
                 </div>
-
-                <div className="flex flex-wrap gap-3">
-                  <Button
-                    disabled={imageProcessing || submissionStage !== "idle"}
-                    onClick={() => imageInputRef.current?.click()}
-                    type="button"
-                    variant="outline"
-                  >
-                    <Paperclip className="h-4 w-4" aria-hidden="true" />
-                    {imageProcessing ? "Preparing image..." : "Choose Photo"}
-                  </Button>
-                  {compressedImage ? (
-                    <Button
-                      disabled={submissionStage !== "idle"}
-                      onClick={() => resetImageSelection({ clearError: true })}
+                <p className="mt-3 text-sm font-bold text-foreground">
+                  Click to choose or take a photo
+                </p>
+                <p className="mt-1 text-xs text-muted-foreground max-w-xs">
+                  Supports JPG, PNG, HEIC, WebP. Images are automatically compressed in your browser before upload.
+                </p>
+                <Button
+                  disabled={imageProcessing}
+                  onClick={(e) => { e.stopPropagation(); imageInputRef.current?.click(); }}
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="mt-4 bg-white"
+                >
+                  <Paperclip className="h-4 w-4 mr-1" aria-hidden="true" />
+                  {imageProcessing ? "Processing..." : "Select File"}
+                </Button>
+              </div>
+            ) : (
+              <div className="rounded-2xl border border-border/80 overflow-hidden bg-surface-elevated">
+                {previewUrl ? (
+                  <div className="relative">
+                    <IssueImage
+                      alt="Selected issue preview"
+                      className="h-56 sm:h-64 w-full object-contain bg-black/5"
+                      emptyLabel="No preview"
+                      imageClassName="object-contain"
+                      src={previewUrl}
+                      variant="preview"
+                    />
+                    <button
                       type="button"
-                      variant="ghost"
+                      onClick={() => resetImageSelection({ clearError: true })}
+                      aria-label="Remove image"
+                      className="absolute top-3 right-3 rounded-full bg-black/60 p-1.5 text-white hover:bg-black/80 transition"
                     >
                       <X className="h-4 w-4" aria-hidden="true" />
+                    </button>
+                  </div>
+                ) : null}
+
+                <div className="flex items-center justify-between gap-3 p-3.5 bg-surface text-xs text-muted-foreground border-t border-border/60">
+                  <div className="flex items-center gap-2 truncate">
+                    <ImageIcon className="h-4 w-4 text-primary shrink-0" aria-hidden="true" />
+                    <span className="font-medium text-foreground truncate">{compressedImage.name}</span>
+                  </div>
+                  <div className="flex items-center gap-3 shrink-0">
+                    <span>{formatFileSize(compressedImage.size)}</span>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="xs"
+                      onClick={() => resetImageSelection({ clearError: true })}
+                      className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                    >
                       Remove
                     </Button>
-                  ) : null}
+                  </div>
                 </div>
               </div>
+            )}
+
+            {errors.image ? <p className="text-xs font-medium text-red-600">{errors.image}</p> : null}
+          </div>
+        </Card>
+
+        {/* Step 4: Submission */}
+        <Card className="p-5 sm:p-7 border-teal-200 shadow-md">
+          <div className="flex items-center justify-between gap-4">
+            <div className="space-y-1">
+              <h2 className="text-lg font-bold text-foreground">Ready to Submit?</h2>
+              <p className="text-xs text-muted-foreground">
+                {submissionStage === "idle"
+                  ? "Please verify your details above before submitting."
+                  : getStageLabel(submissionStage)}
+              </p>
             </div>
-
-            {errors.image ? <p className="mt-3 text-sm text-red-700">{errors.image}</p> : null}
-
-            {previewUrl && compressedImage ? (
-              <div className="mt-4 overflow-hidden rounded-2xl border border-border/70 bg-background/40">
-                <IssueImage
-                  alt="Selected issue preview"
-                  className="rounded-none"
-                  emptyLabel="No preview"
-                  imageClassName="object-contain"
-                  src={previewUrl}
-                  variant="preview"
-                />
-                <div className="flex items-center justify-between gap-3 px-4 py-3 text-xs text-muted-foreground">
-                  <span>{formatFileSize(compressedImage.size)}</span>
-                  <span>{rawImage?.type || compressedImage.type}</span>
-                </div>
-              </div>
+            {submissionStage !== "idle" ? (
+              <Loader2 className="h-5 w-5 animate-spin text-primary shrink-0" aria-hidden="true" />
             ) : null}
           </div>
 
-          <div className="rounded-[1.5rem] border border-border/70 bg-surface-elevated p-5">
-            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-muted-foreground">Submission status</p>
-            <div className="mt-4 flex items-center gap-3 rounded-2xl border border-border/70 bg-background/40 px-4 py-3">
+          {submitError ? (
+            <div className="mt-4 rounded-xl border border-red-200 bg-red-50 p-4 text-xs font-medium text-red-800">
+              {submitError}
+            </div>
+          ) : null}
+
+          <div className="mt-6 flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+            <Button
+              disabled={submissionStage !== "idle" || imageProcessing}
+              type="submit"
+              size="lg"
+              className="flex-1 shadow-md shadow-teal-950/15"
+            >
               {submissionStage === "idle" ? (
-                <CheckCircle2 className="h-4 w-4 text-emerald-700" aria-hidden="true" />
+                <>
+                  <Sparkles className="h-4 w-4 mr-1" aria-hidden="true" />
+                  Submit Civic Report
+                </>
               ) : (
-                <Loader2 className="h-4 w-4 animate-spin text-primary" aria-hidden="true" />
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin mr-1" aria-hidden="true" />
+                  {getStageLabel(submissionStage)}
+                </>
               )}
-              <div>
-                <p className="text-sm font-medium text-foreground">{getStageLabel(submissionStage)}</p>
-                <p className="text-xs text-muted-foreground">
-                  {submissionStage === "idle"
-                    ? "Review the report and submit when ready."
-                    : "Please keep this tab open while CivicFix finishes the report."}
-                </p>
-              </div>
-            </div>
-
-            {submitError ? (
-              <div className="mt-4 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm leading-6 text-red-800">
-                {submitError}
-              </div>
-            ) : null}
-
-            <div className="mt-5 flex flex-col gap-3 sm:flex-row">
-              <Button disabled={submissionStage !== "idle" || imageProcessing} onClick={() => void handleSubmit()} type="button">
-                {submissionStage === "idle" ? "Submit Report" : "Submitting..."}
-              </Button>
-              <Button asChild variant="outline">
-                <Link to="/app/citizen">Back to Dashboard</Link>
-              </Button>
-            </div>
+            </Button>
+            <Button asChild size="lg" variant="outline">
+              <Link to="/app/citizen">Cancel</Link>
+            </Button>
           </div>
-        </div>
-      </div>
-    </section>
+        </Card>
+      </form>
+    </div>
   );
 }
+

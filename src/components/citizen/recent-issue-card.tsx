@@ -2,7 +2,9 @@ import { CalendarDays, MapPin, MoveRight } from "lucide-react";
 import { Link } from "react-router-dom";
 
 import { IssueImage } from "@/components/issues/issue-image";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
 import type { Database } from "@/types/database";
 
 type IssueImageRow = Database["public"]["Tables"]["issue_images"]["Row"];
@@ -41,78 +43,77 @@ export function RecentIssueCard({
   thumbnailUrl,
   viewDetailsHref,
 }: RecentIssueCardProps) {
-  const statusClasses =
-    statusTone === "success"
-      ? "bg-emerald-50 text-emerald-700 ring-emerald-200"
-      : statusTone === "warning"
-        ? "bg-amber-50 text-amber-700 ring-amber-200"
-        : statusTone === "danger"
-          ? "bg-rose-50 text-rose-700 ring-rose-200"
-          : statusTone === "info"
-            ? "bg-sky-50 text-sky-700 ring-sky-200"
-            : "bg-teal-50 text-teal-700 ring-teal-200";
-
   const locationText = issue.address_text?.trim() || issue.location_text?.trim();
 
   return (
-    <article className="overflow-hidden rounded-[1.5rem] border border-border/70 bg-white/84 shadow-sm shadow-teal-950/8 transition-all hover:-translate-y-0.5 hover:shadow-lg">
-      <div className="grid min-w-0 gap-0 md:grid-cols-[160px_minmax(0,1fr)]">
-        <div className="overflow-hidden border-b border-border/70 bg-[linear-gradient(135deg,rgba(15,118,110,0.08)_0%,rgba(2,132,199,0.08)_100%)] md:self-stretch md:border-b-0 md:border-r">
+    <Card className="group overflow-hidden transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg">
+      <div className="flex flex-col sm:flex-row min-w-0">
+        {/* Thumbnail Frame */}
+        <div className="sm:w-48 lg:w-56 shrink-0 overflow-hidden border-b sm:border-b-0 sm:border-r border-border/70 bg-[linear-gradient(135deg,rgba(15,118,110,0.08)_0%,rgba(2,132,199,0.08)_100%)]">
           <IssueImage
             alt={issue.title}
             brokenLabel="Image unavailable"
-            className="rounded-none md:h-full md:aspect-auto"
-            emptyLabel="No image"
+            className="h-44 sm:h-full w-full object-cover"
+            emptyLabel="No image attached"
             src={thumbnailUrl}
             variant="card"
           />
         </div>
 
-        <div className="min-w-0 p-5 sm:p-6">
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-            <div className="min-w-0 space-y-3">
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="inline-flex items-center rounded-full border border-border/70 bg-white/75 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-                  {issue.category}
-                </span>
-                <span className={`inline-flex items-center rounded-full border px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] ring-1 ${statusClasses}`}>
-                  {statusLabel}
-                </span>
-                <span className="inline-flex items-center rounded-full border border-border/70 bg-white/75 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-                  Priority {formatPriorityLabel(issue.priority)}
-                </span>
-              </div>
-
-              <div className="space-y-1">
-                <h3 className="break-words text-lg font-semibold tracking-tight text-foreground">{issue.title}</h3>
-                <p className="line-clamp-2 text-sm leading-6 text-muted-foreground">{issue.description}</p>
-              </div>
+        {/* Content Area */}
+        <div className="flex flex-1 flex-col justify-between p-4 sm:p-5 lg:p-6 min-w-0">
+          <div className="space-y-3">
+            {/* Badges row */}
+            <div className="flex flex-wrap items-center gap-2">
+              <Badge variant={statusTone} size="sm">
+                {statusLabel}
+              </Badge>
+              <Badge variant="outline" size="sm" className="bg-white/80">
+                {issue.category}
+              </Badge>
+              <Badge variant="default" size="sm" className="text-muted-foreground">
+                Priority: {formatPriorityLabel(issue.priority)}
+              </Badge>
             </div>
 
-            <div className="min-w-0 flex shrink-0 flex-col gap-3 text-sm text-muted-foreground lg:items-end">
-              <div className="inline-flex items-center gap-2">
-                <CalendarDays className="h-4 w-4" aria-hidden="true" />
-                <span>{formatDate(issue.created_at)}</span>
-              </div>
-              {locationText ? (
-                <div className="inline-flex min-w-0 items-center gap-2 lg:max-w-[18rem] lg:justify-end lg:text-right">
-                  <MapPin className="h-4 w-4 shrink-0" aria-hidden="true" />
-                  <span className="break-words line-clamp-2">{locationText}</span>
-                </div>
-              ) : null}
+            {/* Title & Description */}
+            <div className="space-y-1">
+              <Link to={viewDetailsHref} className="block group-hover:text-primary transition-colors">
+                <h3 className="break-words text-base sm:text-lg font-bold text-foreground line-clamp-1">
+                  {issue.title}
+                </h3>
+              </Link>
+              <p className="line-clamp-2 text-xs sm:text-sm leading-relaxed text-muted-foreground">
+                {issue.description}
+              </p>
             </div>
           </div>
 
-          <div className="mt-5 flex items-center justify-end">
-            <Button asChild size="sm" variant="outline">
+          {/* Footer with Metadata & CTA */}
+          <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-border/60 pt-3">
+            <div className="flex flex-wrap items-center gap-3 sm:gap-4 text-xs text-muted-foreground">
+              <div className="inline-flex items-center gap-1.5 shrink-0">
+                <CalendarDays className="h-3.5 w-3.5" aria-hidden="true" />
+                <span>{formatDate(issue.created_at)}</span>
+              </div>
+              {locationText ? (
+                <div className="inline-flex items-center gap-1.5 max-w-[200px] sm:max-w-[260px] truncate">
+                  <MapPin className="h-3.5 w-3.5 shrink-0 text-primary" aria-hidden="true" />
+                  <span className="truncate">{locationText}</span>
+                </div>
+              ) : null}
+            </div>
+
+            <Button asChild size="sm" variant="outline" className="shrink-0 ml-auto group-hover:border-teal-300">
               <Link to={viewDetailsHref}>
-                View Details
-                <MoveRight className="h-4 w-4" aria-hidden="true" />
+                <span>View Details</span>
+                <MoveRight className="h-3.5 w-3.5" aria-hidden="true" />
               </Link>
             </Button>
           </div>
         </div>
       </div>
-    </article>
+    </Card>
   );
 }
+
