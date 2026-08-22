@@ -18,23 +18,31 @@ export function SiteHeader() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
-  // Prevent body scroll when mobile menu is open
+  const closeMobile = useCallback(() => setMobileOpen(false), []);
+
+  // Prevent body scroll and close on Escape when mobile menu is open
   useEffect(() => {
-    if (mobileOpen) {
-      document.body.style.overflow = "hidden";
-    } else {
-      document.body.style.overflow = "";
-    }
+    if (!mobileOpen) return;
+
+    document.body.style.overflow = "hidden";
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        closeMobile();
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+
     return () => {
       document.body.style.overflow = "";
+      window.removeEventListener("keydown", handleKeyDown);
     };
-  }, [mobileOpen]);
-
-  const closeMobile = useCallback(() => setMobileOpen(false), []);
+  }, [mobileOpen, closeMobile]);
 
   return (
     <header className="sticky top-0 z-40 border-b border-teal-200/60 bg-[linear-gradient(90deg,rgba(247,250,248,0.88)_0%,rgba(240,248,247,0.85)_40%,rgba(238,244,255,0.85)_100%)] shadow-sm shadow-teal-950/5 backdrop-blur-xl">
-      <div className="mx-auto flex w-full max-w-6xl items-center justify-between gap-4 px-4 py-3.5 sm:px-6 lg:px-8">
+      <div className="mx-auto flex w-full max-w-6xl items-center justify-between gap-4 px-3.5 py-3 sm:px-6 sm:py-3.5 lg:px-8">
         {/* Brand */}
         <BrandMark />
 
@@ -80,7 +88,7 @@ export function SiteHeader() {
 
         {/* Mobile menu button */}
         <Button
-          className="md:hidden"
+          className="md:hidden h-10 w-10 text-muted-foreground hover:text-foreground"
           size="icon"
           variant="ghost"
           onClick={() => setMobileOpen((prev) => !prev)}
@@ -102,7 +110,7 @@ export function SiteHeader() {
           {/* Backdrop */}
           <button
             type="button"
-            className="fixed inset-0 z-40 bg-black/40 backdrop-blur-[2px] md:hidden"
+            className="fixed inset-0 z-40 bg-black/40 backdrop-blur-xs md:hidden animate-in fade-in-0 duration-200"
             onClick={closeMobile}
             aria-label="Close menu"
           />
@@ -110,15 +118,18 @@ export function SiteHeader() {
           {/* Menu panel */}
           <div
             ref={menuRef}
+            role="dialog"
+            aria-modal="true"
+            aria-label="Mobile navigation"
             className="fixed inset-x-0 top-[calc(3.5rem+1px)] z-50 animate-in slide-in-from-top-2 border-b border-teal-200/60 bg-[linear-gradient(180deg,rgba(247,250,248,0.98)_0%,rgba(240,248,247,0.96)_100%)] px-4 pb-6 pt-4 shadow-xl shadow-teal-950/10 backdrop-blur-xl md:hidden"
           >
-            <nav className="space-y-1" aria-label="Mobile navigation">
+            <nav className="space-y-1" aria-label="Mobile navigation links">
               {navLinks.map((link) => (
                 <Link
                   key={link.label}
                   to={link.to}
                   onClick={closeMobile}
-                  className="flex items-center rounded-xl px-4 py-3 text-sm font-medium text-muted-foreground transition-colors hover:bg-teal-50/80 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                  className="flex items-center rounded-xl px-4 py-3 text-sm font-medium text-muted-foreground transition-colors hover:bg-teal-50/80 hover:text-foreground min-h-[44px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
                 >
                   {link.label}
                 </Link>
@@ -127,21 +138,21 @@ export function SiteHeader() {
 
             <div className="mt-4 border-t border-teal-100/80 pt-4">
               {isSignedIn ? (
-                <Button asChild className="w-full bg-gradient-to-r from-[#0f766e] via-[#0284c7] to-[#059669] text-white shadow-md shadow-teal-950/15">
+                <Button asChild className="w-full bg-gradient-to-r from-[#0f766e] via-[#0284c7] to-[#059669] text-white shadow-md shadow-teal-950/15 min-h-[44px]">
                   <Link to="/app" onClick={closeMobile}>
                     <span>Open App</span>
                     <ArrowRight className="h-4 w-4" aria-hidden="true" />
                   </Link>
                 </Button>
               ) : (
-                <div className="flex flex-col gap-2">
-                  <Button asChild variant="outline" className="w-full">
+                <div className="flex flex-col gap-2.5">
+                  <Button asChild variant="outline" className="w-full min-h-[44px]">
                     <Link to="/login" onClick={closeMobile}>
                       <LogIn className="h-4 w-4" aria-hidden="true" />
                       Sign In
                     </Link>
                   </Button>
-                  <Button asChild className="w-full bg-gradient-to-r from-[#0f766e] via-[#0284c7] to-[#059669] text-white shadow-md shadow-teal-950/15">
+                  <Button asChild className="w-full bg-gradient-to-r from-[#0f766e] via-[#0284c7] to-[#059669] text-white shadow-md shadow-teal-950/15 min-h-[44px]">
                     <Link to="/signup" onClick={closeMobile}>
                       <Sparkles className="h-3.5 w-3.5" aria-hidden="true" />
                       Get Started
@@ -156,3 +167,4 @@ export function SiteHeader() {
     </header>
   );
 }
+

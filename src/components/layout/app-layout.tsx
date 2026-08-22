@@ -34,8 +34,12 @@ export function AppLayout({ roleCode: roleCodeOverride }: AppLayoutProps) {
   const subtitle = activeNav?.description ?? `${role.label} workspace for CivicFix.`;
 
   return (
-    <div className="min-h-screen bg-background text-foreground">
-      <div className="relative flex min-h-screen">
+    <div className="min-h-screen bg-background text-foreground flex flex-col">
+      <a href="#main-content" className="skip-to-content">
+        Skip to main content
+      </a>
+
+      <div className="relative flex min-h-screen flex-1">
         <AppSidebar mobileOpen={mobileOpen} onClose={() => setMobileOpen(false)} roleCode={roleCode} />
 
         <div className="flex min-w-0 flex-1 flex-col">
@@ -46,7 +50,7 @@ export function AppLayout({ roleCode: roleCodeOverride }: AppLayoutProps) {
             title={title}
           />
 
-          <main className="min-w-0 flex-1 px-4 py-6 sm:px-6 lg:px-8">
+          <main id="main-content" tabIndex={-1} className="min-w-0 flex-1 px-3.5 py-5 sm:px-6 sm:py-6 lg:px-8 xl:px-10 lg:py-8 outline-none">
             <div className="mx-auto flex min-w-0 w-full max-w-7xl flex-col gap-6">
               <Outlet context={{ roleCode }} />
             </div>
@@ -56,3 +60,4 @@ export function AppLayout({ roleCode: roleCodeOverride }: AppLayoutProps) {
     </div>
   );
 }
+

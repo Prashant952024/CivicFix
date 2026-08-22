@@ -98,7 +98,8 @@
   }
 
   html {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground scroll-smooth;
+    -webkit-text-size-adjust: 100%;
   }
 
   body {
@@ -114,8 +115,15 @@
 
   input,
   textarea,
+  select,
+  button {
+    touch-action: manipulation;
+  }
+
+  input,
+  textarea,
   select {
-    @apply bg-surface text-foreground;
+    @apply bg-surface text-foreground transition-colors;
   }
 
   input::placeholder,
@@ -131,4 +139,51 @@
     background: color-mix(in srgb, var(--primary) 18%, white);
     color: var(--foreground);
   }
+
+  /* Custom subtle scrollbar */
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: color-mix(in srgb, var(--border) 80%, transparent);
+    border-radius: 9999px;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: color-mix(in srgb, var(--muted-foreground) 50%, transparent);
+  }
 }
+
+/* ────────────────────────────────────────────────────────────────────────────
+ * SHARED LAYOUT & CONTAINER HELPERS (Phase 1 Foundation)
+ * ──────────────────────────────────────────────────────────────────────────── */
+@layer utilities {
+  /* Skip Link for Accessibility */
+  .skip-to-content {
+    @apply sr-only focus:not-sr-only focus:fixed focus:top-4 focus:left-4 focus:z-50 focus:rounded-xl focus:border focus:border-teal-200 focus:bg-white focus:px-4 focus:py-2.5 focus:text-sm focus:font-semibold focus:text-primary focus:shadow-xl focus:outline-none focus:ring-2 focus:ring-primary;
+  }
+
+  /* Layout Containers */
+  .page-container-form {
+    @apply mx-auto w-full max-w-3xl;
+  }
+
+  .page-container-detail {
+    @apply mx-auto w-full max-w-5xl;
+  }
+
+  .page-container-standard {
+    @apply mx-auto w-full max-w-6xl;
+  }
+
+  .page-container-wide {
+    @apply mx-auto w-full max-w-7xl;
+  }
+}
+
