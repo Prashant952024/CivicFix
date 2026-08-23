@@ -1,8 +1,20 @@
 import { useEffect, useMemo, useState } from "react";
-import { AlertCircle, Building2, Save } from "lucide-react";
+import {
+  AlertCircle,
+  Building2,
+  CheckCircle2,
+  Layers,
+  RefreshCw,
+  Save,
+  Users,
+} from "lucide-react";
 
 import { useAppSession } from "@/auth/app-session";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { EmptyState } from "@/components/ui/empty-state";
+import { PageHeader } from "@/components/ui/page-header";
 import { formatAdminDateTime } from "@/lib/admin";
 import { supabase } from "@/lib/supabase";
 import type { Database } from "@/types/database";
@@ -23,12 +35,19 @@ function isResolvedLikeStatus(status: IssueRow["status"]) {
   return status === "RESOLVED" || status === "CITIZEN_VERIFIED";
 }
 
-function getDepartmentWorkloadTone(openCount: number, totalCount: number) {
+function getDepartmentWorkloadTone(openCount: number, totalCount: number): "success" | "warning" | "danger" | "info" {
   const ratio = totalCount > 0 ? openCount / totalCount : 0;
   if (ratio >= 0.75) return "danger";
   if (ratio >= 0.45) return "warning";
   if (ratio > 0) return "info";
   return "success";
+}
+
+function getWorkloadLabel(tone: "success" | "warning" | "danger" | "info") {
+  if (tone === "success") return "Healthy";
+  if (tone === "warning") return "Busy";
+  if (tone === "danger") return "Overloaded";
+  return "Balanced";
 }
 
 export function AdminDepartmentsPage() {
@@ -40,6 +59,7 @@ export function AdminDepartmentsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [savingDepartmentId, setSavingDepartmentId] = useState<string | null>(null);
+  const [savedSuccessId, setSavedSuccessId] = useState<string | null>(null);
   const [refreshNonce, setRefreshNonce] = useState(0);
   const [lastRefreshedAt, setLastRefreshedAt] = useState<string | null>(null);
   const sessionProblem = sessionStatus === "error" ? sessionError ?? "CivicFix profile is unavailable." : null;
@@ -171,88 +191,96 @@ export function AdminDepartmentsPage() {
       return;
     }
 
+    setSavedSuccessId(department.id);
+    setTimeout(() => setSavedSuccessId(null), 3000);
     setRefreshNonce((value) => value + 1);
   }
 
   if (sessionProblem || error) {
     return (
-      <section className="rounded-[1.75rem] border border-border/80 bg-white/82 p-6 shadow-lg shadow-teal-950/10">
-        <div className="max-w-2xl space-y-4">
-          <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-red-200 bg-red-50 text-red-700">
-            <AlertCircle className="h-5 w-5" aria-hidden="true" />
-          </div>
-          <div className="space-y-2">
-            <h2 className="text-2xl font-semibold tracking-tight text-foreground">Unable to load departments</h2>
-            <p className="text-sm leading-6 text-muted-foreground">{sessionProblem ?? error}</p>
-          </div>
+      <EmptyState
+        icon={AlertCircle}
+        variant="error"
+        title="Departments Unavailable"
+        description={sessionProblem ?? error ?? "Unable to load departments."}
+        action={
           <Button onClick={() => setRefreshNonce((value) => value + 1)} type="button">
             Try Again
           </Button>
-        </div>
-      </section>
+        }
+      />
     );
   }
 
   if (loading) {
     return (
       <div className="space-y-6">
-        <section className="rounded-[1.75rem] border border-teal-100/80 bg-[linear-gradient(135deg,rgba(15,118,110,0.12)_0%,rgba(2,132,199,0.10)_48%,rgba(124,58,237,0.08)_100%)] p-6 shadow-lg shadow-teal-950/10">
-          <div className="space-y-3">
-            <div className="h-4 w-44 animate-pulse rounded-full bg-muted/60" />
-            <div className="h-9 w-full max-w-3xl animate-pulse rounded-2xl bg-muted/60" />
-            <div className="h-4 w-full max-w-2xl animate-pulse rounded-full bg-muted/40" />
-          </div>
-        </section>
-        <section className="grid gap-4 xl:grid-cols-2">
+        <div className="h-40 w-full animate-pulse rounded-[1.85rem] border border-teal-100/80 bg-teal-50/40" />
+        <div className="grid gap-3.5 sm:grid-cols-2 lg:grid-cols-4">
           {Array.from({ length: 4 }).map((_, index) => (
-            <div key={index} className="h-56 animate-pulse rounded-[1.5rem] border border-border/80 bg-surface/90" />
+            <div key={index} className="h-28 animate-pulse rounded-2xl border border-border/80 bg-surface/90" />
           ))}
-        </section>
+        </div>
+        <div className="space-y-4">
+          {Array.from({ length: 3 }).map((_, index) => (
+            <div key={index} className="h-60 animate-pulse rounded-2xl border border-border/80 bg-surface/90" />
+          ))}
+        </div>
       </div>
     );
   }
 
+  const activeDepartmentsCount = departments.filter((d) => d.is_active).length;
+  const linkedIssuesCount = issues.filter((i) => i.department_id).length;
+  const linkedStaffCount = profiles.filter((p) => p.department_id).length;
+
   return (
     <div className="space-y-6">
-      <section className="rounded-[1.85rem] border border-teal-100/80 bg-[linear-gradient(135deg,rgba(15,118,110,0.14)_0%,rgba(2,132,199,0.12)_45%,rgba(124,58,237,0.10)_100%)] p-6 shadow-2xl shadow-teal-950/12">
-        <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
-          <div className="space-y-3">
-            <div className="inline-flex items-center rounded-full border border-sky-200/80 bg-white/80 px-3 py-1 text-xs font-semibold uppercase tracking-[0.22em] text-[#0f5f59] shadow-sm shadow-teal-950/5">
-              Department administration
-            </div>
-            <div className="space-y-2">
-              <h2 className="text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">Manage civic departments</h2>
-              <p className="max-w-3xl text-sm leading-6 text-muted-foreground">
-                Update department names, descriptions, and active state using the schema already available to Admin.
-              </p>
-            </div>
-          </div>
-          <Button onClick={() => setRefreshNonce((value) => value + 1)} type="button" variant="outline">
-            Refresh data
+      {/* 1. Page Header */}
+      <PageHeader
+        tag="Civic Infrastructure"
+        title="Department Management"
+        description="Configure municipal departments, adjust routing availability, and monitor operational capacity."
+        actions={
+          <Button onClick={() => setRefreshNonce((value) => value + 1)} size="sm" type="button" variant="outline">
+            <RefreshCw className="mr-2 h-4 w-4" />
+            Refresh
           </Button>
-        </div>
-      </section>
+        }
+      />
 
-      <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <div className="rounded-2xl border border-border/80 bg-surface/90 p-5">
-          <p className="text-sm font-medium text-muted-foreground">Total departments</p>
-          <p className="mt-4 text-3xl font-semibold tracking-tight text-foreground">{departments.length}</p>
-        </div>
-        <div className="rounded-2xl border border-border/80 bg-surface/90 p-5">
-          <p className="text-sm font-medium text-muted-foreground">Active departments</p>
-          <p className="mt-4 text-3xl font-semibold tracking-tight text-foreground">{departments.filter((department) => department.is_active).length}</p>
-        </div>
-        <div className="rounded-2xl border border-border/80 bg-surface/90 p-5">
-          <p className="text-sm font-medium text-muted-foreground">Department-linked issues</p>
-          <p className="mt-4 text-3xl font-semibold tracking-tight text-foreground">{issues.filter((issue) => issue.department_id).length}</p>
-        </div>
-        <div className="rounded-2xl border border-border/80 bg-surface/90 p-5">
-          <p className="text-sm font-medium text-muted-foreground">Department-linked staff</p>
-          <p className="mt-4 text-3xl font-semibold tracking-tight text-foreground">{profiles.filter((user) => user.department_id).length}</p>
-        </div>
-      </section>
+      {/* 2. Top Summary KPI Cards */}
+      <div className="grid gap-3.5 sm:grid-cols-2 lg:grid-cols-4">
+        {[
+          { label: "Total Departments", value: departments.length, icon: Building2, tone: "info" as const },
+          { label: "Active Departments", value: activeDepartmentsCount, icon: CheckCircle2, tone: "success" as const },
+          { label: "Linked Issues", value: linkedIssuesCount, icon: Layers, tone: "warning" as const },
+          { label: "Assigned Staff", value: linkedStaffCount, icon: Users, tone: "default" as const },
+        ].map(({ label, value, icon: Icon, tone }) => (
+          <Card key={label} className="border border-border/80 bg-surface/95 shadow-sm">
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between gap-3">
+                <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{label}</p>
+                <div
+                  className={`flex h-8 w-8 items-center justify-center rounded-xl border ${
+                    tone === "success"
+                      ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                      : tone === "warning"
+                        ? "border-amber-200 bg-amber-50 text-amber-700"
+                        : "border-sky-200 bg-sky-50 text-sky-700"
+                  }`}
+                >
+                  <Icon className="h-4 w-4" aria-hidden="true" />
+                </div>
+              </div>
+              <p className="mt-2 truncate text-2xl font-bold tracking-tight text-foreground">{value}</p>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
 
-      <section className="space-y-4">
+      {/* 3. Department Cards List */}
+      <div className="space-y-4">
         {departments.map((department) => {
           const draft = drafts[department.id];
           if (!draft) {
@@ -264,122 +292,133 @@ export function AdminDepartmentsPage() {
           const workload = workloadByDepartment.get(department.id) ?? { total: 0, open: 0, resolved: 0, reopened: 0, stale: 0 };
           const workloadTone = getDepartmentWorkloadTone(workload.open, workload.total);
           const resolutionRate = workload.total > 0 ? Math.round((workload.resolved / workload.total) * 100) : 0;
+          const isSaving = savingDepartmentId === department.id;
+          const isSaved = savedSuccessId === department.id;
 
           return (
-            <article key={department.id} className="rounded-[1.75rem] border border-border/80 bg-surface/90 p-6 shadow-lg shadow-teal-950/5">
-              <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-                <div className="space-y-2">
+            <Card key={department.id} className="border border-border/80 bg-surface/95 shadow-sm overflow-hidden">
+              <CardHeader className="pb-3 border-b border-border/60">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                   <div className="flex items-center gap-3">
-                    <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-sky-100 via-teal-100 to-emerald-100 text-teal-900 ring-1 ring-teal-200">
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-teal-100 via-sky-100 to-emerald-100 text-teal-900 border border-teal-200">
                       <Building2 className="h-5 w-5" aria-hidden="true" />
                     </div>
                     <div>
-                      <p className="text-lg font-semibold text-foreground">{department.name}</p>
-                      <p className="text-sm text-muted-foreground">
-                        Updated {formatAdminDateTime(department.updated_at)} · Created {formatAdminDateTime(department.created_at)}
+                      <div className="flex items-center gap-2">
+                        <CardTitle className="text-base font-bold text-foreground">{department.name}</CardTitle>
+                        <Badge variant={department.is_active ? "success" : "outline"} size="sm">
+                          {department.is_active ? "Active" : "Inactive"}
+                        </Badge>
+                        <Badge variant={workloadTone} size="sm">
+                          {getWorkloadLabel(workloadTone)}
+                        </Badge>
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        {issueCount} linked issues · {staffCount} assigned staff · Updated {formatAdminDateTime(department.updated_at)}
                       </p>
                     </div>
                   </div>
-                  <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
-                    <span>{issueCount} linked issues</span>
-                    <span>•</span>
-                    <span>{staffCount} linked staff</span>
-                    <span>•</span>
-                    <span>{department.is_active ? "Active" : "Inactive"}</span>
+
+                  <div className="flex items-center gap-2 self-end sm:self-auto">
+                    {isSaved && (
+                      <span className="flex items-center text-xs font-semibold text-emerald-600 animate-fade-in">
+                        <CheckCircle2 className="mr-1 h-3.5 w-3.5" />
+                        Saved
+                      </span>
+                    )}
+                    <Button
+                      size="sm"
+                      disabled={isSaving}
+                      onClick={() => void saveDepartment(department)}
+                      type="button"
+                    >
+                      <Save className={`mr-1.5 h-3.5 w-3.5 ${isSaving ? "animate-spin" : ""}`} />
+                      {isSaving ? "Saving..." : "Save Changes"}
+                    </Button>
                   </div>
-                  <div className="grid gap-2 sm:grid-cols-4">
-                    <div className="rounded-2xl border border-border/70 bg-surface-elevated p-3">
-                      <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">Open</p>
-                      <p className="mt-2 text-2xl font-semibold text-foreground">{workload.open}</p>
-                    </div>
-                    <div className="rounded-2xl border border-border/70 bg-surface-elevated p-3">
-                      <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">Resolved</p>
-                      <p className="mt-2 text-2xl font-semibold text-foreground">{workload.resolved}</p>
-                    </div>
-                    <div className="rounded-2xl border border-border/70 bg-surface-elevated p-3">
-                      <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">Stale</p>
-                      <p className="mt-2 text-2xl font-semibold text-foreground">{workload.stale}</p>
-                    </div>
-                    <div className="rounded-2xl border border-border/70 bg-surface-elevated p-3">
-                      <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">Closed rate</p>
-                      <p className="mt-2 text-2xl font-semibold text-foreground">{resolutionRate}%</p>
-                    </div>
+                </div>
+              </CardHeader>
+
+              <CardContent className="p-5 space-y-4">
+                {/* Workload Mini Stats */}
+                <div className="grid gap-2.5 grid-cols-2 sm:grid-cols-4">
+                  <div className="rounded-xl border border-border/70 bg-background/50 p-3">
+                    <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Open Issues</p>
+                    <p className="mt-1 text-xl font-bold text-foreground">{workload.open}</p>
+                  </div>
+                  <div className="rounded-xl border border-border/70 bg-background/50 p-3">
+                    <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Resolved Issues</p>
+                    <p className="mt-1 text-xl font-bold text-foreground">{workload.resolved}</p>
+                  </div>
+                  <div className="rounded-xl border border-border/70 bg-background/50 p-3">
+                    <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Stale Issues</p>
+                    <p className="mt-1 text-xl font-bold text-foreground">{workload.stale}</p>
+                  </div>
+                  <div className="rounded-xl border border-border/70 bg-background/50 p-3">
+                    <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Closure Rate</p>
+                    <p className="mt-1 text-xl font-bold text-foreground">{resolutionRate}%</p>
                   </div>
                 </div>
 
-                <div className="flex flex-col items-start gap-3 lg:items-end">
-                  <span
-                    className={[
-                      "inline-flex rounded-full border px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] ring-1",
-                      workloadTone === "success"
-                        ? "bg-emerald-50 text-emerald-700 ring-emerald-200"
-                        : workloadTone === "warning"
-                          ? "bg-amber-50 text-amber-700 ring-amber-200"
-                          : workloadTone === "danger"
-                            ? "bg-rose-50 text-rose-700 ring-rose-200"
-                            : "bg-sky-50 text-sky-700 ring-sky-200",
-                    ].join(" ")}
-                  >
-                    {workloadTone === "success" ? "Healthy" : workloadTone === "warning" ? "Busy" : workloadTone === "danger" ? "Overloaded" : "Balanced"}
-                  </span>
-                  <Button disabled={savingDepartmentId === department.id} onClick={() => void saveDepartment(department)} type="button">
-                    <Save className="h-4 w-4" aria-hidden="true" />
-                    Save changes
-                  </Button>
-                </div>
-              </div>
-
-              <div className="mt-5 grid gap-4 xl:grid-cols-[1fr_1.3fr_auto]">
-                <label className="space-y-2">
-                  <span className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">Department name</span>
-                  <input
-                    className="w-full rounded-2xl border border-border/80 bg-white/80 px-4 py-3 text-sm text-foreground outline-none transition placeholder:text-muted-foreground focus:border-primary/50 focus:ring-2 focus:ring-primary/20"
-                    onChange={(event) =>
-                      setDrafts((current) => ({
-                        ...current,
-                        [department.id]: { ...draft, name: event.target.value },
-                      }))
-                    }
-                    value={draft.name}
-                  />
-                </label>
-
-                <label className="space-y-2">
-                  <span className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">Description</span>
-                  <textarea
-                    className="min-h-[5.6rem] w-full rounded-2xl border border-border/80 bg-white/80 px-4 py-3 text-sm text-foreground outline-none transition placeholder:text-muted-foreground focus:border-primary/50 focus:ring-2 focus:ring-primary/20"
-                    onChange={(event) =>
-                      setDrafts((current) => ({
-                        ...current,
-                        [department.id]: { ...draft, description: event.target.value },
-                      }))
-                    }
-                    value={draft.description}
-                  />
-                </label>
-
-                <label className="flex items-center gap-3 rounded-2xl border border-border/80 bg-surface-elevated px-4 py-3">
-                  <input
-                    checked={draft.is_active}
-                    className="h-4 w-4 rounded border-border text-primary focus:ring-primary/30"
-                    onChange={(event) =>
-                      setDrafts((current) => ({
-                        ...current,
-                        [department.id]: { ...draft, is_active: event.target.checked },
-                      }))
-                    }
-                    type="checkbox"
-                  />
+                {/* Edit Form */}
+                <div className="grid gap-4 md:grid-cols-[1fr_1.4fr_auto] items-start pt-2">
                   <div>
-                    <p className="text-sm font-medium text-foreground">Active</p>
-                    <p className="text-sm text-muted-foreground">Controls whether this department is available for routing.</p>
+                    <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground block mb-1.5">
+                      Department Name
+                    </label>
+                    <input
+                      className="w-full h-10 rounded-xl border border-border/80 bg-background px-3.5 text-sm text-foreground shadow-xs outline-none focus:ring-2 focus:ring-primary/20"
+                      value={draft.name}
+                      onChange={(e) =>
+                        setDrafts((curr) => ({
+                          ...curr,
+                          [department.id]: { ...draft, name: e.target.value },
+                        }))
+                      }
+                    />
                   </div>
-                </label>
-              </div>
-            </article>
+
+                  <div>
+                    <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground block mb-1.5">
+                      Description
+                    </label>
+                    <textarea
+                      rows={2}
+                      className="w-full rounded-xl border border-border/80 bg-background p-2.5 text-sm text-foreground shadow-xs outline-none focus:ring-2 focus:ring-primary/20 resize-none"
+                      value={draft.description}
+                      onChange={(e) =>
+                        setDrafts((curr) => ({
+                          ...curr,
+                          [department.id]: { ...draft, description: e.target.value },
+                        }))
+                      }
+                    />
+                  </div>
+
+                  <div className="flex items-center gap-3 rounded-xl border border-border/80 bg-background/40 p-3 h-10 self-end">
+                    <input
+                      id={`active-${department.id}`}
+                      type="checkbox"
+                      checked={draft.is_active}
+                      onChange={(e) =>
+                        setDrafts((curr) => ({
+                          ...curr,
+                          [department.id]: { ...draft, is_active: e.target.checked },
+                        }))
+                      }
+                      className="h-4 w-4 rounded border-border text-primary focus:ring-primary/30"
+                    />
+                    <label htmlFor={`active-${department.id}`} className="text-xs font-semibold text-foreground cursor-pointer select-none">
+                      Active for Routing
+                    </label>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
           );
         })}
-      </section>
+      </div>
     </div>
   );
 }
+

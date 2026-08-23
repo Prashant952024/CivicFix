@@ -1,11 +1,28 @@
 import { useEffect, useMemo, useState, type FormEvent } from "react";
-import { AlertCircle, CheckCircle2, Loader2, Mail, RefreshCw, Search, ShieldCheck, SlidersHorizontal, UserPlus, UsersRound, X } from "lucide-react";
+import {
+  AlertCircle,
+  Building2,
+  CheckCircle2,
+  Filter,
+  Loader2,
+  Mail,
+  RefreshCw,
+  Search,
+  UserPlus,
+  UsersRound,
+  X,
+} from "lucide-react";
 import { useAuth } from "@clerk/react";
 import { useLocation } from "react-router-dom";
 
 import { useAppSession } from "@/auth/app-session";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { formatAdminDateTime, getAdminInitials } from "@/lib/admin";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Dialog } from "@/components/ui/dialog";
+import { EmptyState } from "@/components/ui/empty-state";
+import { PageHeader } from "@/components/ui/page-header";
+import { formatAdminDate, formatAdminDateTime, getAdminInitials, getAdminRoleTone } from "@/lib/admin";
 import { supabase } from "@/lib/supabase";
 import type { Database } from "@/types/database";
 
@@ -50,6 +67,7 @@ export function AdminUsersPage() {
   const [search, setSearch] = useState("");
   const [roleFilter, setRoleFilter] = useState<RoleFilter>("all");
   const [departmentFilter, setDepartmentFilter] = useState("all");
+  const [mobileFilterOpen, setMobileFilterOpen] = useState(false);
   const [page, setPage] = useState(1);
   const [savingUserId, setSavingUserId] = useState<string | null>(null);
   const [refreshNonce, setRefreshNonce] = useState(0);
@@ -269,163 +287,98 @@ export function AdminUsersPage() {
     }
   }
 
+  const hasActiveFilters = search.trim().length > 0 || roleFilter !== "all" || departmentFilter !== "all";
+
   if (sessionProblem || error) {
     return (
-      <section className="rounded-[1.75rem] border border-border/80 bg-white/82 p-6 shadow-lg shadow-teal-950/10">
-        <div className="max-w-2xl space-y-4">
-          <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-red-200 bg-red-50 text-red-700">
-            <AlertCircle className="h-5 w-5" aria-hidden="true" />
-          </div>
-          <div className="space-y-2">
-            <h2 className="text-2xl font-semibold tracking-tight text-foreground">Unable to load users</h2>
-            <p className="text-sm leading-6 text-muted-foreground">{sessionProblem ?? error}</p>
-          </div>
+      <EmptyState
+        icon={AlertCircle}
+        variant="error"
+        title="User Management Unavailable"
+        description={sessionProblem ?? error ?? "Unable to load user accounts right now."}
+        action={
           <Button onClick={() => setRefreshNonce((value) => value + 1)} type="button">
             Try Again
           </Button>
-        </div>
-      </section>
+        }
+      />
     );
   }
 
   if (loading) {
     return (
       <div className="space-y-6">
-        <section className="rounded-[1.75rem] border border-teal-100/80 bg-[linear-gradient(135deg,rgba(15,118,110,0.12)_0%,rgba(2,132,199,0.10)_48%,rgba(124,58,237,0.08)_100%)] p-6 shadow-lg shadow-teal-950/10">
-          <div className="space-y-3">
-            <div className="h-4 w-44 animate-pulse rounded-full bg-muted/60" />
-            <div className="h-9 w-full max-w-3xl animate-pulse rounded-2xl bg-muted/60" />
-            <div className="h-4 w-full max-w-2xl animate-pulse rounded-full bg-muted/40" />
-          </div>
-        </section>
-        <section className="h-64 animate-pulse rounded-[1.75rem] border border-border/80 bg-surface/90" />
+        <div className="h-44 w-full animate-pulse rounded-[1.85rem] border border-teal-100/80 bg-teal-50/40" />
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          {Array.from({ length: 4 }).map((_, index) => (
+            <div key={index} className="h-28 animate-pulse rounded-2xl border border-border/80 bg-surface/90" />
+          ))}
+        </div>
+        <div className="h-96 animate-pulse rounded-[1.75rem] border border-border/80 bg-surface/90" />
       </div>
     );
   }
 
   return (
     <div className="space-y-6">
-      <section className="relative overflow-hidden rounded-[1.85rem] border border-teal-100/80 bg-[linear-gradient(135deg,rgba(15,118,110,0.14)_0%,rgba(2,132,199,0.10)_45%,rgba(124,58,237,0.10)_100%)] shadow-2xl shadow-teal-950/12">
-        <div className="pointer-events-none absolute -right-10 top-0 h-36 w-36 rounded-full bg-sky-400/20 blur-3xl" aria-hidden="true" />
-        <div className="pointer-events-none absolute bottom-0 left-10 h-40 w-40 rounded-full bg-emerald-400/20 blur-3xl" aria-hidden="true" />
-        <div className="border-b border-white/50 bg-[linear-gradient(135deg,rgba(255,255,255,0.86)_0%,rgba(247,250,248,0.76)_100%)] px-6 py-6 backdrop-blur-md">
-          <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
-            <div className="space-y-3">
-              <div className="inline-flex items-center rounded-full border border-sky-200/80 bg-white/80 px-3 py-1 text-xs font-semibold uppercase tracking-[0.22em] text-[#0f5f59] shadow-sm shadow-teal-950/5">
-                User management
-              </div>
-              <div className="space-y-2">
-                <h2 className="text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">Manage CivicFix accounts</h2>
-                <p className="max-w-3xl text-sm leading-6 text-muted-foreground">
-                  Search users, review account metadata, and update roles when the existing RLS policy allows it. Self-role changes are disabled.
-                </p>
-              </div>
-            </div>
-            <div className="rounded-2xl border border-border/70 bg-white/80 px-4 py-3 text-sm text-muted-foreground shadow-sm shadow-teal-950/5">
-              <div className="flex items-center gap-2 font-medium text-foreground">
-                <ShieldCheck className="h-4 w-4 text-[#0f766e]" aria-hidden="true" />
-                Role updates are direct Supabase writes
-              </div>
-              <p className="mt-1 leading-6">Only profiles already visible to Admin can be updated.</p>
-            </div>
+      {/* 1. Page Header */}
+      <PageHeader
+        tag="User Management"
+        title="CivicFix Accounts"
+        description="Search platform accounts, inspect roles, and update operational assignments."
+        actions={
+          <div className="flex flex-wrap items-center gap-2">
+            <Button onClick={openCreateModal} size="default" type="button">
+              <UserPlus className="h-4 w-4 mr-1.5" />
+              Create Field Account
+            </Button>
+            <Button onClick={() => setRefreshNonce((value) => value + 1)} size="sm" type="button" variant="outline">
+              <RefreshCw className="h-4 w-4" />
+            </Button>
           </div>
-        </div>
-      </section>
+        }
+      />
 
-      <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      {/* 2. Top Summary Metric Cards */}
+      <div className="grid gap-3.5 sm:grid-cols-2 lg:grid-cols-4">
         {[
-          { label: "Total users", value: users.length, icon: UsersRound },
-          { label: "Citizens", value: users.filter((user) => user.role?.code === "CITIZEN").length, icon: UsersRound },
-          { label: "Officers", value: users.filter((user) => user.role?.code === "MUNICIPAL_OFFICER").length, icon: SlidersHorizontal },
-          { label: "Workers", value: users.filter((user) => user.role?.code === "FIELD_WORKER").length, icon: RefreshCw },
-        ].map(({ label, value, icon: Icon }) => (
-          <div key={label} className="rounded-2xl border border-border/80 bg-surface/90 p-5 shadow-sm shadow-teal-950/5">
-            <div className="flex items-center justify-between gap-4">
-              <p className="text-sm font-medium text-muted-foreground">{label}</p>
-              <span className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-sky-50 text-sky-700 ring-1 ring-sky-200">
-                <Icon className="h-4 w-4" aria-hidden="true" />
-              </span>
-            </div>
-            <p className="mt-4 text-3xl font-semibold tracking-tight text-foreground">{value}</p>
-          </div>
+          { label: "Total Users", value: users.length, icon: UsersRound, tone: "info" as const },
+          { label: "Citizens", value: users.filter((u) => u.role?.code === "CITIZEN").length, icon: UsersRound, tone: "info" as const },
+          { label: "Officers", value: users.filter((u) => u.role?.code === "MUNICIPAL_OFFICER").length, icon: Building2, tone: "warning" as const },
+          { label: "Field Workers", value: users.filter((u) => u.role?.code === "FIELD_WORKER").length, icon: RefreshCw, tone: "danger" as const },
+        ].map(({ label, value, icon: Icon, tone }) => (
+          <Card key={label} className="border border-border/80 bg-surface/95 shadow-sm">
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between gap-3">
+                <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{label}</p>
+                <div
+                  className={`flex h-8 w-8 items-center justify-center rounded-xl border ${
+                    tone === "warning"
+                      ? "border-amber-200 bg-amber-50 text-amber-700"
+                      : tone === "danger"
+                        ? "border-rose-200 bg-rose-50 text-rose-700"
+                        : "border-sky-200 bg-sky-50 text-sky-700"
+                  }`}
+                >
+                  <Icon className="h-4 w-4" aria-hidden="true" />
+                </div>
+              </div>
+              <p className="mt-2 text-2xl font-bold tracking-tight text-foreground">{value}</p>
+            </CardContent>
+          </Card>
         ))}
-      </section>
+      </div>
 
-      <section className="rounded-[1.75rem] border border-teal-100/80 bg-[linear-gradient(135deg,rgba(255,255,255,0.88)_0%,rgba(239,246,244,0.9)_100%)] p-5 shadow-lg shadow-teal-950/10">
-        <div className="grid gap-4 xl:grid-cols-[1.2fr_0.75fr_0.75fr_auto]">
-          <label className="relative">
-            <span className="sr-only">Search users</span>
-            <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <input
-              className="w-full rounded-2xl border border-border/80 bg-white/80 py-3 pl-11 pr-4 text-sm text-foreground outline-none transition placeholder:text-muted-foreground focus:border-primary/50 focus:ring-2 focus:ring-primary/20"
-              onChange={(event) => {
-                setSearch(event.target.value);
-                setPage(1);
-              }}
-              placeholder="Search name, email, phone, role, or department"
-              value={search}
-            />
-          </label>
-
-          <label className="space-y-2">
-            <span className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">Role</span>
-            <select
-              className="w-full rounded-2xl border border-border/80 bg-white/80 px-4 py-3 text-sm text-foreground outline-none transition focus:border-primary/50 focus:ring-2 focus:ring-primary/20"
-              onChange={(event) => {
-                setRoleFilter(event.target.value as RoleFilter);
-                setPage(1);
-              }}
-              value={roleFilter}
-            >
-              <option value="all">All roles</option>
-              {managedRoleOptions.map((role) => (
-                <option key={role.id} value={role.code}>
-                  {role.name}
-                </option>
-              ))}
-            </select>
-          </label>
-
-          <label className="space-y-2">
-            <span className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">Department</span>
-            <select
-              className="w-full rounded-2xl border border-border/80 bg-white/80 px-4 py-3 text-sm text-foreground outline-none transition focus:border-primary/50 focus:ring-2 focus:ring-primary/20"
-              onChange={(event) => {
-                setDepartmentFilter(event.target.value);
-                setPage(1);
-              }}
-              value={departmentFilter}
-            >
-              <option value="all">All departments</option>
-              {departments.map((department) => (
-                <option key={department.id} value={department.id}>
-                  {department.name}
-                </option>
-              ))}
-            </select>
-          </label>
-
-          <div className="flex gap-2">
-            <Button onClick={openCreateModal} type="button">
-              <UserPlus className="mr-2 h-4 w-4" aria-hidden="true" />
-              Create User
-            </Button>
-            <Button onClick={() => setRefreshNonce((value) => value + 1)} type="button" variant="outline">
-              Refresh
-            </Button>
-          </div>
-        </div>
-      </section>
-
-      {createSuccess ? (
-        <div className="flex items-start gap-3 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-emerald-900 shadow-sm shadow-emerald-950/5">
-          <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0" aria-hidden="true" />
-          <div className="min-w-0">
-            <p className="font-medium">User created</p>
-            <p className="text-sm leading-6">{createSuccess}</p>
+      {/* 3. Feedback Banner */}
+      {createSuccess && (
+        <div className="flex items-start gap-3 rounded-2xl border border-emerald-200 bg-emerald-50/90 p-4 text-emerald-900 shadow-sm animate-in fade-in">
+          <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-emerald-600" aria-hidden="true" />
+          <div className="min-w-0 flex-1">
+            <p className="font-bold text-sm">Account Created Successfully</p>
+            <p className="text-xs text-emerald-800 leading-relaxed mt-0.5">{createSuccess}</p>
           </div>
           <button
-            className="ml-auto rounded-full p-1 text-emerald-700 transition hover:bg-emerald-100"
+            className="rounded-full p-1 text-emerald-700 hover:bg-emerald-100"
             onClick={() => setCreateSuccess(null)}
             type="button"
             aria-label="Dismiss success message"
@@ -433,121 +386,399 @@ export function AdminUsersPage() {
             <X className="h-4 w-4" aria-hidden="true" />
           </button>
         </div>
-      ) : null}
+      )}
 
-      <section className="rounded-[1.75rem] border border-border/80 bg-surface/90 p-6 shadow-lg shadow-teal-950/5">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <p className="text-sm font-medium text-muted-foreground">Account list</p>
-            <h3 className="mt-1 text-xl font-semibold text-foreground">User records from the live schema</h3>
+      {/* 4. Filter and Search Bar */}
+      <Card className="border border-border/80 bg-surface/95 shadow-sm">
+        <CardContent className="p-4">
+          <div className="flex flex-col md:flex-row gap-3 items-stretch md:items-center justify-between">
+            {/* Search Input */}
+            <div className="relative flex-1">
+              <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <input
+                className="w-full rounded-xl border border-border/80 bg-background py-2.5 pl-10 pr-4 text-xs sm:text-sm text-foreground outline-none transition placeholder:text-muted-foreground focus:border-primary/50 focus:ring-2 focus:ring-primary/20"
+                onChange={(event) => {
+                  setSearch(event.target.value);
+                  setPage(1);
+                }}
+                placeholder="Search by name, email, phone, role, or department..."
+                value={search}
+              />
+            </div>
+
+            {/* Desktop Filters */}
+            <div className="hidden md:flex items-center gap-2.5">
+              <select
+                className="rounded-xl border border-border/80 bg-background px-3 py-2.5 text-xs sm:text-sm text-foreground outline-none transition focus:border-primary/50 focus:ring-2 focus:ring-primary/20"
+                onChange={(event) => {
+                  setRoleFilter(event.target.value as RoleFilter);
+                  setPage(1);
+                }}
+                value={roleFilter}
+              >
+                <option value="all">All Roles</option>
+                <option value="CITIZEN">Citizen</option>
+                <option value="MUNICIPAL_OFFICER">Municipal Officer</option>
+                <option value="FIELD_WORKER">Field Worker</option>
+                <option value="ADMIN">Admin</option>
+              </select>
+
+              <select
+                className="rounded-xl border border-border/80 bg-background px-3 py-2.5 text-xs sm:text-sm text-foreground outline-none transition focus:border-primary/50 focus:ring-2 focus:ring-primary/20"
+                onChange={(event) => {
+                  setDepartmentFilter(event.target.value);
+                  setPage(1);
+                }}
+                value={departmentFilter}
+              >
+                <option value="all">All Departments</option>
+                {departments.map((department) => (
+                  <option key={department.id} value={department.id}>
+                    {department.name}
+                  </option>
+                ))}
+              </select>
+
+              {hasActiveFilters && (
+                <Button
+                  onClick={() => {
+                    setSearch("");
+                    setRoleFilter("all");
+                    setDepartmentFilter("all");
+                    setPage(1);
+                  }}
+                  size="sm"
+                  variant="ghost"
+                  className="text-xs text-muted-foreground hover:text-foreground"
+                >
+                  Clear
+                </Button>
+              )}
+            </div>
+
+            {/* Mobile Filter Button */}
+            <div className="flex md:hidden items-center justify-between gap-2">
+              <Button
+                onClick={() => setMobileFilterOpen(true)}
+                size="sm"
+                variant="outline"
+                className="flex-1 text-xs"
+              >
+                <Filter className="h-3.5 w-3.5 mr-1.5" />
+                Filters
+                {hasActiveFilters && (
+                  <span className="ml-1.5 rounded-full bg-primary px-1.5 py-0.2 text-[10px] text-primary-foreground font-bold">
+                    Active
+                  </span>
+                )}
+              </Button>
+
+              {hasActiveFilters && (
+                <Button
+                  onClick={() => {
+                    setSearch("");
+                    setRoleFilter("all");
+                    setDepartmentFilter("all");
+                    setPage(1);
+                  }}
+                  size="sm"
+                  variant="ghost"
+                  className="text-xs text-muted-foreground"
+                >
+                  Clear all
+                </Button>
+              )}
+            </div>
           </div>
-          <div className="rounded-full border border-border/70 bg-surface-elevated px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-            {filteredUsers.length} matches
+        </CardContent>
+      </Card>
+
+      {/* 5. Mobile Filters Modal Dialog */}
+      <Dialog
+        description="Filter user list by operational role and department"
+        onClose={() => setMobileFilterOpen(false)}
+        open={mobileFilterOpen}
+        title="Filter User Accounts"
+      >
+        <div className="space-y-4 py-2">
+          <div className="space-y-1.5">
+            <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground block">
+              Role
+            </label>
+            <select
+              className="w-full rounded-xl border border-border/80 bg-background px-3 py-2.5 text-sm text-foreground outline-none focus:border-primary/50"
+              onChange={(event) => {
+                setRoleFilter(event.target.value as RoleFilter);
+                setPage(1);
+              }}
+              value={roleFilter}
+            >
+              <option value="all">All Roles</option>
+              <option value="CITIZEN">Citizen</option>
+              <option value="MUNICIPAL_OFFICER">Municipal Officer</option>
+              <option value="FIELD_WORKER">Field Worker</option>
+              <option value="ADMIN">Admin</option>
+            </select>
+          </div>
+
+          <div className="space-y-1.5">
+            <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground block">
+              Department
+            </label>
+            <select
+              className="w-full rounded-xl border border-border/80 bg-background px-3 py-2.5 text-sm text-foreground outline-none focus:border-primary/50"
+              onChange={(event) => {
+                setDepartmentFilter(event.target.value);
+                setPage(1);
+              }}
+              value={departmentFilter}
+            >
+              <option value="all">All Departments</option>
+              {departments.map((department) => (
+                <option key={department.id} value={department.id}>
+                  {department.name}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="flex gap-2 pt-3 border-t border-border/60">
+            <Button
+              className="flex-1"
+              onClick={() => {
+                setRoleFilter("all");
+                setDepartmentFilter("all");
+                setPage(1);
+                setMobileFilterOpen(false);
+              }}
+              type="button"
+              variant="outline"
+            >
+              Reset
+            </Button>
+            <Button className="flex-1" onClick={() => setMobileFilterOpen(false)} type="button">
+              Apply Filters
+            </Button>
           </div>
         </div>
+      </Dialog>
 
-        <div className="mt-6 overflow-hidden rounded-2xl border border-border/70">
-          <div className="grid grid-cols-[1.3fr_0.9fr_0.8fr_0.9fr_0.8fr_auto] gap-3 border-b border-border/70 bg-surface-elevated px-4 py-3 text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-            <div>User</div>
-            <div>Role</div>
-            <div>Department</div>
-            <div>Activity</div>
-            <div>Reports</div>
-            <div>Action</div>
+      {/* 6. User Directory: Desktop Table + Mobile Cards */}
+      <Card className="border border-border/80 bg-surface/95 shadow-sm overflow-hidden">
+        <CardHeader className="pb-3 border-b border-border/60">
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle className="text-base font-bold text-foreground">User Directory</CardTitle>
+              <p className="text-xs text-muted-foreground">Live accounts synced with Supabase profiles</p>
+            </div>
+            <Badge variant="outline" size="sm">
+              {filteredUsers.length} {filteredUsers.length === 1 ? "match" : "matches"}
+            </Badge>
           </div>
+        </CardHeader>
 
-            <div className="divide-y divide-border/70">
-              {visibleUsers.length > 0 ? (
-                visibleUsers.map((user) => {
+        <CardContent className="p-0">
+          {visibleUsers.length > 0 ? (
+            <>
+              {/* Desktop Table View (>= 768px) */}
+              <div className="hidden md:block overflow-x-auto">
+                <table className="w-full text-left text-xs sm:text-sm">
+                  <thead className="border-b border-border/60 bg-muted/40 text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
+                    <tr>
+                      <th className="px-4 py-3">User</th>
+                      <th className="px-4 py-3">Role</th>
+                      <th className="px-4 py-3">Department</th>
+                      <th className="px-4 py-3">Reports</th>
+                      <th className="px-4 py-3">Activity</th>
+                      <th className="px-4 py-3 text-right">Role Assignment</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border/60">
+                    {visibleUsers.map((user) => {
+                      const isSelf = user.id === profile?.id;
+                      const roleTone = getAdminRoleTone(user.role?.code ?? "CITIZEN");
+
+                      return (
+                        <tr key={user.id} className="hover:bg-muted/20 transition">
+                          {/* User Avatar + Info */}
+                          <td className="px-4 py-3.5">
+                            <div className="flex items-center gap-3">
+                              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-teal-100 via-sky-100 to-emerald-100 text-xs font-bold text-teal-900 border border-teal-200">
+                                {getAdminInitials(user.full_name || user.email || "User")}
+                              </div>
+                              <div className="min-w-0">
+                                <p className="font-bold text-foreground truncate">{user.full_name || "Unnamed User"}</p>
+                                <p className="text-xs text-muted-foreground truncate">{user.email || "No email"}</p>
+                                {user.phone && <p className="text-[11px] text-muted-foreground truncate">{user.phone}</p>}
+                              </div>
+                            </div>
+                          </td>
+
+                          {/* Role Badge */}
+                          <td className="px-4 py-3.5">
+                            <Badge variant={roleTone} size="sm">
+                              {user.role?.name ?? "Citizen"}
+                            </Badge>
+                          </td>
+
+                          {/* Department */}
+                          <td className="px-4 py-3.5">
+                            <p className="font-medium text-foreground">{user.department?.name || "Unassigned"}</p>
+                            {user.department && (
+                              <span className="text-[10px] text-muted-foreground">
+                                {user.department.is_active ? "Active" : "Inactive"}
+                              </span>
+                            )}
+                          </td>
+
+                          {/* Reports count */}
+                          <td className="px-4 py-3.5">
+                            <span className="font-bold text-foreground">{user.issueCount}</span>
+                          </td>
+
+                          {/* Activity dates */}
+                          <td className="px-4 py-3.5 text-xs text-muted-foreground">
+                            <p>Joined {formatAdminDate(user.created_at)}</p>
+                            <p className="text-[11px]">Updated {formatAdminDateTime(user.updated_at)}</p>
+                          </td>
+
+                          {/* Role Updater Select */}
+                          <td className="px-4 py-3.5 text-right">
+                            <div className="flex items-center justify-end gap-2">
+                              {savingUserId === user.id ? (
+                                <Loader2 className="h-4 w-4 animate-spin text-primary" />
+                              ) : null}
+                              <select
+                                className="w-36 rounded-xl border border-border/80 bg-background px-2.5 py-1.5 text-xs text-foreground outline-none transition focus:border-primary/50 disabled:cursor-not-allowed disabled:opacity-50"
+                                disabled={isSelf || savingUserId === user.id}
+                                onChange={(event) => void updateRole(user, event.target.value)}
+                                value={user.role_id}
+                              >
+                                {roles.map((role) => (
+                                  <option key={role.id} value={role.id}>
+                                    {role.name}
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Mobile Card List (< 768px) */}
+              <div className="md:hidden divide-y divide-border/60 p-3 space-y-3">
+                {visibleUsers.map((user) => {
                   const isSelf = user.id === profile?.id;
+                  const roleTone = getAdminRoleTone(user.role?.code ?? "CITIZEN");
+
                   return (
-                  <div key={user.id} className="grid grid-cols-[1.3fr_0.9fr_0.8fr_0.9fr_0.8fr_auto] gap-3 px-4 py-4">
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-3">
-                        <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-sky-100 via-teal-100 to-emerald-100 text-sm font-semibold text-teal-900 ring-1 ring-teal-200">
-                          {getAdminInitials(user.full_name || user.email || user.phone || "User")}
+                    <div key={user.id} className="rounded-2xl border border-border/70 bg-background/50 p-4 space-y-3">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="flex items-center gap-2.5">
+                          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-teal-100 via-sky-100 to-emerald-100 text-xs font-bold text-teal-900 border border-teal-200">
+                            {getAdminInitials(user.full_name || user.email || "User")}
+                          </div>
+                          <div>
+                            <p className="font-bold text-foreground text-sm">{user.full_name || "Unnamed User"}</p>
+                            <p className="text-xs text-muted-foreground">{user.email || "No email"}</p>
+                          </div>
                         </div>
-                        <div className="min-w-0">
-                          <p className="truncate font-medium text-foreground">{user.full_name || "Unnamed user"}</p>
-                          <p className="truncate text-sm text-muted-foreground">{user.email || "No email on file"}</p>
-                          {user.phone ? <p className="truncate text-xs text-muted-foreground">{user.phone}</p> : null}
+
+                        <Badge variant={roleTone} size="sm">
+                          {user.role?.name ?? "Citizen"}
+                        </Badge>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-2 text-xs pt-2 border-t border-border/60">
+                        <div>
+                          <span className="text-[10px] uppercase font-semibold text-muted-foreground">Department</span>
+                          <p className="font-medium text-foreground">{user.department?.name || "Unassigned"}</p>
+                        </div>
+                        <div>
+                          <span className="text-[10px] uppercase font-semibold text-muted-foreground">Reported Issues</span>
+                          <p className="font-bold text-foreground">{user.issueCount}</p>
+                        </div>
+                      </div>
+
+                      {/* Mobile Role Updater */}
+                      <div className="pt-2 border-t border-border/60 flex items-center justify-between gap-2">
+                        <span className="text-xs font-medium text-muted-foreground">Change Role:</span>
+                        <div className="flex items-center gap-1.5">
+                          {savingUserId === user.id && <Loader2 className="h-3.5 w-3.5 animate-spin text-primary" />}
+                          <select
+                            className="rounded-xl border border-border/80 bg-background px-2.5 py-1.5 text-xs text-foreground outline-none disabled:opacity-50"
+                            disabled={isSelf || savingUserId === user.id}
+                            onChange={(event) => void updateRole(user, event.target.value)}
+                            value={user.role_id}
+                          >
+                            {roles.map((role) => (
+                              <option key={role.id} value={role.id}>
+                                {role.name}
+                              </option>
+                            ))}
+                          </select>
                         </div>
                       </div>
                     </div>
+                  );
+                })}
+              </div>
+            </>
+          ) : (
+            <div className="p-8">
+              <EmptyState
+                icon={UsersRound}
+                title="No Users Found"
+                description={hasActiveFilters ? "No users match your active filter criteria." : "No platform user accounts are available."}
+                action={
+                  hasActiveFilters ? (
+                    <Button
+                      onClick={() => {
+                        setSearch("");
+                        setRoleFilter("all");
+                        setDepartmentFilter("all");
+                        setPage(1);
+                      }}
+                      size="sm"
+                      type="button"
+                    >
+                      Clear Filters
+                    </Button>
+                  ) : undefined
+                }
+              />
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
-                    <div className="space-y-2">
-                      <span
-                        className={`inline-flex rounded-full border px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] ring-1 ${
-                          user.role?.code === "ADMIN"
-                            ? "bg-emerald-50 text-emerald-700 ring-emerald-200"
-                            : user.role?.code === "MUNICIPAL_OFFICER"
-                              ? "bg-amber-50 text-amber-700 ring-amber-200"
-                              : user.role?.code === "FIELD_WORKER"
-                                ? "bg-rose-50 text-rose-700 ring-rose-200"
-                                : "bg-sky-50 text-sky-700 ring-sky-200"
-                        }`}
-                      >
-                        {user.role?.name ?? "Citizen"}
-                      </span>
-                    </div>
-
-                    <div>
-                      <p className="font-medium text-foreground">{user.department?.name || "No department"}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {user.department?.is_active === false ? "Inactive department" : "Active department"}
-                      </p>
-                    </div>
-
-                    <div>
-                      <p className="font-medium text-foreground">{formatAdminDateTime(user.updated_at)}</p>
-                      <p className="text-xs text-muted-foreground">Joined {formatAdminDateTime(user.created_at)}</p>
-                    </div>
-
-                    <div>
-                      <p className="text-2xl font-semibold text-foreground">{user.issueCount}</p>
-                      <p className="text-xs text-muted-foreground">Reported issues</p>
-                    </div>
-
-                    <div className="flex flex-col items-end gap-2">
-                      <select
-                        className="w-44 rounded-2xl border border-border/80 bg-white/80 px-3 py-2 text-sm text-foreground outline-none transition focus:border-primary/50 focus:ring-2 focus:ring-primary/20 disabled:cursor-not-allowed disabled:opacity-50"
-                        disabled={isSelf || savingUserId === user.id}
-                        onChange={(event) => void updateRole(user, event.target.value)}
-                        value={user.role_id}
-                      >
-                        {roles.map((role) => (
-                          <option key={role.id} value={role.id}>
-                            {role.name}
-                          </option>
-                        ))}
-                      </select>
-                      <p className="text-[11px] leading-5 text-muted-foreground">
-                        {isSelf ? "Your own role is locked." : "Changes are written through the Admin RLS policy."}
-                      </p>
-                    </div>
-                  </div>
-                );
-              })
-            ) : (
-              <div className="px-4 py-10 text-center text-sm text-muted-foreground">No users match the current filters.</div>
-            )}
-          </div>
-        </div>
-
-        <div className="mt-5 flex items-center justify-between gap-3">
-          <p className="text-sm text-muted-foreground">
-            Showing {visibleUsers.length} of {filteredUsers.length} users
+      {/* 7. Pagination Controls */}
+      {totalPages > 1 && (
+        <div className="flex flex-wrap items-center justify-between gap-3 pt-2">
+          <p className="text-xs sm:text-sm text-muted-foreground">
+            Showing {(currentPage - 1) * PAGE_SIZE + 1}–{Math.min(currentPage * PAGE_SIZE, filteredUsers.length)} of {filteredUsers.length} users
           </p>
           <div className="flex items-center gap-2">
-            <Button disabled={currentPage <= 1} onClick={() => setPage((value) => Math.max(1, value - 1))} type="button" variant="outline">
+            <Button
+              disabled={currentPage <= 1}
+              onClick={() => setPage((value) => Math.max(1, value - 1))}
+              size="sm"
+              type="button"
+              variant="outline"
+            >
               Previous
             </Button>
-            <span className="rounded-full border border-border/70 bg-surface-elevated px-3 py-2 text-sm text-muted-foreground">
+            <span className="rounded-xl border border-border/70 bg-surface px-3 py-1.5 text-xs text-muted-foreground">
               Page {currentPage} of {totalPages}
             </span>
             <Button
               disabled={currentPage >= totalPages}
               onClick={() => setPage((value) => Math.min(totalPages, value + 1))}
+              size="sm"
               type="button"
               variant="outline"
             >
@@ -555,116 +786,96 @@ export function AdminUsersPage() {
             </Button>
           </div>
         </div>
-      </section>
+      )}
 
-      {createModalOpen ? (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/55 px-4 py-6 backdrop-blur-sm"
-          onClick={closeCreateModal}
-          role="presentation"
-        >
-          <div
-            className="w-full max-w-2xl rounded-[1.75rem] border border-border/80 bg-surface/95 p-6 shadow-2xl shadow-slate-950/30"
-            onClick={(event) => event.stopPropagation()}
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="create-user-title"
-          >
-            <div className="flex items-start justify-between gap-4">
-              <div className="space-y-2">
-                <div className="inline-flex items-center rounded-full border border-sky-200 bg-sky-50 px-3 py-1 text-xs font-semibold uppercase tracking-[0.22em] text-sky-800">
-                  <UserPlus className="mr-2 h-3.5 w-3.5" aria-hidden="true" />
-                  New account
-                </div>
-                <div>
-                  <h3 id="create-user-title" className="text-2xl font-semibold tracking-tight text-foreground">
-                    Create a CivicFix field account
-                  </h3>
-                  <p className="mt-2 text-sm leading-6 text-muted-foreground">
-                    This uses Clerk for authentication and syncs a matching Supabase profile with the chosen operational role.
-                  </p>
-                </div>
-              </div>
-              <button
-                className="rounded-full p-2 text-muted-foreground transition hover:bg-muted hover:text-foreground"
-                onClick={closeCreateModal}
-                type="button"
-                aria-label="Close create user dialog"
-              >
-                <X className="h-5 w-5" aria-hidden="true" />
-              </button>
-            </div>
-
-            {createError ? (
-              <div className="mt-5 flex items-start gap-3 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-red-900">
-                <AlertCircle className="mt-0.5 h-5 w-5 shrink-0" aria-hidden="true" />
-                <p className="text-sm leading-6">{createError}</p>
-              </div>
-            ) : null}
-
-            <form className="mt-5 space-y-5" onSubmit={(event) => void submitCreateUser(event)}>
-              <div className="grid gap-4 md:grid-cols-2">
-                <label className="space-y-2">
-                  <span className="text-sm font-medium text-foreground">Full name</span>
-                  <input
-                    className="w-full rounded-2xl border border-border/80 bg-white/85 px-4 py-3 text-sm text-foreground outline-none transition placeholder:text-muted-foreground focus:border-primary/50 focus:ring-2 focus:ring-primary/20"
-                    onChange={(event) => setCreateForm((value) => ({ ...value, fullName: event.target.value }))}
-                    placeholder="Aarav Mehta"
-                    value={createForm.fullName}
-                  />
-                </label>
-
-                <label className="space-y-2">
-                  <span className="text-sm font-medium text-foreground">Email</span>
-                  <div className="relative">
-                    <Mail className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
-                    <input
-                      autoComplete="email"
-                      className="w-full rounded-2xl border border-border/80 bg-white/85 py-3 pl-11 pr-4 text-sm text-foreground outline-none transition placeholder:text-muted-foreground focus:border-primary/50 focus:ring-2 focus:ring-primary/20"
-                      onChange={(event) => setCreateForm((value) => ({ ...value, email: event.target.value }))}
-                      placeholder="aarav@example.com"
-                      value={createForm.email}
-                    />
-                  </div>
-                </label>
-              </div>
-
-              <label className="space-y-2">
-                <span className="text-sm font-medium text-foreground">Role</span>
-                <select
-                  className="w-full rounded-2xl border border-border/80 bg-white/85 px-4 py-3 text-sm text-foreground outline-none transition focus:border-primary/50 focus:ring-2 focus:ring-primary/20"
-                  onChange={(event) =>
-                    setCreateForm((value) => ({
-                      ...value,
-                      roleCode: event.target.value as ManagedRoleCode,
-                    }))
-                  }
-                  value={createForm.roleCode}
-                >
-                  {managedRoleOptions.map((role) => (
-                    <option key={role.id} value={role.code}>
-                      {role.name}
-                    </option>
-                  ))}
-                </select>
-                <p className="text-xs leading-5 text-muted-foreground">
-                  Only Municipal Officer and Field Worker accounts can be created here. Admin accounts stay outside this flow.
-                </p>
-              </label>
-
-              <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
-                <Button onClick={closeCreateModal} type="button" variant="outline">
-                  Cancel
-                </Button>
-                <Button disabled={createSubmitting} type="submit">
-                  {createSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden="true" /> : null}
-                  {createSubmitting ? "Creating..." : "Create User"}
-                </Button>
-              </div>
-            </form>
+      {/* 8. Create User Modal Dialog */}
+      <Dialog
+        description="Creates a Clerk identity and matching Supabase profile with the selected role"
+        onClose={closeCreateModal}
+        open={createModalOpen}
+        title="Create CivicFix Field Account"
+      >
+        {createError && (
+          <div className="mb-4 flex items-start gap-2.5 rounded-xl border border-red-200 bg-red-50 p-3 text-xs font-medium text-red-800">
+            <AlertCircle className="h-4 w-4 shrink-0 text-red-600 mt-0.5" />
+            <p>{createError}</p>
           </div>
-        </div>
-      ) : null}
+        )}
+
+        <form className="space-y-4" onSubmit={(event) => void submitCreateUser(event)}>
+          <div className="space-y-1.5">
+            <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground block">
+              Full Name <span className="text-destructive">*</span>
+            </label>
+            <input
+              className="w-full rounded-xl border border-border/80 bg-background px-3.5 py-2.5 text-sm text-foreground outline-none focus:border-primary/50 focus:ring-2 focus:ring-primary/20"
+              onChange={(event) => setCreateForm((value) => ({ ...value, fullName: event.target.value }))}
+              placeholder="e.g. Aarav Mehta"
+              required
+              value={createForm.fullName}
+            />
+          </div>
+
+          <div className="space-y-1.5">
+            <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground block">
+              Email Address <span className="text-destructive">*</span>
+            </label>
+            <div className="relative">
+              <Mail className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <input
+                autoComplete="email"
+                className="w-full rounded-xl border border-border/80 bg-background py-2.5 pl-10 pr-3.5 text-sm text-foreground outline-none focus:border-primary/50 focus:ring-2 focus:ring-primary/20"
+                onChange={(event) => setCreateForm((value) => ({ ...value, email: event.target.value }))}
+                placeholder="e.g. aarav@civicfix.gov"
+                required
+                type="email"
+                value={createForm.email}
+              />
+            </div>
+          </div>
+
+          <div className="space-y-1.5">
+            <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground block">
+              Operational Role <span className="text-destructive">*</span>
+            </label>
+            <select
+              className="w-full rounded-xl border border-border/80 bg-background px-3.5 py-2.5 text-sm text-foreground outline-none focus:border-primary/50 focus:ring-2 focus:ring-primary/20"
+              onChange={(event) =>
+                setCreateForm((value) => ({
+                  ...value,
+                  roleCode: event.target.value as ManagedRoleCode,
+                }))
+              }
+              value={createForm.roleCode}
+            >
+              {managedRoleOptions.map((role) => (
+                <option key={role.id} value={role.code}>
+                  {role.name}
+                </option>
+              ))}
+            </select>
+            <p className="text-[11px] text-muted-foreground">
+              Only Municipal Officer and Field Worker accounts can be provisioned through this flow.
+            </p>
+          </div>
+
+          <div className="flex gap-2.5 pt-3 border-t border-border/60 justify-end">
+            <Button disabled={createSubmitting} onClick={closeCreateModal} type="button" variant="outline">
+              Cancel
+            </Button>
+            <Button disabled={createSubmitting} type="submit">
+              {createSubmitting ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Creating Account...
+                </>
+              ) : (
+                "Create Account"
+              )}
+            </Button>
+          </div>
+        </form>
+      </Dialog>
     </div>
   );
 }

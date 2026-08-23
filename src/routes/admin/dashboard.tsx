@@ -1,14 +1,36 @@
 import { useEffect, useMemo, useState } from "react";
-import { AlertCircle, ArrowRight, Building2, CheckCircle2, ClipboardList, RefreshCw, ShieldCheck, UsersRound } from "lucide-react";
+import {
+  Activity,
+  AlertCircle,
+  AlertTriangle,
+  ArrowRight,
+  BarChart3,
+  Building2,
+  CheckCircle2,
+  Clock3,
+  Layers,
+  MapPin,
+  RefreshCw,
+  ShieldAlert,
+  ShieldCheck,
+  UserPlus,
+  UsersRound,
+} from "lucide-react";
 import { Link } from "react-router-dom";
 
 import { useAppSession } from "@/auth/app-session";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { EmptyState } from "@/components/ui/empty-state";
+import { PageHeader } from "@/components/ui/page-header";
 import {
+  formatAdminDate,
   formatAdminDateTime,
   getAdminInitials,
-  getAdminRoleTone,
   getAdminIssueStatusTone,
+  getAdminPriorityTone,
+  getAdminRoleTone,
 } from "@/lib/admin";
 import { supabase } from "@/lib/supabase";
 import type { Database } from "@/types/database";
@@ -20,8 +42,9 @@ type ProfileRow = Database["public"]["Tables"]["profiles"]["Row"] & {
 
 type IssueRow = Pick<
   Database["public"]["Tables"]["issues"]["Row"],
-  "id" | "status" | "priority" | "severity" | "category" | "title" | "created_at" | "updated_at"
+  "id" | "status" | "priority" | "severity" | "category" | "title" | "created_at" | "updated_at" | "location_text" | "address_text"
 >;
+
 type IssueAssignmentRow = Database["public"]["Tables"]["issue_assignments"]["Row"] & {
   department?: Pick<Database["public"]["Tables"]["departments"]["Row"], "id" | "name" | "is_active"> | null;
   worker?: Pick<Database["public"]["Tables"]["profiles"]["Row"], "id" | "full_name" | "email"> | null;
@@ -100,6 +123,8 @@ export function AdminDashboardPage() {
             severity,
             category,
             title,
+            location_text,
+            address_text,
             created_at,
             updated_at,
             issue_assignments(
@@ -242,33 +267,39 @@ export function AdminDashboardPage() {
 
     return [
       {
-        label: "Auth session",
+        label: "Auth Session",
         value: profile?.full_name?.trim() || profile?.email || "Admin session ready",
+        status: "Operational",
         tone: "success" as const,
       },
       {
-        label: "Database feed",
-        value: lastRefreshedAt ? formatAdminDateTime(lastRefreshedAt) : "Awaiting refresh",
+        label: "Database Feed",
+        value: lastRefreshedAt ? `Synced ${formatAdminDateTime(lastRefreshedAt)}` : "Awaiting refresh",
+        status: "Operational",
         tone: "info" as const,
       },
       {
-        label: "Department coverage",
-        value: `${activeDepartments}/${totalDepartments} active`,
+        label: "Department Coverage",
+        value: `${activeDepartments}/${totalDepartments} active departments`,
+        status: activeDepartments === totalDepartments ? "Full" : "Partial",
         tone: activeDepartments === totalDepartments ? ("success" as const) : activeDepartments > 0 ? ("warning" as const) : ("danger" as const),
       },
       {
-        label: "User management",
-        value: `${stats.totalUsers} accounts · ${stats.totalAdmins} admins`,
+        label: "User Accounts",
+        value: `${stats.totalUsers} accounts (${stats.totalAdmins} admins)`,
+        status: "Active",
         tone: stats.totalAdmins > 0 ? ("success" as const) : ("warning" as const),
       },
       {
-        label: "Issue queue",
-        value: `${stats.totalIssues} live records`,
+        label: "Issue Volume",
+        value: `${stats.totalIssues} total records logged`,
+        status: "Live",
         tone: stats.totalIssues > 0 ? ("success" as const) : ("warning" as const),
       },
       {
-        label: "Attention queue",
+        label: "Attention Queue",
         value: `${stats.unassignedIssues} unassigned · ${stats.staleIssues} stale`,
+        status: stats.unassignedIssues > 0 || stats.staleIssues > 0 ? "Action Needed" : "Clear",
         tone: stats.unassignedIssues > 0 || stats.staleIssues > 0 ? ("danger" as const) : ("success" as const),
       },
     ];
@@ -281,455 +312,430 @@ export function AdminDashboardPage() {
 
   if (sessionProblem || error) {
     return (
-      <section className="rounded-[1.75rem] border border-border/80 bg-white/82 p-6 shadow-lg shadow-teal-950/10">
-        <div className="max-w-2xl space-y-4">
-          <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-red-200 bg-red-50 text-red-700">
-            <AlertCircle className="h-5 w-5" aria-hidden="true" />
-          </div>
-          <div className="space-y-2">
-            <h2 className="text-2xl font-semibold tracking-tight text-foreground">Unable to load Admin dashboard</h2>
-            <p className="text-sm leading-6 text-muted-foreground">{sessionProblem ?? error}</p>
-          </div>
+      <EmptyState
+        icon={AlertCircle}
+        variant="error"
+        title="Admin Dashboard Unavailable"
+        description={sessionProblem ?? error ?? "Unable to load the Admin dashboard."}
+        action={
           <Button onClick={() => setRefreshNonce((value) => value + 1)} type="button">
             Try Again
           </Button>
-        </div>
-      </section>
+        }
+      />
     );
   }
 
   if (loading) {
     return (
       <div className="space-y-6">
-        <section className="relative overflow-hidden rounded-[1.9rem] border border-teal-100/80 bg-[linear-gradient(135deg,rgba(15,118,110,0.14)_0%,rgba(2,132,199,0.14)_45%,rgba(124,58,237,0.12)_100%)] p-6 shadow-2xl shadow-teal-950/10">
-          <div className="space-y-3">
-            <div className="h-4 w-48 animate-pulse rounded-full bg-white/50" />
-            <div className="h-10 w-full max-w-3xl animate-pulse rounded-2xl bg-white/55" />
-            <div className="h-4 w-full max-w-2xl animate-pulse rounded-full bg-white/40" />
-          </div>
-        </section>
-        <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
-          {Array.from({ length: 10 }).map((_, index) => (
+        <div className="h-44 w-full animate-pulse rounded-[1.85rem] border border-teal-100/80 bg-teal-50/40" />
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+          {Array.from({ length: 5 }).map((_, index) => (
             <div key={index} className="h-28 animate-pulse rounded-2xl border border-border/80 bg-surface/90" />
           ))}
-        </section>
+        </div>
+        <div className="grid gap-6 lg:grid-cols-2">
+          <div className="h-80 animate-pulse rounded-[1.75rem] border border-border/80 bg-surface/90" />
+          <div className="h-80 animate-pulse rounded-[1.75rem] border border-border/80 bg-surface/90" />
+        </div>
       </div>
     );
   }
 
   return (
     <div className="space-y-6">
-      <section className="relative isolate overflow-hidden rounded-[1.9rem] border border-teal-100/80 bg-[radial-gradient(circle_at_top_left,rgba(16,185,129,0.24),transparent_34%),radial-gradient(circle_at_top_right,rgba(56,189,248,0.24),transparent_30%),linear-gradient(135deg,rgba(15,118,110,0.14)_0%,rgba(2,132,199,0.14)_45%,rgba(124,58,237,0.12)_100%)] shadow-2xl shadow-teal-950/12">
-        <div className="pointer-events-none absolute -left-10 top-0 h-40 w-40 rounded-full bg-emerald-400/20 blur-3xl" aria-hidden="true" />
-        <div className="pointer-events-none absolute right-0 top-10 h-44 w-44 rounded-full bg-sky-400/18 blur-3xl" aria-hidden="true" />
-        <div className="pointer-events-none absolute bottom-0 left-1/2 h-36 w-36 -translate-x-1/2 rounded-full bg-violet-400/12 blur-3xl" aria-hidden="true" />
-        <div className="border-b border-white/40 bg-[linear-gradient(135deg,rgba(255,255,255,0.86)_0%,rgba(247,250,248,0.74)_100%)] px-6 py-6 backdrop-blur-md">
-          <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
-            <div className="space-y-4">
-              <div className="inline-flex items-center gap-2 rounded-full border border-emerald-200/80 bg-white/80 px-3 py-1 text-xs font-semibold uppercase tracking-[0.24em] text-[#0f5f59] shadow-sm shadow-teal-950/5">
-                <ShieldCheck className="h-3.5 w-3.5" aria-hidden="true" />
-                System Administration
-              </div>
-              <div className="space-y-2">
-                <h2 className="text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">CivicFix control center</h2>
-                <p className="max-w-3xl text-sm leading-6 text-muted-foreground">
-                  Monitor platform health, user composition, issue load, and the latest governance activity across the CivicFix system.
-                </p>
-              </div>
-            </div>
-
-            <div className="flex flex-col gap-3 sm:flex-row">
-              <Button asChild variant="outline">
-                <Link to="/app/admin/users" state={{ openCreateModal: true }}>
-                  Create user
-                </Link>
-              </Button>
-              <Button asChild className="shadow-md shadow-teal-950/15">
-                <Link to="/app/admin/users">
-                  Manage users
-                  <ArrowRight className="h-4 w-4" aria-hidden="true" />
-                </Link>
-              </Button>
-              <Button asChild variant="outline">
-                <Link to="/app/admin/issues">Review issues</Link>
-              </Button>
-              <Button asChild variant="outline">
-                <Link to="/app/admin/analytics">Open analytics</Link>
-              </Button>
-            </div>
+      {/* 1. Standard Page Header */}
+      <PageHeader
+        tag="System Administration"
+        title="CivicFix Control Center"
+        description="Monitor system-wide platform health, municipal departments, field workers, and governance activity."
+        actions={
+          <div className="flex flex-wrap items-center gap-2">
+            <Button asChild size="default">
+              <Link to="/app/admin/users" state={{ openCreateModal: true }}>
+                <UserPlus className="h-4 w-4 mr-1.5" />
+                Create User
+              </Link>
+            </Button>
+            <Button asChild variant="outline" size="default">
+              <Link to="/app/admin/users">Manage Users</Link>
+            </Button>
+            <Button asChild variant="outline" size="default">
+              <Link to="/app/admin/issues">Review Issues</Link>
+            </Button>
+            <Button asChild variant="outline" size="default">
+              <Link to="/app/admin/analytics">
+                <BarChart3 className="h-4 w-4 mr-1.5" />
+                Analytics
+              </Link>
+            </Button>
+            <Button onClick={() => setRefreshNonce((value) => value + 1)} size="sm" type="button" variant="ghost">
+              <RefreshCw className="h-4 w-4" />
+            </Button>
           </div>
-        </div>
+        }
+      />
 
-        <div className="grid gap-4 px-6 py-6 sm:grid-cols-2 xl:grid-cols-5">
-          {[
-            { label: "Total Users", value: stats.totalUsers, icon: UsersRound, tone: "info" as const },
-            { label: "Citizens", value: stats.citizenCount, icon: UsersRound, tone: "info" as const },
-            { label: "Officers", value: stats.officerCount, icon: Building2, tone: "warning" as const },
-            { label: "Workers", value: stats.workerCount, icon: RefreshCw, tone: "danger" as const },
-            { label: "Total Issues", value: stats.totalIssues, icon: ClipboardList, tone: "info" as const },
-            { label: "Pending", value: stats.pendingIssues, icon: ClipboardList, tone: "warning" as const },
-            { label: "Active", value: stats.activeIssues, icon: RefreshCw, tone: "danger" as const },
-            { label: "Under Review", value: stats.underReviewIssues, icon: ShieldCheck, tone: "default" as const },
-            { label: "Resolved", value: stats.resolvedIssues, icon: CheckCircle2, tone: "success" as const },
-            { label: "Critical", value: stats.criticalIssues, icon: CheckCircle2, tone: "danger" as const },
-          ].map(({ label, value, icon: Icon, tone }) => (
-            <div
-              key={label}
-              className="relative overflow-hidden rounded-2xl border border-white/50 bg-white/78 p-5 shadow-sm shadow-teal-950/8 backdrop-blur-sm transition hover:-translate-y-0.5 hover:shadow-md"
-            >
-              <div
-                className={[
-                  "absolute inset-x-0 top-0 h-1",
-                  tone === "success"
-                    ? "bg-gradient-to-r from-emerald-500 via-emerald-400 to-emerald-500"
-                    : tone === "warning"
-                      ? "bg-gradient-to-r from-amber-500 via-amber-400 to-orange-500"
-                      : tone === "danger"
-                        ? "bg-gradient-to-r from-orange-500 via-rose-500 to-red-500"
-                        : "bg-gradient-to-r from-sky-500 via-cyan-400 to-teal-500",
-                ].join(" ")}
-              />
-              <div className="flex items-center justify-between gap-4">
-                <p className="text-sm font-medium text-muted-foreground">{label}</p>
-                <span
-                  className={[
-                    "inline-flex h-9 w-9 items-center justify-center rounded-full ring-1",
+      {/* 2. Core System Metrics (Compact 2x5 Grid) */}
+      <div className="grid gap-3.5 sm:grid-cols-2 lg:grid-cols-5">
+        {[
+          { label: "Total Users", value: stats.totalUsers, icon: UsersRound, tone: "info" as const },
+          { label: "Citizens", value: stats.citizenCount, icon: UsersRound, tone: "info" as const },
+          { label: "Officers", value: stats.officerCount, icon: Building2, tone: "warning" as const },
+          { label: "Field Workers", value: stats.workerCount, icon: RefreshCw, tone: "danger" as const },
+          { label: "Total Issues", value: stats.totalIssues, icon: Layers, tone: "info" as const },
+          { label: "Pending", value: stats.pendingIssues, icon: Clock3, tone: "warning" as const },
+          { label: "In Progress", value: stats.activeIssues, icon: Activity, tone: "danger" as const },
+          { label: "Under Review", value: stats.underReviewIssues, icon: ShieldCheck, tone: "default" as const },
+          { label: "Resolved", value: stats.resolvedIssues, icon: CheckCircle2, tone: "success" as const },
+          { label: "Critical Priority", value: stats.criticalIssues, icon: ShieldAlert, tone: "danger" as const },
+        ].map(({ label, value, icon: Icon, tone }) => (
+          <Card key={label} className="border border-border/80 bg-surface/95 shadow-sm transition hover:shadow-md">
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between gap-3">
+                <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{label}</p>
+                <div
+                  className={`flex h-8 w-8 items-center justify-center rounded-xl border ${
                     tone === "success"
-                      ? "bg-emerald-50 text-emerald-700 ring-emerald-200"
+                      ? "border-emerald-200 bg-emerald-50 text-emerald-700"
                       : tone === "warning"
-                        ? "bg-amber-50 text-amber-700 ring-amber-200"
+                        ? "border-amber-200 bg-amber-50 text-amber-700"
                         : tone === "danger"
-                          ? "bg-rose-50 text-rose-700 ring-rose-200"
-                          : "bg-sky-50 text-sky-700 ring-sky-200",
-                  ].join(" ")}
+                          ? "border-rose-200 bg-rose-50 text-rose-700"
+                          : "border-sky-200 bg-sky-50 text-sky-700"
+                  }`}
                 >
                   <Icon className="h-4 w-4" aria-hidden="true" />
-                </span>
+                </div>
               </div>
-              <p className="mt-4 text-3xl font-semibold tracking-tight text-foreground">{value}</p>
-            </div>
-          ))}
-        </div>
-      </section>
+              <p className="mt-2 text-2xl sm:text-3xl font-bold tracking-tight text-foreground">{value}</p>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
 
-      <section className="grid gap-4 xl:grid-cols-[1.08fr_0.92fr]">
-        <div className="rounded-[1.75rem] border border-border/80 bg-surface/90 p-6 shadow-lg shadow-teal-950/5">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div>
-              <p className="text-sm font-medium text-muted-foreground">Monitoring queue</p>
-              <h3 className="mt-1 text-xl font-semibold text-foreground">Issues that need an admin glance</h3>
+      {/* 3. High-Priority Needs Attention & System Health Grid */}
+      <div className="grid gap-6 xl:grid-cols-[1.1fr_0.9fr] items-start">
+        {/* Needs Attention Container */}
+        <Card className="border-2 border-amber-200/90 bg-gradient-to-br from-amber-50/30 via-surface to-surface shadow-sm">
+          <CardHeader className="pb-3 border-b border-border/60 bg-gradient-to-r from-amber-50/60 via-surface to-rose-50/40">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div className="flex items-center gap-2.5">
+                <div className="flex h-9 w-9 items-center justify-center rounded-xl border border-amber-300 bg-amber-100 text-amber-800">
+                  <AlertTriangle className="h-5 w-5" aria-hidden="true" />
+                </div>
+                <div>
+                  <CardTitle className="text-base font-bold text-foreground">Needs Immediate Attention</CardTitle>
+                  <p className="text-xs text-muted-foreground">High-urgency, unassigned, or stale issue escalations</p>
+                </div>
+              </div>
+              <Badge variant="warning" size="sm">
+                {stats.unassignedIssues} unassigned · {stats.staleIssues} stale
+              </Badge>
             </div>
-            <div className="rounded-full border border-border/70 bg-surface-elevated px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-              {stats.unassignedIssues} unassigned · {stats.staleIssues} stale
-            </div>
-          </div>
+          </CardHeader>
 
-          <div className="mt-5 space-y-3">
+          <CardContent className="p-4 sm:p-5 space-y-3">
             {monitoringIssues.length > 0 ? (
               monitoringIssues.map((issue) => {
                 const assignment = getCurrentAssignment(issue);
                 const isStale = snapshotTimeMs
                   ? snapshotTimeMs - new Date(issue.updated_at).getTime() > 21 * 24 * 60 * 60 * 1000
                   : false;
+                const statusTone = getAdminIssueStatusTone(issue.status);
+                const priorityTone = getAdminPriorityTone(issue.priority);
+
                 return (
-                  <div key={issue.id} className="rounded-2xl border border-border/70 bg-surface-elevated p-4">
-                    <div className="flex flex-wrap items-start justify-between gap-3">
-                      <div className="min-w-0">
-                        <p className="truncate font-medium text-foreground">{issue.title}</p>
-                        <p className="mt-1 text-sm text-muted-foreground">
-                          {issue.category} · {formatAdminDateTime(issue.updated_at)}
-                        </p>
+                  <div
+                    key={issue.id}
+                    className="rounded-2xl border border-border/80 bg-surface p-4 shadow-sm transition hover:border-primary/40 hover:shadow-md"
+                  >
+                    <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-2.5">
+                      <div className="min-w-0 flex-1">
+                        <p className="font-bold text-foreground text-sm truncate">{issue.title}</p>
+                        <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground mt-1">
+                          <span className="font-medium">{issue.category}</span>
+                          <span>·</span>
+                          <span>Updated {formatAdminDateTime(issue.updated_at)}</span>
+                          {issue.location_text && (
+                            <>
+                              <span>·</span>
+                              <span className="inline-flex items-center gap-1">
+                                <MapPin className="h-3 w-3" />
+                                {issue.location_text}
+                              </span>
+                            </>
+                          )}
+                        </div>
                       </div>
-                      <div className="flex flex-wrap items-center gap-2">
-                        <span className={`rounded-full border px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] ring-1 ${getAdminIssueStatusTone(issue.status) === "success" ? "bg-emerald-50 text-emerald-700 ring-emerald-200" : getAdminIssueStatusTone(issue.status) === "warning" ? "bg-amber-50 text-amber-700 ring-amber-200" : getAdminIssueStatusTone(issue.status) === "danger" ? "bg-rose-50 text-rose-700 ring-rose-200" : "bg-sky-50 text-sky-700 ring-sky-200"}`}>
+
+                      <div className="flex flex-wrap items-center gap-1.5 shrink-0">
+                        <Badge variant={statusTone} size="sm">
                           {issue.status.split("_").join(" ")}
-                        </span>
-                        {isStale ? (
-                          <span className="rounded-full border border-rose-200 bg-rose-50 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-rose-700 ring-1 ring-rose-200">
-                            Stale
-                          </span>
-                        ) : null}
+                        </Badge>
+                        <Badge variant={priorityTone} size="sm">
+                          {issue.priority}
+                        </Badge>
+                        {isStale && (
+                          <Badge variant="danger" size="sm">
+                            Stale (21d+)
+                          </Badge>
+                        )}
                       </div>
                     </div>
-                    <div className="mt-3 flex flex-wrap items-center justify-between gap-3 text-sm text-muted-foreground">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <span>{assignment?.department?.name ?? "No department"}</span>
+
+                    <div className="mt-3.5 flex flex-wrap items-center justify-between gap-3 pt-3 border-t border-border/60 text-xs">
+                      <div className="flex items-center gap-2 text-muted-foreground">
+                        <span className="font-medium text-foreground">
+                          {assignment?.department?.name ?? "No department"}
+                        </span>
                         <span>•</span>
                         <span>{assignment?.worker?.full_name?.trim() || assignment?.worker?.email || "No worker assigned"}</span>
                       </div>
-                      <Button asChild size="sm" variant="outline">
-                        <Link to={`/app/admin/issues/${issue.id}`}>Inspect issue</Link>
+                      <Button asChild size="sm" variant="outline" className="text-xs h-8">
+                        <Link to={`/app/admin/issues/${issue.id}`}>
+                          Inspect Issue
+                          <ArrowRight className="h-3 w-3 ml-1" />
+                        </Link>
                       </Button>
                     </div>
                   </div>
                 );
               })
             ) : (
-              <div className="rounded-2xl border border-dashed border-border/70 bg-surface-elevated px-4 py-8 text-sm leading-6 text-muted-foreground">
-                Nothing needs escalation right now. The open queue is clear.
+              <div className="rounded-2xl border border-dashed border-border/70 bg-surface/60 p-8 text-center text-sm text-muted-foreground">
+                All queues are clear. No issues currently require admin escalation.
               </div>
             )}
-          </div>
-        </div>
+          </CardContent>
+        </Card>
 
-        <div className="rounded-[1.75rem] border border-border/80 bg-surface/90 p-6 shadow-lg shadow-teal-950/5">
-          <div className="flex items-center justify-between gap-4">
-            <div>
-              <p className="text-sm font-medium text-muted-foreground">System health</p>
-              <h3 className="mt-1 text-xl font-semibold text-foreground">Live status of the admin surface</h3>
-            </div>
-            <div className="rounded-full border border-border/70 bg-surface-elevated px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-              {lastRefreshedAt ? `Refreshed ${formatAdminDateTime(lastRefreshedAt)}` : "No refresh yet"}
-            </div>
-          </div>
-
-          <div className="mt-5 grid gap-3 sm:grid-cols-2">
-            {systemHealth.map((item) => (
-              <div key={item.label} className="rounded-2xl border border-border/70 bg-surface-elevated p-4">
-                <div className="flex items-center justify-between gap-3">
-                  <p className="text-sm font-medium text-muted-foreground">{item.label}</p>
-                  <span
-                    className={[
-                      "inline-flex h-8 w-8 items-center justify-center rounded-full border text-[10px] font-semibold uppercase tracking-[0.18em] ring-1",
-                      item.tone === "success"
-                        ? "bg-emerald-50 text-emerald-700 ring-emerald-200"
-                        : item.tone === "warning"
-                          ? "bg-amber-50 text-amber-700 ring-amber-200"
-                          : item.tone === "danger"
-                            ? "bg-rose-50 text-rose-700 ring-rose-200"
-                            : "bg-sky-50 text-sky-700 ring-sky-200",
-                    ].join(" ")}
-                  >
-                    {item.tone === "success" ? "OK" : item.tone === "warning" ? "Watch" : item.tone === "danger" ? "Alert" : "Info"}
-                  </span>
+        {/* System Health Status Panel */}
+        <Card className="border border-border/80 bg-surface/95 shadow-sm">
+          <CardHeader className="pb-3 border-b border-border/60 bg-gradient-to-r from-teal-50/50 via-surface to-sky-50/50">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <div className="flex h-9 w-9 items-center justify-center rounded-xl border border-teal-200 bg-teal-50 text-teal-700">
+                  <ShieldCheck className="h-5 w-5" aria-hidden="true" />
                 </div>
-                <p className="mt-3 text-sm leading-6 text-foreground">{item.value}</p>
+                <div>
+                  <CardTitle className="text-base font-bold text-foreground">System Health & Telemetry</CardTitle>
+                  <p className="text-xs text-muted-foreground">Operational status of core CivicFix services</p>
+                </div>
               </div>
-            ))}
-          </div>
+              <span className="text-[11px] font-semibold text-muted-foreground">
+                {lastRefreshedAt ? formatAdminDateTime(lastRefreshedAt) : "Live"}
+              </span>
+            </div>
+          </CardHeader>
 
-          <div className="mt-5 rounded-2xl border border-border/70 bg-surface-elevated p-4">
-            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">Closure rate</p>
-            <div className="mt-3 flex items-end justify-between gap-3">
+          <CardContent className="p-4 sm:p-5 space-y-4">
+            <div className="grid gap-2.5 sm:grid-cols-2">
+              {systemHealth.map((item) => (
+                <div key={item.label} className="rounded-2xl border border-border/70 bg-background/50 p-3.5 space-y-1">
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{item.label}</p>
+                    <Badge variant={item.tone} size="sm">
+                      {item.status}
+                    </Badge>
+                  </div>
+                  <p className="text-xs font-medium text-foreground truncate">{item.value}</p>
+                </div>
+              ))}
+            </div>
+
+            {/* Resolution Rate Banner */}
+            <div className="rounded-2xl border border-emerald-200 bg-emerald-50/60 p-4 flex items-center justify-between gap-4">
               <div>
-                <p className="text-3xl font-semibold tracking-tight text-foreground">{stats.resolutionRate}%</p>
-                <p className="text-sm text-muted-foreground">
-                  {stats.resolvedIssues} of {stats.totalIssues} issues are resolved or citizen-verified.
+                <p className="text-xs font-bold uppercase tracking-wider text-emerald-900">Overall Closure Rate</p>
+                <p className="text-xs text-emerald-800 mt-0.5">
+                  {stats.resolvedIssues} of {stats.totalIssues} issues resolved or citizen-verified
                 </p>
               </div>
-              <div className="rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-emerald-700">
-                {stats.reopenedIssues} reopened
+              <div className="text-right">
+                <p className="text-3xl font-extrabold text-emerald-800">{stats.resolutionRate}%</p>
               </div>
             </div>
-          </div>
-        </div>
-      </section>
+          </CardContent>
+        </Card>
+      </div>
 
-      <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <Button asChild className="h-auto justify-start rounded-[1.5rem] border-border/80 bg-surface/90 p-5 shadow-lg shadow-teal-950/5" variant="outline">
-          <Link to="/app/admin/users" state={{ openCreateModal: true }}>
-            <div className="text-left">
-              <p className="text-sm font-medium text-muted-foreground">Quick action</p>
-              <p className="mt-1 text-lg font-semibold text-foreground">Create user</p>
-            </div>
-          </Link>
-        </Button>
-        <Button asChild className="h-auto justify-start rounded-[1.5rem] border-border/80 bg-surface/90 p-5 shadow-lg shadow-teal-950/5" variant="outline">
-          <Link to="/app/admin/users">
-            <div className="text-left">
-              <p className="text-sm font-medium text-muted-foreground">Quick action</p>
-              <p className="mt-1 text-lg font-semibold text-foreground">Manage users</p>
-            </div>
-          </Link>
-        </Button>
-        <Button asChild className="h-auto justify-start rounded-[1.5rem] border-border/80 bg-surface/90 p-5 shadow-lg shadow-teal-950/5" variant="outline">
-          <Link to="/app/admin/issues">
-            <div className="text-left">
-              <p className="text-sm font-medium text-muted-foreground">Quick action</p>
-              <p className="mt-1 text-lg font-semibold text-foreground">Review issues</p>
-            </div>
-          </Link>
-        </Button>
-        <Button asChild className="h-auto justify-start rounded-[1.5rem] border-border/80 bg-surface/90 p-5 shadow-lg shadow-teal-950/5" variant="outline">
-          <Link to="/app/admin/departments">
-            <div className="text-left">
-              <p className="text-sm font-medium text-muted-foreground">Quick action</p>
-              <p className="mt-1 text-lg font-semibold text-foreground">Manage departments</p>
-            </div>
-          </Link>
-        </Button>
-      </section>
-
-      <section className="grid gap-4 lg:grid-cols-[1.1fr_0.9fr]">
-        <div className="rounded-[1.75rem] border border-border/80 bg-surface/90 p-6 shadow-lg shadow-teal-950/5">
-          <div className="flex items-center justify-between gap-4">
-            <div>
-              <p className="text-sm font-medium text-muted-foreground">Governance summary</p>
-              <h3 className="mt-1 text-xl font-semibold text-foreground">Platform composition at a glance</h3>
-            </div>
-            <div className="rounded-full border border-border/70 bg-surface-elevated px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-              {activeAdmins} active admins
-            </div>
-          </div>
-
-          <div className="mt-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-            {[
-              { label: "Citizen", count: stats.citizenCount, tone: getAdminRoleTone("CITIZEN") },
-              { label: "Municipal Officer", count: stats.officerCount, tone: getAdminRoleTone("MUNICIPAL_OFFICER") },
-              { label: "Field Worker", count: stats.workerCount, tone: getAdminRoleTone("FIELD_WORKER") },
-              { label: "Admin", count: activeAdmins, tone: getAdminRoleTone("ADMIN") },
-            ].map((entry) => (
-              <div key={entry.label} className="rounded-2xl border border-border/70 bg-surface-elevated p-4">
-                <div className="flex items-center justify-between gap-3">
-                  <p className="text-sm font-medium text-muted-foreground">{entry.label}</p>
-                  <span
-                    className={[
-                      "inline-flex h-8 w-8 items-center justify-center rounded-full text-xs font-semibold ring-1",
-                      entry.tone === "success"
-                        ? "bg-emerald-50 text-emerald-700 ring-emerald-200"
-                        : entry.tone === "warning"
-                          ? "bg-amber-50 text-amber-700 ring-amber-200"
-                          : entry.tone === "danger"
-                            ? "bg-rose-50 text-rose-700 ring-rose-200"
-                            : "bg-sky-50 text-sky-700 ring-sky-200",
-                    ].join(" ")}
-                  >
-                    {getAdminInitials(entry.label)}
-                  </span>
-                </div>
-                <p className="mt-3 text-2xl font-semibold text-foreground">{entry.count}</p>
+      {/* 4. Governance Composition & Audit Activity */}
+      <div className="grid gap-6 lg:grid-cols-[1.05fr_0.95fr] items-start">
+        {/* Governance / Roles Breakdown */}
+        <Card className="border border-border/80 bg-surface/95 shadow-sm">
+          <CardHeader className="pb-3 border-b border-border/60">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <UsersRound className="h-5 w-5 text-primary" />
+                <CardTitle className="text-base font-bold text-foreground">Governance Composition</CardTitle>
               </div>
-            ))}
-          </div>
-        </div>
-
-        <div className="rounded-[1.75rem] border border-border/80 bg-surface/90 p-6 shadow-lg shadow-teal-950/5">
-          <p className="text-xs font-semibold uppercase tracking-[0.24em] text-muted-foreground">Recent activity</p>
-          <div className="mt-4 space-y-3">
-            {latestActivity.length > 0 ? (
-              latestActivity.map((activity) => (
-                <div key={activity.id} className="rounded-2xl border border-border/70 bg-surface-elevated p-4">
-                  <div className="flex items-start justify-between gap-4">
-                    <div>
-                      <p className="text-sm font-semibold text-foreground">
-                        {activity.issue?.title ?? "Issue activity"}
-                      </p>
-                      <p className="mt-1 text-xs uppercase tracking-[0.18em] text-muted-foreground">
-                        {activity.old_status ? `${activity.old_status} -> ` : ""}
-                        {activity.new_status}
-                      </p>
-                    </div>
-                    <span className={`rounded-full border px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] ring-1 ${activity.new_status ? (getAdminIssueStatusTone(activity.new_status) === "success" ? "bg-emerald-50 text-emerald-700 ring-emerald-200" : getAdminIssueStatusTone(activity.new_status) === "warning" ? "bg-amber-50 text-amber-700 ring-amber-200" : getAdminIssueStatusTone(activity.new_status) === "danger" ? "bg-rose-50 text-rose-700 ring-rose-200" : "bg-sky-50 text-sky-700 ring-sky-200") : "bg-slate-100 text-slate-700 ring-slate-200"}`}>
-                      {activity.new_status}
+              <Badge variant="teal" size="sm">
+                {activeAdmins} active admins
+              </Badge>
+            </div>
+          </CardHeader>
+          <CardContent className="p-4 sm:p-5">
+            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+              {[
+                { label: "Citizen", count: stats.citizenCount, tone: getAdminRoleTone("CITIZEN") },
+                { label: "Officer", count: stats.officerCount, tone: getAdminRoleTone("MUNICIPAL_OFFICER") },
+                { label: "Field Worker", count: stats.workerCount, tone: getAdminRoleTone("FIELD_WORKER") },
+                { label: "Admin", count: activeAdmins, tone: getAdminRoleTone("ADMIN") },
+              ].map((entry) => (
+                <div key={entry.label} className="rounded-2xl border border-border/70 bg-background/50 p-4">
+                  <div className="flex items-center justify-between">
+                    <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{entry.label}</p>
+                    <span
+                      className={`flex h-7 w-7 items-center justify-center rounded-xl text-[10px] font-bold ${
+                        entry.tone === "success"
+                          ? "bg-emerald-100 text-emerald-800"
+                          : entry.tone === "warning"
+                            ? "bg-amber-100 text-amber-800"
+                            : entry.tone === "danger"
+                              ? "bg-rose-100 text-rose-800"
+                              : "bg-sky-100 text-sky-800"
+                      }`}
+                    >
+                      {getAdminInitials(entry.label)}
                     </span>
                   </div>
-                  <p className="mt-2 text-sm leading-6 text-muted-foreground">
+                  <p className="mt-2 text-2xl font-bold text-foreground">{entry.count}</p>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Recent Audit Activity */}
+        <Card className="border border-border/80 bg-surface/95 shadow-sm">
+          <CardHeader className="pb-3 border-b border-border/60">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Activity className="h-5 w-5 text-teal-600" />
+                <CardTitle className="text-base font-bold text-foreground">Recent Audit Activity</CardTitle>
+              </div>
+              <span className="text-xs text-muted-foreground">{latestActivity.length} recent events</span>
+            </div>
+          </CardHeader>
+          <CardContent className="p-4 sm:p-5 space-y-2.5">
+            {latestActivity.length > 0 ? (
+              latestActivity.map((activity) => (
+                <div key={activity.id} className="rounded-xl border border-border/60 bg-background/50 p-3 text-xs">
+                  <div className="flex items-center justify-between gap-2 mb-1">
+                    <p className="font-bold text-foreground truncate">{activity.issue?.title ?? "Issue status change"}</p>
+                    <Badge variant={activity.new_status ? getAdminIssueStatusTone(activity.new_status) : "default"} size="sm">
+                      {activity.new_status ?? "Updated"}
+                    </Badge>
+                  </div>
+                  <p className="text-muted-foreground truncate">
                     {activity.changed_by_profile?.full_name?.trim() || activity.changed_by_profile?.email || "System"} · {formatAdminDateTime(activity.created_at)}
                   </p>
                 </div>
               ))
             ) : (
-              <div className="rounded-2xl border border-dashed border-border/70 bg-surface-elevated px-4 py-6 text-sm leading-6 text-muted-foreground">
-                No recent audit activity is available yet.
-              </div>
+              <p className="text-xs text-muted-foreground text-center py-4">No audit events logged yet.</p>
             )}
-          </div>
-        </div>
-      </section>
+          </CardContent>
+        </Card>
+      </div>
 
-      <section className="grid gap-4 xl:grid-cols-[1fr_1fr_1fr]">
-        <div className="rounded-[1.75rem] border border-border/80 bg-surface/90 p-6 shadow-lg shadow-teal-950/5">
-          <div className="flex items-center justify-between gap-4">
-            <h3 className="text-lg font-semibold text-foreground">Recent users</h3>
-            <Button asChild size="sm" variant="outline">
-              <Link to="/app/admin/users">Open user management</Link>
-            </Button>
-          </div>
-          <div className="mt-4 space-y-3">
+      {/* 5. Tri-Column Supporting Breakdowns */}
+      <div className="grid gap-6 lg:grid-cols-3 items-start">
+        {/* Recent Users */}
+        <Card className="border border-border/80 bg-surface/95 shadow-sm">
+          <CardHeader className="pb-3 border-b border-border/60">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-sm font-bold text-foreground">Recent Accounts</CardTitle>
+              <Button asChild size="sm" variant="ghost" className="text-xs h-7 px-2 text-primary">
+                <Link to="/app/admin/users">View all →</Link>
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent className="p-4 space-y-2.5">
             {recentUsers.length > 0 ? (
               recentUsers.map((entry) => (
-                <div key={entry.id} className="flex items-center justify-between gap-3 rounded-2xl border border-border/70 bg-surface-elevated p-4">
+                <div key={entry.id} className="flex items-center justify-between gap-2 rounded-xl border border-border/60 bg-background/50 p-3">
                   <div className="min-w-0">
-                    <p className="truncate font-medium text-foreground">{entry.full_name || entry.email || "Unnamed user"}</p>
-                    <p className="truncate text-sm text-muted-foreground">{entry.email || entry.clerk_user_id}</p>
+                    <p className="text-xs font-bold text-foreground truncate">{entry.full_name || entry.email || "User"}</p>
+                    <p className="text-[11px] text-muted-foreground truncate">{entry.email}</p>
                   </div>
-                  <span className={`rounded-full border px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] ring-1 ${entry.role?.code === "ADMIN" ? "bg-emerald-50 text-emerald-700 ring-emerald-200" : entry.role?.code === "MUNICIPAL_OFFICER" ? "bg-amber-50 text-amber-700 ring-amber-200" : entry.role?.code === "FIELD_WORKER" ? "bg-rose-50 text-rose-700 ring-rose-200" : "bg-sky-50 text-sky-700 ring-sky-200"}`}>
+                  <Badge variant={entry.role?.code === "ADMIN" ? "success" : entry.role?.code === "MUNICIPAL_OFFICER" ? "warning" : entry.role?.code === "FIELD_WORKER" ? "danger" : "info"} size="sm">
                     {entry.role?.name ?? "Citizen"}
-                  </span>
+                  </Badge>
                 </div>
               ))
             ) : (
-              <div className="rounded-2xl border border-dashed border-border/70 bg-surface-elevated px-4 py-6 text-sm text-muted-foreground">
-                No user records available.
-              </div>
+              <p className="text-xs text-muted-foreground text-center py-3">No user records.</p>
             )}
-          </div>
-        </div>
+          </CardContent>
+        </Card>
 
-        <div className="rounded-[1.75rem] border border-border/80 bg-surface/90 p-6 shadow-lg shadow-teal-950/5">
-          <div className="flex items-center justify-between gap-4">
-            <h3 className="text-lg font-semibold text-foreground">Critical issues</h3>
-            <Button asChild size="sm" variant="outline">
-              <Link to="/app/admin/issues">Open issue monitoring</Link>
-            </Button>
-          </div>
-          <div className="mt-4 space-y-3">
+        {/* Critical Issues */}
+        <Card className="border border-border/80 bg-surface/95 shadow-sm">
+          <CardHeader className="pb-3 border-b border-border/60">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-sm font-bold text-foreground">Critical Issues</CardTitle>
+              <Button asChild size="sm" variant="ghost" className="text-xs h-7 px-2 text-primary">
+                <Link to="/app/admin/issues">View all →</Link>
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent className="p-4 space-y-2.5">
             {topIssues.filter((issue) => issue.severity === "CRITICAL" || issue.priority === "URGENT").length > 0 ? (
               topIssues
                 .filter((issue) => issue.severity === "CRITICAL" || issue.priority === "URGENT")
                 .slice(0, 3)
                 .map((issue) => (
-                  <div key={issue.id} className="rounded-2xl border border-border/70 bg-surface-elevated p-4">
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="min-w-0">
-                        <p className="truncate font-medium text-foreground">{issue.title}</p>
-                        <p className="mt-1 text-sm text-muted-foreground">{issue.category}</p>
-                      </div>
-                      <span className={`rounded-full border px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] ring-1 ${issue.severity === "CRITICAL" ? "bg-rose-50 text-rose-700 ring-rose-200" : "bg-amber-50 text-amber-700 ring-amber-200"}`}>
+                  <div key={issue.id} className="rounded-xl border border-border/60 bg-background/50 p-3">
+                    <div className="flex items-center justify-between gap-2 mb-1">
+                      <p className="text-xs font-bold text-foreground truncate">{issue.title}</p>
+                      <Badge variant="danger" size="sm">
                         {issue.severity}
-                      </span>
+                      </Badge>
                     </div>
-                    <p className="mt-2 text-sm leading-6 text-muted-foreground">
-                      {issue.priority} priority · Updated {formatAdminDateTime(issue.updated_at)}
+                    <p className="text-[11px] text-muted-foreground">
+                      {issue.priority} Priority · {formatAdminDate(issue.updated_at)}
                     </p>
                   </div>
                 ))
             ) : (
-              <div className="rounded-2xl border border-dashed border-border/70 bg-surface-elevated px-4 py-6 text-sm text-muted-foreground">
-                No critical issues are currently flagged.
-              </div>
+              <p className="text-xs text-muted-foreground text-center py-3">No critical issues flagged.</p>
             )}
-          </div>
-        </div>
+          </CardContent>
+        </Card>
 
-        <div className="rounded-[1.75rem] border border-border/80 bg-surface/90 p-6 shadow-lg shadow-teal-950/5">
-          <div className="flex items-center justify-between gap-4">
-            <h3 className="text-lg font-semibold text-foreground">Department overview</h3>
-            <Button asChild size="sm" variant="outline">
-              <Link to="/app/admin/departments">Open departments</Link>
-            </Button>
-          </div>
-          <div className="mt-4 space-y-3">
+        {/* Department Overview */}
+        <Card className="border border-border/80 bg-surface/95 shadow-sm">
+          <CardHeader className="pb-3 border-b border-border/60">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-sm font-bold text-foreground">Departments</CardTitle>
+              <Button asChild size="sm" variant="ghost" className="text-xs h-7 px-2 text-primary">
+                <Link to="/app/admin/departments">Manage →</Link>
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent className="p-4 space-y-2.5">
             {departments.length > 0 ? (
-              departments.slice(0, 4).map((department) => (
-                <div key={department.id} className="rounded-2xl border border-border/70 bg-surface-elevated p-4">
-                  <div className="flex items-center justify-between gap-3">
-                    <p className="font-medium text-foreground">{department.name}</p>
-                    <span className={`rounded-full border px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] ring-1 ${department.is_active ? "bg-emerald-50 text-emerald-700 ring-emerald-200" : "bg-slate-100 text-slate-700 ring-slate-200"}`}>
-                      {department.is_active ? "Active" : "Inactive"}
-                    </span>
+              departments.slice(0, 3).map((dept) => (
+                <div key={dept.id} className="rounded-xl border border-border/60 bg-background/50 p-3">
+                  <div className="flex items-center justify-between gap-2 mb-0.5">
+                    <p className="text-xs font-bold text-foreground">{dept.name}</p>
+                    <Badge variant={dept.is_active ? "success" : "default"} size="sm">
+                      {dept.is_active ? "Active" : "Inactive"}
+                    </Badge>
                   </div>
-                  <p className="mt-2 text-sm leading-6 text-muted-foreground">{department.description || "No description provided."}</p>
+                  <p className="text-[11px] text-muted-foreground line-clamp-1">{dept.description || "No description."}</p>
                 </div>
               ))
             ) : (
-              <div className="rounded-2xl border border-dashed border-border/70 bg-surface-elevated px-4 py-6 text-sm text-muted-foreground">
-                No departments are configured yet.
-              </div>
+              <p className="text-xs text-muted-foreground text-center py-3">No departments configured.</p>
             )}
-          </div>
-        </div>
-      </section>
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 }
+

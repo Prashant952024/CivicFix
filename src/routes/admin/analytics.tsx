@@ -6,16 +6,23 @@ import {
   CheckCircle2,
   Clock3,
   Download,
+  Filter,
   Layers3,
   MapPinned,
   PieChart,
   RefreshCw,
   ShieldCheck,
   TriangleAlert,
+  X,
 } from "lucide-react";
 
 import { useAppSession } from "@/auth/app-session";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { Dialog } from "@/components/ui/dialog";
+import { EmptyState } from "@/components/ui/empty-state";
+import { PageHeader } from "@/components/ui/page-header";
 import { formatAdminDateTime } from "@/lib/admin";
 import { supabase } from "@/lib/supabase";
 import type { Database } from "@/types/database";
@@ -1445,44 +1452,37 @@ export function AdminAnalyticsPage() {
     setActiveTimelineIndex(null);
   };
 
+  const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
+
   if (sessionProblem || error) {
     return (
-      <section className="rounded-[1.75rem] border border-border/80 bg-white/82 p-6 shadow-lg shadow-teal-950/10">
-        <div className="max-w-2xl space-y-4">
-          <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-red-200 bg-red-50 text-red-700">
-            <AlertCircle className="h-5 w-5" aria-hidden="true" />
-          </div>
-          <div className="space-y-2">
-            <h2 className="text-2xl font-semibold tracking-tight text-foreground">Unable to load analytics</h2>
-            <p className="text-sm leading-6 text-muted-foreground">{sessionProblem ?? error}</p>
-          </div>
+      <EmptyState
+        icon={AlertCircle}
+        variant="error"
+        title="Analytics Unavailable"
+        description={sessionProblem ?? error ?? "Unable to load analytics."}
+        action={
           <Button onClick={handleRefresh} type="button">
             Try Again
           </Button>
-        </div>
-      </section>
+        }
+      />
     );
   }
 
   if (loading) {
     return (
       <div className="space-y-6">
-        <section className="rounded-[1.85rem] border border-teal-100/80 bg-[linear-gradient(135deg,rgba(15,118,110,0.14)_0%,rgba(2,132,199,0.12)_45%,rgba(124,58,237,0.10)_100%)] p-6 shadow-2xl shadow-teal-950/12">
-          <div className="space-y-3">
-            <div className="h-4 w-44 animate-pulse rounded-full bg-muted/60" />
-            <div className="h-9 w-full max-w-3xl animate-pulse rounded-2xl bg-muted/60" />
-            <div className="h-4 w-full max-w-2xl animate-pulse rounded-full bg-muted/40" />
-          </div>
-        </section>
-        <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
+        <div className="h-40 w-full animate-pulse rounded-[1.85rem] border border-teal-100/80 bg-teal-50/40" />
+        <div className="grid gap-3.5 sm:grid-cols-2 lg:grid-cols-5">
           {Array.from({ length: 10 }).map((_, index) => (
-            <div key={index} className="h-32 animate-pulse rounded-2xl border border-border/80 bg-surface/90" />
+            <div key={index} className="h-28 animate-pulse rounded-2xl border border-border/80 bg-surface/90" />
           ))}
-        </section>
-        <section className="grid gap-4 xl:grid-cols-[1fr_1fr]">
-          <div className="h-[420px] animate-pulse rounded-[1.75rem] border border-border/80 bg-surface/90" />
-          <div className="h-[420px] animate-pulse rounded-[1.75rem] border border-border/80 bg-surface/90" />
-        </section>
+        </div>
+        <div className="grid gap-6 lg:grid-cols-2">
+          <div className="h-[400px] animate-pulse rounded-2xl border border-border/80 bg-surface/90" />
+          <div className="h-[400px] animate-pulse rounded-2xl border border-border/80 bg-surface/90" />
+        </div>
       </div>
     );
   }
@@ -1514,162 +1514,224 @@ export function AdminAnalyticsPage() {
 
   return (
     <div className="space-y-6">
-      <section className="relative overflow-hidden rounded-[1.85rem] border border-teal-100/80 bg-[linear-gradient(135deg,rgba(15,118,110,0.14)_0%,rgba(2,132,199,0.12)_45%,rgba(124,58,237,0.10)_100%)] shadow-2xl shadow-teal-950/12">
-        <div className="pointer-events-none absolute -right-10 top-0 h-36 w-36 rounded-full bg-sky-400/20 blur-3xl" aria-hidden="true" />
-        <div className="pointer-events-none absolute bottom-0 left-10 h-40 w-40 rounded-full bg-emerald-400/20 blur-3xl" aria-hidden="true" />
-        <div className="border-b border-white/50 bg-[linear-gradient(135deg,rgba(255,255,255,0.88)_0%,rgba(247,250,248,0.76)_100%)] px-6 py-6 backdrop-blur-md">
-          <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
-            <div className="space-y-3">
-              <div className="inline-flex items-center rounded-full border border-sky-200/80 bg-white/80 px-3 py-1 text-xs font-semibold uppercase tracking-[0.22em] text-[#0f5f59] shadow-sm shadow-teal-950/5">
-                Municipal command center
-              </div>
-              <div className="space-y-2">
-                <h2 className="text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">Civic Operations Analytics</h2>
-                <p className="max-w-3xl text-sm leading-6 text-muted-foreground">
-                  Real-time civic intelligence from Supabase, focused on issue flow, resolution performance, category demand, severity risk, geographic concentration, and department load.
-                </p>
-              </div>
-              <div className="flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
-                <span className="rounded-full border border-border/70 bg-white/70 px-3 py-1.5 font-medium text-foreground shadow-sm">
-                  Reporting period: {TIME_RANGES[timeRange].label}
-                </span>
-                <span className="rounded-full border border-border/70 bg-white/70 px-3 py-1.5 font-medium text-foreground shadow-sm">
-                  Showing {filteredCount} filtered issues
-                </span>
-                {lastRefreshedAt ? (
-                  <span className="rounded-full border border-border/70 bg-white/70 px-3 py-1.5 font-medium text-foreground shadow-sm">
-                    Refreshed {formatAdminDateTime(lastRefreshedAt)}
-                  </span>
-                ) : null}
-              </div>
+      {/* 1. Page Header */}
+      <PageHeader
+        tag="System Intelligence"
+        title="Civic Operations Analytics"
+        description={`Real-time civic intelligence from Supabase · ${filteredCount} issues analyzed · Refreshed ${lastRefreshedAt ? formatAdminDateTime(lastRefreshedAt) : "just now"}`}
+        actions={
+          <div className="flex flex-wrap items-center gap-2">
+            {/* Time Range Selector */}
+            <div className="flex items-center rounded-xl border border-border/80 bg-surface/90 p-1 shadow-xs">
+              {(Object.keys(TIME_RANGES) as TimeRangeKey[]).map((rangeKey) => (
+                <button
+                  key={rangeKey}
+                  type="button"
+                  onClick={() => setTimeRange(rangeKey)}
+                  className={`rounded-lg px-2.5 py-1 text-xs font-semibold transition ${
+                    timeRange === rangeKey
+                      ? "bg-primary text-primary-foreground shadow-xs"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  {rangeKey.toUpperCase()}
+                </button>
+              ))}
             </div>
-            <div className="flex flex-col gap-3 rounded-2xl border border-border/70 bg-white/80 px-4 py-4 shadow-sm shadow-teal-950/5">
-              <div className="flex items-center gap-2 font-medium text-foreground">
-                <ShieldCheck className="h-4 w-4 text-[#0f766e]" aria-hidden="true" />
-                Live civic snapshot
-              </div>
-              <p className="text-sm leading-6 text-muted-foreground">Built directly from live CivicFix records with no synthetic metrics.</p>
-              <div className="flex flex-wrap gap-2">
-                <Button onClick={handleRefresh} type="button" variant="outline" disabled={loading}>
-                  <RefreshCw className={`mr-2 h-4 w-4 ${loading ? "animate-spin" : ""}`} aria-hidden="true" />
-                  Refresh
-                </Button>
-                <Button onClick={handleExportCsv} type="button" variant="outline" disabled={periodIssues.length === 0}>
-                  <Download className="mr-2 h-4 w-4" aria-hidden="true" />
-                  Export CSV
-                </Button>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
 
-      <section className="rounded-[1.75rem] border border-border/80 bg-[linear-gradient(135deg,rgba(247,250,248,0.96)_0%,rgba(240,248,247,0.94)_45%,rgba(238,244,255,0.92)_100%)] p-5 shadow-lg shadow-teal-950/5">
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-          <div className="space-y-2">
-            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-muted-foreground">Analytics filters</p>
-            <h3 className="text-lg font-semibold text-foreground">Focus the command center without changing the underlying data</h3>
-            <p className="max-w-3xl text-sm leading-6 text-muted-foreground">
-              Filters update every visible metric, chart, and export using the same live Supabase records.
-            </p>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            <Button onClick={clearFilters} type="button" variant="outline" disabled={activeFilterCount === 0}>
-              Clear filters
+            <Button onClick={handleRefresh} size="sm" type="button" variant="outline" disabled={loading}>
+              <RefreshCw className={`mr-2 h-4 w-4 ${loading ? "animate-spin" : ""}`} />
+              Refresh
             </Button>
-            <div className="rounded-full border border-border/70 bg-white/80 px-3 py-2 text-sm font-medium text-foreground shadow-sm">
-              {activeFilterCount === 0 ? "No filters applied" : `${activeFilterCount} filters active`}
+            <Button onClick={handleExportCsv} size="sm" type="button" variant="outline" disabled={periodIssues.length === 0}>
+              <Download className="mr-2 h-4 w-4" />
+              Export CSV
+            </Button>
+          </div>
+        }
+      />
+
+      {/* 2. Responsive Filter Bar */}
+      <Card className="border border-border/80 bg-surface/95 shadow-sm">
+        <CardContent className="p-4">
+          <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Filters</span>
+              {activeFilterCount > 0 && (
+                <Badge variant="teal" size="sm">
+                  {activeFilterCount} active
+                </Badge>
+              )}
+              {activeFilterCount > 0 && (
+                <Button onClick={clearFilters} size="sm" variant="ghost" className="h-7 px-2 text-xs">
+                  <X className="mr-1 h-3 w-3" />
+                  Reset
+                </Button>
+              )}
+            </div>
+
+            {/* Mobile Filter Sheet Trigger */}
+            <div className="md:hidden">
+              <Button onClick={() => setMobileFiltersOpen(true)} size="sm" variant="outline" className="w-full">
+                <Filter className="mr-2 h-4 w-4" />
+                Configure Filters {activeFilterCount > 0 ? `(${activeFilterCount})` : ""}
+              </Button>
+            </div>
+
+            {/* Desktop Filters */}
+            <div className="hidden md:flex md:flex-wrap md:items-center md:gap-3">
+              <select
+                aria-label="Filter by status"
+                className="h-9 rounded-xl border border-border/80 bg-background px-3 text-xs font-medium text-foreground shadow-xs outline-none focus:ring-2 focus:ring-primary/20"
+                value={filters.status}
+                onChange={(e) => setFilters((curr) => ({ ...curr, status: e.target.value as IssueFilters["status"] }))}
+              >
+                <option value="all">All Statuses</option>
+                {STATUS_SERIES.map((s) => (
+                  <option key={s.key} value={s.key}>{s.label}</option>
+                ))}
+              </select>
+
+              <select
+                aria-label="Filter by priority"
+                className="h-9 rounded-xl border border-border/80 bg-background px-3 text-xs font-medium text-foreground shadow-xs outline-none focus:ring-2 focus:ring-primary/20"
+                value={filters.priority}
+                onChange={(e) => setFilters((curr) => ({ ...curr, priority: e.target.value as IssueFilters["priority"] }))}
+              >
+                <option value="all">All Priorities</option>
+                {PRIORITY_SERIES.map((p) => (
+                  <option key={p.key} value={p.key}>{p.label}</option>
+                ))}
+              </select>
+
+              <select
+                aria-label="Filter by severity"
+                className="h-9 rounded-xl border border-border/80 bg-background px-3 text-xs font-medium text-foreground shadow-xs outline-none focus:ring-2 focus:ring-primary/20"
+                value={filters.severity}
+                onChange={(e) => setFilters((curr) => ({ ...curr, severity: e.target.value as IssueFilters["severity"] }))}
+              >
+                <option value="all">All Severities</option>
+                {SEVERITY_SERIES.map((s) => (
+                  <option key={s.key} value={s.key}>{s.label}</option>
+                ))}
+              </select>
+
+              <select
+                aria-label="Filter by category"
+                className="h-9 rounded-xl border border-border/80 bg-background px-3 text-xs font-medium text-foreground shadow-xs outline-none focus:ring-2 focus:ring-primary/20"
+                value={filters.category ?? ""}
+                onChange={(e) => setFilters((curr) => ({ ...curr, category: e.target.value || null }))}
+              >
+                <option value="">All Categories</option>
+                {categoryOptions.map((c) => (
+                  <option key={c} value={c}>{c}</option>
+                ))}
+              </select>
+
+              <select
+                aria-label="Filter by department"
+                className="h-9 rounded-xl border border-border/80 bg-background px-3 text-xs font-medium text-foreground shadow-xs outline-none focus:ring-2 focus:ring-primary/20"
+                value={filters.department ?? ""}
+                onChange={(e) => setFilters((curr) => ({ ...curr, department: e.target.value || null }))}
+              >
+                <option value="">All Departments</option>
+                {departments.map((d) => (
+                  <option key={d.id} value={d.id}>{d.name}</option>
+                ))}
+              </select>
             </div>
           </div>
-        </div>
+        </CardContent>
+      </Card>
 
-        <div className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-5">
-          <label className="space-y-2 text-sm font-medium text-foreground">
-            <span className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">Status</span>
+      {/* Mobile Filter Dialog */}
+      <Dialog
+        open={mobileFiltersOpen}
+        onClose={() => setMobileFiltersOpen(false)}
+        title="Filter Analytics"
+        description="Filter issues across all metrics and charts."
+      >
+        <div className="space-y-4 pt-2">
+          <div>
+            <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground block mb-1">Status</label>
             <select
-              aria-label="Filter by issue status"
-              className="h-11 w-full rounded-xl border border-border/70 bg-surface px-3 text-sm text-foreground shadow-sm outline-none transition focus:border-teal-400 focus:ring-2 focus:ring-teal-500/20"
+              className="w-full h-10 rounded-xl border border-border/80 bg-background px-3 text-sm text-foreground"
               value={filters.status}
-              onChange={(event) => setFilters((current) => ({ ...current, status: event.target.value as IssueFilters["status"] }))}
+              onChange={(e) => setFilters((curr) => ({ ...curr, status: e.target.value as IssueFilters["status"] }))}
             >
-              <option value="all">All statuses</option>
-              {STATUS_SERIES.map((status) => (
-                <option key={status.key} value={status.key}>
-                  {status.label}
-                </option>
+              <option value="all">All Statuses</option>
+              {STATUS_SERIES.map((s) => (
+                <option key={s.key} value={s.key}>{s.label}</option>
               ))}
             </select>
-          </label>
+          </div>
 
-          <label className="space-y-2 text-sm font-medium text-foreground">
-            <span className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">Priority</span>
+          <div>
+            <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground block mb-1">Priority</label>
             <select
-              aria-label="Filter by issue priority"
-              className="h-11 w-full rounded-xl border border-border/70 bg-surface px-3 text-sm text-foreground shadow-sm outline-none transition focus:border-teal-400 focus:ring-2 focus:ring-teal-500/20"
+              className="w-full h-10 rounded-xl border border-border/80 bg-background px-3 text-sm text-foreground"
               value={filters.priority}
-              onChange={(event) => setFilters((current) => ({ ...current, priority: event.target.value as IssueFilters["priority"] }))}
+              onChange={(e) => setFilters((curr) => ({ ...curr, priority: e.target.value as IssueFilters["priority"] }))}
             >
-              <option value="all">All priorities</option>
-              {PRIORITY_SERIES.map((priority) => (
-                <option key={priority.key} value={priority.key}>
-                  {priority.label}
-                </option>
+              <option value="all">All Priorities</option>
+              {PRIORITY_SERIES.map((p) => (
+                <option key={p.key} value={p.key}>{p.label}</option>
               ))}
             </select>
-          </label>
+          </div>
 
-          <label className="space-y-2 text-sm font-medium text-foreground">
-            <span className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">Severity</span>
+          <div>
+            <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground block mb-1">Severity</label>
             <select
-              aria-label="Filter by issue severity"
-              className="h-11 w-full rounded-xl border border-border/70 bg-surface px-3 text-sm text-foreground shadow-sm outline-none transition focus:border-teal-400 focus:ring-2 focus:ring-teal-500/20"
+              className="w-full h-10 rounded-xl border border-border/80 bg-background px-3 text-sm text-foreground"
               value={filters.severity}
-              onChange={(event) => setFilters((current) => ({ ...current, severity: event.target.value as IssueFilters["severity"] }))}
+              onChange={(e) => setFilters((curr) => ({ ...curr, severity: e.target.value as IssueFilters["severity"] }))}
             >
-              <option value="all">All severities</option>
-              {SEVERITY_SERIES.map((severity) => (
-                <option key={severity.key} value={severity.key}>
-                  {severity.label}
-                </option>
+              <option value="all">All Severities</option>
+              {SEVERITY_SERIES.map((s) => (
+                <option key={s.key} value={s.key}>{s.label}</option>
               ))}
             </select>
-          </label>
+          </div>
 
-          <label className="space-y-2 text-sm font-medium text-foreground">
-            <span className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">Category</span>
+          <div>
+            <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground block mb-1">Category</label>
             <select
-              aria-label="Filter by issue category"
-              className="h-11 w-full rounded-xl border border-border/70 bg-surface px-3 text-sm text-foreground shadow-sm outline-none transition focus:border-teal-400 focus:ring-2 focus:ring-teal-500/20"
+              className="w-full h-10 rounded-xl border border-border/80 bg-background px-3 text-sm text-foreground"
               value={filters.category ?? ""}
-              onChange={(event) => setFilters((current) => ({ ...current, category: event.target.value || null }))}
+              onChange={(e) => setFilters((curr) => ({ ...curr, category: e.target.value || null }))}
             >
-              <option value="">All categories</option>
-              {categoryOptions.map((category) => (
-                <option key={category} value={category}>
-                  {category}
-                </option>
+              <option value="">All Categories</option>
+              {categoryOptions.map((c) => (
+                <option key={c} value={c}>{c}</option>
               ))}
             </select>
-          </label>
+          </div>
 
-          <label className="space-y-2 text-sm font-medium text-foreground">
-            <span className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">Department</span>
+          <div>
+            <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground block mb-1">Department</label>
             <select
-              aria-label="Filter by issue department"
-              className="h-11 w-full rounded-xl border border-border/70 bg-surface px-3 text-sm text-foreground shadow-sm outline-none transition focus:border-teal-400 focus:ring-2 focus:ring-teal-500/20"
+              className="w-full h-10 rounded-xl border border-border/80 bg-background px-3 text-sm text-foreground"
               value={filters.department ?? ""}
-              onChange={(event) => setFilters((current) => ({ ...current, department: event.target.value || null }))}
+              onChange={(e) => setFilters((curr) => ({ ...curr, department: e.target.value || null }))}
             >
-              <option value="">All departments</option>
-              {departments.map((department) => (
-                <option key={department.id} value={department.id}>
-                  {department.name}
-                </option>
+              <option value="">All Departments</option>
+              {departments.map((d) => (
+                <option key={d.id} value={d.id}>{d.name}</option>
               ))}
             </select>
-          </label>
+          </div>
+
+          <div className="flex gap-2 pt-4">
+            <Button onClick={() => { clearFilters(); setMobileFiltersOpen(false); }} variant="outline" className="flex-1">
+              Reset
+            </Button>
+            <Button onClick={() => setMobileFiltersOpen(false)} className="flex-1">
+              Apply
+            </Button>
+          </div>
         </div>
-      </section>
+      </Dialog>
 
       <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
         <AnalyticsStatCard

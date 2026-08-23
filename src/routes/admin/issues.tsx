@@ -1,16 +1,35 @@
 import { useEffect, useMemo, useState } from "react";
-import { AlertCircle, Filter, Search, SlidersHorizontal, SortAsc, RefreshCw } from "lucide-react";
+import {
+  AlertCircle,
+  ArrowRight,
+  BarChart3,
+  Building2,
+  Calendar,
+  Clock3,
+  Filter,
+  Layers,
+  MapPin,
+  RefreshCw,
+  Search,
+  ShieldAlert,
+  ShieldCheck,
+  User,
+} from "lucide-react";
 import { Link } from "react-router-dom";
 
 import { useAppSession } from "@/auth/app-session";
 import { IssueImage } from "@/components/issues/issue-image";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { Dialog } from "@/components/ui/dialog";
+import { EmptyState } from "@/components/ui/empty-state";
+import { PageHeader } from "@/components/ui/page-header";
 import {
   formatAdminDate,
   formatAdminDateTime,
   formatAdminIssueStatusLabel,
   getAdminIssueStatusTone,
-  getAdminInitials,
   getAdminPriorityTone,
   getAdminSeverityTone,
 } from "@/lib/admin";
@@ -50,16 +69,16 @@ type SortOrder = "newest" | "oldest" | "priority" | "severity" | "updated";
 const PAGE_SIZE = 8;
 
 const STATUS_OPTIONS: Array<{ key: "all" | Database["public"]["Enums"]["issue_status"]; label: string }> = [
-  { key: "all", label: "All statuses" },
+  { key: "all", label: "All Statuses" },
   { key: "SUBMITTED", label: "Submitted" },
-  { key: "AI_ANALYZED", label: "AI analyzed" },
-  { key: "UNDER_REVIEW", label: "Under review" },
+  { key: "AI_ANALYZED", label: "AI Analyzed" },
+  { key: "UNDER_REVIEW", label: "Under Review" },
   { key: "VERIFIED", label: "Verified" },
   { key: "REJECTED", label: "Rejected" },
   { key: "ASSIGNED", label: "Assigned" },
-  { key: "IN_PROGRESS", label: "In progress" },
+  { key: "IN_PROGRESS", label: "In Progress" },
   { key: "RESOLVED", label: "Resolved" },
-  { key: "CITIZEN_VERIFIED", label: "Citizen verified" },
+  { key: "CITIZEN_VERIFIED", label: "Citizen Verified" },
   { key: "REOPENED", label: "Reopened" },
 ];
 
@@ -75,38 +94,6 @@ function getIssueAssignment(issue: IssueRow) {
   return issue.issue_assignments?.find((entry) => entry.unassigned_at === null) ?? issue.issue_assignments?.[0] ?? null;
 }
 
-function toneBadgeClass(tone: "default" | "success" | "warning" | "danger" | "info") {
-  switch (tone) {
-    case "success":
-      return "bg-emerald-50 text-emerald-700 ring-emerald-200";
-    case "warning":
-      return "bg-amber-50 text-amber-700 ring-amber-200";
-    case "danger":
-      return "bg-rose-50 text-rose-700 ring-rose-200";
-    case "info":
-      return "bg-sky-50 text-sky-700 ring-sky-200";
-    case "default":
-    default:
-      return "bg-slate-100 text-slate-700 ring-slate-200";
-  }
-}
-
-function metricToneClass(tone: "default" | "success" | "warning" | "danger" | "info") {
-  switch (tone) {
-    case "success":
-      return "bg-emerald-50 text-emerald-700 ring-emerald-200";
-    case "warning":
-      return "bg-amber-50 text-amber-700 ring-amber-200";
-    case "danger":
-      return "bg-rose-50 text-rose-700 ring-rose-200";
-    case "info":
-      return "bg-sky-50 text-sky-700 ring-sky-200";
-    case "default":
-    default:
-      return "bg-slate-100 text-slate-700 ring-slate-200";
-  }
-}
-
 export function AdminIssuesPage() {
   const { profile, status: sessionStatus, error: sessionError } = useAppSession();
   const [issues, setIssues] = useState<IssueRow[]>([]);
@@ -117,6 +104,7 @@ export function AdminIssuesPage() {
   const [priorityFilter, setPriorityFilter] = useState<"all" | Database["public"]["Enums"]["issue_priority"]>("all");
   const [categoryFilter, setCategoryFilter] = useState("all");
   const [sortOrder, setSortOrder] = useState<SortOrder>("newest");
+  const [mobileFilterOpen, setMobileFilterOpen] = useState(false);
   const [page, setPage] = useState(1);
   const [refreshNonce, setRefreshNonce] = useState(0);
   const sessionProblem = sessionStatus === "error" ? sessionError ?? "CivicFix profile is unavailable." : null;
@@ -260,318 +248,487 @@ export function AdminIssuesPage() {
 
   if (sessionProblem || error) {
     return (
-      <section className="rounded-[1.75rem] border border-border/80 bg-white/82 p-6 shadow-lg shadow-teal-950/10">
-        <div className="max-w-2xl space-y-4">
-          <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-red-200 bg-red-50 text-red-700">
-            <AlertCircle className="h-5 w-5" aria-hidden="true" />
-          </div>
-          <div className="space-y-2">
-            <h2 className="text-2xl font-semibold tracking-tight text-foreground">Unable to load issues</h2>
-            <p className="text-sm leading-6 text-muted-foreground">{sessionProblem ?? error}</p>
-          </div>
+      <EmptyState
+        icon={AlertCircle}
+        variant="error"
+        title="Issue Monitoring Unavailable"
+        description={sessionProblem ?? error ?? "Unable to load platform issues."}
+        action={
           <Button onClick={() => setRefreshNonce((value) => value + 1)} type="button">
             Try Again
           </Button>
-        </div>
-      </section>
+        }
+      />
     );
   }
 
   if (loading) {
     return (
       <div className="space-y-6">
-        <section className="rounded-[1.75rem] border border-teal-100/80 bg-[linear-gradient(135deg,rgba(15,118,110,0.12)_0%,rgba(2,132,199,0.10)_50%,rgba(124,58,237,0.08)_100%)] p-6 shadow-lg shadow-teal-950/10">
-          <div className="space-y-3">
-            <div className="h-4 w-44 animate-pulse rounded-full bg-muted/60" />
-            <div className="h-9 w-full max-w-3xl animate-pulse rounded-2xl bg-muted/60" />
-            <div className="h-4 w-full max-w-2xl animate-pulse rounded-full bg-muted/40" />
-          </div>
-        </section>
-        <section className="grid gap-4">
-          {Array.from({ length: 4 }).map((_, index) => (
-            <div key={index} className="h-60 animate-pulse rounded-[1.5rem] border border-border/80 bg-surface/90" />
+        <div className="h-44 w-full animate-pulse rounded-[1.85rem] border border-teal-100/80 bg-teal-50/40" />
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+          {Array.from({ length: 5 }).map((_, index) => (
+            <div key={index} className="h-28 animate-pulse rounded-2xl border border-border/80 bg-surface/90" />
           ))}
-        </section>
+        </div>
+        <div className="space-y-4">
+          {Array.from({ length: 3 }).map((_, index) => (
+            <div key={index} className="h-48 animate-pulse rounded-[1.5rem] border border-border/80 bg-surface/90" />
+          ))}
+        </div>
       </div>
     );
   }
 
   return (
     <div className="space-y-6">
-      <section className="relative overflow-hidden rounded-[1.85rem] border border-teal-100/80 bg-[linear-gradient(135deg,rgba(15,118,110,0.13)_0%,rgba(2,132,199,0.11)_45%,rgba(124,58,237,0.08)_100%)] shadow-2xl shadow-teal-950/12">
-        <div className="pointer-events-none absolute -left-10 top-0 h-36 w-36 rounded-full bg-sky-400/18 blur-3xl" aria-hidden="true" />
-        <div className="pointer-events-none absolute right-0 top-12 h-44 w-44 rounded-full bg-rose-400/14 blur-3xl" aria-hidden="true" />
-        <div className="border-b border-white/50 bg-[linear-gradient(135deg,rgba(255,255,255,0.86)_0%,rgba(247,250,248,0.76)_100%)] px-6 py-6 backdrop-blur-md">
-          <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
-            <div className="space-y-3">
-              <div className="inline-flex items-center rounded-full border border-sky-200/80 bg-white/80 px-3 py-1 text-xs font-semibold uppercase tracking-[0.22em] text-[#0f5f59] shadow-sm shadow-teal-950/5">
-                Platform issue monitoring
-              </div>
-              <div className="space-y-2">
-                <h2 className="text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">All civic issues</h2>
-                <p className="max-w-3xl text-sm leading-6 text-muted-foreground">
-                  Search and inspect every issue exposed to Admin, including image evidence, assignment context, and lifecycle metadata.
-                </p>
-              </div>
-            </div>
-            <div className="flex flex-wrap gap-3">
-              <Button asChild variant="outline">
-                <a href="#issue-grid">Jump to issues</a>
-              </Button>
-              <Button onClick={() => setRefreshNonce((value) => value + 1)} type="button" variant="outline">
-                Refresh
-              </Button>
-            </div>
+      {/* 1. Page Header */}
+      <PageHeader
+        tag="Issue Monitoring"
+        title="Platform Issues"
+        description="Inspect all platform reports, filter by department lifecycle, and track operational progress."
+        actions={
+          <div className="flex flex-wrap items-center gap-2">
+            <Button asChild size="default" variant="outline">
+              <Link to="/app/admin/analytics">
+                <BarChart3 className="h-4 w-4 mr-1.5" />
+                Analytics
+              </Link>
+            </Button>
+            <Button onClick={() => setRefreshNonce((value) => value + 1)} size="sm" type="button" variant="ghost">
+              <RefreshCw className="h-4 w-4" />
+            </Button>
           </div>
-        </div>
-      </section>
+        }
+      />
 
-      <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
+      {/* 2. Issue Volume Summary Metrics */}
+      <div className="grid gap-3.5 sm:grid-cols-2 lg:grid-cols-5">
         {[
-          { label: "Total Issues", value: issueStats.total, icon: Filter, tone: "info" as const },
-          { label: "Pending", value: issueStats.pending, icon: Filter, tone: "warning" as const },
-          { label: "Active", value: issueStats.active, icon: RefreshCw, tone: "danger" as const },
-          { label: "Under Review", value: issueStats.underReview, icon: SlidersHorizontal, tone: "default" as const },
-          { label: "Critical", value: issueStats.critical, icon: SortAsc, tone: "danger" as const },
+          { label: "Total Issues", value: issueStats.total, icon: Layers, tone: "info" as const },
+          { label: "Pending", value: issueStats.pending, icon: Clock3, tone: "warning" as const },
+          { label: "In Progress", value: issueStats.active, icon: RefreshCw, tone: "danger" as const },
+          { label: "Under Review", value: issueStats.underReview, icon: ShieldCheck, tone: "default" as const },
+          { label: "Critical Priority", value: issueStats.critical, icon: ShieldAlert, tone: "danger" as const },
         ].map(({ label, value, icon: Icon, tone }) => (
-          <div key={label} className="rounded-2xl border border-border/80 bg-surface/90 p-5 shadow-sm shadow-teal-950/5">
-            <div className="flex items-center justify-between gap-4">
-              <p className="text-sm font-medium text-muted-foreground">{label}</p>
-              <span
-                className={["inline-flex h-9 w-9 items-center justify-center rounded-full ring-1", metricToneClass(tone)].join(" ")}
-              >
-                <Icon className="h-4 w-4" aria-hidden="true" />
-              </span>
-            </div>
-            <p className="mt-4 text-3xl font-semibold tracking-tight text-foreground">{value}</p>
-          </div>
+          <Card key={label} className="border border-border/80 bg-surface/95 shadow-sm">
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between gap-3">
+                <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{label}</p>
+                <div
+                  className={`flex h-8 w-8 items-center justify-center rounded-xl border ${
+                    tone === "warning"
+                      ? "border-amber-200 bg-amber-50 text-amber-700"
+                      : tone === "danger"
+                        ? "border-rose-200 bg-rose-50 text-rose-700"
+                        : "border-sky-200 bg-sky-50 text-sky-700"
+                  }`}
+                >
+                  <Icon className="h-4 w-4" aria-hidden="true" />
+                </div>
+              </div>
+              <p className="mt-2 text-2xl font-bold tracking-tight text-foreground">{value}</p>
+            </CardContent>
+          </Card>
         ))}
-      </section>
+      </div>
 
-      <section className="rounded-[1.75rem] border border-teal-100/80 bg-[linear-gradient(135deg,rgba(255,255,255,0.88)_0%,rgba(239,246,244,0.9)_100%)] p-5 shadow-lg shadow-teal-950/10">
-        <div className="grid gap-4 xl:grid-cols-[1.2fr_0.75fr_0.75fr_0.75fr_auto]">
-          <label className="relative">
-            <span className="sr-only">Search issues</span>
-            <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <input
-              className="w-full rounded-2xl border border-border/80 bg-white/80 py-3 pl-11 pr-4 text-sm text-foreground outline-none transition placeholder:text-muted-foreground focus:border-primary/50 focus:ring-2 focus:ring-primary/20"
-              onChange={(event) => {
-                setSearch(event.target.value);
-                setPage(1);
-              }}
-              placeholder="Search title, description, category, reporter, location, worker, or department"
-              value={search}
-            />
-          </label>
+      {/* 3. Search & Filter Bar */}
+      <Card className="border border-border/80 bg-surface/95 shadow-sm">
+        <CardContent className="p-4">
+          <div className="flex flex-col gap-3">
+            <div className="flex flex-col md:flex-row gap-3 items-stretch md:items-center justify-between">
+              {/* Search Bar */}
+              <div className="relative flex-1">
+                <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <input
+                  className="w-full rounded-xl border border-border/80 bg-background py-2.5 pl-10 pr-4 text-xs sm:text-sm text-foreground outline-none transition placeholder:text-muted-foreground focus:border-primary/50 focus:ring-2 focus:ring-primary/20"
+                  onChange={(event) => {
+                    setSearch(event.target.value);
+                    setPage(1);
+                  }}
+                  placeholder="Search title, description, category, citizen, location, or worker..."
+                  value={search}
+                />
+              </div>
 
-          <label className="space-y-2">
-            <span className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">Status</span>
+              {/* Desktop Filters */}
+              <div className="hidden lg:flex items-center gap-2">
+                <select
+                  className="rounded-xl border border-border/80 bg-background px-3 py-2.5 text-xs text-foreground outline-none focus:border-primary/50"
+                  onChange={(event) => {
+                    setStatusFilter(event.target.value as "all" | Database["public"]["Enums"]["issue_status"]);
+                    setPage(1);
+                  }}
+                  value={statusFilter}
+                >
+                  {STATUS_OPTIONS.map((opt) => (
+                    <option key={opt.key} value={opt.key}>
+                      {opt.label}
+                    </option>
+                  ))}
+                </select>
+
+                <select
+                  className="rounded-xl border border-border/80 bg-background px-3 py-2.5 text-xs text-foreground outline-none focus:border-primary/50"
+                  onChange={(event) => {
+                    setPriorityFilter(event.target.value as "all" | Database["public"]["Enums"]["issue_priority"]);
+                    setPage(1);
+                  }}
+                  value={priorityFilter}
+                >
+                  <option value="all">All Priorities</option>
+                  <option value="LOW">Low</option>
+                  <option value="MEDIUM">Medium</option>
+                  <option value="HIGH">High</option>
+                  <option value="URGENT">Urgent</option>
+                </select>
+
+                <select
+                  className="rounded-xl border border-border/80 bg-background px-3 py-2.5 text-xs text-foreground outline-none focus:border-primary/50"
+                  onChange={(event) => {
+                    setCategoryFilter(event.target.value);
+                    setPage(1);
+                  }}
+                  value={categoryFilter}
+                >
+                  {categories.map((cat) => (
+                    <option key={cat} value={cat}>
+                      {cat === "all" ? "All Categories" : cat}
+                    </option>
+                  ))}
+                </select>
+
+                <select
+                  className="rounded-xl border border-border/80 bg-background px-3 py-2.5 text-xs text-foreground outline-none focus:border-primary/50"
+                  onChange={(event) => {
+                    setSortOrder(event.target.value as SortOrder);
+                    setPage(1);
+                  }}
+                  value={sortOrder}
+                >
+                  <option value="newest">Newest First</option>
+                  <option value="oldest">Oldest First</option>
+                  <option value="updated">Recently Updated</option>
+                  <option value="priority">Priority First</option>
+                  <option value="severity">Severity First</option>
+                </select>
+              </div>
+
+              {/* Mobile Filter Button */}
+              <div className="flex lg:hidden items-center justify-between gap-2">
+                <Button
+                  onClick={() => setMobileFilterOpen(true)}
+                  size="sm"
+                  variant="outline"
+                  className="flex-1 text-xs"
+                >
+                  <Filter className="h-3.5 w-3.5 mr-1.5" />
+                  Filters & Sorting
+                  {hasFiltersActive && (
+                    <span className="ml-1.5 rounded-full bg-primary px-1.5 py-0.2 text-[10px] text-primary-foreground font-bold">
+                      Active
+                    </span>
+                  )}
+                </Button>
+              </div>
+            </div>
+
+            {/* Active Filter Counter & Clear */}
+            <div className="flex items-center justify-between pt-2 border-t border-border/60 text-xs text-muted-foreground">
+              <span>{filteredIssues.length} issues found</span>
+              {hasFiltersActive && (
+                <Button
+                  onClick={() => {
+                    setSearch("");
+                    setStatusFilter("all");
+                    setPriorityFilter("all");
+                    setCategoryFilter("all");
+                    setSortOrder("newest");
+                    setPage(1);
+                  }}
+                  size="sm"
+                  variant="ghost"
+                  className="text-xs h-7 text-muted-foreground hover:text-foreground"
+                >
+                  Clear all filters
+                </Button>
+              )}
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* 4. Mobile Filters Modal Dialog */}
+      <Dialog
+        description="Refine issues by status, priority, category, and sort order"
+        onClose={() => setMobileFilterOpen(false)}
+        open={mobileFilterOpen}
+        title="Filter & Sort Issues"
+      >
+        <div className="space-y-4 py-2">
+          <div className="space-y-1.5">
+            <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground block">
+              Status
+            </label>
             <select
-              className="w-full rounded-2xl border border-border/80 bg-white/80 px-4 py-3 text-sm text-foreground outline-none transition focus:border-primary/50 focus:ring-2 focus:ring-primary/20"
+              className="w-full rounded-xl border border-border/80 bg-background px-3 py-2.5 text-sm text-foreground outline-none focus:border-primary/50"
               onChange={(event) => {
                 setStatusFilter(event.target.value as "all" | Database["public"]["Enums"]["issue_status"]);
                 setPage(1);
               }}
               value={statusFilter}
             >
-              {STATUS_OPTIONS.map((option) => (
-                <option key={option.key} value={option.key}>
-                  {option.label}
+              {STATUS_OPTIONS.map((opt) => (
+                <option key={opt.key} value={opt.key}>
+                  {opt.label}
                 </option>
               ))}
             </select>
-          </label>
+          </div>
 
-          <label className="space-y-2">
-            <span className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">Priority</span>
+          <div className="space-y-1.5">
+            <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground block">
+              Priority
+            </label>
             <select
-              className="w-full rounded-2xl border border-border/80 bg-white/80 px-4 py-3 text-sm text-foreground outline-none transition focus:border-primary/50 focus:ring-2 focus:ring-primary/20"
+              className="w-full rounded-xl border border-border/80 bg-background px-3 py-2.5 text-sm text-foreground outline-none focus:border-primary/50"
               onChange={(event) => {
                 setPriorityFilter(event.target.value as "all" | Database["public"]["Enums"]["issue_priority"]);
                 setPage(1);
               }}
               value={priorityFilter}
             >
-              <option value="all">All priorities</option>
-              {["LOW", "MEDIUM", "HIGH", "URGENT"].map((option) => (
-                <option key={option} value={option}>
-                  {option}
-                </option>
-              ))}
+              <option value="all">All Priorities</option>
+              <option value="LOW">Low</option>
+              <option value="MEDIUM">Medium</option>
+              <option value="HIGH">High</option>
+              <option value="URGENT">Urgent</option>
             </select>
-          </label>
+          </div>
 
-          <label className="space-y-2">
-            <span className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">Category</span>
+          <div className="space-y-1.5">
+            <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground block">
+              Category
+            </label>
             <select
-              className="w-full rounded-2xl border border-border/80 bg-white/80 px-4 py-3 text-sm text-foreground outline-none transition focus:border-primary/50 focus:ring-2 focus:ring-primary/20"
+              className="w-full rounded-xl border border-border/80 bg-background px-3 py-2.5 text-sm text-foreground outline-none focus:border-primary/50"
               onChange={(event) => {
                 setCategoryFilter(event.target.value);
                 setPage(1);
               }}
               value={categoryFilter}
             >
-              {categories.map((category) => (
-                <option key={category} value={category}>
-                  {category === "all" ? "All categories" : category}
+              {categories.map((cat) => (
+                <option key={cat} value={cat}>
+                  {cat === "all" ? "All Categories" : cat}
                 </option>
               ))}
             </select>
-          </label>
+          </div>
 
-          <label className="space-y-2">
-            <span className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">Sort</span>
+          <div className="space-y-1.5">
+            <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground block">
+              Sort Order
+            </label>
             <select
-              className="w-full rounded-2xl border border-border/80 bg-white/80 px-4 py-3 text-sm text-foreground outline-none transition focus:border-primary/50 focus:ring-2 focus:ring-primary/20"
+              className="w-full rounded-xl border border-border/80 bg-background px-3 py-2.5 text-sm text-foreground outline-none focus:border-primary/50"
               onChange={(event) => {
                 setSortOrder(event.target.value as SortOrder);
                 setPage(1);
               }}
               value={sortOrder}
             >
-              <option value="newest">Newest first</option>
-              <option value="oldest">Oldest first</option>
-              <option value="updated">Recently updated</option>
-              <option value="priority">Priority first</option>
-              <option value="severity">Severity first</option>
+              <option value="newest">Newest First</option>
+              <option value="oldest">Oldest First</option>
+              <option value="updated">Recently Updated</option>
+              <option value="priority">Priority First</option>
+              <option value="severity">Severity First</option>
             </select>
-          </label>
-        </div>
-
-        <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
-          <div className="inline-flex items-center gap-2 rounded-full border border-border/70 bg-surface-elevated px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-            <SlidersHorizontal className="h-3.5 w-3.5" aria-hidden="true" />
-            {filteredIssues.length} visible
           </div>
-          {hasFiltersActive ? (
+
+          <div className="flex gap-2 pt-3 border-t border-border/60">
             <Button
+              className="flex-1"
               onClick={() => {
-                setSearch("");
                 setStatusFilter("all");
                 setPriorityFilter("all");
                 setCategoryFilter("all");
                 setSortOrder("newest");
+                setPage(1);
+                setMobileFilterOpen(false);
               }}
               type="button"
               variant="outline"
             >
-              Clear filters
+              Reset
             </Button>
-          ) : null}
+            <Button className="flex-1" onClick={() => setMobileFilterOpen(false)} type="button">
+              Apply
+            </Button>
+          </div>
         </div>
-      </section>
+      </Dialog>
 
-      <section id="issue-grid" className="space-y-4">
+      {/* 5. Issue Feed List */}
+      <div className="space-y-4">
         {visibleIssues.length > 0 ? (
           visibleIssues.map((issue) => {
             const assignment = getIssueAssignment(issue);
             const thumbnail = pickCitizenIssueThumbnail(issue);
+            const statusTone = getAdminIssueStatusTone(issue.status);
+            const priorityTone = getAdminPriorityTone(issue.priority);
+            const severityTone = getAdminSeverityTone(issue.severity);
+
             return (
-              <article
-                key={issue.id}
-                className="overflow-hidden rounded-[1.75rem] border border-border/80 bg-surface/90 shadow-lg shadow-teal-950/5"
-              >
-                <div className="h-1 bg-gradient-to-r from-teal-500 via-sky-400 to-violet-500" />
-                <div className="grid gap-5 p-5 lg:grid-cols-[0.34fr_1fr]">
-                  <div className="overflow-hidden rounded-2xl border border-teal-100/80 bg-[linear-gradient(135deg,rgba(15,118,110,0.08)_0%,rgba(2,132,199,0.08)_100%)]">
-                    <IssueImage alt={issue.title} className="rounded-none" src={thumbnail} variant="card" />
+              <Card key={issue.id} className="border border-border/80 bg-surface/95 shadow-sm overflow-hidden hover:border-primary/40 transition">
+                <div className="grid gap-5 p-5 md:grid-cols-[200px_1fr] items-start">
+                  {/* Issue Image Thumbnail */}
+                  <div className="overflow-hidden rounded-2xl border border-border/70 bg-muted/40 aspect-[4/3] md:aspect-square flex items-center justify-center">
+                    <IssueImage alt={issue.title} className="h-full w-full object-cover" src={thumbnail} variant="card" />
                   </div>
 
-                  <div className="space-y-4">
-                    <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
-                      <div className="space-y-3">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <span className={`inline-flex items-center rounded-full border px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] ring-1 ${toneBadgeClass(getAdminIssueStatusTone(issue.status))}`}>
+                  {/* Issue Content & Meta */}
+                  <div className="space-y-3.5">
+                    <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-2.5">
+                      <div className="space-y-1">
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          <Badge variant={statusTone} size="sm">
                             {formatAdminIssueStatusLabel(issue.status)}
-                          </span>
-                          <span className={`inline-flex items-center rounded-full border px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] ring-1 ${toneBadgeClass(getAdminPriorityTone(issue.priority))}`}>
-                            Priority {issue.priority}
-                          </span>
-                          <span className={`inline-flex items-center rounded-full border px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] ring-1 ${toneBadgeClass(getAdminSeverityTone(issue.severity))}`}>
-                            Severity {issue.severity}
-                          </span>
-                          <span className="inline-flex items-center rounded-full border border-border/70 bg-white/75 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+                          </Badge>
+                          <Badge variant={priorityTone} size="sm">
+                            Priority: {issue.priority}
+                          </Badge>
+                          <Badge variant={severityTone} size="sm">
+                            Severity: {issue.severity}
+                          </Badge>
+                          <Badge variant="outline" size="sm">
                             {issue.category}
-                          </span>
+                          </Badge>
                         </div>
-                        <div className="space-y-1">
-                          <h4 className="text-2xl font-semibold tracking-tight text-foreground">{issue.title}</h4>
-                          <p className="max-w-3xl text-sm leading-6 text-muted-foreground">{issue.description}</p>
-                        </div>
+                        <h3 className="text-base sm:text-lg font-bold text-foreground mt-1.5">{issue.title}</h3>
                       </div>
-                    </div>
 
-                    <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-                      <div className="rounded-2xl border border-border/70 bg-white/70 p-4">
-                        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">Citizen</p>
-                        <p className="mt-2 text-sm font-medium text-foreground">
-                          {issue.reporter_profile?.full_name?.trim() || issue.reporter_profile?.email || "Reporter unavailable"}
-                        </p>
-                        {issue.reporter_profile?.phone ? <p className="mt-1 text-sm text-muted-foreground">{issue.reporter_profile.phone}</p> : null}
-                      </div>
-                      <div className="rounded-2xl border border-border/70 bg-white/70 p-4">
-                        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">Location</p>
-                        <p className="mt-2 text-sm font-medium text-foreground">{issue.address_text?.trim() || issue.location_text?.trim() || "No location text"}</p>
-                        {issue.latitude && issue.longitude ? <p className="mt-1 text-sm text-muted-foreground">{issue.latitude}, {issue.longitude}</p> : null}
-                      </div>
-                      <div className="rounded-2xl border border-border/70 bg-white/70 p-4">
-                        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">Assignment</p>
-                        <p className="mt-2 text-sm font-medium text-foreground">{assignment?.department?.name || "No department"}</p>
-                        <p className="mt-1 text-sm text-muted-foreground">{assignment?.worker?.full_name || assignment?.worker?.email || "No worker assigned"}</p>
-                      </div>
-                      <div className="rounded-2xl border border-border/70 bg-white/70 p-4">
-                        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">Dates</p>
-                        <p className="mt-2 text-sm font-medium text-foreground">Created {formatAdminDate(issue.created_at)}</p>
-                        <p className="mt-1 text-sm text-muted-foreground">Updated {formatAdminDateTime(issue.updated_at)}</p>
-                      </div>
-                    </div>
-
-                    <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
-                      <span>Issue ID {issue.id.slice(0, 8)}</span>
-                      <span>•</span>
-                      <span>{issue.issue_images?.length ?? 0} image attachment(s)</span>
-                      <span>•</span>
-                      <span>{getAdminInitials(issue.reporter_profile?.full_name || issue.reporter_profile?.email || "Citizen")}</span>
-                    </div>
-
-                    <div className="flex flex-wrap items-center gap-2">
-                      <Button asChild size="sm" variant="outline">
-                        <Link to={`/app/admin/issues/${issue.id}`}>Inspect issue</Link>
+                      <Button asChild size="sm" variant="default" className="shrink-0 text-xs">
+                        <Link to={`/app/admin/issues/${issue.id}`}>
+                          Inspect Issue
+                          <ArrowRight className="h-3.5 w-3.5 ml-1" />
+                        </Link>
                       </Button>
+                    </div>
+
+                    <p className="text-xs sm:text-sm text-muted-foreground line-clamp-2 leading-relaxed">
+                      {issue.description}
+                    </p>
+
+                    {/* Metadata 4-Grid */}
+                    <div className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-4 pt-2 border-t border-border/60 text-xs">
+                      <div className="rounded-xl border border-border/60 bg-background/50 p-2.5">
+                        <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1">
+                          <User className="h-3 w-3" /> Citizen
+                        </p>
+                        <p className="font-medium text-foreground truncate mt-0.5">
+                          {issue.reporter_profile?.full_name?.trim() || issue.reporter_profile?.email || "Anonymous"}
+                        </p>
+                      </div>
+
+                      <div className="rounded-xl border border-border/60 bg-background/50 p-2.5">
+                        <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1">
+                          <MapPin className="h-3 w-3" /> Location
+                        </p>
+                        <p className="font-medium text-foreground truncate mt-0.5">
+                          {issue.address_text?.trim() || issue.location_text?.trim() || "Coordinates only"}
+                        </p>
+                      </div>
+
+                      <div className="rounded-xl border border-border/60 bg-background/50 p-2.5">
+                        <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1">
+                          <Building2 className="h-3 w-3" /> Department
+                        </p>
+                        <p className="font-medium text-foreground truncate mt-0.5">
+                          {assignment?.department?.name || "Unassigned"}
+                        </p>
+                      </div>
+
+                      <div className="rounded-xl border border-border/60 bg-background/50 p-2.5">
+                        <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1">
+                          <Calendar className="h-3 w-3" /> Created
+                        </p>
+                        <p className="font-medium text-foreground truncate mt-0.5">
+                          {formatAdminDate(issue.created_at)}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex flex-wrap items-center justify-between gap-2 pt-1 text-[11px] text-muted-foreground">
+                      <span>ID: {issue.id.slice(0, 8)}</span>
+                      <span>{issue.issue_images?.length ?? 0} attachment(s)</span>
+                      <span>Updated {formatAdminDateTime(issue.updated_at)}</span>
                     </div>
                   </div>
                 </div>
-              </article>
+              </Card>
             );
           })
         ) : (
-          <div className="rounded-[1.75rem] border border-border/80 bg-surface/90 p-8 text-center">
-            <p className="text-lg font-semibold text-foreground">No issues match the current filters.</p>
-            <p className="mt-2 text-sm leading-6 text-muted-foreground">
-              {hasFiltersActive
-                ? "Try clearing the search or narrowing fewer filters at once."
-                : "No platform issues are available yet."}
-            </p>
-          </div>
+          <EmptyState
+            icon={Layers}
+            title="No Issues Found"
+            description={hasFiltersActive ? "No platform issues match your current filters." : "No platform issues are logged yet."}
+            action={
+              hasFiltersActive ? (
+                <Button
+                  onClick={() => {
+                    setSearch("");
+                    setStatusFilter("all");
+                    setPriorityFilter("all");
+                    setCategoryFilter("all");
+                    setSortOrder("newest");
+                    setPage(1);
+                  }}
+                  size="sm"
+                  type="button"
+                >
+                  Clear Filters
+                </Button>
+              ) : undefined
+            }
+          />
         )}
-      </section>
+      </div>
 
-      <section className="flex flex-wrap items-center justify-between gap-3">
-        <p className="text-sm text-muted-foreground">
-          Showing {visibleIssues.length} of {filteredIssues.length} issues
-        </p>
-        <div className="flex items-center gap-2">
-          <Button disabled={currentPage <= 1} onClick={() => setPage((value) => Math.max(1, value - 1))} type="button" variant="outline">
-            Previous
-          </Button>
-          <span className="rounded-full border border-border/70 bg-surface-elevated px-3 py-2 text-sm text-muted-foreground">
-            Page {currentPage} of {totalPages}
-          </span>
-          <Button disabled={currentPage >= totalPages} onClick={() => setPage((value) => Math.min(totalPages, value + 1))} type="button" variant="outline">
-            Next
-          </Button>
+      {/* 6. Pagination Controls */}
+      {totalPages > 1 && (
+        <div className="flex flex-wrap items-center justify-between gap-3 pt-2">
+          <p className="text-xs sm:text-sm text-muted-foreground">
+            Showing {(currentPage - 1) * PAGE_SIZE + 1}–{Math.min(currentPage * PAGE_SIZE, filteredIssues.length)} of {filteredIssues.length} issues
+          </p>
+          <div className="flex items-center gap-2">
+            <Button
+              disabled={currentPage <= 1}
+              onClick={() => setPage((value) => Math.max(1, value - 1))}
+              size="sm"
+              type="button"
+              variant="outline"
+            >
+              Previous
+            </Button>
+            <span className="rounded-xl border border-border/70 bg-surface px-3 py-1.5 text-xs text-muted-foreground">
+              Page {currentPage} of {totalPages}
+            </span>
+            <Button
+              disabled={currentPage >= totalPages}
+              onClick={() => setPage((value) => Math.min(totalPages, value + 1))}
+              size="sm"
+              type="button"
+              variant="outline"
+            >
+              Next
+            </Button>
+          </div>
         </div>
-      </section>
+      )}
     </div>
   );
 }
+

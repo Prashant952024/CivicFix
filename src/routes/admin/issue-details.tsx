@@ -1,26 +1,31 @@
 import { useEffect, useState } from "react";
 import {
   AlertCircle,
-  ArrowLeft,
   BadgeCheck,
   Building2,
+  CheckCircle2,
   Clock3,
   History,
   ImageIcon,
   MapPin,
   RefreshCw,
   ShieldAlert,
+  ShieldCheck,
   SquarePen,
   ThumbsDown,
   ThumbsUp,
-  UserCog,
+  User,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { Link, useParams } from "react-router-dom";
 
 import { useAppSession } from "@/auth/app-session";
 import { IssueImage } from "@/components/issues/issue-image";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { EmptyState } from "@/components/ui/empty-state";
+import { PageHeader } from "@/components/ui/page-header";
 import {
   formatAdminDate,
   formatAdminDateTime,
@@ -104,58 +109,46 @@ const WORKFLOW_STAGES: WorkflowStage[] = [
   {
     key: "submitted",
     label: "Citizen Report",
-    description: "The issue is reported by the citizen and enters the civic queue.",
+    description: "Issue submitted by citizen and queued.",
     matchedStatuses: ["SUBMITTED", "AI_ANALYZED"],
     icon: ImageIcon,
   },
   {
     key: "verified",
     label: "Verification",
-    description: "An officer confirms the report and prepares it for routing.",
+    description: "Officer verified and approved for routing.",
     matchedStatuses: ["VERIFIED", "UNDER_REVIEW", "ASSIGNED", "IN_PROGRESS", "RESOLVED", "CITIZEN_VERIFIED", "REOPENED", "REJECTED"],
     icon: BadgeCheck,
   },
   {
     key: "assigned",
     label: "Assignment",
-    description: "The issue is routed to a department and worker.",
+    description: "Assigned to department & field worker.",
     matchedStatuses: ["ASSIGNED", "IN_PROGRESS", "UNDER_REVIEW", "RESOLVED", "CITIZEN_VERIFIED", "REOPENED"],
     icon: Building2,
   },
   {
     key: "work",
-    label: "Work",
-    description: "Field work is underway and evidence is prepared.",
+    label: "Field Work",
+    description: "Worker in progress with repair work.",
     matchedStatuses: ["IN_PROGRESS", "UNDER_REVIEW", "RESOLVED", "CITIZEN_VERIFIED", "REOPENED"],
     icon: SquarePen,
   },
   {
     key: "review",
-    label: "Resolution Review",
-    description: "Evidence is reviewed by an officer before closure.",
+    label: "Review",
+    description: "Evidence submitted for officer sign-off.",
     matchedStatuses: ["UNDER_REVIEW", "RESOLVED", "CITIZEN_VERIFIED", "REJECTED", "REOPENED"],
     icon: ShieldAlert,
   },
   {
     key: "citizen",
     label: "Citizen Verification",
-    description: "The citizen confirms the outcome or reopens the issue.",
+    description: "Citizen confirmed fix or requested reopen.",
     matchedStatuses: ["CITIZEN_VERIFIED"],
     icon: ThumbsUp,
   },
 ];
-
-function toneBadgeClass(tone: "default" | "success" | "warning" | "danger" | "info") {
-  return tone === "success"
-    ? "bg-emerald-50 text-emerald-700 ring-emerald-200"
-    : tone === "warning"
-      ? "bg-amber-50 text-amber-700 ring-amber-200"
-      : tone === "danger"
-        ? "bg-rose-50 text-rose-700 ring-rose-200"
-        : tone === "info"
-          ? "bg-sky-50 text-sky-700 ring-sky-200"
-          : "bg-slate-100 text-slate-700 ring-slate-200";
-}
 
 function getTimelineIcon(status: Database["public"]["Enums"]["issue_status"]) {
   if (status === "AI_ANALYZED") return ShieldAlert;
@@ -174,7 +167,7 @@ function buildTimeline(issue: IssueRow): TimelineItem[] {
     {
       id: "submitted",
       title: "Citizen Report",
-      description: "Initial civic issue report created.",
+      description: "Initial civic issue report logged.",
       timestamp: issue.created_at,
       tone: "default",
       icon: ImageIcon,
@@ -182,7 +175,7 @@ function buildTimeline(issue: IssueRow): TimelineItem[] {
     ...historyItems.map((history) => ({
       id: history.id,
       title: formatAdminIssueStatusLabel(history.new_status),
-      description: history.notes || `${history.old_status ? formatAdminIssueStatusLabel(history.old_status) : "Created"} -> ${formatAdminIssueStatusLabel(history.new_status)}`,
+      description: history.notes || `${history.old_status ? formatAdminIssueStatusLabel(history.old_status) : "Created"} → ${formatAdminIssueStatusLabel(history.new_status)}`,
       timestamp: history.created_at,
       tone: getAdminIssueStatusTone(history.new_status),
       icon: getTimelineIcon(history.new_status),
@@ -198,108 +191,6 @@ function getCurrentAssignment(issue: IssueRow) {
 function getLatestVerification(issue: IssueRow) {
   const verifications = [...(issue.resolution_verifications ?? [])].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
   return verifications[0] ?? null;
-}
-
-function StageCard({
-  stage,
-  status,
-}: {
-  stage: WorkflowStage;
-  status: Database["public"]["Enums"]["issue_status"];
-}) {
-  const completed = stage.matchedStatuses.some((entry) => entry === status || (entry === "RESOLVED" && isCitizenIssueResolvedLike(status)));
-  const active = !completed && stage.matchedStatuses.includes(status);
-  const Icon = stage.icon;
-
-  return (
-    <div
-      className={[
-        "rounded-[1.35rem] border p-4 shadow-sm transition",
-        completed
-          ? "border-emerald-200/80 bg-emerald-50/70"
-          : active
-            ? "border-sky-200/80 bg-gradient-to-br from-sky-50/85 to-teal-50/80"
-            : "border-border/70 bg-surface-elevated/80",
-      ].join(" ")}
-    >
-      <div className="flex min-w-0 items-start gap-3">
-        <div
-          className={[
-            "flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border text-sm font-semibold",
-            completed
-              ? "border-emerald-200 bg-emerald-600 text-white"
-              : active
-                ? "border-sky-200 bg-gradient-to-br from-teal-600 via-cyan-600 to-blue-600 text-white"
-                : "border-border/70 bg-background/70 text-muted-foreground",
-          ].join(" ")}
-        >
-          <Icon className="h-4.5 w-4.5" aria-hidden="true" />
-        </div>
-        <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-center gap-2">
-            <h4 className="break-words text-sm font-semibold text-foreground">{stage.label}</h4>
-            <span
-              className={[
-                "inline-flex items-center rounded-full border px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-[0.2em] ring-1",
-                completed
-                  ? "border-emerald-200 bg-emerald-50 text-emerald-700 ring-emerald-200"
-                  : active
-                    ? "border-sky-200 bg-sky-50 text-sky-700 ring-sky-200"
-                    : "border-border/70 bg-background/70 text-muted-foreground ring-border/70",
-              ].join(" ")}
-            >
-              {completed ? "Completed" : active ? "Current" : "Pending"}
-            </span>
-          </div>
-          <p className="mt-2 break-words text-sm leading-6 text-muted-foreground">{stage.description}</p>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function TimelineEntry({ item, isLast, isLatest }: { item: TimelineItem; isLast: boolean; isLatest: boolean }) {
-  const Icon = item.icon;
-
-  return (
-    <div className="grid min-w-0 grid-cols-[3.25rem_minmax(0,1fr)] gap-4">
-      <div className="relative flex min-h-full flex-col items-center">
-        {!isLast ? <div className="absolute left-1/2 top-8 bottom-0 w-px -translate-x-1/2 bg-gradient-to-b from-border via-border/70 to-transparent" aria-hidden="true" /> : null}
-        <div
-          className={[
-            "relative z-10 flex h-11 w-11 items-center justify-center rounded-full border shadow-sm",
-            isLatest ? "border-white bg-gradient-to-br from-teal-600 via-cyan-600 to-blue-600 text-white shadow-teal-950/15" : `border-white ${toneBadgeClass(item.tone)}`,
-          ].join(" ")}
-        >
-          <Icon className="h-5 w-5" aria-hidden="true" />
-        </div>
-      </div>
-
-      <div
-        className={[
-          "min-w-0 rounded-[1.45rem] border p-4 shadow-sm",
-          isLatest
-            ? "border-teal-200/80 bg-[linear-gradient(135deg,rgba(255,255,255,0.94)_0%,rgba(236,253,245,0.88)_100%)] shadow-[0_14px_28px_rgba(15,23,42,0.08)]"
-            : "border-border/70 bg-background/45",
-        ].join(" ")}
-      >
-        <div className="min-w-0 space-y-3">
-          <div className="flex flex-wrap items-center gap-2">
-            <span className={`inline-flex max-w-full items-center rounded-full border px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] ring-1 ${toneBadgeClass(item.tone)}`}>
-              {item.title}
-            </span>
-            {isLatest ? (
-              <span className="inline-flex items-center rounded-full border border-teal-200 bg-teal-50 px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-[0.2em] text-teal-700">
-                Current
-              </span>
-            ) : null}
-          </div>
-          <p className="min-w-0 break-words text-sm leading-6 text-foreground/90">{item.description}</p>
-          <p className="min-w-0 break-words text-xs text-muted-foreground">{formatAdminDateTime(item.timestamp)}</p>
-        </div>
-      </div>
-    </div>
-  );
 }
 
 export function AdminIssueDetailPage() {
@@ -430,50 +321,41 @@ export function AdminIssueDetailPage() {
   const rejectionHistory = issue?.issue_status_history?.find((history) => history.new_status === "REJECTED") ?? null;
   const issueLocation = issue ? issue.address_text?.trim() || issue.location_text?.trim() || null : null;
   const issueCoordinates = issue ? formatCitizenIssueCoordinates(issue.latitude, issue.longitude) : null;
-  const activeStepIndex = issue
-    ? WORKFLOW_STAGES.findIndex((stage) => stage.matchedStatuses.includes(issue.status))
-    : -1;
-
-  const currentStepIndex = activeStepIndex >= 0 ? activeStepIndex : 0;
 
   if (sessionProblem || error) {
     return (
-      <section className="rounded-[1.75rem] border border-border/80 bg-white/82 p-6 shadow-lg shadow-teal-950/10">
-        <div className="max-w-2xl space-y-4">
-          <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-red-200 bg-red-50 text-red-700">
-            <AlertCircle className="h-5 w-5" aria-hidden="true" />
-          </div>
-          <div className="space-y-2">
-            <h2 className="text-2xl font-semibold tracking-tight text-foreground">Unable to load issue details</h2>
-            <p className="text-sm leading-6 text-muted-foreground">{sessionProblem ?? error}</p>
-          </div>
-          <div className="flex flex-wrap gap-2">
+      <EmptyState
+        icon={AlertCircle}
+        variant="error"
+        title="Issue Details Unavailable"
+        description={sessionProblem ?? error ?? "Unable to load issue details."}
+        action={
+          <div className="flex gap-2">
             <Button onClick={() => setRefreshNonce((value) => value + 1)} type="button">
               Try Again
             </Button>
             <Button asChild type="button" variant="outline">
-              <Link to="/app/admin/issues">Back to issues</Link>
+              <Link to="/app/admin/issues">Back to Issues</Link>
             </Button>
           </div>
-        </div>
-      </section>
+        }
+      />
     );
   }
 
   if (loading) {
     return (
       <div className="space-y-6">
-        <section className="rounded-[1.85rem] border border-teal-100/80 bg-[linear-gradient(135deg,rgba(15,118,110,0.12)_0%,rgba(2,132,199,0.10)_48%,rgba(124,58,237,0.08)_100%)] p-6 shadow-lg shadow-teal-950/10">
-          <div className="space-y-3">
-            <div className="h-4 w-44 animate-pulse rounded-full bg-muted/60" />
-            <div className="h-9 w-full max-w-3xl animate-pulse rounded-2xl bg-muted/60" />
-            <div className="h-4 w-full max-w-2xl animate-pulse rounded-full bg-muted/40" />
-          </div>
-        </section>
-        <section className="grid gap-4 lg:grid-cols-[1.2fr_0.8fr]">
-          <div className="h-[34rem] animate-pulse rounded-[1.75rem] border border-border/80 bg-surface/90" />
-          <div className="h-[34rem] animate-pulse rounded-[1.75rem] border border-border/80 bg-surface/90" />
-        </section>
+        <div className="h-40 w-full animate-pulse rounded-[1.85rem] border border-teal-100/80 bg-teal-50/40" />
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+          {Array.from({ length: 5 }).map((_, index) => (
+            <div key={index} className="h-28 animate-pulse rounded-2xl border border-border/80 bg-surface/90" />
+          ))}
+        </div>
+        <div className="grid gap-6 lg:grid-cols-[1.3fr_0.7fr]">
+          <div className="h-96 animate-pulse rounded-2xl border border-border/80 bg-surface/90" />
+          <div className="h-96 animate-pulse rounded-2xl border border-border/80 bg-surface/90" />
+        </div>
       </div>
     );
   }
@@ -483,277 +365,401 @@ export function AdminIssueDetailPage() {
   }
 
   const issueImages = issue.issue_images ?? [];
-  const verificationItems = issue.resolution_verifications ?? [];
   const stageCards = WORKFLOW_STAGES.map((stage) => ({
     ...stage,
     completed: stage.matchedStatuses.some((entry) => entry === issue.status || (entry === "RESOLVED" && isCitizenIssueResolvedLike(issue.status))),
   }));
 
+  const statusTone = getAdminIssueStatusTone(issue.status);
+  const priorityTone = getAdminPriorityTone(issue.priority);
+  const severityTone = getAdminSeverityTone(issue.severity);
+
   return (
     <div className="space-y-6">
-      <section className="relative overflow-hidden rounded-[1.85rem] border border-teal-100/80 bg-[linear-gradient(135deg,rgba(15,118,110,0.14)_0%,rgba(2,132,199,0.12)_45%,rgba(124,58,237,0.10)_100%)] shadow-2xl shadow-teal-950/12">
-        <div className="pointer-events-none absolute -left-10 top-0 h-36 w-36 rounded-full bg-sky-400/20 blur-3xl" aria-hidden="true" />
-        <div className="pointer-events-none absolute right-0 top-10 h-44 w-44 rounded-full bg-emerald-400/18 blur-3xl" aria-hidden="true" />
-        <div className="border-b border-white/50 bg-[linear-gradient(135deg,rgba(255,255,255,0.88)_0%,rgba(247,250,248,0.76)_100%)] px-6 py-6 backdrop-blur-md">
-          <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
-            <div className="space-y-3">
-              <Button asChild type="button" variant="outline" className="w-fit">
-                <Link to="/app/admin/issues">
-                  <ArrowLeft className="h-4 w-4" aria-hidden="true" />
-                  Back to issues
-                </Link>
-              </Button>
-              <div className="space-y-2">
-                <div className="inline-flex items-center rounded-full border border-sky-200/80 bg-white/80 px-3 py-1 text-xs font-semibold uppercase tracking-[0.22em] text-[#0f5f59] shadow-sm shadow-teal-950/5">
-                  Admin issue inspection
-                </div>
-                <h2 className="text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">{issue.title}</h2>
-                <p className="max-w-3xl text-sm leading-6 text-muted-foreground">
-                  Detailed inspection of the live issue record, evidence trail, assignment context, and workflow history.
-                </p>
-              </div>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              <Button onClick={() => setRefreshNonce((value) => value + 1)} type="button" variant="outline">
-                <RefreshCw className="mr-2 h-4 w-4" aria-hidden="true" />
-                Refresh
-              </Button>
-            </div>
+      {/* 1. Page Header */}
+      <PageHeader
+        backHref="/app/admin/issues"
+        backLabel="All Issues"
+        tag="Issue Inspection"
+        title={issue.title}
+        description={`Category: ${issue.category} · Created ${formatAdminDate(issue.created_at)} · ID: ${issue.id.slice(0, 8)}`}
+        actions={
+          <div className="flex flex-wrap items-center gap-2">
+            <Badge variant={statusTone} size="default">
+              {formatAdminIssueStatusLabel(issue.status)}
+            </Badge>
+            <Badge variant={priorityTone} size="default">
+              Priority: {issue.priority}
+            </Badge>
+            <Badge variant={severityTone} size="default">
+              Severity: {issue.severity}
+            </Badge>
+            <Button onClick={() => setRefreshNonce((value) => value + 1)} size="sm" type="button" variant="ghost">
+              <RefreshCw className="h-4 w-4" />
+            </Button>
           </div>
-        </div>
-      </section>
+        }
+      />
 
-      <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
+      {/* 2. Top Summary KPI Cards */}
+      <div className="grid gap-3.5 sm:grid-cols-2 lg:grid-cols-5">
         {[
-          { label: "Status", value: formatAdminIssueStatusLabel(issue.status), tone: getAdminIssueStatusTone(issue.status), icon: BadgeCheck },
-          { label: "Priority", value: issue.priority, tone: getAdminPriorityTone(issue.priority), icon: Clock3 },
-          { label: "Severity", value: issue.severity, tone: getAdminSeverityTone(issue.severity), icon: ShieldAlert },
+          { label: "Status", value: formatAdminIssueStatusLabel(issue.status), tone: statusTone, icon: BadgeCheck },
+          { label: "Priority", value: issue.priority, tone: priorityTone, icon: Clock3 },
+          { label: "Severity", value: issue.severity, tone: severityTone, icon: ShieldAlert },
           { label: "Department", value: issue.department?.name ?? "Unassigned", tone: "info" as const, icon: Building2 },
-          { label: "Reporter", value: issue.reporter_profile?.full_name?.trim() || issue.reporter_profile?.email || "Unknown", tone: "default" as const, icon: UserCog },
+          { label: "Citizen Reporter", value: issue.reporter_profile?.full_name?.trim() || issue.reporter_profile?.email || "Unknown", tone: "default" as const, icon: User },
         ].map(({ label, value, tone, icon: Icon }) => (
-          <div key={label} className="rounded-2xl border border-border/80 bg-surface/90 p-5 shadow-sm shadow-teal-950/5">
-            <div className="flex items-center justify-between gap-4">
-              <p className="text-sm font-medium text-muted-foreground">{label}</p>
-              <span className={`inline-flex h-9 w-9 items-center justify-center rounded-full ring-1 ${toneBadgeClass(tone)}`}>
-                <Icon className="h-4 w-4" aria-hidden="true" />
-              </span>
-            </div>
-            <p className="mt-4 truncate text-2xl font-semibold tracking-tight text-foreground">{value}</p>
-          </div>
-        ))}
-      </section>
-
-      <section className="grid gap-4 xl:grid-cols-[1.2fr_0.8fr]">
-        <div className="space-y-4">
-          <div className="rounded-[1.75rem] border border-border/80 bg-surface/90 p-6 shadow-lg shadow-teal-950/5">
-            <div className="grid gap-4 lg:grid-cols-[1fr_1fr]">
-              <div className="space-y-4">
-                <div className="rounded-2xl border border-border/70 bg-surface-elevated p-4">
-                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">Issue information</p>
-                  <div className="mt-3 space-y-2 text-sm leading-6 text-foreground">
-                    <p><span className="font-medium">Category:</span> {issue.category}</p>
-                    <p><span className="font-medium">Created:</span> {formatAdminDate(issue.created_at)}</p>
-                    <p><span className="font-medium">Last updated:</span> {formatAdminDateTime(issue.updated_at)}</p>
-                    <p><span className="font-medium">Resolved:</span> {issue.resolved_at ? formatAdminDateTime(issue.resolved_at) : "Not resolved yet"}</p>
-                    <p className="text-muted-foreground">{issue.description}</p>
-                  </div>
-                </div>
-
-                <div className="rounded-2xl border border-border/70 bg-surface-elevated p-4">
-                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">Location</p>
-                  <div className="mt-3 space-y-2 text-sm leading-6 text-foreground">
-                    <p className="flex items-start gap-2"><MapPin className="mt-0.5 h-4 w-4 shrink-0 text-sky-500" aria-hidden="true" />{issueLocation ?? "No location text available"}</p>
-                    {issueCoordinates ? <p className="text-muted-foreground">{issueCoordinates}</p> : null}
-                    <p className="text-muted-foreground">No new mapping or routing logic was introduced.</p>
-                  </div>
+          <Card key={label} className="border border-border/80 bg-surface/95 shadow-sm">
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between gap-3">
+                <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{label}</p>
+                <div
+                  className={`flex h-8 w-8 items-center justify-center rounded-xl border ${
+                    tone === "success"
+                      ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                      : tone === "warning"
+                        ? "border-amber-200 bg-amber-50 text-amber-700"
+                        : tone === "danger"
+                          ? "border-rose-200 bg-rose-50 text-rose-700"
+                          : "border-sky-200 bg-sky-50 text-sky-700"
+                  }`}
+                >
+                  <Icon className="h-4 w-4" aria-hidden="true" />
                 </div>
               </div>
+              <p className="mt-2 truncate text-xl font-bold tracking-tight text-foreground">{value}</p>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
 
-              <div className="space-y-4">
-                <div className="overflow-hidden rounded-2xl border border-teal-100/80 bg-[linear-gradient(135deg,rgba(15,118,110,0.07)_0%,rgba(2,132,199,0.05)_100%)]">
+      {/* 3. Main Inspection Two-Column Layout */}
+      <div className="grid gap-6 lg:grid-cols-[1.25fr_0.75fr] items-start">
+        {/* Left Column: Detailed Inspection Data */}
+        <div className="space-y-6">
+          {/* Issue Overview Card */}
+          <Card className="border border-border/80 bg-surface/95 shadow-sm overflow-hidden">
+            <CardHeader className="pb-3 border-b border-border/60">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-base font-bold text-foreground">Issue Description & Evidence</CardTitle>
+                <Badge variant="outline" size="sm">{issue.category}</Badge>
+              </div>
+            </CardHeader>
+            <CardContent className="p-5 space-y-4">
+              {heroImage && (
+                <div className="overflow-hidden rounded-2xl border border-border/70 max-h-80 bg-muted/30 flex items-center justify-center">
                   <IssueImage
                     alt={issue.title}
-                    className="rounded-none"
-                    imageClassName="object-cover"
+                    className="w-full max-h-80 object-cover"
                     src={heroImage}
                     variant="hero"
                   />
                 </div>
-
-                <div className="rounded-2xl border border-border/70 bg-surface-elevated p-4">
-                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">Assignment</p>
-                  {currentAssignment ? (
-                    <div className="mt-3 space-y-2 text-sm leading-6 text-foreground">
-                      <p><span className="font-medium">Department:</span> {currentAssignment.department?.name ?? issue.department?.name ?? "Unassigned"}</p>
-                      <p><span className="font-medium">Worker:</span> {currentAssignment.worker?.full_name?.trim() || currentAssignment.worker?.email || "Unassigned"}</p>
-                      <p><span className="font-medium">Assigned by:</span> {currentAssignment.assigned_by_profile?.full_name?.trim() || currentAssignment.assigned_by_profile?.email || "System"}</p>
-                      <p className="text-muted-foreground">Assigned {formatAdminDateTime(currentAssignment.assigned_at)}</p>
-                    </div>
-                  ) : (
-                    <p className="mt-3 text-sm leading-6 text-muted-foreground">No active assignment is currently attached to this issue.</p>
-                  )}
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div className="rounded-[1.75rem] border border-border/80 bg-surface/90 p-6 shadow-lg shadow-teal-950/5">
-            <div className="flex flex-wrap items-start justify-between gap-3">
-              <div>
-                <h3 className="text-lg font-semibold text-foreground">Workflow timeline</h3>
-                <p className="mt-1 text-sm leading-6 text-muted-foreground">Actual status history from the live issue record.</p>
-              </div>
-              <div className="rounded-full border border-border/70 bg-surface-elevated px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-                {timelineItems.length} events
-              </div>
-            </div>
-
-            <div className="mt-5 grid gap-3 xl:grid-cols-3">
-              {stageCards.map((stage) => (
-                <StageCard key={stage.key} stage={stage} status={issue.status} />
-              ))}
-            </div>
-
-            <div className="mt-6 space-y-4">
-              {timelineItems.length > 0 ? (
-                timelineItems.map((item, index) => <TimelineEntry key={item.id} item={item} isLast={index === timelineItems.length - 1} isLatest={index === timelineItems.length - 1} />)
-              ) : (
-                <div className="rounded-2xl border border-dashed border-border/70 px-4 py-8 text-center text-sm text-muted-foreground">
-                  No workflow history is available for this issue.
-                </div>
               )}
-            </div>
-          </div>
 
-          <div className="grid gap-4 xl:grid-cols-3">
-            <div className="rounded-[1.75rem] border border-border/80 bg-surface/90 p-6 shadow-lg shadow-teal-950/5">
-              <div className="flex items-center justify-between gap-3">
-                <h3 className="text-lg font-semibold text-foreground">Images</h3>
-                <ImageIcon className="h-5 w-5 text-sky-500" aria-hidden="true" />
+              <div>
+                <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-1">Description</p>
+                <p className="text-sm text-foreground/90 leading-relaxed whitespace-pre-wrap">{issue.description}</p>
               </div>
-              <div className="mt-4 space-y-3">
-                <div className="rounded-2xl border border-border/70 bg-background/60 p-3">
-                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">Original report</p>
-                  <IssueImage alt={`${issue.title} - original report`} className="mt-3 rounded-2xl" src={initialImage ? formatCitizenIssueImageUrl(initialImage) : pickCitizenIssueThumbnail(issue)} variant="detail" />
-                </div>
-                <div className="rounded-2xl border border-border/70 bg-background/60 p-3">
-                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">Latest relevant evidence</p>
-                  <IssueImage alt={`${issue.title} - latest evidence`} className="mt-3 rounded-2xl" src={latestImage ? formatCitizenIssueImageUrl(latestImage) : heroImage} variant="detail" />
-                </div>
-                <div className="rounded-2xl border border-border/70 bg-background/60 p-3">
-                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">Resolution evidence</p>
-                  <IssueImage alt={`${issue.title} - resolution evidence`} className="mt-3 rounded-2xl" src={resolutionImage ? formatCitizenIssueImageUrl(resolutionImage) : null} variant="detail" />
-                </div>
-              </div>
-            </div>
 
-            <div className="rounded-[1.75rem] border border-border/80 bg-surface/90 p-6 shadow-lg shadow-teal-950/5">
-              <div className="flex items-center justify-between gap-3">
-                <h3 className="text-lg font-semibold text-foreground">Resolution</h3>
-                <ThumbsUp className="h-5 w-5 text-emerald-500" aria-hidden="true" />
-              </div>
-              <div className="mt-4 space-y-3 text-sm leading-6 text-foreground">
-                <p><span className="font-medium">Resolution status:</span> {isCitizenIssueResolvedLike(issue.status) ? "Resolved-like" : "Open / in progress"}</p>
-                <p><span className="font-medium">Officer decision:</span> {issue.status === "REJECTED" ? "Rejected" : issue.status === "UNDER_REVIEW" ? "Awaiting decision" : issue.status === "RESOLVED" || issue.status === "CITIZEN_VERIFIED" ? "Approved" : "Not finalized"}</p>
-                <p><span className="font-medium">Citizen verification:</span> {latestVerification ? latestVerification.result : "No verification submitted yet"}</p>
-                {latestVerification?.feedback ? <p className="text-muted-foreground">{latestVerification.feedback}</p> : null}
-                {rejectionHistory?.notes ? (
-                  <div className="rounded-2xl border border-rose-200 bg-rose-50 p-4 text-rose-800">
-                    <p className="text-xs font-semibold uppercase tracking-[0.18em]">Rejection reason</p>
-                    <p className="mt-2 text-sm leading-6">{rejectionHistory.notes}</p>
+              <div className="grid gap-3 sm:grid-cols-2 pt-3 border-t border-border/60 text-xs">
+                <div>
+                  <span className="font-semibold text-muted-foreground">Reported On:</span>
+                  <p className="font-medium text-foreground">{formatAdminDateTime(issue.created_at)}</p>
+                </div>
+                <div>
+                  <span className="font-semibold text-muted-foreground">Last Updated:</span>
+                  <p className="font-medium text-foreground">{formatAdminDateTime(issue.updated_at)}</p>
+                </div>
+                {issue.resolved_at && (
+                  <div>
+                    <span className="font-semibold text-muted-foreground">Resolved On:</span>
+                    <p className="font-medium text-foreground">{formatAdminDateTime(issue.resolved_at)}</p>
                   </div>
-                ) : null}
+                )}
               </div>
-            </div>
+            </CardContent>
+          </Card>
 
-            <div className="rounded-[1.75rem] border border-border/80 bg-surface/90 p-6 shadow-lg shadow-teal-950/5">
-              <div className="flex items-center justify-between gap-3">
-                <h3 className="text-lg font-semibold text-foreground">Reporter & audit</h3>
-                <History className="h-5 w-5 text-violet-500" aria-hidden="true" />
+          {/* Workflow Stage Progress */}
+          <Card className="border border-border/80 bg-surface/95 shadow-sm">
+            <CardHeader className="pb-3 border-b border-border/60">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <ShieldCheck className="h-5 w-5 text-primary" />
+                  <CardTitle className="text-base font-bold text-foreground">Workflow Stages</CardTitle>
+                </div>
+                <Badge variant="teal" size="sm">
+                  {formatAdminIssueStatusLabel(issue.status)}
+                </Badge>
               </div>
-              <div className="mt-4 space-y-3">
-                <div className="rounded-2xl border border-border/70 bg-surface-elevated p-4">
-                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">Reporter</p>
-                  <p className="mt-2 font-medium text-foreground">{issue.reporter_profile?.full_name?.trim() || issue.reporter_profile?.email || "Reporter unavailable"}</p>
-                  {issue.reporter_profile?.phone ? <p className="mt-1 text-sm text-muted-foreground">{issue.reporter_profile.phone}</p> : null}
-                  <p className="mt-2 text-sm text-muted-foreground">Reporter ID {getAdminInitials(issue.reporter_profile?.full_name || issue.reporter_profile?.email || "Citizen")}</p>
-                </div>
-                <div className="rounded-2xl border border-border/70 bg-surface-elevated p-4">
-                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">Latest audit notes</p>
-                  {issue.issue_status_history && issue.issue_status_history.length > 0 ? (
-                    <div className="mt-2 space-y-2 text-sm leading-6 text-foreground">
-                      <p>{issue.issue_status_history.at(-1)?.notes || "No additional notes on the latest status change."}</p>
-                      <p className="text-muted-foreground">
-                        Updated {formatAdminDateTime(issue.issue_status_history.at(-1)?.created_at ?? issue.updated_at)}
-                      </p>
+            </CardHeader>
+            <CardContent className="p-5">
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                {stageCards.map((stage) => {
+                  const Icon = stage.icon;
+                  return (
+                    <div
+                      key={stage.key}
+                      className={`rounded-2xl border p-3.5 space-y-1.5 transition ${
+                        stage.completed
+                          ? "border-emerald-200 bg-emerald-50/60"
+                          : "border-border/70 bg-background/50 opacity-70"
+                      }`}
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-2">
+                          <Icon className={`h-4 w-4 ${stage.completed ? "text-emerald-700" : "text-muted-foreground"}`} />
+                          <p className="text-xs font-bold text-foreground">{stage.label}</p>
+                        </div>
+                        {stage.completed && (
+                          <Badge variant="success" size="sm">Done</Badge>
+                        )}
+                      </div>
+                      <p className="text-[11px] text-muted-foreground leading-snug">{stage.description}</p>
                     </div>
-                  ) : (
-                    <p className="mt-2 text-sm leading-6 text-muted-foreground">No audit notes are attached to this issue.</p>
-                  )}
+                  );
+                })}
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Audit History Timeline */}
+          <Card className="border border-border/80 bg-surface/95 shadow-sm">
+            <CardHeader className="pb-3 border-b border-border/60">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <History className="h-5 w-5 text-teal-600" />
+                  <CardTitle className="text-base font-bold text-foreground">Lifecycle Audit Trail</CardTitle>
                 </div>
-                <div className="rounded-2xl border border-border/70 bg-surface-elevated p-4">
-                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">Assignment record</p>
-                  {currentAssignment ? (
-                    <div className="mt-2 space-y-1 text-sm leading-6 text-foreground">
-                      <p>{currentAssignment.department?.name ?? "Unassigned department"}</p>
-                      <p>{currentAssignment.worker?.full_name?.trim() || currentAssignment.worker?.email || "No worker assigned"}</p>
-                      <p className="text-muted-foreground">Assignment status: {currentAssignment.status}</p>
+                <span className="text-xs text-muted-foreground">{timelineItems.length} status events</span>
+              </div>
+            </CardHeader>
+            <CardContent className="p-5 space-y-4">
+              {timelineItems.length > 0 ? (
+                timelineItems.map((item, index) => {
+                  const Icon = item.icon;
+                  const isLast = index === timelineItems.length - 1;
+
+                  return (
+                    <div key={item.id} className="relative flex items-start gap-3.5 text-xs">
+                      {!isLast && (
+                        <div className="absolute left-4 top-7 bottom-0 w-0.5 bg-border/80" aria-hidden="true" />
+                      )}
+                      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-border/80 bg-background shadow-xs">
+                        <Icon className="h-4 w-4 text-primary" />
+                      </div>
+                      <div className="flex-1 rounded-xl border border-border/60 bg-background/50 p-3 space-y-1">
+                        <div className="flex items-center justify-between gap-2">
+                          <p className="font-bold text-foreground">{item.title}</p>
+                          <Badge variant={item.tone} size="sm">
+                            {formatAdminDate(item.timestamp)}
+                          </Badge>
+                        </div>
+                        <p className="text-muted-foreground leading-relaxed">{item.description}</p>
+                        <p className="text-[10px] text-muted-foreground/80">{formatAdminDateTime(item.timestamp)}</p>
+                      </div>
                     </div>
-                  ) : (
-                    <p className="mt-2 text-sm leading-6 text-muted-foreground">No assignment record available.</p>
-                  )}
+                  );
+                })
+              ) : (
+                <p className="text-xs text-muted-foreground text-center py-4">No audit events logged.</p>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Evidence Attachments Gallery */}
+          <Card className="border border-border/80 bg-surface/95 shadow-sm">
+            <CardHeader className="pb-3 border-b border-border/60">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <ImageIcon className="h-5 w-5 text-sky-600" />
+                  <CardTitle className="text-base font-bold text-foreground">Evidence & Photo Logs</CardTitle>
+                </div>
+                <span className="text-xs text-muted-foreground">{issueImages.length} images</span>
+              </div>
+            </CardHeader>
+            <CardContent className="p-5">
+              <div className="grid gap-4 sm:grid-cols-3">
+                {/* Initial report */}
+                <div className="rounded-2xl border border-border/70 bg-background/50 p-3 space-y-2">
+                  <p className="text-xs font-bold text-foreground">Initial Citizen Photo</p>
+                  <div className="overflow-hidden rounded-xl aspect-video bg-muted/30">
+                    <IssueImage
+                      alt="Original citizen report"
+                      className="h-full w-full object-cover"
+                      src={initialImage ? formatCitizenIssueImageUrl(initialImage) : heroImage}
+                      variant="card"
+                    />
+                  </div>
+                  <p className="text-[10px] text-muted-foreground">Logged at submission</p>
+                </div>
+
+                {/* Latest progress */}
+                <div className="rounded-2xl border border-border/70 bg-background/50 p-3 space-y-2">
+                  <p className="text-xs font-bold text-foreground">Field Worker Progress</p>
+                  <div className="overflow-hidden rounded-xl aspect-video bg-muted/30">
+                    <IssueImage
+                      alt="Field work evidence"
+                      className="h-full w-full object-cover"
+                      src={latestImage ? formatCitizenIssueImageUrl(latestImage) : null}
+                      variant="card"
+                    />
+                  </div>
+                  <p className="text-[10px] text-muted-foreground">Most recent snapshot</p>
+                </div>
+
+                {/* Resolution evidence */}
+                <div className="rounded-2xl border border-border/70 bg-background/50 p-3 space-y-2">
+                  <p className="text-xs font-bold text-foreground">Resolution Evidence</p>
+                  <div className="overflow-hidden rounded-xl aspect-video bg-muted/30">
+                    <IssueImage
+                      alt="Resolution verification"
+                      className="h-full w-full object-cover"
+                      src={resolutionImage ? formatCitizenIssueImageUrl(resolutionImage) : null}
+                      variant="card"
+                    />
+                  </div>
+                  <p className="text-[10px] text-muted-foreground">Fix completion proof</p>
                 </div>
               </div>
-            </div>
-          </div>
+            </CardContent>
+          </Card>
         </div>
 
-        <aside className="space-y-4">
-          <div className="rounded-[1.75rem] border border-border/80 bg-surface/90 p-6 shadow-lg shadow-teal-950/5">
-            <h3 className="text-lg font-semibold text-foreground">Quick facts</h3>
-            <div className="mt-4 space-y-3 text-sm leading-6 text-foreground">
-              <p><span className="font-medium">Issue ID:</span> {issue.id}</p>
-              <p><span className="font-medium">Created:</span> {formatAdminDateTime(issue.created_at)}</p>
-              <p><span className="font-medium">Updated:</span> {formatAdminDateTime(issue.updated_at)}</p>
-              <p><span className="font-medium">Images:</span> {issueImages.length}</p>
-              <p><span className="font-medium">Current assignment:</span> {currentAssignment ? "Yes" : "No"}</p>
-              <p><span className="font-medium">Verification records:</span> {verificationItems.length}</p>
-              <p><span className="font-medium">Current workflow stage:</span> {stageCards[currentStepIndex]?.label ?? "Unknown"}</p>
-            </div>
-          </div>
-
-          <div className="rounded-[1.75rem] border border-border/80 bg-surface/90 p-6 shadow-lg shadow-teal-950/5">
-            <h3 className="text-lg font-semibold text-foreground">Latest verification</h3>
-            {latestVerification ? (
-              <div className="mt-4 space-y-2 text-sm leading-6 text-foreground">
-                <p className="font-medium">{latestVerification.result}</p>
-                <p className="text-muted-foreground">{latestVerification.citizen?.full_name?.trim() || latestVerification.citizen?.email || "Citizen"} · {formatAdminDateTime(latestVerification.created_at)}</p>
-                {latestVerification.feedback ? <p className="text-muted-foreground">{latestVerification.feedback}</p> : null}
+        {/* Right Column: Sidebar Metadata Cards */}
+        <div className="space-y-6">
+          {/* Location Details Card */}
+          <Card className="border border-border/80 bg-surface/95 shadow-sm">
+            <CardHeader className="pb-3 border-b border-border/60">
+              <div className="flex items-center gap-2">
+                <MapPin className="h-5 w-5 text-rose-600" />
+                <CardTitle className="text-base font-bold text-foreground">Location Information</CardTitle>
               </div>
-            ) : (
-              <p className="mt-4 text-sm leading-6 text-muted-foreground">No citizen verification has been recorded yet.</p>
-            )}
-          </div>
+            </CardHeader>
+            <CardContent className="p-4 space-y-2.5 text-xs">
+              <div>
+                <span className="font-semibold text-muted-foreground uppercase text-[10px] block">Address / Area</span>
+                <p className="font-medium text-foreground mt-0.5">{issueLocation ?? "No location text specified"}</p>
+              </div>
+              {issueCoordinates && (
+                <div>
+                  <span className="font-semibold text-muted-foreground uppercase text-[10px] block">Coordinates</span>
+                  <p className="font-mono text-muted-foreground mt-0.5">{issueCoordinates}</p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
 
-          <div className="rounded-[1.75rem] border border-border/80 bg-surface/90 p-6 shadow-lg shadow-teal-950/5">
-            <h3 className="text-lg font-semibold text-foreground">Related media</h3>
-            <div className="mt-4 space-y-3">
-              <div className="rounded-2xl border border-border/70 bg-surface-elevated p-3">
-                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">Original image</p>
-                <div className="mt-3 overflow-hidden rounded-2xl">
-                  <IssueImage alt={`${issue.title} original report`} src={initialImage ? formatCitizenIssueImageUrl(initialImage) : heroImage} variant="card" />
+          {/* Department & Assignment Card */}
+          <Card className="border border-border/80 bg-surface/95 shadow-sm">
+            <CardHeader className="pb-3 border-b border-border/60">
+              <div className="flex items-center gap-2">
+                <Building2 className="h-5 w-5 text-teal-600" />
+                <CardTitle className="text-base font-bold text-foreground">Assignment Record</CardTitle>
+              </div>
+            </CardHeader>
+            <CardContent className="p-4 space-y-3 text-xs">
+              <div>
+                <span className="font-semibold text-muted-foreground uppercase text-[10px] block">Assigned Department</span>
+                <p className="font-bold text-foreground mt-0.5">
+                  {currentAssignment?.department?.name ?? issue.department?.name ?? "Unassigned"}
+                </p>
+              </div>
+
+              <div>
+                <span className="font-semibold text-muted-foreground uppercase text-[10px] block">Field Worker</span>
+                <p className="font-medium text-foreground mt-0.5">
+                  {currentAssignment?.worker?.full_name?.trim() || currentAssignment?.worker?.email || "No worker assigned"}
+                </p>
+                {currentAssignment?.worker?.phone && (
+                  <p className="text-[11px] text-muted-foreground">{currentAssignment.worker.phone}</p>
+                )}
+              </div>
+
+              {currentAssignment?.assigned_by_profile && (
+                <div>
+                  <span className="font-semibold text-muted-foreground uppercase text-[10px] block">Assigned By</span>
+                  <p className="font-medium text-muted-foreground mt-0.5">
+                    {currentAssignment.assigned_by_profile.full_name?.trim() || currentAssignment.assigned_by_profile.email}
+                  </p>
+                </div>
+              )}
+
+              {currentAssignment?.assigned_at && (
+                <div>
+                  <span className="font-semibold text-muted-foreground uppercase text-[10px] block">Assigned Timestamp</span>
+                  <p className="text-muted-foreground mt-0.5">{formatAdminDateTime(currentAssignment.assigned_at)}</p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Citizen Reporter Card */}
+          <Card className="border border-border/80 bg-surface/95 shadow-sm">
+            <CardHeader className="pb-3 border-b border-border/60">
+              <div className="flex items-center gap-2">
+                <User className="h-5 w-5 text-sky-600" />
+                <CardTitle className="text-base font-bold text-foreground">Citizen Reporter</CardTitle>
+              </div>
+            </CardHeader>
+            <CardContent className="p-4 space-y-2.5 text-xs">
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-teal-100 via-sky-100 to-emerald-100 text-xs font-bold text-teal-900 border border-teal-200">
+                  {getAdminInitials(issue.reporter_profile?.full_name || issue.reporter_profile?.email || "Citizen")}
+                </div>
+                <div className="min-w-0">
+                  <p className="font-bold text-foreground truncate">{issue.reporter_profile?.full_name || "Anonymous Citizen"}</p>
+                  <p className="text-muted-foreground truncate">{issue.reporter_profile?.email || "No email"}</p>
+                  {issue.reporter_profile?.phone && <p className="text-muted-foreground">{issue.reporter_profile.phone}</p>}
                 </div>
               </div>
-              <div className="rounded-2xl border border-border/70 bg-surface-elevated p-3">
-                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">Latest image</p>
-                <div className="mt-3 overflow-hidden rounded-2xl">
-                  <IssueImage alt={`${issue.title} latest evidence`} src={latestImage ? formatCitizenIssueImageUrl(latestImage) : null} variant="card" />
-                </div>
+            </CardContent>
+          </Card>
+
+          {/* Resolution Outcome & Verification Card */}
+          <Card className="border border-border/80 bg-surface/95 shadow-sm">
+            <CardHeader className="pb-3 border-b border-border/60">
+              <div className="flex items-center gap-2">
+                <CheckCircle2 className="h-5 w-5 text-emerald-600" />
+                <CardTitle className="text-base font-bold text-foreground">Citizen Verification</CardTitle>
               </div>
-            </div>
-          </div>
-        </aside>
-      </section>
+            </CardHeader>
+            <CardContent className="p-4 space-y-2.5 text-xs">
+              {latestVerification ? (
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="font-bold text-foreground">Outcome:</span>
+                    <Badge variant={latestVerification.result === "VERIFIED" ? "success" : "danger"} size="sm">
+                      {latestVerification.result}
+                    </Badge>
+                  </div>
+                  {latestVerification.feedback && (
+                    <div>
+                      <span className="text-muted-foreground uppercase text-[10px] block">Feedback:</span>
+                      <p className="text-foreground mt-0.5 italic">"{latestVerification.feedback}"</p>
+                    </div>
+                  )}
+                  <p className="text-[10px] text-muted-foreground pt-1">
+                    Submitted {formatAdminDateTime(latestVerification.created_at)}
+                  </p>
+                </div>
+              ) : (
+                <p className="text-muted-foreground">No citizen verification recorded yet.</p>
+              )}
+
+              {rejectionHistory?.notes && (
+                <div className="rounded-xl border border-red-200 bg-red-50 p-3 text-red-800 mt-2">
+                  <p className="font-bold uppercase text-[10px]">Rejection Note</p>
+                  <p className="mt-1">{rejectionHistory.notes}</p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+      </div>
     </div>
   );
 }
+
