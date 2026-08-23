@@ -1,10 +1,12 @@
-import { Navigate, Route, Routes } from "react-router-dom";
+import { Navigate, Outlet, Route, Routes } from "react-router-dom";
 import { Suspense, lazy } from "react";
 
 import { AppSessionProvider } from "@/auth/app-session";
 import { PublicOnly, RequireAuth, RequireRole } from "@/auth/route-guards";
 import { AppLayout } from "@/components/layout/app-layout";
 import { RootLayout } from "@/components/layout/root-layout";
+import { DemoProvider } from "@/demo/demo-context";
+import { DemoLayout } from "@/demo/demo-layout";
 
 const HomePage = lazy(() => import("@/routes/home").then((module) => ({ default: module.HomePage })));
 const LoginPage = lazy(() => import("@/routes/login").then((module) => ({ default: module.LoginPage })));
@@ -35,6 +37,27 @@ const AdminAnalyticsPage = lazy(() => import("@/routes/admin/analytics").then((m
 const AdminDepartmentsPage = lazy(() => import("@/routes/admin/departments").then((module) => ({ default: module.AdminDepartmentsPage })));
 const SignupPage = lazy(() => import("@/routes/signup").then((module) => ({ default: module.SignupPage })));
 const UnauthorizedPage = lazy(() => import("@/routes/unauthorized").then((module) => ({ default: module.UnauthorizedPage })));
+
+// Demo Sandbox Components
+const DemoHubPage = lazy(() => import("@/demo/demo-hub").then((m) => ({ default: m.DemoHubPage })));
+const DemoOfficerDashboardPage = lazy(() =>
+  import("@/demo/officer/demo-officer-dashboard").then((m) => ({ default: m.DemoOfficerDashboardPage })),
+);
+const DemoOfficerIssuesPage = lazy(() =>
+  import("@/demo/officer/demo-officer-issues").then((m) => ({ default: m.DemoOfficerIssuesPage })),
+);
+const DemoOfficerIssueDetailPage = lazy(() =>
+  import("@/demo/officer/demo-officer-issue-details").then((m) => ({ default: m.DemoOfficerIssueDetailPage })),
+);
+const DemoWorkerDashboardPage = lazy(() =>
+  import("@/demo/worker/demo-worker-dashboard").then((m) => ({ default: m.DemoWorkerDashboardPage })),
+);
+const DemoWorkerAssignedIssuesPage = lazy(() =>
+  import("@/demo/worker/demo-worker-assigned-issues").then((m) => ({ default: m.DemoWorkerAssignedIssuesPage })),
+);
+const DemoWorkerIssueDetailPage = lazy(() =>
+  import("@/demo/worker/demo-worker-issue-details").then((m) => ({ default: m.DemoWorkerIssueDetailPage })),
+);
 
 function RouteLoadingFallback() {
   return (
@@ -77,6 +100,28 @@ export function AppRoutes() {
           path="role-selection"
           element={<Navigate replace to="/app/role-selection" />}
         />
+
+        {/* Safe Public Demo Sandbox Routes */}
+        <Route
+          path="demo"
+          element={
+            <DemoProvider>
+              <Outlet />
+            </DemoProvider>
+          }
+        >
+          <Route index element={<DemoHubPage />} />
+          <Route path="officer" element={<DemoLayout />}>
+            <Route index element={<DemoOfficerDashboardPage />} />
+            <Route path="issues" element={<DemoOfficerIssuesPage />} />
+            <Route path="issues/:issueId" element={<DemoOfficerIssueDetailPage />} />
+          </Route>
+          <Route path="worker" element={<DemoLayout />}>
+            <Route index element={<DemoWorkerDashboardPage />} />
+            <Route path="assigned-issues" element={<DemoWorkerAssignedIssuesPage />} />
+            <Route path="issues/:issueId" element={<DemoWorkerIssueDetailPage />} />
+          </Route>
+        </Route>
 
         <Route
           path="app"

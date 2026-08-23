@@ -10,7 +10,7 @@ const navLinks = [
   { label: "Home", to: "/" },
   { label: "How It Works", to: "/#how-it-works" },
   { label: "Features", to: "/#features" },
-  { label: "About", to: "/#features" },
+  { label: "Try Demo", to: "/demo" },
 ] as const;
 
 export function SiteHeader() {
@@ -52,7 +52,11 @@ export function SiteHeader() {
             <Link
               key={link.label}
               to={link.to}
-              className="rounded-lg px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-teal-50/70 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+              className={`rounded-lg px-3 py-2 text-sm font-medium transition-colors hover:bg-teal-50/70 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary ${
+                link.label === "Try Demo"
+                  ? "text-amber-700 font-semibold bg-amber-50/80 border border-amber-200/70 hover:bg-amber-100"
+                  : "text-muted-foreground"
+              }`}
             >
               {link.label}
             </Link>
@@ -61,6 +65,13 @@ export function SiteHeader() {
 
         {/* Desktop auth buttons */}
         <div className="hidden items-center gap-2 md:flex">
+          <Button asChild size="sm" variant="outline" className="border-amber-300 bg-amber-50/60 hover:bg-amber-100 text-amber-950 font-semibold">
+            <Link to="/demo">
+              <Sparkles className="h-3.5 w-3.5 text-amber-600" />
+              Try Demo
+            </Link>
+          </Button>
+
           {isSignedIn ? (
             <Button asChild size="sm" className="bg-gradient-to-r from-[#0f766e] via-[#0284c7] to-[#059669] text-white shadow-md shadow-teal-950/15 transition hover:shadow-lg hover:shadow-teal-950/20">
               <Link to="/app">
@@ -78,7 +89,6 @@ export function SiteHeader() {
               </Button>
               <Button asChild size="sm" className="bg-gradient-to-r from-[#0f766e] via-[#0284c7] to-[#059669] text-white shadow-md shadow-teal-950/15 transition hover:shadow-lg hover:shadow-teal-950/20">
                 <Link to="/signup">
-                  <Sparkles className="h-3.5 w-3.5" aria-hidden="true" />
                   Get Started
                 </Link>
               </Button>

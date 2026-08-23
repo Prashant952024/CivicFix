@@ -272,7 +272,13 @@ export function HomePage() {
                   <ArrowRight className="h-4 w-4" aria-hidden="true" />
                 </Link>
               </Button>
-              <Button asChild size="lg" variant="outline">
+              <Button asChild size="lg" variant="outline" className="border-amber-300 bg-amber-50/70 hover:bg-amber-100 text-amber-950 font-semibold shadow-sm">
+                <Link to="/demo">
+                  <Sparkles className="mr-1.5 h-4 w-4 text-amber-600" />
+                  Try Demo (Sandbox)
+                </Link>
+              </Button>
+              <Button asChild size="lg" variant="ghost">
                 <Link to="/#how-it-works">
                   See How It Works
                   <ArrowDown className="h-4 w-4" aria-hidden="true" />
@@ -518,9 +524,15 @@ export function HomePage() {
                 <ArrowRight className="h-4 w-4" aria-hidden="true" />
               </Link>
             </Button>
-            <Button asChild size="lg" variant="outline" className="border-white/30 bg-white/10 text-white shadow-lg shadow-black/10 backdrop-blur-sm transition hover:bg-white/20">
+            <Button asChild size="lg" variant="outline" className="border-amber-300 bg-amber-400/20 text-white shadow-lg shadow-black/10 backdrop-blur-sm transition hover:bg-amber-400/30 font-semibold">
+              <Link to="/demo">
+                <Sparkles className="mr-1.5 h-4 w-4 text-amber-300" />
+                Explore Demo Sandbox
+              </Link>
+            </Button>
+            <Button asChild size="lg" variant="ghost" className="text-white hover:bg-white/10">
               <Link to="/login">
-                Explore CivicFix
+                Sign In
               </Link>
             </Button>
           </div>

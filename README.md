@@ -41,6 +41,7 @@
 - [Supabase Configuration](#-supabase-configuration)
 - [Clerk Authentication Setup](#-clerk-authentication-setup)
 - [Deployment Guide](#-deployment-guide)
+- [Public Demo Sandbox](#-public-demo)
 - [How to Demo CivicFix](#-how-to-demo-civicfix)
 - [Visual Walkthrough & Screenshots](#-visual-walkthrough--screenshots)
 - [Current Implementation Status](#-current-implementation-status)
@@ -622,6 +623,29 @@ Add the following in your Vercel Project Settings:
 - `VITE_SUPABASE_URL`
 - `VITE_SUPABASE_PUBLISHABLE_KEY`
 - `VITE_CLERK_PUBLISHABLE_KEY`
+
+---
+
+## 🎭 Public Demo
+
+CivicFix provides a **safe, isolated client-side sandbox demo** so visitors and evaluators can explore the **Municipal Officer** and **Field Worker** command centers without creating an account, entering credentials, or modifying production database records.
+
+### Live Demo Hub & Direct Links
+
+| Demo Experience | Sandbox URL | Description |
+| :--- | :--- | :--- |
+| **Demo Hub** | **[https://civicfix-rho.vercel.app/demo](https://civicfix-rho.vercel.app/demo)** | Public sandbox role selector and security overview |
+| **Demo Municipal Officer** | **[https://civicfix-rho.vercel.app/demo/officer](https://civicfix-rho.vercel.app/demo/officer)** | Interactive queue triage, priority verification, department dispatch & resolution review |
+| **Demo Field Worker** | **[https://civicfix-rho.vercel.app/demo/worker](https://civicfix-rho.vercel.app/demo/worker)** | Mobile field workbench, task status progression, and photo evidence submission |
+
+### 🔒 Sandbox Security & Isolation Guarantee
+
+- **Zero Production Mutations**: All actions (status changes, worker dispatching, evidence upload, resolution sign-offs) run entirely in-memory and in client-side `sessionStorage` (`civicfix-demo-*`).
+- **No Supabase Calls**: The demo mode never executes `INSERT`, `UPDATE`, or `DELETE` operations on the live Supabase PostgreSQL database or Storage buckets.
+- **Strict Authentication Protection**: Real Clerk authentication and PostgreSQL Row-Level Security (RLS) remain untouched and mandatory for production `/app/*` routes.
+- **One-Click State Reset**: Evaluators can instantly reset the sandbox back to fresh seed data at any time via the top banner.
+
+> **Note**: Demo mode is intended for UI/UX exploration and operational walkthroughs. It does not represent production persistence or backend operations.
 
 ---
 
