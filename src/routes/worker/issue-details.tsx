@@ -1,26 +1,34 @@
 import { useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
 import {
   AlertCircle,
-  ArrowLeft,
+  AlertTriangle,
   BadgeCheck,
+  Camera,
+  CheckCircle2,
   ClipboardList,
   Clock3,
-  type LucideIcon,
+  ExternalLink,
   ImageIcon,
   Loader2,
   MapPin,
-  Save,
+  Navigation,
+  RotateCcw,
+  Send,
   ShieldAlert,
+  Sparkles,
   SquarePen,
-  ThumbsUp,
-  UploadCloud,
   X,
+  type LucideIcon,
 } from "lucide-react";
 import { Link, useParams } from "react-router-dom";
 
 import { useAppSession } from "@/auth/app-session";
 import { IssueImage } from "@/components/issues/issue-image";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { EmptyState } from "@/components/ui/empty-state";
+import { PageHeader } from "@/components/ui/page-header";
 import { cn } from "@/lib/utils";
 import {
   formatWorkerDepartmentLabel,
@@ -33,7 +41,6 @@ import {
   getWorkerIssuePriorityTone,
   getWorkerIssueStatusLabel,
   getWorkerIssueStatusTone,
-  pickWorkerIssueThumbnail,
   type WorkerDepartmentRow,
   type WorkerIssueAiAnalysisRow,
   type WorkerIssueAssignmentRow,
@@ -85,18 +92,6 @@ type TimelineItem = {
   icon: LucideIcon;
 };
 
-function badgeToneClasses(tone: "default" | "success" | "warning" | "danger" | "info") {
-  return tone === "success"
-    ? "bg-emerald-50 text-emerald-700 ring-emerald-200"
-    : tone === "warning"
-      ? "bg-amber-50 text-amber-700 ring-amber-200"
-      : tone === "danger"
-        ? "bg-red-50 text-red-700 ring-red-200"
-        : tone === "info"
-          ? "bg-sky-50 text-sky-700 ring-sky-200"
-          : "bg-slate-100 text-slate-700 ring-slate-200";
-}
-
 function buildTimeline(issue: IssueRow): TimelineItem[] {
   const historyItems = [...(issue.issue_status_history ?? [])].sort(
     (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime(),
@@ -138,83 +133,47 @@ function buildTimeline(issue: IssueRow): TimelineItem[] {
   ];
 }
 
-type IssueHistoryRow = WorkerIssueHistoryRow;
-
-function formatHistoryTransition(history: IssueHistoryRow) {
+function formatHistoryTransition(history: WorkerIssueHistoryRow) {
   const oldStatus = history.old_status ? getWorkerIssueStatusLabel(history.old_status) : "Created";
   const newStatus = getWorkerIssueStatusLabel(history.new_status);
-  return `${oldStatus} -> ${newStatus}`;
+  return `${oldStatus} → ${newStatus}`;
 }
 
 function getWorkerTimelineStatusLabel(status: Database["public"]["Enums"]["issue_status"]) {
   if (status === "UNDER_REVIEW") {
     return "Submitted for Review";
   }
-
   return getWorkerIssueStatusLabel(status);
 }
 
 function getTimelineActorLabel(status: Database["public"]["Enums"]["issue_status"]) {
   if (status === "SUBMITTED" || status === "AI_ANALYZED") {
-    return "CivicFix system";
+    return "CivicFix System";
   }
-
   if (status === "VERIFIED" || status === "ASSIGNED" || status === "UNDER_REVIEW" || status === "REJECTED" || status === "REOPENED") {
-    return "Municipal officer";
+    return "Municipal Officer";
   }
-
   if (status === "IN_PROGRESS" || status === "RESOLVED" || status === "CITIZEN_VERIFIED") {
-    return "Field worker";
+    return "Field Worker";
   }
-
-  return "Workflow update";
+  return "Workflow Update";
 }
 
 function getTimelineIcon(status: Database["public"]["Enums"]["issue_status"]): LucideIcon {
-  if (status === "AI_ANALYZED") {
-    return ShieldAlert;
-  }
-
-  if (status === "VERIFIED" || status === "RESOLVED" || status === "CITIZEN_VERIFIED") {
-    return BadgeCheck;
-  }
-
-  if (status === "ASSIGNED") {
-    return MapPin;
-  }
-
-  if (status === "IN_PROGRESS") {
-    return SquarePen;
-  }
-
-  if (status === "UNDER_REVIEW") {
-    return Clock3;
-  }
-
-  if (status === "REJECTED" || status === "REOPENED") {
-    return AlertCircle;
-  }
-
+  if (status === "AI_ANALYZED") return ShieldAlert;
+  if (status === "VERIFIED" || status === "RESOLVED" || status === "CITIZEN_VERIFIED") return BadgeCheck;
+  if (status === "ASSIGNED") return MapPin;
+  if (status === "IN_PROGRESS") return SquarePen;
+  if (status === "UNDER_REVIEW") return Clock3;
+  if (status === "REJECTED" || status === "REOPENED") return AlertTriangle;
   return ClipboardList;
 }
 
 function getWorkflowStageIndex(status: Database["public"]["Enums"]["issue_status"]) {
-  if (status === "IN_PROGRESS") {
-    return 1;
-  }
-
-  if (status === "UNDER_REVIEW") {
-    return 2;
-  }
-
-  if (status === "RESOLVED" || status === "CITIZEN_VERIFIED") {
-    return 3;
-  }
-
-  if (status === "REJECTED") {
-    return 1;
-  }
-
+  if (status === "IN_PROGRESS") return 1;
+  if (status === "UNDER_REVIEW") return 2;
+  if (status === "RESOLVED" || status === "CITIZEN_VERIFIED") return 3;
+  if (status === "REJECTED") return 1;
   return 0;
 }
 
@@ -222,22 +181,22 @@ const WORKFLOW_STAGES = [
   {
     key: "ASSIGNED",
     label: "Assigned",
-    description: "The work is routed to the field worker and ready to begin.",
+    description: "Task routed to you and ready to start.",
   },
   {
     key: "IN_PROGRESS",
     label: "In Progress",
-    description: "The issue is actively being handled in the field.",
+    description: "Repairs actively underway in the field.",
   },
   {
     key: "UNDER_REVIEW",
     label: "Under Review",
-    description: "Resolution evidence has been uploaded and is waiting for review.",
+    description: "Resolution proof submitted for officer approval.",
   },
   {
     key: "RESOLVED",
     label: "Resolved",
-    description: "The issue is completed and awaiting final confirmation.",
+    description: "Work verified and marked complete.",
   },
 ] as const;
 
@@ -260,10 +219,7 @@ function isWorkerReadyToSubmitResolution(status: Database["public"]["Enums"]["is
 }
 
 function confidencePercent(value: number | null | undefined) {
-  if (value == null) {
-    return "Not provided";
-  }
-
+  if (value == null) return "Not provided";
   return `${Math.round(value * 100)}%`;
 }
 
@@ -342,132 +298,6 @@ async function compressResolutionImage(file: File) {
   } finally {
     cleanup();
   }
-}
-
-function WorkflowStepper({ status, issueIsFinal }: { status: Database["public"]["Enums"]["issue_status"]; issueIsFinal: boolean }) {
-  const currentIndex = getWorkflowStageIndex(status);
-
-  return (
-    <div className="space-y-3">
-      {WORKFLOW_STAGES.map((stage, index) => {
-        const state = index < currentIndex ? "complete" : index === currentIndex ? "active" : "pending";
-
-        return (
-          <div
-            key={stage.key}
-            className={cn(
-              "rounded-[1.35rem] border p-4 shadow-sm",
-              state === "complete"
-                ? "border-emerald-200/80 bg-emerald-50/70"
-                : state === "active"
-                  ? "border-sky-200/80 bg-gradient-to-br from-sky-50/85 to-teal-50/80"
-                  : "border-border/70 bg-surface-elevated/80",
-            )}
-          >
-            <div className="flex min-w-0 items-start gap-3">
-              <div
-                className={cn(
-                  "flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border text-sm font-semibold",
-                  state === "complete"
-                    ? "border-emerald-200 bg-emerald-600 text-white"
-                    : state === "active"
-                      ? "border-sky-200 bg-gradient-to-br from-teal-600 via-cyan-600 to-blue-600 text-white"
-                      : "border-border/70 bg-background/70 text-muted-foreground",
-                )}
-              >
-                {index + 1}
-              </div>
-              <div className="min-w-0 flex-1">
-                <div className="flex flex-wrap items-center gap-2">
-                  <h4 className="break-words text-sm font-semibold text-foreground">{stage.label}</h4>
-                  <span
-                    className={cn(
-                      "inline-flex items-center rounded-full border px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-[0.2em] ring-1",
-                      state === "complete"
-                        ? "border-emerald-200 bg-emerald-50 text-emerald-700 ring-emerald-200"
-                        : state === "active"
-                          ? "border-sky-200 bg-sky-50 text-sky-700 ring-sky-200"
-                          : "border-border/70 bg-background/70 text-muted-foreground ring-border/70",
-                    )}
-                  >
-                    {state === "complete" ? "Completed" : state === "active" ? "Current" : "Pending"}
-                  </span>
-                </div>
-                <p className="mt-2 break-words text-sm leading-6 text-muted-foreground">{stage.description}</p>
-                {state === "active" && status === "REJECTED" ? (
-                  <p className="mt-3 rounded-2xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm leading-6 text-amber-800">
-                    The previous submission was rejected. Resume work and submit updated evidence.
-                  </p>
-                ) : null}
-                {state === "active" && issueIsFinal ? (
-                  <p className="mt-3 rounded-2xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm leading-6 text-emerald-800">
-                    This issue is already complete.
-                  </p>
-                ) : null}
-              </div>
-            </div>
-          </div>
-        );
-      })}
-    </div>
-  );
-}
-
-function TimelineEntry({ item, isLast, isLatest }: { item: TimelineItem; isLast: boolean; isLatest: boolean }) {
-  const Icon = item.icon;
-
-  return (
-    <div className="grid min-w-0 grid-cols-[3.25rem_minmax(0,1fr)] gap-4">
-      <div className="relative flex min-h-full flex-col items-center">
-        {!isLast ? <div className="absolute left-1/2 top-8 bottom-0 w-px -translate-x-1/2 bg-gradient-to-b from-border via-border/70 to-transparent" aria-hidden="true" /> : null}
-        <div
-          className={cn(
-            "relative z-10 flex h-11 w-11 items-center justify-center rounded-full border shadow-sm",
-            isLatest
-              ? "border-white bg-gradient-to-br from-teal-600 via-cyan-600 to-blue-600 text-white shadow-teal-950/15"
-              : `border-white ${badgeToneClasses(item.tone)}`,
-          )}
-        >
-          <Icon className="h-5 w-5" aria-hidden="true" />
-        </div>
-      </div>
-
-      <div
-        className={cn(
-          "min-w-0 rounded-[1.45rem] border p-4 shadow-sm",
-          isLatest
-            ? "border-teal-200/80 bg-[linear-gradient(135deg,rgba(255,255,255,0.94)_0%,rgba(236,253,245,0.88)_100%)] shadow-[0_14px_28px_rgba(15,23,42,0.08)]"
-            : "border-border/70 bg-background/45",
-        )}
-      >
-        <div className="min-w-0 space-y-3">
-          <div className="flex flex-wrap items-center gap-2">
-            <span
-              className={`inline-flex max-w-full items-center rounded-full border px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] ring-1 ${badgeToneClasses(item.tone)}`}
-            >
-              {item.statusLabel}
-            </span>
-            {isLatest ? (
-              <span className="inline-flex items-center rounded-full border border-teal-200 bg-teal-50 px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-[0.2em] text-teal-700">
-                Current
-              </span>
-            ) : null}
-          </div>
-
-          <p className="min-w-0 break-words text-sm leading-6 text-foreground/90">{item.description}</p>
-
-          <div className="flex flex-col gap-1">
-            <p className="min-w-0 break-words text-xs font-medium uppercase tracking-[0.1em] text-muted-foreground">
-              {item.actorLabel}
-            </p>
-            <p className="min-w-0 break-words text-xs leading-5 text-muted-foreground">
-              {formatWorkerIssueDateTime(item.timestamp)}
-            </p>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
 }
 
 export function WorkerAssignedIssueDetailsPage() {
@@ -687,8 +517,7 @@ export function WorkerAssignedIssueDetailsPage() {
     };
   }, [issueId, profileId, refreshNonce, sessionStatus]);
 
-  const heroImage = issue ? pickWorkerIssueThumbnail(issue) : null;
-  const initialImage = issue ? pickCitizenIssueImageByType(issue, "INITIAL_REPORT") : null;
+  const initialImage = issue ? pickCitizenIssueImageByType(issue, "INITIAL_REPORT") ?? issue.issue_images?.[0] ?? null : null;
   const resolutionImage = issue ? pickCitizenIssueImageByType(issue, "RESOLUTION_EVIDENCE") : null;
   const locationText = issue ? issue.address_text?.trim() || issue.location_text?.trim() || null : null;
   const coordinates = issue ? formatWorkerIssueCoordinates(issue.latitude, issue.longitude) : null;
@@ -699,6 +528,16 @@ export function WorkerAssignedIssueDetailsPage() {
   const currentDepartment = assignment?.department ?? issue?.department ?? null;
   const currentWorker = assignment?.worker ?? null;
   const assignedBy = assignment?.assigned_by ?? null;
+
+  // Find latest rejection note if present
+  const latestRejection = useMemo(() => {
+    if (!issue || !issue.issue_status_history) return null;
+    const items = [...issue.issue_status_history]
+      .filter((h) => h.new_status === "REJECTED" || h.new_status === "REOPENED")
+      .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+    return items[0] ?? null;
+  }, [issue]);
+
   const aiExplanation = !aiAnalysis
     ? null
     : (() => {
@@ -719,16 +558,18 @@ export function WorkerAssignedIssueDetailsPage() {
         ].filter(Boolean);
 
         if (parts.length === 0) {
-          return "AI analysis is available for this issue, but no explanation text was provided.";
+          return "AI analysis completed.";
         }
 
-        return `The model recommends ${parts.join(" and ")} for field execution and routing.`;
+        return `Recommended ${parts.join(" and ")} based on automated scan.`;
       })();
 
   const canStartWork = issue ? isWorkerNextActionStart(issue.status) : false;
   const canSubmitResolution = issue ? isWorkerReadyToSubmitResolution(issue.status) : false;
   const issueIsFinal = issue ? issue.status === "RESOLVED" || issue.status === "CITIZEN_VERIFIED" : false;
-  const startWorkButtonLabel = issue?.status === "REJECTED" ? "Resume Work" : "Start Work";
+  const isRejected = issue?.status === "REJECTED" || issue?.status === "REOPENED";
+  const isUnderReview = issue?.status === "UNDER_REVIEW";
+  const isInProgress = issue?.status === "IN_PROGRESS";
 
   function clearResolutionDraft() {
     setCompressedResolutionImage(null);
@@ -813,7 +654,9 @@ export function WorkerAssignedIssueDetailsPage() {
       old_status: issue.status,
       new_status: "IN_PROGRESS",
       changed_by_profile_id: profileId,
-      notes: "Field worker started work on this assignment.",
+      notes: isRejected
+        ? "Field worker resumed work following officer revision request."
+        : "Field worker started work on this assignment.",
     });
 
     if (insertError) {
@@ -832,10 +675,6 @@ export function WorkerAssignedIssueDetailsPage() {
     refreshIssue("Work has been marked as in progress.");
   }
 
-  function removeResolutionImage() {
-    clearResolutionImageSelection();
-  }
-
   async function handleSubmitResolution() {
     if (!issue || !profileId || actionState !== "idle") {
       return;
@@ -847,7 +686,7 @@ export function WorkerAssignedIssueDetailsPage() {
     }
 
     if (!compressedResolutionImage) {
-      setActionError("Please select a resolution evidence image before submitting.");
+      setActionError("Please select a resolution evidence photo before submitting.");
       return;
     }
 
@@ -920,616 +759,657 @@ export function WorkerAssignedIssueDetailsPage() {
       return;
     }
 
-    refreshIssue("Resolution evidence submitted successfully.");
+    refreshIssue("Resolution evidence submitted successfully for officer review.");
   }
 
   if (sessionProblem || error) {
     return (
-      <section className="rounded-[1.75rem] border border-white/70 bg-white/84 p-6 shadow-[0_18px_42px_rgba(15,23,42,0.12)]">
-        <div className="max-w-2xl space-y-4">
-          <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-red-200 bg-red-50 text-red-700">
-            <AlertCircle className="h-5 w-5" aria-hidden="true" />
-          </div>
-          <div className="space-y-2">
-            <h2 className="text-2xl font-semibold tracking-tight text-foreground">Issue unavailable</h2>
-            <p className="text-sm leading-6 text-muted-foreground">{sessionProblem ?? error}</p>
-          </div>
-          <div className="flex flex-col gap-3 sm:flex-row">
+      <EmptyState
+        icon={AlertCircle}
+        variant="error"
+        title="Issue Unavailable"
+        description={sessionProblem ?? error ?? "We could not load this assigned task."}
+        action={
+          <div className="flex flex-wrap gap-2 justify-center">
             <Button asChild>
-              <Link to="/app/worker/assigned-issues">Back to Assigned Issues</Link>
+              <Link to="/app/worker/assigned-issues">Back to Assigned Tasks</Link>
             </Button>
             <Button asChild variant="outline">
-              <Link to="/app/worker">Back to Dashboard</Link>
+              <Link to="/app/worker">Worker Dashboard</Link>
             </Button>
           </div>
-        </div>
-      </section>
+        }
+      />
     );
   }
 
   if (loading || !issue) {
     return (
       <div className="space-y-6">
-        <section className="rounded-[1.75rem] border border-white/70 bg-white/84 p-6 shadow-[0_18px_42px_rgba(15,23,42,0.12)]">
-          <div className="space-y-3">
-            <div className="h-4 w-48 animate-pulse rounded-full bg-muted/60" />
-            <div className="h-9 w-full max-w-3xl animate-pulse rounded-2xl bg-muted/60" />
-            <div className="h-4 w-full max-w-2xl animate-pulse rounded-full bg-muted/40" />
+        <div className="h-44 w-full animate-pulse rounded-[1.85rem] border border-teal-100/80 bg-teal-50/40" />
+        <div className="grid gap-6 lg:grid-cols-[1.2fr_0.8fr]">
+          <div className="space-y-4">
+            <div className="h-64 animate-pulse rounded-[1.6rem] border border-border/70 bg-surface/80" />
+            <div className="h-48 animate-pulse rounded-[1.6rem] border border-border/70 bg-surface/80" />
           </div>
-        </section>
-        <section className="grid gap-4 lg:grid-cols-[1.05fr_0.95fr]">
-          <div className="h-[34rem] animate-pulse rounded-[1.75rem] border border-white/70 bg-white/84" />
-          <div className="h-[34rem] animate-pulse rounded-[1.75rem] border border-white/70 bg-white/84" />
-        </section>
+          <div className="space-y-4">
+            <div className="h-56 animate-pulse rounded-[1.6rem] border border-border/70 bg-surface/80" />
+            <div className="h-72 animate-pulse rounded-[1.6rem] border border-border/70 bg-surface/80" />
+          </div>
+        </div>
       </div>
     );
   }
 
-  const workflowCurrentIndex = getWorkflowStageIndex(issue.status);
+  const currentWorkflowIndex = getWorkflowStageIndex(issue.status);
 
   return (
     <div className="space-y-6">
-      <section className="overflow-hidden rounded-[1.85rem] border border-teal-100/80 bg-[linear-gradient(135deg,rgba(15,118,110,0.14)_0%,rgba(2,132,199,0.10)_42%,rgba(124,58,237,0.08)_100%)] shadow-[0_22px_55px_rgba(15,23,42,0.12)]">
-        <div className="grid gap-0 lg:grid-cols-[1.08fr_0.92fr]">
-          <div className="relative min-w-0 px-6 py-6 lg:px-8 lg:py-8">
-            <div className="pointer-events-none absolute -left-8 top-0 h-36 w-36 rounded-full bg-sky-400/10 blur-3xl" aria-hidden="true" />
-            <Button asChild variant="ghost" className="relative z-10 w-fit px-0 text-slate-700 hover:bg-transparent hover:text-slate-900">
-              <Link to="/app/worker/assigned-issues">
-                <ArrowLeft className="h-4 w-4" aria-hidden="true" />
-                Back to Assigned Issues
-              </Link>
-            </Button>
-
-            <div className="relative z-10 mt-5 space-y-4">
-              <p className="text-xs font-semibold uppercase tracking-[0.24em] text-muted-foreground">
-                Issue #{issue.id.slice(0, 8).toUpperCase()}
-              </p>
-              <div className="space-y-3">
-                <h2 className="text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">{issue.title}</h2>
-                <p className="max-w-3xl text-sm leading-6 text-muted-foreground sm:text-base">{issue.description}</p>
-              </div>
-
-              <div className="flex flex-wrap gap-2">
-                <span className={`inline-flex items-center rounded-full border px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] ring-1 ${badgeToneClasses(statusTone)}`}>
-                  {statusLabel}
-                </span>
-                <span className={`inline-flex items-center rounded-full border px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] ring-1 ${badgeToneClasses(priorityTone)}`}>
-                  Priority {formatWorkerIssuePriority(issue.priority)}
-                </span>
-                <span className="inline-flex items-center rounded-full border border-sky-200/80 bg-sky-50/80 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-sky-800">
-                  {issue.category}
-                </span>
-                {locationText ? (
-                  <span className="inline-flex items-center rounded-full border border-emerald-200/80 bg-emerald-50/80 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-emerald-800">
-                    {locationText}
-                  </span>
-                ) : null}
-              </div>
-
-              <div className="grid gap-3 sm:grid-cols-2">
-                <div className="rounded-2xl border border-white/70 bg-white/78 p-4 shadow-sm">
-                  <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">Assigned to</p>
-                  <p className="mt-2 break-words text-sm font-medium text-foreground">{formatWorkerProfileLabel(currentWorker)}</p>
-                </div>
-                <div className="rounded-2xl border border-white/70 bg-white/78 p-4 shadow-sm">
-                  <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">Assigned by</p>
-                  <p className="mt-2 break-words text-sm font-medium text-foreground">{formatWorkerProfileLabel(assignedBy)}</p>
-                </div>
-                <div className="rounded-2xl border border-white/70 bg-white/78 p-4 shadow-sm">
-                  <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">Department</p>
-                  <p className="mt-2 break-words text-sm font-medium text-foreground">{formatWorkerDepartmentLabel(currentDepartment)}</p>
-                </div>
-                <div className="rounded-2xl border border-white/70 bg-white/78 p-4 shadow-sm">
-                  <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">GPS</p>
-                  <p className="mt-2 break-words text-sm font-medium text-foreground">{coordinates ?? "Not captured"}</p>
-                </div>
-              </div>
-            </div>
+      {/* 1. Header with Breadcrumb, Badges and Actions */}
+      <PageHeader
+        backHref="/app/worker/assigned-issues"
+        backLabel="Assigned Tasks"
+        tag={`Task #${issue.id.slice(0, 8).toUpperCase()}`}
+        title={issue.title}
+        description={`Reported on ${formatWorkerIssueDate(issue.created_at)} · Last updated ${formatWorkerIssueDateTime(issue.updated_at)}`}
+        actions={
+          <div className="flex flex-wrap items-center gap-2">
+            <Badge variant={statusTone} size="lg">
+              {statusLabel}
+            </Badge>
+            <Badge variant={priorityTone} size="lg">
+              {formatWorkerIssuePriority(issue.priority)} Priority
+            </Badge>
+            <Badge variant="outline" size="lg">
+              {issue.category}
+            </Badge>
           </div>
+        }
+      />
 
-          <div className="relative min-w-0 border-t border-white/70 lg:border-l lg:border-t-0">
-            <div className="absolute inset-0 bg-[linear-gradient(135deg,rgba(255,255,255,0.12)_0%,rgba(255,255,255,0.02)_100%)]" aria-hidden="true" />
-            <IssueImage
-              alt={issue.title}
-              className="min-h-[22rem] rounded-none lg:min-h-full"
-              emptyLabel="No image attached"
-              imageClassName="object-cover"
-              src={heroImage}
-              variant="hero"
-            />
-            <div className="pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-slate-900/50 via-slate-900/10 to-transparent p-4 text-white">
+      {/* 2. Alert Feedback Banners */}
+      {actionMessage && (
+        <div className="flex items-center gap-3 rounded-2xl border border-emerald-200 bg-emerald-50/90 p-4 text-sm font-medium text-emerald-800 shadow-sm animate-in fade-in">
+          <CheckCircle2 className="h-5 w-5 shrink-0 text-emerald-600" />
+          <span>{actionMessage}</span>
+        </div>
+      )}
+
+      {actionError && (
+        <div className="flex items-center gap-3 rounded-2xl border border-red-200 bg-red-50/90 p-4 text-sm font-medium text-red-800 shadow-sm animate-in fade-in">
+          <AlertCircle className="h-5 w-5 shrink-0 text-red-600" />
+          <span>{actionError}</span>
+        </div>
+      )}
+
+      {/* 3. Rejection / Changes Requested Alert Banner */}
+      {isRejected && (
+        <div className="rounded-[1.6rem] border border-amber-300 bg-gradient-to-br from-amber-50 via-white to-red-50/40 p-5 sm:p-6 shadow-md">
+          <div className="flex items-start gap-4">
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-amber-300 bg-amber-100 text-amber-800">
+              <AlertTriangle className="h-6 w-6" aria-hidden="true" />
+            </div>
+            <div className="space-y-2 flex-1">
               <div className="flex flex-wrap items-center gap-2">
-                <span className="rounded-full bg-white/15 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] backdrop-blur-sm">
-                  Issue image
-                </span>
-                <span className="rounded-full bg-white/15 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] backdrop-blur-sm">
-                  {formatWorkerIssueDateTime(issue.updated_at)}
-                </span>
+                <h2 className="text-base sm:text-lg font-bold text-amber-900">Changes Requested by Officer</h2>
+                <Badge variant="warning" size="sm">Rework Required</Badge>
+              </div>
+
+              {latestRejection?.notes ? (
+                <div className="rounded-2xl border border-amber-200/80 bg-white/90 p-3.5 text-sm text-foreground leading-relaxed">
+                  <p className="font-semibold text-xs text-amber-800 uppercase tracking-wider mb-1">Officer Notes:</p>
+                  <p>{latestRejection.notes}</p>
+                </div>
+              ) : (
+                <p className="text-sm text-amber-800">
+                  The reviewing officer requested revisions on this resolution. Please inspect the site, resume work, and upload new evidence.
+                </p>
+              )}
+
+              <div className="pt-2">
+                <Button
+                  disabled={actionState !== "idle"}
+                  onClick={() => void handleStartWork()}
+                  className="bg-gradient-to-r from-amber-600 via-orange-600 to-red-600 shadow-md min-h-[44px]"
+                  size="default"
+                  type="button"
+                >
+                  {actionState === "starting" ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <RotateCcw className="h-4 w-4 mr-2" />}
+                  Resume Work Now
+                </Button>
               </div>
             </div>
           </div>
         </div>
+      )}
 
-        {actionMessage ? (
-          <div className="border-t border-emerald-200 bg-emerald-50 px-6 py-4 text-sm font-medium text-emerald-800">{actionMessage}</div>
-        ) : null}
-
-        {actionError ? (
-          <div className="border-t border-red-200 bg-red-50 px-6 py-4 text-sm font-medium text-red-800">{actionError}</div>
-        ) : null}
-      </section>
-
-      <section className="grid gap-4 lg:grid-cols-[1.06fr_0.94fr]">
-        <article className="min-w-0 space-y-4">
-          <section className="overflow-hidden rounded-[1.75rem] border border-white/70 bg-white/86 shadow-[0_16px_42px_rgba(15,23,42,0.1)]">
-            <div className="border-b border-border/70 bg-gradient-to-r from-sky-50/80 via-white to-teal-50/70 px-6 py-5">
-              <div className="flex items-center gap-3">
-                <div className="rounded-2xl border border-sky-200 bg-sky-50 p-3 text-sky-700">
-                  <BadgeCheck className="h-5 w-5" aria-hidden="true" />
-                </div>
-                <div>
-                  <p className="text-xs font-semibold uppercase tracking-[0.24em] text-muted-foreground">Issue information</p>
-                  <h3 className="mt-1 text-lg font-semibold text-foreground">Problem, location, and assignment context</h3>
-                </div>
-              </div>
-            </div>
-
-            <div className="grid gap-4 p-6 sm:grid-cols-2">
-              <div className="rounded-2xl border border-sky-100/80 bg-sky-50/60 p-4 sm:col-span-2">
-                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-sky-700">Problem description</p>
-                <p className="mt-2 break-words text-sm leading-6 text-foreground">{issue.description}</p>
-              </div>
-
-              <div className="rounded-2xl border border-border/70 bg-surface-elevated/80 p-4">
-                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">Created</p>
-                <p className="mt-2 text-sm font-medium text-foreground">{formatWorkerIssueDate(issue.created_at)}</p>
-              </div>
-              <div className="rounded-2xl border border-border/70 bg-surface-elevated/80 p-4">
-                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">Updated</p>
-                <p className="mt-2 text-sm font-medium text-foreground">{formatWorkerIssueDateTime(issue.updated_at)}</p>
-              </div>
-
-              <div className="rounded-2xl border border-emerald-100/80 bg-emerald-50/70 p-4 sm:col-span-2">
-                <div className="flex items-start gap-3">
-                  <MapPin className="mt-0.5 h-4 w-4 text-emerald-700" aria-hidden="true" />
-                  <div className="min-w-0">
-                    <p className="text-xs font-semibold uppercase tracking-[0.2em] text-emerald-700">Location</p>
-                    <p className="mt-2 break-words text-sm leading-6 text-foreground">{locationText ?? "Location text not provided."}</p>
+      {/* 4. Main Content Grid */}
+      <div className="grid gap-6 lg:grid-cols-[1.15fr_0.85fr] items-start">
+        {/* Left Column: Location, Problem Description, Citizen Photo, Progress History */}
+        <div className="space-y-6">
+          {/* Location Card (High Priority for Field Workers) */}
+          <Card className="border border-border/80 bg-surface/95 overflow-hidden shadow-sm">
+            <CardHeader className="pb-3 border-b border-border/60 bg-gradient-to-r from-emerald-50/50 via-surface to-teal-50/50">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2.5">
+                  <div className="flex h-9 w-9 items-center justify-center rounded-xl border border-emerald-200 bg-emerald-50 text-emerald-700">
+                    <MapPin className="h-5 w-5" aria-hidden="true" />
+                  </div>
+                  <div>
+                    <CardTitle className="text-base font-bold text-foreground">Issue Location</CardTitle>
+                    <p className="text-xs text-muted-foreground">Field navigation and coordinates</p>
                   </div>
                 </div>
-              </div>
-
-              {coordinates ? (
-                <div className="rounded-2xl border border-sky-100/80 bg-sky-50/60 p-4 sm:col-span-2">
-                  <div className="flex items-start gap-3">
-                    <Clock3 className="mt-0.5 h-4 w-4 text-sky-700" aria-hidden="true" />
-                    <div className="min-w-0">
-                      <p className="text-xs font-semibold uppercase tracking-[0.2em] text-sky-700">GPS coordinates</p>
-                      <p className="mt-2 break-words text-sm leading-6 text-foreground">{coordinates}</p>
-                      <a
-                        className="mt-2 inline-flex text-sm font-medium text-sky-700 hover:underline"
-                        href={`https://www.google.com/maps?q=${issue.latitude},${issue.longitude}`}
-                        rel="noreferrer"
-                        target="_blank"
-                      >
-                        Open in Maps
-                      </a>
-                    </div>
-                  </div>
-                </div>
-              ) : null}
-
-              <div className="rounded-2xl border border-border/70 bg-surface-elevated/80 p-4 sm:col-span-2">
-                <div className="flex items-start gap-3">
-                  <BadgeCheck className="mt-0.5 h-4 w-4 text-primary" aria-hidden="true" />
-                  <div className="min-w-0">
-                    <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">Assignment information</p>
-                    <div className="mt-3 grid gap-3 sm:grid-cols-2">
-                      <div className="rounded-2xl border border-border/70 bg-white/70 p-3">
-                        <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">Department</p>
-                        <p className="mt-2 break-words text-sm font-medium text-foreground">{formatWorkerDepartmentLabel(currentDepartment)}</p>
-                      </div>
-                      <div className="rounded-2xl border border-border/70 bg-white/70 p-3">
-                        <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">Assigned date</p>
-                        <p className="mt-2 text-sm font-medium text-foreground">{assignment ? formatWorkerIssueDateTime(assignment.assigned_at) : "Unavailable"}</p>
-                      </div>
-                      <div className="rounded-2xl border border-border/70 bg-white/70 p-3">
-                        <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">Assigned by</p>
-                        <p className="mt-2 break-words text-sm font-medium text-foreground">{formatWorkerProfileLabel(assignedBy)}</p>
-                      </div>
-                      <div className="rounded-2xl border border-border/70 bg-white/70 p-3">
-                        <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">Current worker</p>
-                        <p className="mt-2 break-words text-sm font-medium text-foreground">
-                          {currentWorker ? formatWorkerProfileLabel(currentWorker) : "Current worker assignment unavailable."}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </section>
-
-          <section className="overflow-hidden rounded-[1.75rem] border border-white/70 bg-white/86 shadow-[0_16px_42px_rgba(15,23,42,0.1)]">
-            <div className="border-b border-border/70 bg-gradient-to-r from-emerald-50/80 via-white to-sky-50/70 px-6 py-5">
-              <div className="flex items-center gap-3">
-                <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-3 text-emerald-700">
-                  <ImageIcon className="h-5 w-5" aria-hidden="true" />
-                </div>
-                <div>
-                  <p className="text-xs font-semibold uppercase tracking-[0.24em] text-muted-foreground">Issue evidence</p>
-                  <h3 className="mt-1 text-lg font-semibold text-foreground">Citizen evidence and field history</h3>
-                </div>
-              </div>
-            </div>
-
-            <div className="grid gap-4 p-6">
-              {initialImage ? (
-                <div className="overflow-hidden rounded-2xl border border-border/70 bg-surface-elevated/80">
-                  <div className="border-b border-border/70 px-4 py-3">
-                    <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">Citizen image</p>
-                  </div>
-                  <IssueImage
-                    alt={`${issue.title} report image`}
-                    className="rounded-none"
-                    emptyLabel="Original image unavailable"
-                    imageClassName="object-contain"
-                    src={formatWorkerIssueImageUrl(initialImage)}
-                    variant="preview"
-                  />
-                </div>
-              ) : (
-                <div className="flex min-h-64 items-center justify-center rounded-2xl border border-dashed border-border/70 bg-surface-elevated/80">
-                  <div className="text-center">
-                    <ImageIcon className="mx-auto h-5 w-5 text-primary" aria-hidden="true" />
-                    <p className="mt-2 text-xs font-semibold uppercase tracking-[0.22em] text-muted-foreground">No image attached</p>
-                  </div>
-                </div>
-              )}
-            </div>
-          </section>
-
-          <section className="overflow-hidden rounded-[1.75rem] border border-white/70 bg-white/86 shadow-[0_16px_42px_rgba(15,23,42,0.1)]">
-            <div className="border-b border-border/70 bg-gradient-to-r from-slate-50/80 via-white to-teal-50/70 px-6 py-5">
-              <div className="flex items-center justify-between gap-3">
-                <div className="min-w-0">
-                  <p className="text-xs font-semibold uppercase tracking-[0.24em] text-muted-foreground">Issue progress history</p>
-                  <h4 className="mt-1 text-lg font-semibold text-foreground">Full timeline of status changes</h4>
-                </div>
-                <span className="shrink-0 rounded-full border border-border/70 bg-white/75 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-                  {timelineItems.length} entries
-                </span>
-              </div>
-            </div>
-
-            <div className="space-y-4 p-6">
-              {timelineItems.map((item, index) => (
-                <TimelineEntry key={item.id} isLast={index === timelineItems.length - 1} isLatest={index === timelineItems.length - 1} item={item} />
-              ))}
-
-              {resolutionImage ? (
-                <div className="overflow-hidden rounded-2xl border border-border/70 bg-white/75">
-                  <div className="border-b border-border/70 px-4 py-3">
-                    <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">Resolution evidence already on file</p>
-                  </div>
-                  <IssueImage
-                    alt={`${issue.title} resolution evidence`}
-                    className="rounded-none"
-                    emptyLabel="Resolution evidence unavailable"
-                    imageClassName="object-contain"
-                    src={formatWorkerIssueImageUrl(resolutionImage)}
-                    variant="preview"
-                  />
-                </div>
-              ) : null}
-            </div>
-          </section>
-
-          <section className="overflow-hidden rounded-[1.75rem] border border-white/70 bg-white/86 shadow-[0_16px_42px_rgba(15,23,42,0.1)]">
-            <div className="border-b border-border/70 bg-gradient-to-r from-violet-50/80 via-white to-sky-50/70 px-6 py-5">
-              <div className="flex items-center gap-3">
-                <div className="rounded-2xl border border-violet-200 bg-violet-50 p-3 text-violet-700">
-                  <ShieldAlert className="h-5 w-5" aria-hidden="true" />
-                </div>
-                <div>
-                  <p className="text-xs font-semibold uppercase tracking-[0.24em] text-muted-foreground">AI information</p>
-                  <h3 className="mt-1 text-lg font-semibold text-foreground">AI analysis and routing signal</h3>
-                </div>
-              </div>
-            </div>
-
-            <div className="grid gap-4 p-6 lg:grid-cols-2">
-              <div className="rounded-2xl border border-violet-200/80 bg-violet-50/70 p-5 shadow-sm shadow-violet-950/5">
-                <p className="text-xs font-semibold uppercase tracking-[0.24em] text-violet-700">AI analysis</p>
-                {aiAnalysis ? (
-                  <div className="mt-4 grid gap-3 text-sm">
-                    <p className="text-foreground">
-                      Detected category: <span className="text-muted-foreground">{aiAnalysis.category_recommendation || "Not provided"}</span>
-                    </p>
-                    <p className="text-foreground">
-                      AI priority: <span className="text-muted-foreground">{aiAnalysis.priority_recommendation || "Not provided"}</span>
-                    </p>
-                    <p className="text-foreground">
-                      Confidence: <span className="text-muted-foreground">{confidencePercent(aiAnalysis.confidence_score)}</span>
-                    </p>
-                    <p className="text-foreground">
-                      Source: <span className="text-muted-foreground">{aiAnalysis.provider} · {aiAnalysis.model}</span>
-                    </p>
-                  </div>
-                ) : (
-                  <div className="mt-4 rounded-2xl border border-violet-200 bg-white/80 p-4">
-                    <p className="text-sm font-medium text-foreground">AI analysis pending.</p>
-                    <p className="mt-2 text-sm leading-6 text-muted-foreground">
-                      When analysis data is available, it will appear here for comparison with the field worker decision.
-                    </p>
-                  </div>
+                {issue.latitude && issue.longitude && (
+                  <Button asChild size="sm" variant="outline" className="text-xs font-semibold text-primary">
+                    <a
+                      href={`https://www.google.com/maps?q=${issue.latitude},${issue.longitude}`}
+                      rel="noopener noreferrer"
+                      target="_blank"
+                    >
+                      <Navigation className="h-3.5 w-3.5 mr-1.5" />
+                      Open in Maps
+                      <ExternalLink className="h-3 w-3 ml-1" />
+                    </a>
+                  </Button>
                 )}
               </div>
-
-              <div className="rounded-2xl border border-border/70 bg-surface-elevated/80 p-5">
-                <p className="text-xs font-semibold uppercase tracking-[0.24em] text-muted-foreground">Explanation</p>
-                <div className="mt-4 rounded-2xl border border-border/70 bg-background/40 p-4">
-                  <p className="break-words text-sm leading-6 text-muted-foreground">{aiExplanation ?? "AI analysis pending."}</p>
-                </div>
-              </div>
-            </div>
-          </section>
-        </article>
-
-        <aside className="min-w-0 space-y-4">
-          <section className="overflow-hidden rounded-[1.75rem] border border-white/70 bg-white/86 shadow-[0_16px_42px_rgba(15,23,42,0.1)]">
-            <div className="border-b border-border/70 bg-gradient-to-r from-sky-50/80 via-white to-teal-50/70 px-6 py-5">
-              <div className="flex items-center gap-3">
-                <div className="rounded-2xl border border-sky-200 bg-sky-50 p-3 text-sky-700">
-                  <SquarePen className="h-5 w-5" aria-hidden="true" />
-                </div>
-                <div>
-                  <p className="text-xs font-semibold uppercase tracking-[0.24em] text-muted-foreground">Work progress</p>
-                  <h3 className="mt-1 text-lg font-semibold text-foreground">Assigned → In Progress → Under Review → Resolved</h3>
-                </div>
-              </div>
-            </div>
-
-            <div className="space-y-4 p-6">
-              <div className="rounded-2xl border border-white/70 bg-gradient-to-br from-sky-50/70 via-white to-teal-50/70 p-4 shadow-sm">
-                <p className="text-sm font-medium text-foreground">Current status: {statusLabel}</p>
-                <p className="mt-2 text-sm leading-6 text-muted-foreground">
-                  Follow the workflow below to keep the issue moving without leaving the field assignment flow.
+            </CardHeader>
+            <CardContent className="p-4 sm:p-5 space-y-3">
+              <div className="rounded-2xl border border-border/70 bg-background/60 p-3.5">
+                <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1">Address / Landmark</p>
+                <p className="text-sm font-medium text-foreground leading-relaxed break-words">
+                  {locationText || "No street address provided for this report."}
                 </p>
               </div>
 
-              <WorkflowStepper issueIsFinal={issueIsFinal} status={issue.status} />
-
-              <div className="rounded-2xl border border-border/70 bg-surface-elevated/80 p-4">
-                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">Current stage</p>
-                <p className="mt-2 text-sm leading-6 text-muted-foreground">
-                  {WORKFLOW_STAGES[workflowCurrentIndex].label}
-                  {issue.status === "REJECTED" ? " - return to the field before resubmitting." : ""}
-                </p>
-              </div>
-            </div>
-          </section>
-
-          <section className="overflow-hidden rounded-[1.75rem] border border-white/70 bg-white/86 shadow-[0_16px_42px_rgba(15,23,42,0.1)]">
-            <div className="border-b border-border/70 bg-gradient-to-r from-teal-50/80 via-white to-blue-50/70 px-6 py-5">
-              <div className="flex items-center gap-3">
-                <div className="rounded-2xl border border-teal-200 bg-teal-50 p-3 text-teal-700">
-                  <ThumbsUp className="h-5 w-5" aria-hidden="true" />
-                </div>
-                <div>
-                  <p className="text-xs font-semibold uppercase tracking-[0.24em] text-muted-foreground">Action</p>
-                  <h3 className="mt-1 text-lg font-semibold text-foreground">Start or resume the task</h3>
-                </div>
-              </div>
-            </div>
-
-            <div className="space-y-4 p-6">
-              <div className="rounded-2xl border border-border/70 bg-surface-elevated/80 p-4">
-                <p className="text-sm font-medium text-foreground">Current priority: {formatWorkerIssuePriority(issue.priority)}</p>
-                <p className="mt-2 text-sm leading-6 text-muted-foreground">
-                  Use the prominent action below when the issue is ready to move into work.
-                </p>
-              </div>
-
-              {canStartWork ? (
-                <Button
-                  disabled={actionState !== "idle"}
-                  onClick={() => void handleStartWork()}
-                  type="button"
-                  className="w-full bg-gradient-to-r from-teal-600 via-cyan-600 to-blue-600 shadow-[0_18px_32px_rgba(8,145,178,0.22)]"
-                  size="lg"
-                >
-                  {actionState === "starting" ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : <ThumbsUp className="h-4 w-4" aria-hidden="true" />}
-                  {startWorkButtonLabel}
-                </Button>
-              ) : (
-                <div className="rounded-2xl border border-border/70 bg-background/40 p-4">
-                  <p className="text-sm font-medium text-foreground">
-                    {issue.status === "IN_PROGRESS"
-                      ? "Work in progress"
-                      : issue.status === "UNDER_REVIEW"
-                        ? "Awaiting Officer Review"
-                        : issue.status === "ASSIGNED"
-                          ? "Ready to start work"
-                          : issue.status === "REJECTED"
-                            ? "Work was rejected and can now be resumed"
-                            : issueIsFinal
-                              ? "Resolved"
-                              : "This issue is not ready for a worker action yet."}
-                  </p>
+              {coordinates && (
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 rounded-2xl border border-border/70 bg-background/60 p-3.5">
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">GPS Coordinates</p>
+                    <p className="text-xs sm:text-sm font-mono font-medium text-foreground mt-0.5">{coordinates}</p>
+                  </div>
+                  <Button asChild size="sm" variant="ghost" className="w-fit text-xs text-primary px-0 sm:px-3">
+                    <a
+                      href={`https://www.google.com/maps?q=${issue.latitude},${issue.longitude}`}
+                      rel="noopener noreferrer"
+                      target="_blank"
+                    >
+                      Get Directions →
+                    </a>
+                  </Button>
                 </div>
               )}
+            </CardContent>
+          </Card>
 
-              <div className="rounded-2xl border border-border/70 bg-surface-elevated/80 p-4">
-                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">What happens next</p>
-                <p className="mt-2 text-sm leading-6 text-muted-foreground">
-                  Starting work moves the issue into progress. When the task is finished, mark it resolved and attach optional evidence.
-                </p>
-              </div>
-            </div>
-          </section>
-
-          <section className="overflow-hidden rounded-[1.75rem] border border-white/70 bg-white/86 shadow-[0_16px_42px_rgba(15,23,42,0.1)]">
-            <div className="border-b border-border/70 bg-gradient-to-r from-amber-50/80 via-white to-orange-50/70 px-6 py-5">
-              <div className="flex items-center gap-3">
-                <div className="rounded-2xl border border-amber-200 bg-amber-50 p-3 text-amber-700">
-                  <Save className="h-5 w-5" aria-hidden="true" />
+          {/* Original Problem Description & Citizen Photo */}
+          <Card className="border border-border/80 bg-surface/95 overflow-hidden shadow-sm">
+            <CardHeader className="pb-3 border-b border-border/60 bg-gradient-to-r from-sky-50/50 via-surface to-teal-50/50">
+              <div className="flex items-center gap-2.5">
+                <div className="flex h-9 w-9 items-center justify-center rounded-xl border border-sky-200 bg-sky-50 text-sky-700">
+                  <ClipboardList className="h-5 w-5" aria-hidden="true" />
                 </div>
                 <div>
-                  <p className="text-xs font-semibold uppercase tracking-[0.24em] text-muted-foreground">Resolution evidence</p>
-                  <h3 className="mt-1 text-lg font-semibold text-foreground">Upload Resolution Evidence</h3>
+                  <CardTitle className="text-base font-bold text-foreground">Original Issue Report</CardTitle>
+                  <p className="text-xs text-muted-foreground">Citizen complaint and photo evidence</p>
                 </div>
               </div>
-            </div>
+            </CardHeader>
 
-            <div className="space-y-4 p-6">
-              <div className="rounded-2xl border border-border/70 bg-surface-elevated/80 p-4">
-                <p className="text-sm font-medium text-foreground">Current priority: {formatWorkerIssuePriority(issue.priority)}</p>
-                <p className="mt-2 text-sm leading-6 text-muted-foreground">
-                  Upload a photo of the fixed issue, add a short note if needed, and submit it for officer review.
-                </p>
+            <CardContent className="p-4 sm:p-5 space-y-4">
+              <div className="space-y-1.5">
+                <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Problem Description</p>
+                <div className="rounded-2xl border border-border/70 bg-background/60 p-4">
+                  <p className="text-sm sm:text-base leading-relaxed text-foreground break-words whitespace-pre-wrap">
+                    {issue.description}
+                  </p>
+                </div>
               </div>
 
-              <label className="space-y-2">
-                <span className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">Resolution note</span>
-                <textarea
-                  className="min-h-28 w-full rounded-2xl border border-border/80 bg-white/82 px-4 py-3 text-sm text-foreground outline-none transition placeholder:text-muted-foreground focus:border-primary/50 focus:ring-2 focus:ring-primary/20"
-                  onChange={(event) => setResolutionNote(event.target.value)}
-                  placeholder="Summarize what was fixed or completed."
-                  value={resolutionNote}
-                />
-              </label>
-
-              {issue.status === "IN_PROGRESS" ? (
-                <div className="space-y-3">
-                  {!compressedResolutionImage ? (
-                    <label className="flex cursor-pointer flex-col gap-4 rounded-[1.35rem] border border-dashed border-teal-200/80 bg-gradient-to-br from-teal-50/70 via-white to-blue-50/70 p-5 transition hover:border-teal-400 hover:bg-white">
-                      <div className="flex items-start gap-3">
-                        <div className="rounded-2xl border border-teal-200 bg-teal-50 p-3 text-teal-700">
-                          <UploadCloud className="h-5 w-5" aria-hidden="true" />
-                        </div>
-                        <div className="min-w-0">
-                          <p className="text-sm font-semibold text-foreground">Upload Resolution Evidence</p>
-                          <p className="mt-2 text-sm leading-6 text-muted-foreground">
-                            Choose a clear photo showing the completed field work. Images are compressed before submission.
-                          </p>
-                        </div>
-                      </div>
-                      <input
-                        accept="image/*"
-                        className="hidden"
-                        disabled={imageProcessing}
-                        onChange={(event) => void handleResolutionImageChange(event)}
-                        ref={imageInputRef}
-                        type="file"
-                      />
-                    </label>
+              {/* Citizen Photo Evidence */}
+              <div className="space-y-1.5">
+                <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Citizen Photo Evidence</p>
+                <div className="overflow-hidden rounded-2xl border border-border/70 bg-background/60">
+                  {initialImage ? (
+                    <IssueImage
+                      alt={`${issue.title} photo`}
+                      className="min-h-[14rem] max-h-96 w-full"
+                      imageClassName="object-contain"
+                      src={formatWorkerIssueImageUrl(initialImage)}
+                      variant="preview"
+                    />
                   ) : (
-                    <div className="space-y-3">
-                      <div className="overflow-hidden rounded-[1.35rem] border border-border/70 bg-surface-elevated/80">
-                        <div className="border-b border-border/70 px-4 py-3">
-                          <div className="flex items-center justify-between gap-3">
-                            <div>
-                              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">Selected preview</p>
-                              <p className="mt-1 text-sm font-medium text-foreground">Large but bounded image preview</p>
-                            </div>
-                            <Button onClick={() => imageInputRef.current?.click()} size="sm" type="button" variant="outline">
-                              Change image
-                            </Button>
-                          </div>
-                        </div>
-                        {resolutionPreviewUrl ? (
-                          <IssueImage
-                            alt="Selected resolution evidence preview"
-                            className="rounded-none"
-                            emptyLabel="No preview selected"
-                            imageClassName="object-contain"
-                            src={resolutionPreviewUrl}
-                            variant="preview"
-                          />
-                        ) : null}
-                      </div>
-
-                      <div className="flex flex-col gap-3 rounded-2xl border border-border/70 bg-white/78 p-4 sm:flex-row sm:items-center sm:justify-between">
-                        <div className="min-w-0">
-                          <p className="break-words text-sm font-medium text-foreground">{compressedResolutionImage.name}</p>
-                          <p className="mt-1 text-xs uppercase tracking-[0.18em] text-muted-foreground">
-                            {compressedResolutionImage.type} · {Math.round(compressedResolutionImage.size / 1024)} KB
-                          </p>
-                        </div>
-                        <div className="flex gap-2">
-                          <Button onClick={() => imageInputRef.current?.click()} size="sm" type="button" variant="outline">
-                            Change Image
-                          </Button>
-                          <Button onClick={removeResolutionImage} size="sm" type="button" variant="outline">
-                            <X className="h-4 w-4" aria-hidden="true" />
-                            Remove Image
-                          </Button>
-                        </div>
+                    <div className="flex min-h-[10rem] items-center justify-center p-6 text-center">
+                      <div className="space-y-1">
+                        <ImageIcon className="mx-auto h-6 w-6 text-muted-foreground/60" />
+                        <p className="text-xs font-medium text-muted-foreground">No citizen photo attached</p>
                       </div>
                     </div>
                   )}
-
-                  {imageProcessing ? (
-                    <div className="rounded-2xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-800">
-                      Preparing image for upload...
-                    </div>
-                  ) : null}
                 </div>
-              ) : (
-                <div className="rounded-2xl border border-border/70 bg-background/40 p-4">
-                  <p className="text-sm font-medium text-foreground">
-                    {resolutionImage
-                      ? issue.status === "UNDER_REVIEW"
-                        ? "Resolution evidence has already been submitted and is waiting for officer review."
-                        : issue.status === "REJECTED"
-                          ? "The officer rejected the previous submission. Resume work to submit updated evidence."
-                          : issueIsFinal
-                            ? "This issue is already complete."
-                            : "Resolution evidence is not available to upload from this state."
-                      : "Resolution evidence upload is only available after the task is in progress."}
+              </div>
+
+              {/* Department & Assignment Context */}
+              <div className="grid gap-2.5 sm:grid-cols-3 pt-2 border-t border-border/60 text-xs">
+                <div className="rounded-xl border border-border/60 bg-surface p-3">
+                  <p className="text-muted-foreground uppercase font-semibold text-[10px] tracking-wider">Department</p>
+                  <p className="font-medium text-foreground mt-0.5">{formatWorkerDepartmentLabel(currentDepartment)}</p>
+                </div>
+                <div className="rounded-xl border border-border/60 bg-surface p-3">
+                  <p className="text-muted-foreground uppercase font-semibold text-[10px] tracking-wider">Assigned By</p>
+                  <p className="font-medium text-foreground mt-0.5">{formatWorkerProfileLabel(assignedBy)}</p>
+                </div>
+                <div className="rounded-xl border border-border/60 bg-surface p-3">
+                  <p className="text-muted-foreground uppercase font-semibold text-[10px] tracking-wider">Assigned Worker</p>
+                  <p className="font-medium text-foreground mt-0.5">{formatWorkerProfileLabel(currentWorker)}</p>
+                </div>
+              </div>
+
+              {/* AI Analysis badge / info (if available) */}
+              {aiAnalysis && (
+                <div className="rounded-2xl border border-violet-200/80 bg-violet-50/60 p-3.5 space-y-1">
+                  <div className="flex items-center gap-2">
+                    <ShieldAlert className="h-4 w-4 text-violet-700 shrink-0" />
+                    <p className="text-xs font-bold text-violet-900 uppercase tracking-wider">Automated AI Insights</p>
+                    <span className="text-[10px] font-semibold text-violet-700 ml-auto">
+                      {confidencePercent(aiAnalysis.confidence_score)} confidence
+                    </span>
+                  </div>
+                  <p className="text-xs text-violet-800 leading-relaxed">{aiExplanation}</p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Progress History Timeline */}
+          <Card className="border border-border/80 bg-surface/95 overflow-hidden shadow-sm">
+            <CardHeader className="pb-3 border-b border-border/60 bg-gradient-to-r from-slate-50 via-surface to-teal-50/30">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2.5">
+                  <div className="flex h-9 w-9 items-center justify-center rounded-xl border border-slate-200 bg-slate-50 text-slate-700">
+                    <Clock3 className="h-5 w-5" aria-hidden="true" />
+                  </div>
+                  <div>
+                    <CardTitle className="text-base font-bold text-foreground">Progress History</CardTitle>
+                    <p className="text-xs text-muted-foreground">Chronological audit log of transitions</p>
+                  </div>
+                </div>
+                <span className="text-xs font-semibold text-muted-foreground">
+                  {timelineItems.length} {timelineItems.length === 1 ? "event" : "events"}
+                </span>
+              </div>
+            </CardHeader>
+
+            <CardContent className="p-4 sm:p-6">
+              <div className="space-y-0">
+                {timelineItems.map((item, index) => {
+                  const Icon = item.icon;
+                  const isLatest = index === timelineItems.length - 1;
+                  const isLast = index === timelineItems.length - 1;
+
+                  return (
+                    <div key={item.id} className="relative flex gap-4 pb-6 last:pb-0">
+                      {/* Vertical line connecting events */}
+                      {!isLast && (
+                        <div
+                          className="absolute left-4 top-8 -bottom-1 w-0.5 bg-gradient-to-b from-teal-500/40 via-border to-border"
+                          aria-hidden="true"
+                        />
+                      )}
+
+                      {/* Icon Node */}
+                      <div
+                        className={cn(
+                          "relative z-10 flex h-8 w-8 shrink-0 items-center justify-center rounded-full border shadow-sm",
+                          isLatest
+                            ? "border-teal-300 bg-gradient-to-br from-teal-600 via-cyan-600 to-blue-600 text-white shadow-teal-950/20"
+                            : "border-border/80 bg-surface text-muted-foreground",
+                        )}
+                      >
+                        <Icon className="h-4 w-4" aria-hidden="true" />
+                      </div>
+
+                      {/* Content Card */}
+                      <div
+                        className={cn(
+                          "flex-1 rounded-2xl border p-3.5 text-xs transition-all",
+                          isLatest
+                            ? "border-teal-200 bg-gradient-to-br from-teal-50/70 via-white to-sky-50/40 shadow-sm"
+                            : "border-border/70 bg-background/50",
+                        )}
+                      >
+                        <div className="flex flex-wrap items-center justify-between gap-1.5 mb-1.5">
+                          <div className="flex items-center gap-1.5">
+                            <span className="font-bold text-foreground text-xs sm:text-sm">{item.statusLabel}</span>
+                            {isLatest && (
+                              <span className="rounded-full bg-teal-100 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-teal-800">
+                                Latest
+                              </span>
+                            )}
+                          </div>
+                          <span className="text-muted-foreground text-[11px]">{formatWorkerIssueDateTime(item.timestamp)}</span>
+                        </div>
+
+                        <p className="text-foreground/90 leading-relaxed break-words whitespace-pre-wrap">{item.description}</p>
+                        <p className="mt-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                          By: {item.actorLabel}
+                        </p>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Already uploaded resolution evidence (if available) */}
+              {resolutionImage && (
+                <div className="mt-6 pt-5 border-t border-border/60 space-y-2">
+                  <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                    Resolution Photo on File
+                  </p>
+                  <div className="overflow-hidden rounded-2xl border border-border/70 bg-surface">
+                    <IssueImage
+                      alt="Submitted resolution evidence"
+                      className="min-h-[12rem] max-h-72 w-full"
+                      imageClassName="object-contain"
+                      src={formatWorkerIssueImageUrl(resolutionImage)}
+                      variant="preview"
+                    />
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Right Column: Primary Worker Action Panel & Resolution Upload */}
+        <div className="space-y-6 lg:sticky lg:top-6">
+          {/* Action Card: What to do next */}
+          <Card className="border border-border/80 bg-surface/95 overflow-hidden shadow-md">
+            <CardHeader className="pb-3 border-b border-border/60 bg-gradient-to-r from-teal-50/60 via-surface to-cyan-50/60">
+              <div className="flex items-center gap-2.5">
+                <div className="flex h-9 w-9 items-center justify-center rounded-xl border border-teal-200 bg-teal-50 text-teal-700">
+                  <Sparkles className="h-5 w-5" aria-hidden="true" />
+                </div>
+                <div>
+                  <CardTitle className="text-base font-bold text-foreground">Field Worker Action</CardTitle>
+                  <p className="text-xs text-muted-foreground">Execute and update your task</p>
+                </div>
+              </div>
+            </CardHeader>
+
+            <CardContent className="p-4 sm:p-5 space-y-4">
+              {/* State 1: ASSIGNED (Ready to start) */}
+              {canStartWork && !isRejected && (
+                <div className="space-y-3">
+                  <div className="rounded-2xl border border-sky-200 bg-sky-50/70 p-4">
+                    <p className="text-sm font-semibold text-sky-900">Ready to Begin Work</p>
+                    <p className="mt-1 text-xs leading-relaxed text-sky-800">
+                      When you arrive on site and start repairs, click below to mark this issue as <strong>In Progress</strong>.
+                    </p>
+                  </div>
+
+                  <Button
+                    disabled={actionState !== "idle"}
+                    onClick={() => void handleStartWork()}
+                    className="w-full bg-gradient-to-r from-teal-600 via-cyan-600 to-blue-600 shadow-md min-h-[46px] text-sm font-semibold"
+                    size="lg"
+                    type="button"
+                  >
+                    {actionState === "starting" ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Sparkles className="h-4 w-4 mr-2" />}
+                    Start Work
+                  </Button>
+                </div>
+              )}
+
+              {/* State 2: REJECTED (Resume work) */}
+              {isRejected && (
+                <div className="space-y-3">
+                  <div className="rounded-2xl border border-amber-200 bg-amber-50/70 p-4">
+                    <p className="text-sm font-semibold text-amber-900">Resume Field Work</p>
+                    <p className="mt-1 text-xs leading-relaxed text-amber-800">
+                      Update the field repair and resume the task to submit new resolution photo evidence.
+                    </p>
+                  </div>
+
+                  <Button
+                    disabled={actionState !== "idle"}
+                    onClick={() => void handleStartWork()}
+                    className="w-full bg-gradient-to-r from-amber-600 via-orange-600 to-red-600 shadow-md min-h-[46px] text-sm font-semibold"
+                    size="lg"
+                    type="button"
+                  >
+                    {actionState === "starting" ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <RotateCcw className="h-4 w-4 mr-2" />}
+                    Resume Work
+                  </Button>
+                </div>
+              )}
+
+              {/* State 3: IN_PROGRESS (Resolution upload flow) */}
+              {isInProgress && (
+                <div className="space-y-4">
+                  <div className="rounded-2xl border border-teal-200 bg-teal-50/70 p-3.5">
+                    <p className="text-xs font-bold uppercase tracking-wider text-teal-900">Work In Progress</p>
+                    <p className="mt-1 text-xs leading-relaxed text-teal-800">
+                      When repairs are complete, take or upload a clear resolution photo and submit for review.
+                    </p>
+                  </div>
+
+                  {/* Photo selection input / Drag-and-drop */}
+                  <div className="space-y-2">
+                    <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground block">
+                      Resolution Photo Evidence <span className="text-destructive">*</span>
+                    </label>
+
+                    {!compressedResolutionImage ? (
+                      <div
+                        onClick={() => imageInputRef.current?.click()}
+                        className="flex cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed border-teal-300 bg-gradient-to-br from-teal-50/40 via-surface to-sky-50/40 p-6 text-center transition hover:border-teal-500 hover:bg-teal-50/60"
+                        role="button"
+                        tabIndex={0}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" || e.key === " ") {
+                            imageInputRef.current?.click();
+                          }
+                        }}
+                      >
+                        <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-teal-200 bg-white text-teal-700 shadow-sm mb-2">
+                          <Camera className="h-6 w-6" aria-hidden="true" />
+                        </div>
+                        <p className="text-sm font-bold text-foreground">Add Resolution Photo</p>
+                        <p className="mt-1 text-xs text-muted-foreground">Take a photo or choose from library (JPEG, PNG)</p>
+
+                        <input
+                          accept="image/*"
+                          className="hidden"
+                          disabled={imageProcessing}
+                          onChange={(e) => void handleResolutionImageChange(e)}
+                          ref={imageInputRef}
+                          type="file"
+                        />
+                      </div>
+                    ) : (
+                      /* Live Preview of Selected Photo */
+                      <div className="space-y-2.5 rounded-2xl border border-teal-200 bg-surface p-3">
+                        <div className="flex items-center justify-between gap-2 pb-1 border-b border-border/60">
+                          <p className="text-xs font-bold text-teal-800 uppercase tracking-wider">Photo Ready</p>
+                          <div className="flex items-center gap-1">
+                            <Button
+                              onClick={() => imageInputRef.current?.click()}
+                              size="sm"
+                              type="button"
+                              variant="ghost"
+                              className="text-xs h-7 px-2"
+                            >
+                              Change
+                            </Button>
+                            <Button
+                              onClick={clearResolutionImageSelection}
+                              size="sm"
+                              type="button"
+                              variant="ghost"
+                              className="text-xs h-7 px-2 text-destructive hover:text-destructive"
+                            >
+                              <X className="h-3.5 w-3.5 mr-1" />
+                              Remove
+                            </Button>
+                          </div>
+                        </div>
+
+                        <div className="overflow-hidden rounded-xl border border-border/60 bg-background">
+                          {resolutionPreviewUrl && (
+                            <IssueImage
+                              alt="Resolution evidence preview"
+                              className="h-44 w-full"
+                              imageClassName="object-contain"
+                              src={resolutionPreviewUrl}
+                              variant="preview"
+                            />
+                          )}
+                        </div>
+
+                        <p className="text-[11px] text-muted-foreground truncate">
+                          {compressedResolutionImage.name} ({(compressedResolutionImage.size / 1024).toFixed(0)} KB compressed)
+                        </p>
+
+                        <input
+                          accept="image/*"
+                          className="hidden"
+                          disabled={imageProcessing}
+                          onChange={(e) => void handleResolutionImageChange(e)}
+                          ref={imageInputRef}
+                          type="file"
+                        />
+                      </div>
+                    )}
+
+                    {imageProcessing && (
+                      <div className="flex items-center gap-2 rounded-xl border border-sky-200 bg-sky-50 p-2.5 text-xs font-medium text-sky-800">
+                        <Loader2 className="h-4 w-4 animate-spin text-sky-600" />
+                        Optimizing image for upload...
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Resolution Notes Textarea */}
+                  <div className="space-y-1.5">
+                    <label htmlFor="resolution-note" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground block">
+                      Resolution Notes (Optional)
+                    </label>
+                    <textarea
+                      id="resolution-note"
+                      className="w-full min-h-[5rem] rounded-2xl border border-border/80 bg-background px-3.5 py-2.5 text-xs sm:text-sm text-foreground outline-none transition placeholder:text-muted-foreground focus:border-primary/50 focus:ring-2 focus:ring-primary/20"
+                      onChange={(e) => setResolutionNote(e.target.value)}
+                      placeholder="Brief summary of work completed (e.g. 'Pothole filled with asphalt and compacted')."
+                      value={resolutionNote}
+                    />
+                  </div>
+
+                  {/* Submit Button */}
+                  <Button
+                    disabled={actionState !== "idle" || !compressedResolutionImage || imageProcessing}
+                    onClick={() => void handleSubmitResolution()}
+                    className="w-full bg-gradient-to-r from-teal-600 via-cyan-600 to-blue-600 shadow-md min-h-[46px] text-sm font-semibold"
+                    size="lg"
+                    type="button"
+                  >
+                    {actionState === "submitting" ? (
+                      <>
+                        <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                        Submitting Evidence...
+                      </>
+                    ) : (
+                      <>
+                        <Send className="h-4 w-4 mr-2" />
+                        Submit Resolution for Review
+                      </>
+                    )}
+                  </Button>
+                </div>
+              )}
+
+              {/* State 4: UNDER_REVIEW */}
+              {isUnderReview && (
+                <div className="rounded-2xl border border-violet-200 bg-violet-50/80 p-4 text-center space-y-2">
+                  <div className="flex h-10 w-10 mx-auto items-center justify-center rounded-2xl border border-violet-200 bg-white text-violet-700 shadow-sm">
+                    <Clock3 className="h-5 w-5" />
+                  </div>
+                  <p className="text-sm font-bold text-violet-950">Awaiting Officer Review</p>
+                  <p className="text-xs text-violet-800 leading-relaxed">
+                    Resolution evidence has been submitted. The municipal officer will inspect the work and confirm resolution.
                   </p>
                 </div>
               )}
 
-              {compressedResolutionImage && issue.status === "IN_PROGRESS" ? (
-                <Button
-                  disabled={actionState !== "idle" || !canSubmitResolution || imageProcessing}
-                  onClick={() => void handleSubmitResolution()}
-                  type="button"
-                  className="w-full bg-gradient-to-r from-teal-600 via-cyan-600 to-blue-600 shadow-[0_18px_32px_rgba(8,145,178,0.22)]"
-                  size="lg"
-                >
-                  {actionState === "submitting" ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : <Save className="h-4 w-4" aria-hidden="true" />}
-                  {actionState === "submitting" ? "Submitting..." : "Submit Resolution"}
-                </Button>
-              ) : null}
-
-              <div className="rounded-2xl border border-border/70 bg-surface-elevated/80 p-4">
-                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">Current resolution state</p>
-                <p className="mt-2 text-sm leading-6 text-muted-foreground">
-                  {issue.status === "ASSIGNED"
-                    ? "This task is ready to begin."
-                    : issue.status === "IN_PROGRESS"
-                      ? "Work is in progress. Upload the completed evidence when finished."
-                      : issue.status === "UNDER_REVIEW"
-                        ? "Resolution evidence has been submitted and is waiting for officer approval."
-                        : issue.status === "REJECTED"
-                          ? "The officer rejected the previous submission. Resume work and submit updated evidence."
-                          : issueIsFinal
-                            ? "This issue is already complete."
-                            : "This issue is not ready for a worker action."}
-                </p>
-                {resolutionImage ? (
-                  <p className="mt-2 text-sm font-medium text-emerald-700">
-                    Latest resolution evidence submitted {formatWorkerIssueDateTime(resolutionImage.created_at)}.
+              {/* State 5: RESOLVED */}
+              {issueIsFinal && (
+                <div className="rounded-2xl border border-emerald-200 bg-emerald-50/80 p-4 text-center space-y-2">
+                  <div className="flex h-10 w-10 mx-auto items-center justify-center rounded-2xl border border-emerald-200 bg-white text-emerald-700 shadow-sm">
+                    <CheckCircle2 className="h-5 w-5" />
+                  </div>
+                  <p className="text-sm font-bold text-emerald-950">Issue Resolved & Closed</p>
+                  <p className="text-xs text-emerald-800 leading-relaxed">
+                    Great work! This task has been completely resolved and verified.
                   </p>
-                ) : null}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Workflow Stepper */}
+          <Card className="border border-border/80 bg-surface/95 overflow-hidden shadow-sm">
+            <CardHeader className="pb-3 border-b border-border/60">
+              <CardTitle className="text-sm font-bold uppercase tracking-wider text-muted-foreground">
+                Workflow Progress
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-4 sm:p-5">
+              <div className="space-y-2.5">
+                {WORKFLOW_STAGES.map((stage, index) => {
+                  const state = index < currentWorkflowIndex ? "complete" : index === currentWorkflowIndex ? "active" : "pending";
+
+                  return (
+                    <div
+                      key={stage.key}
+                      className={cn(
+                        "flex items-center gap-3 rounded-2xl border p-3 text-xs transition-all",
+                        state === "complete"
+                          ? "border-emerald-200 bg-emerald-50/50 text-emerald-900"
+                          : state === "active"
+                            ? "border-teal-300 bg-gradient-to-r from-teal-50/80 to-cyan-50/60 text-foreground font-semibold shadow-sm"
+                            : "border-border/60 bg-background/40 text-muted-foreground",
+                      )}
+                    >
+                      <div
+                        className={cn(
+                          "flex h-7 w-7 shrink-0 items-center justify-center rounded-xl text-xs font-bold",
+                          state === "complete"
+                            ? "bg-emerald-600 text-white"
+                            : state === "active"
+                              ? "bg-gradient-to-r from-teal-600 to-cyan-600 text-white shadow-sm"
+                              : "bg-muted text-muted-foreground",
+                        )}
+                      >
+                        {state === "complete" ? "✓" : index + 1}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center justify-between">
+                          <p className="font-semibold">{stage.label}</p>
+                          <span className="text-[10px] uppercase tracking-wider opacity-75">
+                            {state === "complete" ? "Done" : state === "active" ? "Current" : "Upcoming"}
+                          </span>
+                        </div>
+                        <p className="text-[11px] text-muted-foreground line-clamp-1">{stage.description}</p>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
-            </div>
-          </section>
-        </aside>
-      </section>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
     </div>
   );
 }
+

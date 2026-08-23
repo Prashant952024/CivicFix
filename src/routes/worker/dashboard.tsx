@@ -4,24 +4,31 @@ import {
   ArrowRight,
   CheckCircle2,
   ClipboardList,
-  Gauge,
   Clock3,
+  Flame,
+  HardHat,
   MapPin,
-  TrendingUp,
-  TriangleAlert,
+  RefreshCw,
+  RotateCcw,
+  Sparkles,
+  SquarePen,
   type LucideIcon,
 } from "lucide-react";
 import { Link } from "react-router-dom";
 
 import { useAppSession } from "@/auth/app-session";
-import { CitizenEmptyState } from "@/components/citizen/citizen-empty-state";
 import { IssueImage } from "@/components/issues/issue-image";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { EmptyState } from "@/components/ui/empty-state";
+import { PageHeader } from "@/components/ui/page-header";
 import { cn } from "@/lib/utils";
 import {
   formatWorkerIssueCoordinates,
   formatWorkerIssueDateTime,
   formatWorkerIssuePriority,
+  getWorkerIssuePriorityTone,
   getWorkerIssueStatusLabel,
   getWorkerIssueStatusTone,
   pickWorkerIssueThumbnail,
@@ -58,53 +65,55 @@ type WorkerAssignmentCard = Pick<
   worker?: Pick<WorkerProfileRow, "id" | "full_name" | "email"> | null;
 };
 
-type MetricTone = {
-  shell: string;
-  icon: string;
-  rail: string;
-  copy: string;
-};
-
-function badgeToneClasses(tone: "default" | "success" | "warning" | "danger" | "info") {
-  return tone === "success"
-    ? "bg-emerald-50 text-emerald-700 ring-emerald-200"
-    : tone === "warning"
-      ? "bg-amber-50 text-amber-700 ring-amber-200"
-      : tone === "danger"
-        ? "bg-red-50 text-red-700 ring-red-200"
-        : tone === "info"
-          ? "bg-sky-50 text-sky-700 ring-sky-200"
-          : "bg-teal-50 text-teal-700 ring-teal-200";
-}
-
 function isCompletedStatus(status: Database["public"]["Enums"]["issue_status"]) {
   return status === "RESOLVED" || status === "CITIZEN_VERIFIED";
 }
 
-function WorkerMetricCard({
+function CompactMetricCard({
   label,
   value,
   caption,
   icon: Icon,
-  tone,
+  variant,
 }: {
   label: string;
   value: number;
   caption: string;
   icon: LucideIcon;
-  tone: MetricTone;
+  variant: "sky" | "amber" | "violet" | "emerald";
 }) {
+  const styles = {
+    sky: {
+      card: "border-sky-200/80 bg-gradient-to-br from-sky-50/70 via-white to-teal-50/50",
+      icon: "border-sky-200 bg-sky-50 text-sky-700",
+      pill: "text-sky-700",
+    },
+    amber: {
+      card: "border-amber-200/80 bg-gradient-to-br from-amber-50/70 via-white to-orange-50/50",
+      icon: "border-amber-200 bg-amber-50 text-amber-700",
+      pill: "text-amber-700",
+    },
+    violet: {
+      card: "border-violet-200/80 bg-gradient-to-br from-violet-50/70 via-white to-fuchsia-50/50",
+      icon: "border-violet-200 bg-violet-50 text-violet-700",
+      pill: "text-violet-700",
+    },
+    emerald: {
+      card: "border-emerald-200/80 bg-gradient-to-br from-emerald-50/70 via-white to-teal-50/50",
+      icon: "border-emerald-200 bg-emerald-50 text-emerald-700",
+      pill: "text-emerald-700",
+    },
+  }[variant];
+
   return (
-    <div className="relative overflow-hidden rounded-[1.5rem] border border-white/60 bg-white/78 p-5 shadow-[0_18px_45px_rgba(15,23,42,0.08)] backdrop-blur-sm">
-      <div className={cn("absolute inset-y-0 left-0 w-1.5", tone.rail)} aria-hidden="true" />
-      <div className={cn("absolute -right-12 -top-12 h-32 w-32 rounded-full blur-3xl", tone.shell)} aria-hidden="true" />
-      <div className="relative flex items-start justify-between gap-4">
-        <div className="space-y-3">
-          <p className="text-xs font-semibold uppercase tracking-[0.24em] text-muted-foreground">{label}</p>
-          <p className="text-3xl font-semibold tracking-tight text-foreground">{value}</p>
-          <p className="max-w-[16rem] text-sm leading-6 text-muted-foreground">{caption}</p>
+    <div className={cn("relative overflow-hidden rounded-[1.5rem] border p-4 sm:p-5 shadow-sm backdrop-blur-sm transition-all duration-200 hover:shadow-md", styles.card)}>
+      <div className="flex items-start justify-between gap-3">
+        <div className="space-y-1">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">{label}</p>
+          <p className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">{value}</p>
+          <p className="text-xs text-muted-foreground">{caption}</p>
         </div>
-        <div className={cn("rounded-2xl border p-3 shadow-sm", tone.icon)}>
+        <div className={cn("rounded-2xl border p-2.5 sm:p-3 shadow-sm shrink-0", styles.icon)}>
           <Icon className="h-5 w-5" aria-hidden="true" />
         </div>
       </div>
@@ -199,326 +208,440 @@ export function WorkerDashboardPage() {
 
     return {
       assigned: issues.length,
+      notStarted: issues.filter((issue) => issue.status === "ASSIGNED").length,
       inProgress: issues.filter((issue) => issue.status === "IN_PROGRESS").length,
+      rework: issues.filter((issue) => issue.status === "REJECTED" || issue.status === "REOPENED").length,
       underReview: issues.filter((issue) => issue.status === "UNDER_REVIEW").length,
       completed: issues.filter((issue) => isCompletedStatus(issue.status)).length,
-      critical: issues.filter((issue) => issue.priority === "HIGH" || issue.priority === "URGENT").length,
+      critical: issues.filter((issue) => (issue.priority === "HIGH" || issue.priority === "URGENT") && !isCompletedStatus(issue.status)).length,
     };
   }, [assignments]);
 
-  const recentAssignments = useMemo(
+  // Actionable issues needing attention right now
+  const actionRequiredIssues = useMemo(() => {
+    return assignments
+      .filter((assignment) => {
+        const status = assignment.issue?.status;
+        return status === "ASSIGNED" || status === "IN_PROGRESS" || status === "REJECTED" || status === "REOPENED";
+      })
+      .sort((a, b) => {
+        // Prioritize REJECTED, then IN_PROGRESS, then ASSIGNED
+        const order: Record<string, number> = { REJECTED: 0, REOPENED: 1, IN_PROGRESS: 2, ASSIGNED: 3 };
+        const aStatus = a.issue?.status ?? "ASSIGNED";
+        const bStatus = b.issue?.status ?? "ASSIGNED";
+        return (order[aStatus] ?? 4) - (order[bStatus] ?? 4);
+      })
+      .slice(0, 4);
+  }, [assignments]);
+
+  // Active / recent work queue
+  const activeAssignments = useMemo(
     () =>
-      [...assignments]
-        .filter((assignment) => assignment.issue)
-        .sort((a, b) => new Date(b.assigned_at).getTime() - new Date(a.assigned_at).getTime())
+      assignments
+        .filter((assignment) => assignment.issue && !isCompletedStatus(assignment.issue.status))
         .slice(0, 6),
     [assignments],
   );
 
-  const heroHighlights = [
-    { label: "Assigned", value: stats.assigned, tone: "from-sky-500/15 via-cyan-500/10 to-teal-500/10" },
-    { label: "In Progress", value: stats.inProgress, tone: "from-amber-500/15 via-orange-500/10 to-rose-500/10" },
-    { label: "Under Review", value: stats.underReview, tone: "from-violet-500/15 via-fuchsia-500/10 to-sky-500/10" },
-    { label: "Resolved", value: stats.completed, tone: "from-emerald-500/18 via-lime-500/10 to-teal-500/10" },
-  ];
+  // Completed work
+  const completedAssignments = useMemo(
+    () =>
+      assignments
+        .filter((assignment) => assignment.issue && (isCompletedStatus(assignment.issue.status) || assignment.issue.status === "UNDER_REVIEW"))
+        .slice(0, 4),
+    [assignments],
+  );
 
   if (sessionProblem || error) {
     return (
-      <section className="rounded-[1.75rem] border border-white/70 bg-white/82 p-6 shadow-[0_18px_45px_rgba(15,23,42,0.12)]">
-        <div className="max-w-2xl space-y-4">
-          <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-red-200 bg-red-50 text-red-700">
-            <AlertCircle className="h-5 w-5" aria-hidden="true" />
-          </div>
-          <div className="space-y-2">
-            <h2 className="text-2xl font-semibold tracking-tight text-foreground">Unable to load worker dashboard</h2>
-            <p className="text-sm leading-6 text-muted-foreground">{sessionProblem ?? error}</p>
-          </div>
-          <Button onClick={() => setRefreshNonce((value) => value + 1)} type="button">
+      <EmptyState
+        icon={AlertCircle}
+        variant="error"
+        title="Unable to load worker dashboard"
+        description={sessionProblem ?? error ?? "An error occurred while loading your field tasks."}
+        action={
+          <Button onClick={() => setRefreshNonce((v) => v + 1)} type="button">
+            <RefreshCw className="h-4 w-4 mr-2" />
             Try Again
           </Button>
-        </div>
-      </section>
+        }
+      />
     );
   }
 
   if (loading) {
     return (
       <div className="space-y-6">
-        <section className="relative overflow-hidden rounded-[1.75rem] border border-teal-100/80 bg-[linear-gradient(135deg,rgba(15,118,110,0.10)_0%,rgba(2,132,199,0.10)_48%,rgba(124,58,237,0.08)_100%)] p-6 shadow-[0_18px_45px_rgba(15,23,42,0.12)]">
-          <div className="space-y-3">
-            <div className="h-4 w-44 animate-pulse rounded-full bg-muted/60" />
-            <div className="h-9 w-full max-w-3xl animate-pulse rounded-2xl bg-muted/60" />
-            <div className="h-4 w-full max-w-2xl animate-pulse rounded-full bg-muted/40" />
-          </div>
-        </section>
-        <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <div className="h-44 w-full animate-pulse rounded-[1.85rem] border border-teal-100/80 bg-teal-50/40" />
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
           {Array.from({ length: 4 }).map((_, index) => (
-            <div key={index} className="h-32 animate-pulse rounded-[1.5rem] border border-white/70 bg-white/80" />
+            <div key={index} className="h-28 animate-pulse rounded-[1.5rem] border border-border/70 bg-surface/80" />
           ))}
-        </section>
-        <section className="space-y-4">
-          <div className="h-6 w-44 animate-pulse rounded-full bg-muted/50" />
-          <div className="grid gap-4">
-            {Array.from({ length: 3 }).map((_, index) => (
-              <div key={index} className="h-40 animate-pulse rounded-[1.5rem] border border-white/70 bg-white/80" />
+        </div>
+        <div className="space-y-4">
+          <div className="h-6 w-48 animate-pulse rounded-full bg-muted/50" />
+          <div className="grid gap-4 sm:grid-cols-2">
+            {Array.from({ length: 2 }).map((_, index) => (
+              <div key={index} className="h-44 animate-pulse rounded-[1.6rem] border border-border/70 bg-surface/80" />
             ))}
           </div>
-        </section>
+        </div>
       </div>
     );
   }
 
   return (
     <div className="space-y-6">
-      <section className="relative overflow-hidden rounded-[1.85rem] border border-teal-100/80 bg-[linear-gradient(135deg,rgba(15,118,110,0.14)_0%,rgba(2,132,199,0.12)_42%,rgba(124,58,237,0.08)_100%)] shadow-[0_22px_55px_rgba(15,23,42,0.12)]">
-        <div className="pointer-events-none absolute -right-10 top-0 h-40 w-40 rounded-full bg-sky-400/10 blur-3xl" aria-hidden="true" />
-        <div className="pointer-events-none absolute -left-10 bottom-0 h-48 w-48 rounded-full bg-emerald-400/10 blur-3xl" aria-hidden="true" />
-        <div className="border-b border-white/70 bg-[linear-gradient(135deg,rgba(255,255,255,0.88)_0%,rgba(249,252,251,0.72)_100%)] px-6 py-6 backdrop-blur-sm">
-          <div className="grid gap-6 lg:grid-cols-[1.2fr_0.8fr] lg:items-end">
-            <div className="space-y-4">
-              <div className="inline-flex items-center rounded-full border border-teal-200/80 bg-white/80 px-3 py-1 text-xs font-semibold uppercase tracking-[0.22em] text-teal-800 shadow-sm shadow-teal-950/5">
-                Field operations command
-              </div>
-              <div className="space-y-2">
-                <h2 className="text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">Your Field Operations</h2>
-                <p className="max-w-3xl text-sm leading-6 text-muted-foreground sm:text-base">
-                  Track live assignments, balance active work, and keep the resolution pipeline moving from the street to review.
-                </p>
-              </div>
-
-              <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-                {heroHighlights.map((item) => (
-                  <div
-                    key={item.label}
-                    className={cn(
-                      "rounded-2xl border border-white/70 bg-white/72 px-4 py-3 shadow-sm",
-                      item.tone,
-                    )}
-                  >
-                    <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-muted-foreground">{item.label}</p>
-                    <p className="mt-2 text-2xl font-semibold tracking-tight text-foreground">{item.value}</p>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <div className="grid gap-3">
-              <div className="rounded-[1.5rem] border border-white/70 bg-white/72 p-4 shadow-sm">
-                <div className="flex items-center gap-3">
-                  <div className="rounded-2xl border border-sky-200 bg-sky-50 p-3 text-sky-700">
-                    <TrendingUp className="h-5 w-5" aria-hidden="true" />
-                  </div>
-                  <div className="min-w-0">
-                    <p className="text-xs font-semibold uppercase tracking-[0.22em] text-muted-foreground">Live assignment queue</p>
-                    <p className="mt-1 text-sm leading-6 text-muted-foreground">Open the active work list and focus on the most urgent field tasks.</p>
-                  </div>
-                </div>
-              </div>
-
-              <div className="grid gap-3 sm:grid-cols-2">
-                <div className="rounded-[1.5rem] border border-white/70 bg-gradient-to-br from-sky-500/12 via-cyan-500/10 to-teal-500/12 p-4 shadow-sm">
-                  <p className="text-xs font-semibold uppercase tracking-[0.22em] text-sky-700">Critical work</p>
-                  <p className="mt-2 text-2xl font-semibold tracking-tight text-foreground">{stats.critical}</p>
-                  <p className="mt-1 text-sm leading-6 text-muted-foreground">High and urgent items needing attention.</p>
-                </div>
-                <div className="rounded-[1.5rem] border border-white/70 bg-gradient-to-br from-violet-500/12 via-fuchsia-500/10 to-sky-500/10 p-4 shadow-sm">
-                  <p className="text-xs font-semibold uppercase tracking-[0.22em] text-violet-700">Resolved today</p>
-                  <p className="mt-2 text-2xl font-semibold tracking-tight text-foreground">{stats.completed}</p>
-                  <p className="mt-1 text-sm leading-6 text-muted-foreground">Completed work ready to move forward.</p>
-                </div>
-              </div>
-
-              <div className="flex flex-col gap-3 sm:flex-row">
-                <div className="inline-flex items-center gap-2 rounded-full border border-sky-200/80 bg-sky-50/80 px-4 py-2 text-sm text-sky-800 shadow-sm shadow-sky-950/5">
-                  <MapPin className="h-4 w-4" aria-hidden="true" />
-                  Location-based work stream
-                </div>
-                <Button asChild className="min-w-fit">
-                  <Link to="/app/worker/assigned-issues">
-                    Open work queue
-                    <ArrowRight className="h-4 w-4" aria-hidden="true" />
-                  </Link>
-                </Button>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <WorkerMetricCard
-          caption="All open assignments currently routed to you."
-          icon={ClipboardList}
-          label="Assigned work"
-          tone={{ shell: "bg-sky-500/18", icon: "border-sky-200 bg-sky-50 text-sky-700", rail: "bg-gradient-to-b from-sky-500 to-teal-500", copy: "sky" }}
-          value={stats.assigned}
-        />
-        <WorkerMetricCard
-          caption="Tasks actively being handled in the field."
-          icon={Gauge}
-          label="In progress"
-          tone={{ shell: "bg-amber-500/18", icon: "border-amber-200 bg-amber-50 text-amber-700", rail: "bg-gradient-to-b from-amber-500 to-orange-500", copy: "amber" }}
-          value={stats.inProgress}
-        />
-        <WorkerMetricCard
-          caption="Submitted work awaiting officer review."
-          icon={Clock3}
-          label="Under review"
-          tone={{ shell: "bg-violet-500/18", icon: "border-violet-200 bg-violet-50 text-violet-700", rail: "bg-gradient-to-b from-violet-500 to-sky-500", copy: "violet" }}
-          value={stats.underReview}
-        />
-        <WorkerMetricCard
-          caption="Resolved and ready for the next workflow step."
-          icon={CheckCircle2}
-          label="Completed"
-          tone={{ shell: "bg-emerald-500/18", icon: "border-emerald-200 bg-emerald-50 text-emerald-700", rail: "bg-gradient-to-b from-emerald-500 to-teal-500", copy: "emerald" }}
-          value={stats.completed}
-        />
-      </section>
-
-      <section className="rounded-[1.75rem] border border-white/70 bg-[linear-gradient(180deg,rgba(255,255,255,0.84)_0%,rgba(243,248,246,0.94)_100%)] p-5 shadow-[0_16px_45px_rgba(15,23,42,0.09)]">
-        <div className="grid gap-4 lg:grid-cols-[1.15fr_0.85fr_0.85fr]">
-          <div className="rounded-[1.35rem] border border-sky-100/80 bg-sky-50/70 p-4">
-            <p className="text-xs font-semibold uppercase tracking-[0.22em] text-sky-700">Dispatch note</p>
-            <p className="mt-2 text-sm leading-6 text-foreground">
-              Your queue is organized around live field assignments, with the most urgent work surfaced in the cards below.
-            </p>
-          </div>
-          <div className="rounded-[1.35rem] border border-amber-100/80 bg-amber-50/70 p-4">
-            <p className="text-xs font-semibold uppercase tracking-[0.22em] text-amber-700">Critical load</p>
-            <p className="mt-2 text-3xl font-semibold tracking-tight text-foreground">{stats.critical}</p>
-            <p className="mt-1 text-sm leading-6 text-muted-foreground">High and urgent work needs attention first.</p>
-          </div>
-          <div className="rounded-[1.35rem] border border-violet-100/80 bg-violet-50/70 p-4">
-            <p className="text-xs font-semibold uppercase tracking-[0.22em] text-violet-700">Quick action</p>
-            <Button asChild className="mt-3 w-full bg-gradient-to-r from-teal-600 via-cyan-600 to-blue-600 shadow-md shadow-teal-950/15">
+      {/* 1. Operational Header / Hero */}
+      <PageHeader
+        tag="Field Operations"
+        title="Field Worker Dashboard"
+        description="Review active assignments, start field tasks, capture resolution photos, and keep urban repairs moving forward."
+        actions={
+          <div className="flex flex-wrap items-center gap-2.5">
+            <Button asChild className="bg-gradient-to-r from-teal-600 via-cyan-600 to-blue-600 shadow-md shadow-teal-950/15">
               <Link to="/app/worker/assigned-issues">
-                Open the queue
-                <ArrowRight className="h-4 w-4" aria-hidden="true" />
+                <HardHat className="h-4 w-4 mr-2" aria-hidden="true" />
+                Open Task Queue
+                <ArrowRight className="h-4 w-4 ml-1.5" aria-hidden="true" />
               </Link>
             </Button>
           </div>
+        }
+      >
+        {/* Quick highlight bar within page header */}
+        <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-4 pt-2">
+          <div className="rounded-2xl border border-sky-200/70 bg-white/75 p-3 backdrop-blur-sm">
+            <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">Total Assigned</p>
+            <p className="mt-1 text-xl sm:text-2xl font-bold tracking-tight text-foreground">{stats.assigned}</p>
+          </div>
+          <div className="rounded-2xl border border-amber-200/70 bg-white/75 p-3 backdrop-blur-sm">
+            <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-amber-700">In Progress</p>
+            <p className="mt-1 text-xl sm:text-2xl font-bold tracking-tight text-foreground">{stats.inProgress}</p>
+          </div>
+          <div className="rounded-2xl border border-violet-200/70 bg-white/75 p-3 backdrop-blur-sm">
+            <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-violet-700">Under Review</p>
+            <p className="mt-1 text-xl sm:text-2xl font-bold tracking-tight text-foreground">{stats.underReview}</p>
+          </div>
+          <div className="rounded-2xl border border-emerald-200/70 bg-white/75 p-3 backdrop-blur-sm">
+            <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-emerald-700">Completed</p>
+            <p className="mt-1 text-xl sm:text-2xl font-bold tracking-tight text-foreground">{stats.completed}</p>
+          </div>
         </div>
+      </PageHeader>
+
+      {/* 2. Worker Summary Metrics */}
+      <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <CompactMetricCard
+          label="Assigned Tasks"
+          value={stats.assigned}
+          caption="Open field assignments routed to you"
+          icon={ClipboardList}
+          variant="sky"
+        />
+        <CompactMetricCard
+          label="Active Work"
+          value={stats.inProgress}
+          caption="Repairs currently being executed"
+          icon={SquarePen}
+          variant="amber"
+        />
+        <CompactMetricCard
+          label="Awaiting Review"
+          value={stats.underReview}
+          caption="Evidence submitted to officer"
+          icon={Clock3}
+          variant="violet"
+        />
+        <CompactMetricCard
+          label="Resolved / Done"
+          value={stats.completed}
+          caption="Successfully closed repairs"
+          icon={CheckCircle2}
+          variant="emerald"
+        />
       </section>
 
-      {recentAssignments.length > 0 ? (
-        <section className="space-y-4">
-          <div className="flex flex-wrap items-end justify-between gap-3">
-            <div>
-              <p className="text-sm font-medium text-muted-foreground">
-                Showing {recentAssignments.length} of {assignments.length} assigned issues
-              </p>
-              <h3 className="mt-1 text-xl font-semibold text-foreground">Live field queue</h3>
+      {/* 3. Needs Action Section */}
+      {actionRequiredIssues.length > 0 && (
+        <section className="space-y-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <div className="flex h-7 w-7 items-center justify-center rounded-xl border border-amber-200 bg-amber-50 text-amber-700">
+                <Flame className="h-4 w-4" aria-hidden="true" />
+              </div>
+              <h2 className="text-base sm:text-lg font-bold text-foreground">Needs Immediate Action</h2>
             </div>
-            <div className="inline-flex items-center gap-2 rounded-full border border-sky-200/70 bg-sky-50/80 px-3 py-2 text-xs font-medium text-sky-800">
-              <TriangleAlert className="h-4 w-4" aria-hidden="true" />
-              Priority first workflow
-            </div>
+            <span className="text-xs font-medium text-muted-foreground">
+              {actionRequiredIssues.length} actionable {actionRequiredIssues.length === 1 ? "task" : "tasks"}
+            </span>
           </div>
 
-          <div className="grid gap-4">
-            {recentAssignments.map((assignment) => {
+          <div className="grid gap-3 sm:grid-cols-2">
+            {actionRequiredIssues.map((assignment) => {
               const issue = assignment.issue;
-              if (!issue) {
-                return null;
-              }
+              if (!issue) return null;
+
+              const isRework = issue.status === "REJECTED" || issue.status === "REOPENED";
+              const isInProgress = issue.status === "IN_PROGRESS";
+              const location = issue.address_text?.trim() || issue.location_text?.trim() || formatWorkerIssueCoordinates(issue.latitude, issue.longitude);
+
+              return (
+                <div
+                  key={assignment.id}
+                  className={cn(
+                    "relative overflow-hidden rounded-[1.5rem] border p-4 sm:p-5 shadow-sm transition-all hover:shadow-md",
+                    isRework
+                      ? "border-red-200 bg-gradient-to-br from-red-50/80 via-white to-amber-50/50"
+                      : isInProgress
+                        ? "border-amber-200 bg-gradient-to-br from-amber-50/80 via-white to-orange-50/50"
+                        : "border-sky-200 bg-gradient-to-br from-sky-50/80 via-white to-teal-50/50",
+                  )}
+                >
+                  <div className="flex flex-col justify-between h-full space-y-3">
+                    <div className="space-y-2">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <Badge variant={getWorkerIssueStatusTone(issue.status)} size="sm">
+                          {getWorkerIssueStatusLabel(issue.status)}
+                        </Badge>
+                        <Badge variant={getWorkerIssuePriorityTone(issue.priority)} size="sm">
+                          Priority {formatWorkerIssuePriority(issue.priority)}
+                        </Badge>
+                        <Badge variant="outline" size="sm">
+                          {issue.category}
+                        </Badge>
+                      </div>
+
+                      <h3 className="text-base font-semibold text-foreground line-clamp-1 break-words">
+                        {issue.title}
+                      </h3>
+
+                      {location && (
+                        <p className="flex items-center gap-1.5 text-xs text-muted-foreground line-clamp-1">
+                          <MapPin className="h-3.5 w-3.5 text-primary shrink-0" aria-hidden="true" />
+                          <span>{location}</span>
+                        </p>
+                      )}
+
+                      {isRework && (
+                        <p className="rounded-xl border border-red-200 bg-red-50/90 px-2.5 py-1.5 text-xs font-medium text-red-800">
+                          Officer requested changes. Resume work and provide updated resolution evidence.
+                        </p>
+                      )}
+                      {isInProgress && (
+                        <p className="rounded-xl border border-amber-200 bg-amber-50/90 px-2.5 py-1.5 text-xs font-medium text-amber-800">
+                          Repair is ongoing. Capture resolution photo once fixed.
+                        </p>
+                      )}
+                    </div>
+
+                    <div className="pt-1">
+                      <Button asChild size="sm" className="w-full bg-gradient-to-r from-teal-600 via-cyan-600 to-blue-600">
+                        <Link to={`/app/worker/assigned-issues/${issue.id}`}>
+                          {isRework ? (
+                            <>
+                              <RotateCcw className="h-3.5 w-3.5 mr-1.5" />
+                              Resume Work
+                            </>
+                          ) : isInProgress ? (
+                            <>
+                              <SquarePen className="h-3.5 w-3.5 mr-1.5" />
+                              Submit Resolution
+                            </>
+                          ) : (
+                            <>
+                              <Sparkles className="h-3.5 w-3.5 mr-1.5" />
+                              Start Work
+                            </>
+                          )}
+                          <ArrowRight className="h-3.5 w-3.5 ml-auto" />
+                        </Link>
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </section>
+      )}
+
+      {/* 4. Active Field Work Queue */}
+      {activeAssignments.length > 0 ? (
+        <section className="space-y-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <div className="flex h-7 w-7 items-center justify-center rounded-xl border border-teal-200 bg-teal-50 text-teal-700">
+                <HardHat className="h-4 w-4" aria-hidden="true" />
+              </div>
+              <h2 className="text-base sm:text-lg font-bold text-foreground">Active Task Queue</h2>
+            </div>
+            <Button asChild variant="ghost" size="sm" className="text-xs text-primary">
+              <Link to="/app/worker/assigned-issues">
+                View All ({assignments.length})
+                <ArrowRight className="h-3.5 w-3.5 ml-1" />
+              </Link>
+            </Button>
+          </div>
+
+          <div className="grid gap-3">
+            {activeAssignments.map((assignment) => {
+              const issue = assignment.issue;
+              if (!issue) return null;
 
               const thumb = pickWorkerIssueThumbnail(issue);
-              const location = formatWorkerIssueCoordinates(issue.latitude, issue.longitude);
-              const statusTone = getWorkerIssueStatusTone(issue.status);
+              const location = issue.address_text?.trim() || issue.location_text?.trim() || formatWorkerIssueCoordinates(issue.latitude, issue.longitude);
               const isCritical = issue.priority === "HIGH" || issue.priority === "URGENT";
 
               return (
-                <article
+                <Card
                   key={assignment.id}
-                  className="overflow-hidden rounded-[1.75rem] border border-white/70 bg-white/84 shadow-[0_16px_42px_rgba(15,23,42,0.12)]"
+                  className="overflow-hidden p-0 border border-border/80 bg-surface/90 hover:border-teal-200 transition-all duration-200"
                 >
-                  <div className="grid gap-0 lg:grid-cols-[0.35fr_1fr]">
-                    <div className="bg-gradient-to-br from-slate-50 via-white to-teal-50 p-4 lg:p-5">
-                      <div className="overflow-hidden rounded-[1.35rem] border border-white/70 bg-surface-elevated shadow-sm">
-                        {thumb ? (
-                          <IssueImage alt={issue.title} className="min-h-[12rem] rounded-none" src={thumb} variant="card" />
-                        ) : (
-                          <div className="flex min-h-[12rem] items-center justify-center px-4 py-6 text-center">
-                            <div className="space-y-2">
-                              <ClipboardList className="mx-auto h-6 w-6 text-primary" aria-hidden="true" />
-                              <p className="text-xs font-semibold uppercase tracking-[0.22em] text-muted-foreground">No image</p>
-                              <p className="text-sm leading-6 text-muted-foreground">Citizen photo not attached.</p>
-                            </div>
+                  <div className="grid gap-0 sm:grid-cols-[11rem_1fr] md:grid-cols-[14rem_1fr]">
+                    {/* Bounded Task Thumbnail */}
+                    <div className="relative bg-muted/40 sm:border-r border-border/60">
+                      {thumb ? (
+                        <IssueImage
+                          alt={issue.title}
+                          className="h-44 sm:h-full w-full min-h-[9rem]"
+                          imageClassName="object-cover"
+                          src={thumb}
+                          variant="card"
+                        />
+                      ) : (
+                        <div className="flex h-36 sm:h-full min-h-[8rem] items-center justify-center bg-slate-50 p-4 text-center">
+                          <div className="space-y-1">
+                            <ClipboardList className="mx-auto h-5 w-5 text-muted-foreground/60" aria-hidden="true" />
+                            <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">No Photo</p>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Task Information */}
+                    <div className="flex flex-col justify-between p-4 sm:p-5 space-y-3">
+                      <div className="space-y-2">
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          <Badge variant={getWorkerIssueStatusTone(issue.status)} size="sm">
+                            {getWorkerIssueStatusLabel(issue.status)}
+                          </Badge>
+                          <Badge variant={isCritical ? "danger" : getWorkerIssuePriorityTone(issue.priority)} size="sm">
+                            {formatWorkerIssuePriority(issue.priority)} Priority
+                          </Badge>
+                          <Badge variant="outline" size="sm">
+                            {issue.category}
+                          </Badge>
+                        </div>
+
+                        <div>
+                          <h3 className="text-base sm:text-lg font-bold text-foreground break-words line-clamp-2">
+                            {issue.title}
+                          </h3>
+                          <p className="mt-1 text-xs sm:text-sm text-muted-foreground line-clamp-2 leading-relaxed">
+                            {issue.description}
+                          </p>
+                        </div>
+
+                        {location && (
+                          <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                            <MapPin className="h-3.5 w-3.5 text-primary shrink-0" aria-hidden="true" />
+                            <span className="truncate">{location}</span>
                           </div>
                         )}
                       </div>
-                    </div>
 
-                    <div className="min-w-0 space-y-5 p-5 lg:p-6">
-                      <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
-                        <div className="min-w-0 space-y-3">
-                          <div className="flex flex-wrap items-center gap-2">
-                            <span className={`inline-flex items-center rounded-full border px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] ring-1 ${badgeToneClasses(statusTone)}`}>
-                              {getWorkerIssueStatusLabel(issue.status)}
-                            </span>
-                            <span className={`inline-flex items-center rounded-full border px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] ring-1 ${badgeToneClasses(isCritical ? "danger" : "info")}`}>
-                              Priority {formatWorkerIssuePriority(issue.priority)}
-                            </span>
-                            <span className="inline-flex items-center rounded-full border border-border/70 bg-sky-50/80 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-sky-800">
-                              {issue.category}
-                            </span>
-                          </div>
-
-                          <div className="space-y-2">
-                            <h4 className="break-words text-2xl font-semibold tracking-tight text-foreground">{issue.title}</h4>
-                            <p className="max-w-3xl break-words text-sm leading-6 text-muted-foreground">{issue.description}</p>
-                          </div>
+                      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pt-2 border-t border-border/50">
+                        <div className="flex items-center gap-3 text-[11px] text-muted-foreground">
+                          <span>Assigned {formatWorkerIssueDateTime(assignment.assigned_at)}</span>
+                          {assignment.department?.name && (
+                            <>
+                              <span>•</span>
+                              <span>{assignment.department.name}</span>
+                            </>
+                          )}
                         </div>
 
-                        <Button asChild size="sm" className="shrink-0 bg-gradient-to-r from-teal-600 via-cyan-600 to-blue-600 shadow-md shadow-teal-950/15" variant="default">
+                        <Button asChild size="sm" className="w-full sm:w-auto bg-gradient-to-r from-teal-600 via-cyan-600 to-blue-600">
                           <Link to={`/app/worker/assigned-issues/${issue.id}`}>
-                            Open issue
-                            <ArrowRight className="h-4 w-4" aria-hidden="true" />
+                            Open Issue
+                            <ArrowRight className="h-3.5 w-3.5 ml-1.5" />
                           </Link>
                         </Button>
                       </div>
-
-                      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-                        <div className="rounded-2xl border border-border/70 bg-gradient-to-br from-sky-50/80 to-teal-50/70 p-4">
-                          <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">Assigned</p>
-                          <p className="mt-2 text-sm font-medium text-foreground">{formatWorkerIssueDateTime(assignment.assigned_at)}</p>
-                        </div>
-                        <div className="rounded-2xl border border-border/70 bg-gradient-to-br from-emerald-50/80 to-teal-50/70 p-4">
-                          <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">Location</p>
-                          <p className="mt-2 break-words text-sm font-medium text-foreground">{location ?? "No GPS captured"}</p>
-                        </div>
-                        <div className="rounded-2xl border border-border/70 bg-gradient-to-br from-violet-50/80 to-sky-50/70 p-4">
-                          <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">Department</p>
-                          <p className="mt-2 break-words text-sm font-medium text-foreground">{assignment.department?.name ?? "Unassigned"}</p>
-                        </div>
-                        <div className="rounded-2xl border border-border/70 bg-gradient-to-br from-amber-50/80 to-orange-50/70 p-4">
-                          <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">Assigned by</p>
-                          <p className="mt-2 break-words text-sm font-medium text-foreground">
-                            {assignment.assigned_by?.full_name?.trim() || assignment.assigned_by?.email || "Municipal officer"}
-                          </p>
-                        </div>
-                      </div>
                     </div>
                   </div>
-                </article>
+                </Card>
               );
             })}
           </div>
         </section>
       ) : (
-        <CitizenEmptyState
-          description={
-            assignments.length === 0
-              ? "No issues are assigned to you right now. Once officers route work to your account, it will appear here."
-              : "No assigned issues match your current filters. Try clearing them."
+        <EmptyState
+          icon={HardHat}
+          title="All Caught Up!"
+          description="You currently have no active field tasks assigned. New tasks routed to you will appear here."
+          action={
+            <Button asChild variant="outline">
+              <Link to="/app/worker/assigned-issues">View All Assigned Issues</Link>
+            </Button>
           }
-          primaryActionHref="/app/worker"
-          primaryActionLabel="Back to Dashboard"
-          secondaryActionHref="/app/worker/assigned-issues"
-          secondaryActionLabel="Refresh queue"
-          title={assignments.length === 0 ? "No assigned issues yet" : "No issues match your filters"}
         />
+      )}
+
+      {/* 5. Recently Completed / Under Review Section (Calmer visual weight) */}
+      {completedAssignments.length > 0 && (
+        <section className="space-y-3 pt-2">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <div className="flex h-7 w-7 items-center justify-center rounded-xl border border-slate-200 bg-slate-50 text-slate-700">
+                <CheckCircle2 className="h-4 w-4" aria-hidden="true" />
+              </div>
+              <h2 className="text-base sm:text-lg font-bold text-foreground">Recent Submissions & Completed Work</h2>
+            </div>
+            <span className="text-xs text-muted-foreground">{completedAssignments.length} items</span>
+          </div>
+
+          <div className="grid gap-3 sm:grid-cols-2">
+            {completedAssignments.map((assignment) => {
+              const issue = assignment.issue;
+              if (!issue) return null;
+
+              const isReview = issue.status === "UNDER_REVIEW";
+
+              return (
+                <div
+                  key={assignment.id}
+                  className="rounded-[1.4rem] border border-border/70 bg-background/50 p-4 transition hover:bg-surface/80"
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="space-y-1.5 min-w-0">
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        <Badge variant={getWorkerIssueStatusTone(issue.status)} size="sm">
+                          {getWorkerIssueStatusLabel(issue.status)}
+                        </Badge>
+                        <Badge variant="outline" size="sm">
+                          {issue.category}
+                        </Badge>
+                      </div>
+                      <h4 className="text-sm font-semibold text-foreground line-clamp-1">{issue.title}</h4>
+                      <p className="text-xs text-muted-foreground">
+                        {isReview ? "Awaiting officer review" : "Work resolved successfully"}
+                      </p>
+                    </div>
+
+                    <Button asChild size="sm" variant="ghost" className="shrink-0 text-xs">
+                      <Link to={`/app/worker/assigned-issues/${issue.id}`}>
+                        View
+                        <ArrowRight className="h-3 w-3 ml-1" />
+                      </Link>
+                    </Button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </section>
       )}
     </div>
   );
