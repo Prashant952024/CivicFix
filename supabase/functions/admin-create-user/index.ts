@@ -1,3 +1,5 @@
+/// <reference path="../deno.d.ts" />
+
 import { createClerkClient } from "npm:@clerk/backend";
 import { createClient } from "npm:@supabase/supabase-js";
 
@@ -31,7 +33,7 @@ type CreateUserBody = {
   roleCode?: string;
 };
 
-function parseOrigins(value: string | null) {
+function parseOrigins(value: string | null | undefined) {
   return (value ?? "")
     .split(",")
     .map((origin) => origin.trim())
@@ -145,7 +147,7 @@ async function deleteClerkUserSafely(userId: string) {
   }
 }
 
-Deno.serve(async (request) => {
+Deno.serve(async (request: Request) => {
   const origin = request.headers.get("Origin");
   if (origin && CIVICFIX_ALLOWED_ORIGINS.length > 0 && !CIVICFIX_ALLOWED_ORIGINS.includes(origin)) {
     return json(403, { error: "Origin not allowed." }, origin);
@@ -307,6 +309,9 @@ Deno.serve(async (request) => {
       );
     }
 
+    const roleData = createdProfile.role as { code?: string; name?: string } | Array<{ code?: string; name?: string }> | null;
+    const roleObj = Array.isArray(roleData) ? roleData[0] : roleData;
+
     return json(
       200,
       {
@@ -314,8 +319,8 @@ Deno.serve(async (request) => {
           id: createdProfile.id,
           fullName: createdProfile.full_name,
           email: createdProfile.email,
-          roleCode: createdProfile.role?.code ?? roleCode,
-          roleName: createdProfile.role?.name ?? roleRecord.name,
+          roleCode: roleObj?.code ?? roleCode,
+          roleName: roleObj?.name ?? roleRecord.name,
         },
       },
       origin,
