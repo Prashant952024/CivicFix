@@ -9,6 +9,7 @@ export type AdminIssueSeverity = Database["public"]["Enums"]["issue_severity"];
 const ROLE_TONES: Record<AdminRoleCode, "default" | "success" | "warning" | "danger" | "info"> = {
   CITIZEN: "info",
   MUNICIPAL_OFFICER: "warning",
+  DEPARTMENT_MANAGER: "info",
   FIELD_WORKER: "danger",
   ADMIN: "success",
 };
@@ -35,6 +36,8 @@ export function getAdminRoleLabel(roleCode: AdminRoleCode) {
   switch (roleCode) {
     case "MUNICIPAL_OFFICER":
       return "Municipal Officer";
+    case "DEPARTMENT_MANAGER":
+      return "Department Manager";
     case "FIELD_WORKER":
       return "Field Worker";
     case "ADMIN":

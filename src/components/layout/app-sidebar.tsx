@@ -1,5 +1,6 @@
 import { useEffect, type ComponentType } from "react";
 import {
+  Activity,
   Bell,
   Building2,
   ChartNoAxesCombined,
@@ -31,6 +32,7 @@ type NavIconKey =
   | "notifications"
   | "map"
   | "analytics"
+  | "activity"
   | "users"
   | "departments";
 
@@ -42,6 +44,7 @@ const navIcons: Record<NavIconKey, ComponentType<{ className?: string; "aria-hid
   notifications: Bell,
   map: MapPinned,
   analytics: ChartNoAxesCombined,
+  activity: Activity,
   users: UsersRound,
   departments: Building2,
 };
@@ -51,6 +54,7 @@ function getNavIcon(item: CivicFixRoleNavItem) {
   if (lowered.includes("report")) return navIcons.report;
   if (lowered.includes("assigned")) return navIcons.assigned;
   if (lowered.includes("notification")) return navIcons.notifications;
+  if (lowered.includes("activity")) return navIcons.activity;
   if (lowered.includes("map")) return navIcons.map;
   if (lowered.includes("analytic")) return navIcons.analytics;
   if (lowered.includes("user")) return navIcons.users;

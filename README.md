@@ -72,18 +72,22 @@ Traditional Broken Loop:
 
 ### How CivicFix Closes the Loop
 
-CivicFix establishes a bi-directional, verifiable chain of custody where no complaint is closed until photographic proof is submitted and the reporting citizen verifies the outcome:
+CivicFix establishes a bi-directional, verifiable chain of custody where no complaint is closed until photographic proof is submitted, reviewed by departments and officers, and verified by the reporting citizen:
 
 ```text
 Citizen Report (Photo + GPS)
             ↓
-Municipal Officer Verification & Triage
+Municipal Officer Verification & Department Routing (AI-Assisted)
             ↓
-Department & Worker Assignment
+Responsible Department(s) Receive Assignment
+            ↓
+Department Manager Dispatches Field Worker (Strict Same-Department Isolation)
             ↓
 Field Worker Resolution & Photographic Evidence
             ↓
-Municipal Officer Review & Approval
+Department Manager Task Review (Single or Multi-Department Coordination)
+            ↓
+Municipal Officer Final Review & Approval
             ↓
 Citizen Ground-Truth Verification
             ↓
@@ -133,54 +137,56 @@ CivicFix transforms municipal issue resolution into an open, auditable, and acco
 ### 🏛️ Municipal Officer Operations
 - Comprehensive issue triage queue with status, priority, and severity filtering.
 - Review citizen reports and make **Verify** or **Reject** determinations.
-- Department assignment (**Sanitation, Water Supply, Road Maintenance, Traffic/Safety**, etc.).
-- Direct worker dispatch with real-time active worker roster lookups.
+- AI-Assisted Department Recommendations with confidence scores and rationales.
+- Multi-department assignment: officer selects one or multiple responsible departments.
+- **Strict Separation of Concerns**: Officers decide responsible *departments*, never individual workers.
+
+### 🏢 Department Manager Workflow
+- Dedicated Department Workbench (`/app/department/*`) bound to a single municipal department.
+- Real-time departmental queue tracking incoming, in-progress, under-review, and completed tasks.
+- **Field Worker Dispatch**: Assign tasks to active workers strictly within the manager's department.
+- **Cross-Department Protection**: Database triggers and RLS strictly prevent assigning workers from outside departments.
+- **Departmental Review**: Review field worker resolution photos, approve department tasks, or request rework.
 
 ### 👷 Field Worker Workflow
-- Personalized task dashboard displaying assigned repairs.
+- Personalized task dashboard displaying assigned repairs from the worker's department.
 - Single-action progression: **Assigned** ➔ **In Progress** ➔ **Under Review**.
 - In-field capture and upload of **Resolution Evidence Photos** directly stored in dedicated storage buckets.
 - Full inspection of the original citizen complaint, GPS coordinates, and historical notes.
 
 ### 📸 Verifiable Resolution Evidence
-- Side-by-side **Before & After** comparison display.
+- Consolidated display of resolution evidence from all participating departments.
 - Immutable storage of resolution photos linked to worker profiles and timestamps.
-- Transparent access for both officers and citizens.
+- Transparent access for department managers, municipal officers, and reporting citizens.
 
-### 🔄 Multi-Stakeholder Status Audit History
-- Detailed chronological timeline tracking every state change (`SUBMITTED` ➔ `VERIFIED` ➔ `ASSIGNED` ➔ `IN_PROGRESS` ➔ `UNDER_REVIEW` ➔ `RESOLVED` ➔ `CITIZEN_VERIFIED`).
-- System-generated and officer-authored notes preserved for public and administrative transparency.
+### 🔄 Multi-Department Status & Partial Completion
+- Issues involving multiple departments transition to `PARTIALLY_COMPLETED` when some departments finish.
+- The overall issue advances to `UNDER_REVIEW` only when **all** assigned departments have completed repairs.
+- Database trigger prevents premature transition to `RESOLVED`.
 
 ### ✅ Citizen Verification & Reopen Loop
-- Interactive resolution confirmation modal for citizens once work is marked resolved.
-- Citizens confirm (`VERIFIED`) or report failure (`UNRESOLVED`).
+- Interactive resolution confirmation for citizens once work is marked resolved.
+- Complainant sees breakdown of all involved departments and consolidated photo evidence.
+- Citizens confirm (`CITIZEN_VERIFIED`) or report failure (`REOPENED`).
 - Reopening automatically resets the issue back into the active municipal workflow.
 
 ### 👑 Admin Control Center & Analytics
 - Live platform telemetry: total accounts, active issues, resolution rates, and department throughput.
-- User management interface with role inspection, filtering, and role-reassignment capabilities.
-- Secure server-side user provisioning for Municipal Officers and Field Workers.
-- Interactive analytics dashboard featuring status distribution donut charts, monthly/weekly resolution trends, department response comparisons, and one-click **CSV data export**.
-
-### 🤖 AI Integration — *Planned / Future Enhancement*
-> ⚠️ **Note**: AI capabilities are designed in the architecture and modeled in the database schema (`issue_ai_analysis` table), but automated inference triggers are **planned for future milestones**.
->
-> Planned AI capabilities include:
-> - Automated category classification from citizen photos using vision models.
-> - Intelligent severity and priority recommendation.
-> - Computer-vision duplicate issue detection based on GPS proximity and image embeddings.
-> - Automated routing to the most appropriate municipal department.
+- User management interface with role inspection, filtering, and provisioning for Municipal Officers, Department Managers, and Field Workers.
+- Department management: assign Department Managers to specific municipal departments.
+- Interactive analytics dashboard featuring status distribution charts, resolution trends, department workloads, and **CSV data export**.
 
 ---
 
 ## 👥 User Roles & Responsibilities
 
-| Role | Access Scope | Core Responsibilities |
-| :--- | :--- | :--- |
-| **Citizen** | `/app/citizen/*` | Report civic issues with photos and GPS, track personal issue history, review resolution photos, verify completed work, or reopen unresolved issues. |
-| **Municipal Officer** | `/app/officer/*` | Review submitted reports, verify legitimacy, set severity/priority, route to departments, assign field workers, review resolution evidence, approve/reject work. |
-| **Field Worker** | `/app/worker/*` | View assigned repair tasks, update operational state (`IN_PROGRESS`), perform physical repairs, upload photographic resolution evidence (`UNDER_REVIEW`). |
-| **Admin** | `/app/admin/*` | Platform oversight, system analytics, user management, secure staff creation via Edge Functions, department administration, full issue catalog inspection. |
+| Role | Access Scope | Department Binding | Core Responsibilities |
+| :--- | :--- | :--- | :--- |
+| **Citizen** | `/app/citizen/*` | None | Report civic issues with photos and GPS, track personal issue history, inspect multi-department progress, verify completed work, or reopen unresolved complaints. |
+| **Municipal Officer** | `/app/officer/*` | None | Review submitted reports, verify legitimacy, set severity/priority, route issues to one or more responsible municipal departments (never individual workers), conduct final review. |
+| **Department Manager** | `/app/department/*` | **Strictly 1 Department** | Manage departmental task queue, dispatch field workers from department roster, inspect worker evidence, approve departmental completion or request rework. |
+| **Field Worker** | `/app/worker/*` | **Strictly 1 Department** | View assigned repair tasks, start physical repairs (`IN_PROGRESS`), perform ground repairs, upload photographic resolution evidence. |
+| **Admin** | `/app/admin/*` | None | Platform oversight, system analytics, user management, staff provisioning with department binding, department manager assignment, full catalog inspection. |
 
 ---
 
@@ -193,28 +199,36 @@ flowchart TD
     end
 
     subgraph Triage["2. Municipal Triage"]
-        B --> C{Officer Review}
+        B --> C{Officer Triage}
         C -->|Legitimate Complaint| D[Status: VERIFIED]
         C -->|Invalid / Out of Scope| E[Status: REJECTED]
-        D -->|Assign Department & Worker| F[Status: ASSIGNED]
+        D -->|Officer Assigns Department s| F[Status: ASSIGNED]
     end
 
-    subgraph Execution["3. Field Execution"]
-        F --> G[Worker Starts Work]
-        G --> H[Status: IN_PROGRESS]
-        H --> I[Worker Uploads Evidence Photo]
-        I --> J[Status: UNDER_REVIEW]
+    subgraph DeptDispatch["3. Department Management"]
+        F --> G[Dept Manager Receives Task]
+        G -->|Dispatches Dept Worker| H[Worker Assigned]
     end
 
-    subgraph Verification["4. Review & Citizen Confirmation"]
-        J --> K{Officer Reviews Evidence}
-        K -->|Evidence Approved| L[Status: RESOLVED]
-        K -->|Incomplete / Substandard| M[Status: REJECTED / REWORK]
+    subgraph Execution["4. Field Execution"]
+        H --> I[Status: IN_PROGRESS]
+        I --> J[Worker Uploads Evidence Photo]
+        J --> K[Dept Manager Reviews Evidence]
+        K -->|Rework Needed| I
+        K -->|Dept Task Approved| L{All Depts Done?}
+        L -->|Some Depts Still Active| M[Status: PARTIALLY_COMPLETED]
         M --> G
-        L --> N{Citizen Ground Verification}
-        N -->|Citizen Confirms Fix| O[Status: CITIZEN_VERIFIED ✅]
-        N -->|Issue Still Exists| P[Status: REOPENED 🔄]
-        P --> F
+        L -->|All Depts Completed| N[Status: UNDER_REVIEW]
+    end
+
+    subgraph Verification["5. Final Review & Citizen Verification"]
+        N --> O{Officer Final Approval}
+        O -->|Approved| P[Status: RESOLVED]
+        O -->|Rejected| G
+        P --> Q{Citizen Ground Verification}
+        Q -->|Citizen Confirms Fix| R[Status: CITIZEN_VERIFIED ✅]
+        Q -->|Still Unresolved| S[Status: REOPENED 🔄]
+        S --> F
     end
 
     classDef intake fill:#0f766e,stroke:#0d5f59,color:#fff
@@ -375,7 +389,9 @@ ConsoleLog/
 │   │   ├── 0011_civicfix_worker_under_review_sync.sql
 │   │   ├── 0012_civicfix_issue_status_transition_guard.sql
 │   │   ├── 0013_civicfix_reopen_clears_citizen_verification.sql
-│   │   └── 0014_civicfix_transition_concurrency_guards.sql
+│   │   ├── 0014_civicfix_transition_concurrency_guards.sql
+│   │   ├── 0015_civicfix_add_department_manager_role.sql
+│   │   └── 0016_civicfix_department_assignment_architecture.sql
 │   └── seed.sql                   # Seed data for roles and departments
 ├── vercel.json                    # Single Page App rewrite rules for Vercel
 ├── package.json                   # Dependencies and npm scripts
@@ -394,16 +410,17 @@ CivicFix uses an enterprise-grade authentication and authorization model:
 3. **Row-Level Security (RLS)**:
    - Database queries leverage helper functions (`requesting_clerk_user_id()`, `current_profile_id()`, and `current_user_has_role()`) to restrict row access directly at the PostgreSQL layer.
    - Citizens can only query their own submitted issues or public summary views.
-   - Field Workers can only view issues actively assigned to their profile.
-   - Municipal Officers and Admins have broad access to triage and oversee issues across departments.
+   - Department Managers can only access issues and tasks assigned to their specific department (`department_id`).
+   - Field Workers can only view tasks dispatched to them by their department manager.
+   - Municipal Officers and Admins have broad access to triage, route, and oversee issues across departments.
 4. **Client-Side Safety**: No secret keys (`CLERK_SECRET_KEY`, `SUPABASE_SERVICE_ROLE_KEY`) are ever bundled in frontend code or exposed in browser bundles.
-5. **Secure Administrative Provisioning**: Creation of Municipal Officer and Field Worker credentials is exclusively executed inside the isolated `admin-create-user` Edge Function.
+5. **Secure Administrative Provisioning**: Creation of Municipal Officer, Department Manager, and Field Worker credentials is exclusively executed inside the isolated `admin-create-user` Edge Function.
 
 ---
 
 ## 🗄️ Database Schema & Transition Rules
 
-### Key PostgreSQL Tables
+### Key PostgreSQL Tables & Architecture
 
 ```text
 ┌────────────────────────┐      ┌────────────────────────┐      ┌────────────────────────┐
@@ -412,9 +429,9 @@ CivicFix uses an enterprise-grade authentication and authorization model:
 │ id (PK, UUID)          │      │ id (PK, UUID)          │      │ id (PK, UUID)          │
 │ code (role_code ENUM)  │      │ name (TEXT, UNIQUE)    │      │ clerk_user_id (UNIQUE) │
 │ name (TEXT, UNIQUE)    │      │ description (TEXT)     │      │ full_name (TEXT)       │
-│ description (TEXT)     │      │ is_active (BOOLEAN)    │      │ email (TEXT, UNIQUE)   │
-└───────────┬────────────┘      └───────────┬────────────┘      │ role_id (FK -> roles)  │
-            │                               │                   │ department_id (FK)     │
+│ description (TEXT)     │      │ manager_profile_id(FK) │      │ email (TEXT, UNIQUE)   │
+└───────────┬────────────┘      │ is_active (BOOLEAN)    │      │ role_id (FK -> roles)  │
+            │                   └───────────┬────────────┘      │ department_id (FK)     │
             └───────────────────────────────┼───────────────────┴───────────┬────────────┘
                                             │                               │
                                             ▼                               ▼
@@ -426,39 +443,66 @@ CivicFix uses an enterprise-grade authentication and authorization model:
                                 │ title, description, category (TEXT)                    │
                                 │ severity (issue_severity ENUM)                         │
                                 │ priority (issue_priority ENUM)                         │
-                                │ status (issue_status ENUM)                             │
+                                │ status (issue_status ENUM inc. PARTIALLY_COMPLETED)    │
                                 │ latitude, longitude (NUMERIC(9,6))                     │
                                 │ location_text, address_text (TEXT)                     │
-                                │ department_id (FK -> departments)                      │
                                 │ resolved_at (TIMESTAMPTZ)                              │
                                 └───────────────────────────┬────────────────────────────┘
                                                             │
          ┌──────────────────────────────┬───────────────────┼────────────────────────────┐
          ▼                              ▼                   ▼                            ▼
 ┌────────────────────────┐   ┌────────────────────────┐   ┌────────────────────────┐   ┌────────────────────────┐
-│      issue_images      │   │   issue_assignments    │   │  issue_status_history  │   │resolution_verifications│
-├────────────────────────┤   ├────────────────────────┤   ├────────────────────────┤   ├────────────────────────┤
-│ id (PK, UUID)          │   │ id (PK, UUID)          │   │ id (PK, UUID)          │   │ id (PK, UUID)          │
-│ issue_id (FK -> issues)│   │ issue_id (FK -> issues)│   │ issue_id (FK -> issues)│   │ issue_id (FK -> issues)│
-│ storage_bucket (TEXT)  │   │ department_id (FK)     │   │ old_status (ENUM)      │   │ citizen_id (FK)        │
-│ storage_path (TEXT)    │   │ worker_id (FK)         │   │ new_status (ENUM)      │   │ result (ENUM)          │
+│      issue_images      │   │issue_department_assign-│   │  issue_status_history  │   │resolution_verifications│
+├────────────────────────┤   │         ments          │   ├────────────────────────┤   ├────────────────────────┤
+│ id (PK, UUID)          │   ├────────────────────────┤   │ id (PK, UUID)          │   │ id (PK, UUID)          │
+│ issue_id (FK -> issues)│   │ id (PK, UUID)          │   │ issue_id (FK -> issues)│   │ issue_id (FK -> issues)│
+│ storage_bucket (TEXT)  │   │ issue_id (FK -> issues)│   │ old_status (ENUM)      │   │ citizen_id (FK)        │
+│ storage_path (TEXT)    │   │ department_id (FK)     │   │ new_status (ENUM)      │   │ result (ENUM)          │
 │ image_type (ENUM)      │   │ status (ENUM)          │   │ changed_by (FK)        │   │ feedback (TEXT)        │
-└────────────────────────┘   └────────────────────────┘   └────────────────────────┘   └────────────────────────┘
+└────────────────────────┘   │ notes (TEXT)           │   └────────────────────────┘   └────────────────────────┘
+                             └───────────┬────────────┘
+                                         │
+                                         ▼
+                             ┌────────────────────────┐
+                             │department_worker_      │
+                             │      assignments       │
+                             ├────────────────────────┤
+                             │ id (PK, UUID)          │
+                             │ issue_dept_assign_id   │
+                             │ worker_profile_id (FK) │
+                             │ assigned_by_id (FK)    │
+                             │ status (ENUM)          │
+                             │ notes (TEXT)           │
+                             └────────────────────────┘
 ```
 
-### Database Transition Guards & Concurrency Safety
+### The 12 Standard Civic Departments
 
-Migration `0014_civicfix_transition_concurrency_guards.sql` enforces strict state validation with `FOR UPDATE` row locks:
+CivicFix ships pre-seeded with 12 standardized municipal service departments:
+1. **Road & Infrastructure**: Potholes, damaged tarmac, pavement sinking, missing curb stones.
+2. **Water Supply & Sewerage**: Broken pipes, contaminated water, pipeline bursts, sewer overflow.
+3. **Waste Management**: Overflowing dumpsters, illegal trash dumping, missed collection.
+4. **Electricity & Street Lighting**: Non-functional street lights, dangling wires, open junction boxes.
+5. **Parks & Horticulture**: Fallen branches, overgrown greenery, damaged playground amenities.
+6. **Public Health & Sanitation**: Vector breeding, stagnant dirty water, public toilet disrepair.
+7. **Traffic & Transport**: Missing street signage, damaged lane dividers, traffic signal failures.
+8. **Building & Urban Planning**: Unauthorized construction, encroached pedestrian footpaths.
+9. **Stormwater & Flood Management**: Blocked roadside catch-basins, monsoon urban waterlogging.
+10. **Public Works**: Damaged government boundary walls, cracked bridges, municipal facilities.
+11. **Fire & Emergency Services**: Blocked emergency exits, broken hydrants, hazardous conditions.
+12. **Animal Control**: Dangerous stray animals, dead animal removal, rabies prevention.
 
-- **Municipal Officers / Admins**:
-  - `SUBMITTED` / `AI_ANALYZED` ➔ `VERIFIED`
-  - `VERIFIED` / `REOPENED` ➔ `ASSIGNED`
-  - `UNDER_REVIEW` ➔ `RESOLVED` or `REJECTED`
-- **Field Workers**:
-  - `ASSIGNED` / `REOPENED` / `REJECTED` ➔ `IN_PROGRESS` (only for assigned worker)
-  - `IN_PROGRESS` ➔ `UNDER_REVIEW` (triggers review notice and links resolution photo)
-- **Citizens**:
-  - `RESOLVED` ➔ `CITIZEN_VERIFIED` or `REOPENED` (only for original reporter)
+### Cross-Department Isolation & State Transitions
+
+Migrations `0015_civicfix_add_department_manager_role.sql` and `0016_civicfix_department_assignment_architecture.sql` introduce strict database guarantees:
+
+- **Strict Worker Isolation**: Trigger `trg_validate_department_worker_assignment` enforces that field workers can **only** be assigned to a department task if their profile's `department_id` matches the task's `department_id`. Cross-department dispatching is rejected at the PostgreSQL level (`SQLSTATE P0001`).
+- **Multi-Department Partial Completion**: Issues involving multiple departments transition to `PARTIALLY_COMPLETED` when one department finishes repairs while others remain active.
+- **Premature Resolution Prevention**: Trigger `validate_issue_status_history_transition` blocks any attempt to mark an issue `RESOLVED` until **all** assigned departments have reached `COMPLETED` status.
+- **Double-Gate Verification**:
+  1. Field Worker submits photographic evidence ➔ Department Manager reviews & approves department task.
+  2. Once all departments complete ➔ Municipal Officer approves overall issue ➔ `RESOLVED`.
+  3. Citizen inspects completed repair on ground ➔ `CITIZEN_VERIFIED` or `REOPENED`.
 
 ---
 
@@ -558,6 +602,10 @@ Or execute the scripts in order:
 12. `0012_civicfix_issue_status_transition_guard.sql` — Transition enforcement
 13. `0013_civicfix_reopen_clears_citizen_verification.sql` — Reopen cleanup
 14. `0014_civicfix_transition_concurrency_guards.sql` — Concurrency locking
+15. `0015_civicfix_add_department_manager_role.sql` — Add `DEPARTMENT_MANAGER` role and `PARTIALLY_COMPLETED` enum
+16. `0016_civicfix_department_assignment_architecture.sql` — 12 standard civic departments, multi-department assignment tables, manager triggers, and RLS
+17. `0017_civicfix_admin_staff_provisioning.sql` — Employee ID, designation, active status, avatar storage bucket & policies, and Admin staff management grants
+18. `0018_civicfix_fix_issue_dept_recursion.sql` — Non-recursive security definer RLS functions for `issue_department_assignments` and `department_worker_assignments`
 
 Seed baseline roles and departments using `supabase/seed.sql`.
 
@@ -566,6 +614,7 @@ Seed baseline roles and departments using `supabase/seed.sql`.
 Verify that the following public storage buckets exist in Supabase Storage:
 - `issue-images` (For citizen intake photos)
 - `resolution-images` (For field worker completion proof)
+- `avatars` (For staff profile photos and badge avatars)
 
 ### 3. Deploying the Edge Function (For Admin Staff Creation)
 

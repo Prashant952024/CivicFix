@@ -82,6 +82,27 @@ type AssignmentWithRelations = WorkerIssueAssignmentRow & {
   issue?: IssueRow | null;
 };
 
+type DeptWorkerDetailsRow = {
+  id: string;
+  issue_department_assignment_id: string;
+  worker_profile_id: string;
+  assigned_by_profile_id: string | null;
+  status: string;
+  notes: string | null;
+  assigned_at: string;
+  started_at: string | null;
+  completed_at: string | null;
+  assigned_by: Pick<WorkerProfileRow, "id" | "full_name" | "email"> | null;
+  issue_department_assignment: {
+    id: string;
+    issue_id: string;
+    department_id: string;
+    status: string;
+    department: Pick<WorkerDepartmentRow, "id" | "name"> | null;
+    issue: IssueRow | null;
+  } | null;
+};
+
 type TimelineItem = {
   id: string;
   statusLabel: string;
@@ -305,6 +326,8 @@ export function WorkerAssignedIssueDetailsPage() {
   const { profile, status: sessionStatus, error: sessionError } = useAppSession();
   const [assignment, setAssignment] = useState<AssignmentWithRelations | null>(null);
   const [issue, setIssue] = useState<IssueRow | null>(null);
+  const [deptWorkerAssignmentId, setDeptWorkerAssignmentId] = useState<string | null>(null);
+  const [issueDeptAssignmentId, setIssueDeptAssignmentId] = useState<string | null>(null);
   const [aiAnalysis, setAiAnalysis] = useState<WorkerIssueAiAnalysisRow | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -404,48 +427,53 @@ export function WorkerAssignedIssueDetailsPage() {
       setLoading(true);
       setError(null);
 
-      const [assignmentResult, aiResult] = await Promise.all([
+      // Query from new department worker assignments
+      const [deptWorkerResult, aiResult] = await Promise.all([
         supabase
-          .from("issue_assignments")
+          .from("department_worker_assignments")
           .select(
             `
             id,
-            issue_id,
-            department_id,
-            worker_id,
+            issue_department_assignment_id,
+            worker_profile_id,
             assigned_by_profile_id,
             status,
+            notes,
             assigned_at,
-            unassigned_at,
-            department:departments(id, name),
-            assigned_by:profiles!issue_assignments_assigned_by_profile_id_fkey(id, full_name, email),
-            worker:profiles!issue_assignments_worker_id_fkey(id, full_name, email),
-            issue:issues(
+            started_at,
+            completed_at,
+            assigned_by:profiles!department_worker_assignments_assigned_by_profile_id_fkey(id, full_name, email),
+            issue_department_assignment:issue_department_assignments(
               id,
-              reporter_profile_id,
-              title,
-              description,
-              category,
-              priority,
-              status,
-              latitude,
-              longitude,
-              location_text,
-              address_text,
+              issue_id,
               department_id,
-              resolved_at,
-              created_at,
-              updated_at,
+              status,
               department:departments(id, name),
-              issue_images(id, storage_bucket, storage_path, image_type, created_at),
-              issue_status_history(id, old_status, new_status, notes, created_at)
+              issue:issues(
+                id,
+                reporter_profile_id,
+                title,
+                description,
+                category,
+                priority,
+                status,
+                latitude,
+                longitude,
+                location_text,
+                address_text,
+                department_id,
+                resolved_at,
+                created_at,
+                updated_at,
+                department:departments(id, name),
+                issue_images(id, storage_bucket, storage_path, image_type, created_at),
+                issue_status_history(id, old_status, new_status, notes, created_at)
+              )
             )
           `,
           )
-          .eq("issue_id", currentIssueId)
-          .eq("worker_id", currentProfileId)
-          .is("unassigned_at", null)
-          .maybeSingle(),
+          .eq("worker_profile_id", currentProfileId)
+          .order("assigned_at", { ascending: false }),
         supabase
           .from("issue_ai_analysis")
           .select(
@@ -456,6 +484,105 @@ export function WorkerAssignedIssueDetailsPage() {
           .limit(1)
           .maybeSingle(),
       ]);
+
+      if (cancelled) {
+        return;
+      }
+
+      if (deptWorkerResult.error && import.meta.env.DEV) {
+        console.error("Worker dept assignment query failed", deptWorkerResult.error);
+      }
+
+      const deptWorkerRows = (deptWorkerResult.data ?? []) as unknown as DeptWorkerDetailsRow[];
+      const matchingDeptAssignment = deptWorkerRows.find(
+        (d) =>
+          d.id === currentIssueId ||
+          d.issue_department_assignment_id === currentIssueId ||
+          d.issue_department_assignment?.issue_id === currentIssueId ||
+          d.issue_department_assignment?.issue?.id === currentIssueId,
+      );
+
+      if (matchingDeptAssignment && matchingDeptAssignment.issue_department_assignment?.issue) {
+        setDeptWorkerAssignmentId(matchingDeptAssignment.id);
+        setIssueDeptAssignmentId(matchingDeptAssignment.issue_department_assignment_id);
+
+        const d = matchingDeptAssignment;
+        const deptAssign = d.issue_department_assignment;
+        if (!deptAssign?.issue) {
+          return;
+        }
+        const nextAssignment: AssignmentWithRelations = {
+          id: d.id,
+          issue_id: deptAssign.issue.id,
+          department_id: deptAssign.department_id,
+          worker_id: d.worker_profile_id,
+          assigned_by_profile_id: d.assigned_by_profile_id ?? "",
+          status: d.status === "COMPLETED" ? "COMPLETED" : "ACTIVE",
+          assigned_at: d.assigned_at,
+          unassigned_at: null,
+          department: deptAssign.department ?? deptAssign.issue.department ?? null,
+          assigned_by: d.assigned_by,
+          worker: profile ? { id: profile.id, full_name: profile.full_name, email: profile.email } : null,
+          issue: deptAssign.issue,
+        };
+        const nextIssue = nextAssignment.issue;
+        if (nextIssue) {
+          nextIssue.issue_images = [...(nextIssue.issue_images ?? [])].sort(
+            (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime(),
+          );
+          nextIssue.issue_status_history = [...(nextIssue.issue_status_history ?? [])].sort(
+            (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime(),
+          );
+        }
+        setAssignment(nextAssignment);
+        setIssue(nextIssue ?? null);
+        setAiAnalysis(aiResult.data ?? null);
+        setLoading(false);
+        return;
+      }
+
+      // Fallback: load from legacy issue_assignments
+      const assignmentResult = await supabase
+        .from("issue_assignments")
+        .select(
+          `
+          id,
+          issue_id,
+          department_id,
+          worker_id,
+          assigned_by_profile_id,
+          status,
+          assigned_at,
+          unassigned_at,
+          department:departments(id, name),
+          assigned_by:profiles!issue_assignments_assigned_by_profile_id_fkey(id, full_name, email),
+          worker:profiles!issue_assignments_worker_id_fkey(id, full_name, email),
+          issue:issues(
+            id,
+            reporter_profile_id,
+            title,
+            description,
+            category,
+            priority,
+            status,
+            latitude,
+            longitude,
+            location_text,
+            address_text,
+            department_id,
+            resolved_at,
+            created_at,
+            updated_at,
+            department:departments(id, name),
+            issue_images(id, storage_bucket, storage_path, image_type, created_at),
+            issue_status_history(id, old_status, new_status, notes, created_at)
+          )
+        `,
+        )
+        .eq("issue_id", currentIssueId)
+        .eq("worker_id", currentProfileId)
+        .is("unassigned_at", null)
+        .maybeSingle();
 
       if (cancelled) {
         return;
@@ -515,7 +642,7 @@ export function WorkerAssignedIssueDetailsPage() {
     return () => {
       cancelled = true;
     };
-  }, [issueId, profileId, refreshNonce, sessionStatus]);
+  }, [issueId, profile, profileId, refreshNonce, sessionStatus]);
 
   const initialImage = issue ? pickCitizenIssueImageByType(issue, "INITIAL_REPORT") ?? issue.issue_images?.[0] ?? null : null;
   const resolutionImage = issue ? pickCitizenIssueImageByType(issue, "RESOLUTION_EVIDENCE") : null;
@@ -672,6 +799,19 @@ export function WorkerAssignedIssueDetailsPage() {
       return;
     }
 
+    if (deptWorkerAssignmentId) {
+      await supabase
+        .from("department_worker_assignments")
+        .update({ status: "IN_PROGRESS", started_at: new Date().toISOString() })
+        .eq("id", deptWorkerAssignmentId);
+    }
+    if (issueDeptAssignmentId) {
+      await supabase
+        .from("issue_department_assignments")
+        .update({ status: "IN_PROGRESS" })
+        .eq("id", issueDeptAssignmentId);
+    }
+
     refreshIssue("Work has been marked as in progress.");
   }
 
@@ -687,6 +827,11 @@ export function WorkerAssignedIssueDetailsPage() {
 
     if (!compressedResolutionImage) {
       setActionError("Please select a resolution evidence photo before submitting.");
+      return;
+    }
+
+    if (!resolutionNote.trim()) {
+      setActionError("Please provide work notes describing what was repaired or completed.");
       return;
     }
 
@@ -736,6 +881,20 @@ export function WorkerAssignedIssueDetailsPage() {
 
       if (historyError) {
         throw historyError;
+      }
+
+      if (deptWorkerAssignmentId) {
+        await supabase
+          .from("department_worker_assignments")
+          .update({ status: "COMPLETED", completed_at: new Date().toISOString() })
+          .eq("id", deptWorkerAssignmentId);
+      }
+
+      if (issueDeptAssignmentId) {
+        await supabase
+          .from("issue_department_assignments")
+          .update({ status: "UNDER_REVIEW", notes: resolutionNote.trim() })
+          .eq("id", issueDeptAssignmentId);
       }
     } catch (resolveError) {
       if (import.meta.env.DEV) {
@@ -1294,20 +1453,20 @@ export function WorkerAssignedIssueDetailsPage() {
                   {/* Resolution Notes Textarea */}
                   <div className="space-y-1.5">
                     <label htmlFor="resolution-note" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground block">
-                      Resolution Notes (Optional)
+                      Work Notes / Description of Repairs <span className="text-destructive">*</span>
                     </label>
                     <textarea
                       id="resolution-note"
                       className="w-full min-h-[5rem] rounded-2xl border border-border/80 bg-background px-3.5 py-2.5 text-xs sm:text-sm text-foreground outline-none transition placeholder:text-muted-foreground focus:border-primary/50 focus:ring-2 focus:ring-primary/20"
                       onChange={(e) => setResolutionNote(e.target.value)}
-                      placeholder="Brief summary of work completed (e.g. 'Pothole filled with asphalt and compacted')."
+                      placeholder="Detail what was repaired/performed (e.g. 'Pothole filled with asphalt and compacted. Site cleared')."
                       value={resolutionNote}
                     />
                   </div>
 
                   {/* Submit Button */}
                   <Button
-                    disabled={actionState !== "idle" || !compressedResolutionImage || imageProcessing}
+                    disabled={actionState !== "idle" || !compressedResolutionImage || !resolutionNote.trim() || imageProcessing}
                     onClick={() => void handleSubmitResolution()}
                     className="w-full bg-gradient-to-r from-teal-600 via-cyan-600 to-blue-600 shadow-md min-h-[46px] text-sm font-semibold"
                     size="lg"

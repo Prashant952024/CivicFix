@@ -42,6 +42,10 @@ function countStatus(issues: DashboardIssueRow[], match: Array<OfficerIssueStatu
 export function OfficerDashboardPage() {
   const { profile, status: sessionStatus, error: sessionError } = useAppSession();
   const [issues, setIssues] = useState<DashboardIssueRow[]>([]);
+  const [deptAssignments, setDeptAssignments] = useState<
+    Array<{ id: string; issue_id: string; department_id: string; status: string; department?: { name: string } | null }>
+  >([]);
+  const [departmentsList, setDepartmentsList] = useState<Array<{ id: string; name: string }>>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [refreshNonce, setRefreshNonce] = useState(0);
@@ -59,20 +63,30 @@ export function OfficerDashboardPage() {
       setLoading(true);
       setError(null);
 
-      const { data, error: loadError } = await supabase
-        .from("issues")
-        .select(
-          "id, title, category, status, priority, created_at, severity, location_text, address_text, department:departments(name)",
-        )
-        .order("created_at", { ascending: false });
+      const [issuesRes, deptAssignmentsRes, deptsRes] = await Promise.all([
+        supabase
+          .from("issues")
+          .select(
+            "id, title, category, status, priority, created_at, severity, location_text, address_text, department:departments(name)",
+          )
+          .order("created_at", { ascending: false }),
+        supabase
+          .from("issue_department_assignments")
+          .select("id, issue_id, department_id, status, department:departments(name)"),
+        supabase
+          .from("departments")
+          .select("id, name")
+          .eq("is_active", true)
+          .order("name", { ascending: true }),
+      ]);
 
       if (cancelled) {
         return;
       }
 
-      if (loadError) {
+      if (issuesRes.error) {
         if (import.meta.env.DEV) {
-          console.error("Officer dashboard load failed", loadError);
+          console.error("Officer dashboard load failed", issuesRes.error);
         }
         setError("Unable to load officer operations right now.");
         setIssues([]);
@@ -80,7 +94,9 @@ export function OfficerDashboardPage() {
         return;
       }
 
-      setIssues(data ?? []);
+      setIssues(issuesRes.data ?? []);
+      setDeptAssignments(deptAssignmentsRes.data ?? []);
+      setDepartmentsList(deptsRes.data ?? []);
       setLoading(false);
     }
 
@@ -93,21 +109,54 @@ export function OfficerDashboardPage() {
 
   const stats = useMemo(() => {
     const totalIssues = issues.length;
-    const pendingVerification = countStatus(issues, ["SUBMITTED", "AI_ANALYZED"]);
+    const pendingAssignment = issues.filter(
+      (issue) =>
+        issue.status === "SUBMITTED" ||
+        issue.status === "AI_ANALYZED" ||
+        issue.status === "VERIFIED",
+    ).length;
     const assignedIssues = countStatus(issues, ["ASSIGNED"]);
-    const inProgressIssues = countStatus(issues, ["ASSIGNED", "IN_PROGRESS", "REOPENED"]);
+    const partiallyCompleted = countStatus(issues, ["PARTIALLY_COMPLETED"]);
     const underReviewIssues = countStatus(issues, ["UNDER_REVIEW"]);
     const resolvedIssues = countStatus(issues, ["RESOLVED", "CITIZEN_VERIFIED"]);
 
+    // Calculate issues with multiple departments
+    const issueDeptCounts = new Map<string, number>();
+    for (const da of deptAssignments) {
+      issueDeptCounts.set(da.issue_id, (issueDeptCounts.get(da.issue_id) ?? 0) + 1);
+    }
+    let multiDeptCount = 0;
+    for (const count of issueDeptCounts.values()) {
+      if (count > 1) multiDeptCount++;
+    }
+
     return {
       totalIssues,
-      pendingVerification,
+      pendingAssignment,
       assignedIssues,
-      inProgressIssues,
+      partiallyCompleted,
       underReviewIssues,
       resolvedIssues,
+      multiDeptCount,
     };
-  }, [issues]);
+  }, [issues, deptAssignments]);
+
+  const departmentWorkloads = useMemo(() => {
+    const activeAssignments = deptAssignments.filter(
+      (da) => da.status === "ASSIGNED" || da.status === "IN_PROGRESS" || da.status === "UNDER_REVIEW",
+    );
+
+    return departmentsList
+      .map((dept) => {
+        const count = activeAssignments.filter((da) => da.department_id === dept.id).length;
+        return {
+          id: dept.id,
+          name: dept.name,
+          activeCount: count,
+        };
+      })
+      .sort((a, b) => b.activeCount - a.activeCount);
+  }, [deptAssignments, departmentsList]);
 
   // Operational action queue: Issues that require immediate officer attention
   const needsAttentionIssues = useMemo(() => {
@@ -164,10 +213,10 @@ export function OfficerDashboardPage() {
   }
 
   const metricCards = [
-    { label: "Total Reports", value: stats.totalIssues, icon: ClipboardList, tone: "default" as const },
-    { label: "Pending Triage", value: stats.pendingVerification, icon: Bell, tone: "warning" as const },
-    { label: "Assigned", value: stats.assignedIssues, icon: UserCheck, tone: "info" as const },
-    { label: "In Progress", value: stats.inProgressIssues, icon: Gauge, tone: "danger" as const },
+    { label: "Pending Assignment", value: stats.pendingAssignment, icon: Bell, tone: "warning" as const },
+    { label: "Assigned to Depts", value: stats.assignedIssues, icon: UserCheck, tone: "info" as const },
+    { label: "Multi-Dept Issues", value: stats.multiDeptCount, icon: ClipboardList, tone: "default" as const },
+    { label: "Partially Done", value: stats.partiallyCompleted, icon: Gauge, tone: "danger" as const },
     { label: "Under Review", value: stats.underReviewIssues, icon: ShieldAlert, tone: "default" as const },
     { label: "Resolved", value: stats.resolvedIssues, icon: CheckCircle2, tone: "success" as const },
   ];
@@ -425,6 +474,39 @@ export function OfficerDashboardPage() {
         )}
       </section>
 
+      {/* DEPARTMENT WORKLOAD BREAKDOWN */}
+      <section className="space-y-4" aria-label="Department workload breakdown">
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <p className="text-xs font-bold uppercase tracking-[0.2em] text-primary">
+              Capacity & Allocation
+            </p>
+            <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-foreground mt-0.5">
+              Department Workload
+            </h2>
+          </div>
+        </div>
+
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          {departmentWorkloads.map((dept) => (
+            <Card key={dept.id} className="p-4 bg-surface-elevated space-y-2">
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-sm font-bold text-foreground line-clamp-1">{dept.name}</span>
+                <Badge variant={dept.activeCount > 10 ? "danger" : dept.activeCount > 0 ? "info" : "default"} size="sm">
+                  {dept.activeCount} active
+                </Badge>
+              </div>
+              <div className="w-full bg-muted rounded-full h-1.5 overflow-hidden">
+                <div
+                  className="bg-primary h-full rounded-full transition-all duration-300"
+                  style={{ width: `${Math.min(100, dept.activeCount * 15)}%` }}
+                />
+              </div>
+            </Card>
+          ))}
+        </div>
+      </section>
+
       {/* Municipal Workflow Summary Card */}
       <section aria-label="Municipal workflow guide">
         <Card className="p-6 sm:p-8 bg-[linear-gradient(135deg,rgba(255,255,255,0.95)_0%,rgba(240,248,247,0.90)_100%)]">
@@ -438,7 +520,7 @@ export function OfficerDashboardPage() {
                 Municipal Triage Pipeline
               </h3>
               <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed">
-                Standardized 5-step operational protocol from citizen report intake to resolution verification.
+                Standardized 5-step operational protocol: citizen report intake, officer triage, department routing, field execution, and resolution review.
               </p>
             </div>
 
@@ -446,7 +528,7 @@ export function OfficerDashboardPage() {
               {[
                 { step: "1", title: "Verify", desc: "Triage complaint" },
                 { step: "2", title: "Prioritize", desc: "Set urgency" },
-                { step: "3", title: "Assign", desc: "Route to worker" },
+                { step: "3", title: "Route", desc: "Assign Dept(s)" },
                 { step: "4", title: "Review", desc: "Inspect proof" },
                 { step: "5", title: "Resolve", desc: "Close loop" },
               ].map((item) => (

@@ -22,7 +22,7 @@ type SyncResult = {
 };
 
 const PROFILE_SELECT =
-  "id, clerk_user_id, full_name, email, phone, role_id, department_id, created_at, updated_at, role:roles(code)";
+  "id, clerk_user_id, full_name, email, phone, role_id, department_id, employee_id, designation, is_active, avatar_url, joined_at, created_at, updated_at, role:roles(code)";
 
 function displayNameFromClerkUser(user: ReturnType<typeof useUser>["user"]) {
   const fullName = user?.fullName?.trim();
@@ -65,7 +65,7 @@ function safeErrorMessage(error: unknown) {
   return "Unknown profile synchronization error.";
 }
 
-async function loadCurrentProfile(clerkUserId: string) {
+async function loadCurrentProfile(clerkUserId: string, clerkEmail?: string | null) {
   const { data, error } = await supabase
     .from("profiles")
     .select(PROFILE_SELECT)
@@ -76,7 +76,42 @@ async function loadCurrentProfile(clerkUserId: string) {
     throw error;
   }
 
-  return data as ProfileWithRoleCode | null;
+  if (data) {
+    return data as ProfileWithRoleCode | null;
+  }
+
+  if (clerkEmail) {
+    const normalizedEmail = clerkEmail.trim().toLowerCase();
+    const { data: emailMatch, error: emailError } = await supabase
+      .from("profiles")
+      .select(PROFILE_SELECT)
+      .eq("email", normalizedEmail)
+      .maybeSingle();
+
+    if (emailError) {
+      throw emailError;
+    }
+
+    if (emailMatch) {
+      const { data: linkedProfile, error: linkError } = await supabase
+        .from("profiles")
+        .update({
+          clerk_user_id: clerkUserId,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", emailMatch.id)
+        .select(PROFILE_SELECT)
+        .single();
+
+      if (!linkError && linkedProfile) {
+        return linkedProfile as ProfileWithRoleCode;
+      }
+
+      return emailMatch as ProfileWithRoleCode;
+    }
+  }
+
+  return null;
 }
 
 export function useCivicFixProfileSync(): SyncResult & { refresh: () => Promise<void> } {
@@ -109,7 +144,7 @@ export function useCivicFixProfileSync(): SyncResult & { refresh: () => Promise<
     setError(null);
 
     try {
-      const currentProfile = await loadCurrentProfile(userId);
+      const currentProfile = await loadCurrentProfile(userId, clerkEmailRef.current);
       const nextFullName = clerkFullNameRef.current;
       const nextEmail = clerkEmailRef.current ?? currentProfile?.email ?? null;
       const currentRoleCode = currentProfile?.role?.code ?? null;

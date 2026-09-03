@@ -9,6 +9,7 @@ import {
   HardHat,
   MapPin,
   RefreshCw,
+  RotateCcw,
   Search,
   SlidersHorizontal,
   SquarePen,
@@ -71,6 +72,22 @@ type WorkerAssignmentRow = Pick<
   worker?: Pick<Database["public"]["Tables"]["profiles"]["Row"], "id" | "full_name" | "email"> | null;
 };
 
+type DeptWorkerQueryRow = {
+  id: string;
+  worker_profile_id: string;
+  assigned_by_profile_id: string | null;
+  status: string;
+  assigned_at: string;
+  assigned_by: Pick<Database["public"]["Tables"]["profiles"]["Row"], "id" | "full_name" | "email"> | null;
+  issue_department_assignment: {
+    id: string;
+    department_id: string;
+    status: string;
+    department: Pick<Database["public"]["Tables"]["departments"]["Row"], "id" | "name"> | null;
+    issue: WorkerIssueCardRow | null;
+  } | null;
+};
+
 type CategoryOption = { key: string; label: string };
 
 function priorityRank(priority: WorkerIssuePriority) {
@@ -88,7 +105,7 @@ function QueueMetricCard({
   value: number;
   description: string;
   icon: ComponentType<{ className?: string }>;
-  variant: "sky" | "amber" | "violet" | "emerald";
+  variant: "sky" | "amber" | "violet" | "emerald" | "rose";
 }) {
   const styles = {
     sky: {
@@ -106,6 +123,10 @@ function QueueMetricCard({
     emerald: {
       card: "border-emerald-200/80 bg-gradient-to-br from-emerald-50/70 via-white to-teal-50/50",
       icon: "border-emerald-200 bg-emerald-50 text-emerald-700",
+    },
+    rose: {
+      card: "border-rose-200/80 bg-gradient-to-br from-rose-50/70 via-white to-red-50/50",
+      icon: "border-rose-200 bg-rose-50 text-rose-700",
     },
   }[variant];
 
@@ -152,6 +173,84 @@ export function WorkerAssignedIssuesPage() {
       setLoading(true);
       setError(null);
 
+      // Query from new department worker assignments
+      const { data: deptWorkerData, error: deptWorkerError } = await supabase
+        .from("department_worker_assignments")
+        .select(
+          `
+          id,
+          issue_department_assignment_id,
+          worker_profile_id,
+          assigned_by_profile_id,
+          status,
+          notes,
+          assigned_at,
+          started_at,
+          completed_at,
+          assigned_by:profiles!department_worker_assignments_assigned_by_profile_id_fkey(id, full_name, email),
+          issue_department_assignment:issue_department_assignments(
+            id,
+            issue_id,
+            department_id,
+            status,
+            department:departments(id, name),
+            issue:issues(
+              id,
+              title,
+              description,
+              category,
+              priority,
+              status,
+              latitude,
+              longitude,
+              location_text,
+              address_text,
+              created_at,
+              updated_at,
+              issue_images(id, storage_bucket, storage_path, image_type, created_at)
+            )
+          )
+        `,
+        )
+        .eq("worker_profile_id", currentProfileId)
+        .in("status", ["ASSIGNED", "IN_PROGRESS", "COMPLETED"])
+        .order("assigned_at", { ascending: false });
+
+      if (cancelled) {
+        return;
+      }
+
+      if (deptWorkerError) {
+        if (import.meta.env.DEV) {
+          console.error("Worker assigned-issues department error", deptWorkerError);
+        }
+      }
+
+      if (!deptWorkerError && deptWorkerData && deptWorkerData.length > 0) {
+        const rows = deptWorkerData as unknown as DeptWorkerQueryRow[];
+        const mapped: WorkerAssignmentRow[] = rows
+          .filter((d) => Boolean(d.issue_department_assignment?.issue))
+          .map((d) => ({
+            id: d.id,
+            issue_id: d.issue_department_assignment!.issue!.id,
+            department_id: d.issue_department_assignment!.department_id,
+            worker_id: d.worker_profile_id,
+            assigned_by_profile_id: d.assigned_by_profile_id ?? "",
+            status: d.status === "COMPLETED" ? ("COMPLETED" as const) : ("ACTIVE" as const),
+            assigned_at: d.assigned_at,
+            unassigned_at: null,
+            department: d.issue_department_assignment!.department,
+            assigned_by: d.assigned_by,
+            worker: profile ? { id: profile.id, full_name: profile.full_name, email: profile.email } : null,
+            issue: d.issue_department_assignment!.issue,
+          }));
+
+        setAssignments(mapped);
+        setLoading(false);
+        return;
+      }
+
+      // Legacy fallback: load from issue_assignments
       const { data, error: loadError } = await supabase
         .from("issue_assignments")
         .select(
@@ -211,7 +310,7 @@ export function WorkerAssignedIssuesPage() {
     return () => {
       cancelled = true;
     };
-  }, [profileId, refreshNonce, sessionStatus]);
+  }, [profile, profileId, refreshNonce, sessionStatus]);
 
   const categories = useMemo<CategoryOption[]>(() => {
     const unique = new Set(
@@ -347,24 +446,24 @@ export function WorkerAssignedIssuesPage() {
         }
       />
 
-      {/* 2. Compact Overview Metrics */}
-      <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+      {/* 2. Compact Overview 5 KPI Metrics */}
+      <section className="grid gap-3 grid-cols-2 sm:grid-cols-3 lg:grid-cols-5">
         <QueueMetricCard
-          description="Total active assignments in your queue"
+          description="Total assignments in your queue"
           icon={ClipboardList}
-          label="Total Assigned"
+          label="Assigned Tasks"
           value={totalCount}
           variant="sky"
         />
         <QueueMetricCard
-          description="Tasks actively undergoing field repair"
+          description="Tasks actively undergoing repair"
           icon={SquarePen}
           label="In Progress"
           value={assignments.filter((a) => a.issue?.status === "IN_PROGRESS").length}
           variant="amber"
         />
         <QueueMetricCard
-          description="Submitted work awaiting officer sign-off"
+          description="Submitted work awaiting manager review"
           icon={Clock3}
           label="Under Review"
           value={assignments.filter((a) => a.issue?.status === "UNDER_REVIEW").length}
@@ -376,6 +475,13 @@ export function WorkerAssignedIssuesPage() {
           label="Completed"
           value={assignments.filter((a) => a.issue?.status === "RESOLVED" || a.issue?.status === "CITIZEN_VERIFIED").length}
           variant="emerald"
+        />
+        <QueueMetricCard
+          description="Manager requested revisions"
+          icon={RotateCcw}
+          label="Rework Required"
+          value={assignments.filter((a) => a.issue?.status === "REJECTED" || a.issue?.status === "REOPENED").length}
+          variant="rose"
         />
       </section>
 

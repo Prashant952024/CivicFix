@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import {
   AlertCircle,
   ArrowRight,
+  Building2,
   Crown,
   HardHat,
   Loader2,
@@ -38,8 +39,16 @@ const roleCards: RoleCard[] = [
   {
     code: "MUNICIPAL_OFFICER",
     label: "Municipal Officer",
-    description: "Verify and manage issues, assign departments or workers, and monitor civic operations.",
+    description: "Verify complaints, assign responsible departments, and review final resolutions.",
     icon: ShieldCheck,
+    note: "Admin provisioned",
+    tone: "info",
+  },
+  {
+    code: "DEPARTMENT_MANAGER",
+    label: "Department Manager",
+    description: "Manage departmental tasks, dispatch field workers, and review field repairs.",
+    icon: Building2,
     note: "Admin provisioned",
     tone: "info",
   },
@@ -54,7 +63,7 @@ const roleCards: RoleCard[] = [
   {
     code: "ADMIN",
     label: "Admin",
-    description: "Manage users and platform operations with the full CivicFix control surface.",
+    description: "Manage users, departments, and platform operations with the full CivicFix control surface.",
     icon: Crown,
     note: "Admin provisioned",
     tone: "danger",

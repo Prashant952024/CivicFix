@@ -28,6 +28,7 @@ const ISSUE_STATUS_LABELS: Record<CitizenIssueStatus, string> = {
   REJECTED: "Rejected",
   ASSIGNED: "Assigned",
   IN_PROGRESS: "In Progress",
+  PARTIALLY_COMPLETED: "Partially Completed",
   RESOLVED: "Resolved",
   CITIZEN_VERIFIED: "Resolved",
   REOPENED: "In Progress",
@@ -41,6 +42,7 @@ const ISSUE_STATUS_TONES: Record<CitizenIssueStatus, "default" | "success" | "wa
   REJECTED: "danger",
   ASSIGNED: "info",
   IN_PROGRESS: "info",
+  PARTIALLY_COMPLETED: "info",
   RESOLVED: "success",
   CITIZEN_VERIFIED: "success",
   REOPENED: "info",
@@ -53,6 +55,7 @@ const ISSUE_STATUS_BUCKETS: Partial<Record<CitizenIssueStatus, "pending" | "inPr
   VERIFIED: "pending",
   ASSIGNED: "inProgress",
   IN_PROGRESS: "inProgress",
+  PARTIALLY_COMPLETED: "inProgress",
   REOPENED: "inProgress",
   RESOLVED: "resolved",
   CITIZEN_VERIFIED: "resolved",
@@ -66,9 +69,10 @@ const ISSUE_STATUS_ORDER: Record<CitizenIssueStatus, number> = {
   REJECTED: 4,
   ASSIGNED: 5,
   IN_PROGRESS: 6,
-  RESOLVED: 7,
-  CITIZEN_VERIFIED: 8,
-  REOPENED: 9,
+  PARTIALLY_COMPLETED: 7,
+  RESOLVED: 8,
+  CITIZEN_VERIFIED: 9,
+  REOPENED: 10,
 };
 
 const ISSUE_PRIORITY_LABELS: Record<CitizenIssuePriority, string> = {
@@ -120,6 +124,7 @@ export function getCitizenIssueStatusFilterBucket(status: CitizenIssueStatus): E
       return "verified";
     case "ASSIGNED":
     case "IN_PROGRESS":
+    case "PARTIALLY_COMPLETED":
       return "inProgress";
     case "RESOLVED":
     case "CITIZEN_VERIFIED":
@@ -228,7 +233,7 @@ export function isCitizenIssueResolvedLike(status: CitizenIssueStatus) {
 }
 
 export function isCitizenIssueInProgressLike(status: CitizenIssueStatus) {
-  return status === "ASSIGNED" || status === "IN_PROGRESS" || status === "REOPENED";
+  return status === "ASSIGNED" || status === "IN_PROGRESS" || status === "PARTIALLY_COMPLETED" || status === "REOPENED";
 }
 
 export function getCitizenIssueStatusBannerLabel(status: CitizenIssueStatus) {

@@ -242,7 +242,14 @@ export function AdminIssueDetailPage() {
             changed_by_profile_id,
             notes,
             created_at,
-            changed_by_profile:profiles(id, full_name, email)
+            changed_by_profile:profiles!issue_status_history_changed_by_profile_id_fkey(id, full_name, email)
+          ),
+          department_assignments:issue_department_assignments(
+            id,
+            department_id,
+            status,
+            assigned_at,
+            department:departments(id, name, is_active)
           ),
           issue_assignments(
             id,
@@ -264,9 +271,9 @@ export function AdminIssueDetailPage() {
             result,
             feedback,
             created_at,
-            citizen:profiles(id, full_name, email)
+            citizen:profiles!resolution_verifications_citizen_id_fkey(id, full_name, email)
           ),
-          department:departments(id, name, is_active),
+          department:departments!issues_department_id_fkey(id, name, is_active),
           reporter_profile:profiles!issues_reporter_profile_id_fkey(id, full_name, email, phone)
         `,
         )

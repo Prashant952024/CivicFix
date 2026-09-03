@@ -20,6 +20,11 @@ export const civicFixRoleConfigs: Record<CivicFixRoleCode, CivicFixRoleConfig> =
     label: "Municipal Officer",
     dashboardPath: "/app/officer",
   },
+  DEPARTMENT_MANAGER: {
+    code: "DEPARTMENT_MANAGER",
+    label: "Department Manager",
+    dashboardPath: "/app/manager",
+  },
   FIELD_WORKER: {
     code: "FIELD_WORKER",
     label: "Field Worker",
@@ -80,16 +85,24 @@ export const civicFixNavItems: Record<CivicFixRoleCode, CivicFixRoleNavItem[]> =
     { label: "Analytics", path: "/app/officer/analytics", description: "Operational insights." },
     { label: "Notifications", path: "/app/officer/notifications", description: "Workflow alerts." },
   ],
+  DEPARTMENT_MANAGER: [
+    { label: "Dashboard", path: "/app/manager", description: "Department overview and metrics." },
+    { label: "Department Tasks", path: "/app/manager/tasks", description: "Manage and dispatch departmental tasks." },
+    { label: "Field Crew", path: "/app/manager/workers", description: "Monitor workforce capacity and assignments." },
+    { label: "Notifications", path: "/app/manager/notifications", description: "Departmental alerts and updates." },
+  ],
   FIELD_WORKER: [
     { label: "Dashboard", path: "/app/worker", description: "Worker overview and assignments." },
     { label: "Assigned Issues", path: "/app/worker/assigned-issues", description: "Tasks ready to work." },
     { label: "Notifications", path: "/app/worker/notifications", description: "Updates and reminders." },
   ],
   ADMIN: [
-    { label: "Dashboard", path: "/app/admin", description: "Administrative overview." },
-    { label: "Users", path: "/app/admin/users", description: "Manage accounts and roles." },
-    { label: "Departments", path: "/app/admin/departments", description: "Manage civic departments." },
-    { label: "Issues", path: "/app/admin/issues", description: "Platform-wide issue administration." },
-    { label: "Analytics", path: "/app/admin/analytics", description: "Platform metrics and trends." },
+    { label: "Overview", path: "/app/admin", description: "Command center overview and metrics." },
+    { label: "Issues", path: "/app/admin/issues", description: "Platform-wide issue triage and audit." },
+    { label: "Users", path: "/app/admin/users", description: "Manage municipal staff and credentials." },
+    { label: "Departments", path: "/app/admin/departments", description: "Manage municipal departments." },
+    { label: "Analytics", path: "/app/admin/analytics", description: "System throughput and resolution trends." },
+    { label: "Activity", path: "/app/admin/activity", description: "Audit log of state transitions." },
+    { label: "Notifications", path: "/app/admin/notifications", description: "Administrative alerts and notices." },
   ],
 };

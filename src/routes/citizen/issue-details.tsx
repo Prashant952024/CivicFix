@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import {
   AlertCircle,
   ArrowLeft,
+  Building2,
   Calendar,
   CheckCircle2,
   Clock,
@@ -38,6 +39,10 @@ import {
   pickCitizenIssueThumbnail,
   type CitizenResolutionVerificationRow,
 } from "@/lib/citizen-issues";
+import {
+  getDepartmentAssignmentStatusLabel,
+  getDepartmentAssignmentStatusTone,
+} from "@/lib/department-issues";
 import { supabase } from "@/lib/supabase";
 import type { Database } from "@/types/database";
 
@@ -119,6 +124,14 @@ export function CitizenIssueDetailsPage() {
   const { issueId } = useParams();
   const { profile, status: sessionStatus, error: sessionError } = useAppSession();
   const [issue, setIssue] = useState<IssueRow | null>(null);
+  const [departmentAssignments, setDepartmentAssignments] = useState<
+    Array<{
+      id: string;
+      department_id: string;
+      status: Database["public"]["Enums"]["department_assignment_status"];
+      department?: { name: string } | null;
+    }>
+  >([]);
   const [verification, setVerification] = useState<CitizenResolutionVerificationRow | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -142,7 +155,7 @@ export function CitizenIssueDetailsPage() {
       setLoading(true);
       setError(null);
 
-      const [issueResult, verificationResult] = await Promise.all([
+      const [issueResult, verificationResult, deptAssignmentsResult] = await Promise.all([
         supabase
           .from("issues")
           .select(
@@ -157,6 +170,11 @@ export function CitizenIssueDetailsPage() {
           .eq("issue_id", currentIssueId)
           .eq("citizen_id", currentProfileId)
           .maybeSingle(),
+        supabase
+          .from("issue_department_assignments")
+          .select("id, department_id, status, department:departments(name)")
+          .eq("issue_id", currentIssueId)
+          .order("assigned_at", { ascending: true }),
       ]);
 
       if (cancelled) {
@@ -192,6 +210,7 @@ export function CitizenIssueDetailsPage() {
 
       setIssue(nextIssue);
       setVerification(verificationResult.data ?? null);
+      setDepartmentAssignments(deptAssignmentsResult.data ?? []);
 
       if (verificationResult.error && import.meta.env.DEV) {
         console.error("Citizen verification load failed", verificationResult.error);
@@ -651,6 +670,33 @@ export function CitizenIssueDetailsPage() {
 
         {/* Sidebar Info Rail */}
         <aside className="space-y-5">
+          {/* Department Responsibilities */}
+          {departmentAssignments.length > 0 ? (
+            <Card className="p-5 sm:p-6 space-y-3">
+              <div className="flex items-center gap-2">
+                <Building2 className="h-4 w-4 text-primary" />
+                <h3 className="text-sm font-bold uppercase tracking-wider text-muted-foreground">
+                  Responsible Departments ({departmentAssignments.length})
+                </h3>
+              </div>
+              <div className="space-y-2">
+                {departmentAssignments.map((da) => (
+                  <div
+                    key={da.id}
+                    className="p-3 rounded-xl border border-border/70 bg-surface-elevated flex items-center justify-between gap-3 text-xs"
+                  >
+                    <span className="font-semibold text-foreground truncate">
+                      {da.department?.name ?? "Department"}
+                    </span>
+                    <Badge variant={getDepartmentAssignmentStatusTone(da.status)} size="sm">
+                      {getDepartmentAssignmentStatusLabel(da.status)}
+                    </Badge>
+                  </div>
+                ))}
+              </div>
+            </Card>
+          ) : null}
+
           {/* Metadata Card */}
           <Card className="p-5 sm:p-6 space-y-4">
             <h3 className="text-sm font-bold uppercase tracking-wider text-muted-foreground">

@@ -36,7 +36,6 @@ export function DemoOfficerIssueDetailPage() {
     issue?.severity ?? "MEDIUM"
   );
   const [selectedDeptId, setSelectedDeptId] = useState<string>(issue?.department_id ?? "dept-1");
-  const [selectedWorkerId, setSelectedWorkerId] = useState<string>("worker-1");
   const [assignmentNote, setAssignmentNote] = useState("");
   const [reviewNote, setReviewNote] = useState("");
   const [actionSuccessMessage, setActionSuccessMessage] = useState<string | null>(null);
@@ -70,8 +69,8 @@ export function DemoOfficerIssueDetailPage() {
 
   const handleAssign = (e: React.FormEvent) => {
     e.preventDefault();
-    assignIssue(issue.id, selectedDeptId, selectedWorkerId, assignmentNote);
-    setActionSuccessMessage("Issue successfully assigned to field team.");
+    assignIssue(issue.id, selectedDeptId, undefined, assignmentNote);
+    setActionSuccessMessage("Issue successfully routed to department. Department Manager will assign field worker.");
     setTimeout(() => setActionSuccessMessage(null), 4000);
   };
 
@@ -338,20 +337,20 @@ export function DemoOfficerIssueDetailPage() {
             </Card>
           )}
 
-          {/* Action Form 2: Dispatch to Field Worker (For VERIFIED) */}
+          {/* Action Form 2: Route to Department (For VERIFIED) */}
           {issue.status === "VERIFIED" && (
             <Card className="border-2 border-teal-300 bg-teal-50/30 shadow-md">
               <CardHeader className="pb-3 border-b border-teal-200">
                 <div className="flex items-center gap-2">
                   <UserCheck className="h-5 w-5 text-teal-700" />
-                  <CardTitle className="text-base font-bold text-teal-950">Step 2: Assign Field Worker</CardTitle>
+                  <CardTitle className="text-base font-bold text-teal-950">Step 2: Route to Responsible Department</CardTitle>
                 </div>
               </CardHeader>
               <CardContent className="p-5">
                 <form onSubmit={handleAssign} className="space-y-4 text-xs">
                   <div>
                     <label className="font-bold uppercase tracking-wider text-muted-foreground block mb-1">
-                      Department
+                      Responsible Department
                     </label>
                     <select
                       className="w-full h-10 rounded-xl border border-border/80 bg-background px-3 text-sm text-foreground"
@@ -364,33 +363,19 @@ export function DemoOfficerIssueDetailPage() {
                         </option>
                       ))}
                     </select>
+                    <p className="mt-1 text-[11px] text-muted-foreground">
+                      Municipal officers route issues to departments. Department managers dispatch individual workers.
+                    </p>
                   </div>
 
                   <div>
                     <label className="font-bold uppercase tracking-wider text-muted-foreground block mb-1">
-                      Assigned Field Worker
-                    </label>
-                    <select
-                      className="w-full h-10 rounded-xl border border-border/80 bg-background px-3 text-sm text-foreground"
-                      value={selectedWorkerId}
-                      onChange={(e) => setSelectedWorkerId(e.target.value)}
-                    >
-                      {workers.map((w) => (
-                        <option key={w.id} value={w.id}>
-                          {w.full_name} ({departments.find((d) => d.id === w.department_id)?.name})
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="font-bold uppercase tracking-wider text-muted-foreground block mb-1">
-                      Dispatch Instructions
+                      Routing Instructions
                     </label>
                     <textarea
                       rows={2}
                       className="w-full rounded-xl border border-border/80 bg-background p-2.5 text-sm"
-                      placeholder="e.g. Inspect site immediately and bring asphalt pack..."
+                      placeholder="e.g. Triage priority confirmed, urgent repair required..."
                       value={assignmentNote}
                       onChange={(e) => setAssignmentNote(e.target.value)}
                     />
@@ -398,7 +383,7 @@ export function DemoOfficerIssueDetailPage() {
 
                   <Button type="submit" className="w-full bg-teal-600 hover:bg-teal-700 text-white">
                     <Send className="mr-2 h-4 w-4" />
-                    Dispatch Field Worker
+                    Route Issue to Department
                   </Button>
                 </form>
               </CardContent>

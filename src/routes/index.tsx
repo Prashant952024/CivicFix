@@ -21,6 +21,11 @@ const CitizenReportPage = lazy(() => import("@/routes/citizen/report").then((mod
 const OfficerDashboardPage = lazy(() => import("@/routes/officer/dashboard").then((module) => ({ default: module.OfficerDashboardPage })));
 const OfficerIssueDetailsPage = lazy(() => import("@/routes/officer/issue-details").then((module) => ({ default: module.OfficerIssueDetailsPage })));
 const OfficerIssuesPage = lazy(() => import("@/routes/officer/issues").then((module) => ({ default: module.OfficerIssuesPage })));
+const DepartmentDashboardPage = lazy(() => import("@/routes/department/dashboard").then((module) => ({ default: module.DepartmentDashboardPage })));
+const DepartmentIssuesPage = lazy(() => import("@/routes/department/issues").then((module) => ({ default: module.DepartmentIssuesPage })));
+const DepartmentIssueDetailsPage = lazy(() => import("@/routes/department/issue-details").then((module) => ({ default: module.DepartmentIssueDetailsPage })));
+const DepartmentWorkersPage = lazy(() => import("@/routes/department/workers").then((module) => ({ default: module.DepartmentWorkersPage })));
+const DepartmentNotificationsPage = lazy(() => import("@/routes/department/notifications").then((module) => ({ default: module.DepartmentNotificationsPage })));
 const PlaceholderPage = lazy(() => import("@/routes/app-pages").then((module) => ({ default: module.PlaceholderPage })));
 const WorkerAssignedIssueDetailsPage = lazy(() =>
   import("@/routes/worker/issue-details").then((module) => ({ default: module.WorkerAssignedIssueDetailsPage })),
@@ -29,12 +34,17 @@ const WorkerAssignedIssuesPage = lazy(() =>
   import("@/routes/worker/assigned-issues").then((module) => ({ default: module.WorkerAssignedIssuesPage })),
 );
 const WorkerDashboardPage = lazy(() => import("@/routes/worker/dashboard").then((module) => ({ default: module.WorkerDashboardPage })));
+const WorkerNotificationsPage = lazy(() =>
+  import("@/routes/worker/notifications").then((module) => ({ default: module.WorkerNotificationsPage })),
+);
 const AdminDashboardPage = lazy(() => import("@/routes/admin/dashboard").then((module) => ({ default: module.AdminDashboardPage })));
 const AdminIssueDetailPage = lazy(() => import("@/routes/admin/issue-details").then((module) => ({ default: module.AdminIssueDetailPage })));
 const AdminUsersPage = lazy(() => import("@/routes/admin/users").then((module) => ({ default: module.AdminUsersPage })));
 const AdminIssuesPage = lazy(() => import("@/routes/admin/issues").then((module) => ({ default: module.AdminIssuesPage })));
 const AdminAnalyticsPage = lazy(() => import("@/routes/admin/analytics").then((module) => ({ default: module.AdminAnalyticsPage })));
 const AdminDepartmentsPage = lazy(() => import("@/routes/admin/departments").then((module) => ({ default: module.AdminDepartmentsPage })));
+const AdminActivityPage = lazy(() => import("@/routes/admin/activity").then((module) => ({ default: module.AdminActivityPage })));
+const AdminNotificationsPage = lazy(() => import("@/routes/admin/notifications").then((module) => ({ default: module.AdminNotificationsPage })));
 const SignupPage = lazy(() => import("@/routes/signup").then((module) => ({ default: module.SignupPage })));
 const UnauthorizedPage = lazy(() => import("@/routes/unauthorized").then((module) => ({ default: module.UnauthorizedPage })));
 
@@ -192,6 +202,43 @@ export function AppRoutes() {
             />
           </Route>
 
+          {/* Department Manager Portal */}
+          <Route
+            path="manager"
+            element={
+              <RequireRole allowedRoles={["DEPARTMENT_MANAGER"]}>
+                <AppLayout />
+              </RequireRole>
+            }
+          >
+            <Route index element={<DepartmentDashboardPage />} />
+            <Route path="tasks" element={<DepartmentIssuesPage />} />
+            <Route path="tasks/:taskId" element={<DepartmentIssueDetailsPage />} />
+            <Route path="tasks/:issueId" element={<DepartmentIssueDetailsPage />} />
+            <Route path="issues" element={<Navigate replace to="/app/manager/tasks" />} />
+            <Route path="issues/:taskId" element={<DepartmentIssueDetailsPage />} />
+            <Route path="workers" element={<DepartmentWorkersPage />} />
+            <Route path="notifications" element={<DepartmentNotificationsPage />} />
+          </Route>
+
+          {/* Backwards-compatible /app/department alias */}
+          <Route
+            path="department"
+            element={
+              <RequireRole allowedRoles={["DEPARTMENT_MANAGER"]}>
+                <AppLayout />
+              </RequireRole>
+            }
+          >
+            <Route index element={<Navigate replace to="/app/manager" />} />
+            <Route path="tasks" element={<Navigate replace to="/app/manager/tasks" />} />
+            <Route path="tasks/:taskId" element={<DepartmentIssueDetailsPage />} />
+            <Route path="issues" element={<Navigate replace to="/app/manager/tasks" />} />
+            <Route path="issues/:taskId" element={<DepartmentIssueDetailsPage />} />
+            <Route path="workers" element={<DepartmentWorkersPage />} />
+            <Route path="notifications" element={<DepartmentNotificationsPage />} />
+          </Route>
+
           <Route
             path="worker"
             element={
@@ -203,15 +250,9 @@ export function AppRoutes() {
             <Route index element={<WorkerDashboardPage />} />
             <Route path="assigned-issues" element={<WorkerAssignedIssuesPage />} />
             <Route path="assigned-issues/:issueId" element={<WorkerAssignedIssueDetailsPage />} />
-            <Route
-              path="notifications"
-              element={
-                <PlaceholderPage
-                  description="Assignment changes, reminders, and status updates will surface here."
-                  title="Notifications"
-                />
-              }
-            />
+            <Route path="issues" element={<Navigate replace to="/app/worker/assigned-issues" />} />
+            <Route path="issues/:issueId" element={<WorkerAssignedIssueDetailsPage />} />
+            <Route path="notifications" element={<WorkerNotificationsPage />} />
           </Route>
 
           <Route
@@ -228,6 +269,8 @@ export function AppRoutes() {
             <Route path="issues" element={<AdminIssuesPage />} />
             <Route path="issues/:issueId" element={<AdminIssueDetailPage />} />
             <Route path="analytics" element={<AdminAnalyticsPage />} />
+            <Route path="activity" element={<AdminActivityPage />} />
+            <Route path="notifications" element={<AdminNotificationsPage />} />
           </Route>
         </Route>
 

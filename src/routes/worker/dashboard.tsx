@@ -65,6 +65,22 @@ type WorkerAssignmentCard = Pick<
   worker?: Pick<WorkerProfileRow, "id" | "full_name" | "email"> | null;
 };
 
+type DeptWorkerQueryRow = {
+  id: string;
+  worker_profile_id: string;
+  assigned_by_profile_id: string | null;
+  status: string;
+  assigned_at: string;
+  assigned_by: Pick<WorkerProfileRow, "id" | "full_name" | "email"> | null;
+  issue_department_assignment: {
+    id: string;
+    department_id: string;
+    status: string;
+    department: Pick<WorkerDepartmentRow, "id" | "name"> | null;
+    issue: WorkerAssignmentCard["issue"];
+  } | null;
+};
+
 function isCompletedStatus(status: Database["public"]["Enums"]["issue_status"]) {
   return status === "RESOLVED" || status === "CITIZEN_VERIFIED";
 }
@@ -80,7 +96,7 @@ function CompactMetricCard({
   value: number;
   caption: string;
   icon: LucideIcon;
-  variant: "sky" | "amber" | "violet" | "emerald";
+  variant: "sky" | "amber" | "violet" | "emerald" | "rose";
 }) {
   const styles = {
     sky: {
@@ -103,6 +119,11 @@ function CompactMetricCard({
       icon: "border-emerald-200 bg-emerald-50 text-emerald-700",
       pill: "text-emerald-700",
     },
+    rose: {
+      card: "border-rose-200/80 bg-gradient-to-br from-rose-50/70 via-white to-red-50/50",
+      icon: "border-rose-200 bg-rose-50 text-rose-700",
+      pill: "text-rose-700",
+    },
   }[variant];
 
   return (
@@ -124,6 +145,7 @@ function CompactMetricCard({
 export function WorkerDashboardPage() {
   const { profile, status: sessionStatus, error: sessionError } = useAppSession();
   const [assignments, setAssignments] = useState<WorkerAssignmentCard[]>([]);
+  const [departmentName, setDepartmentName] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [refreshNonce, setRefreshNonce] = useState(0);
@@ -142,6 +164,95 @@ export function WorkerDashboardPage() {
       setLoading(true);
       setError(null);
 
+      if (profile?.department_id) {
+        void supabase
+          .from("departments")
+          .select("name")
+          .eq("id", profile.department_id)
+          .maybeSingle()
+          .then(({ data }) => {
+            if (data && !cancelled) setDepartmentName(data.name);
+          });
+      }
+
+      // Query from new department worker assignments
+      const { data: deptWorkerData, error: deptWorkerError } = await supabase
+        .from("department_worker_assignments")
+        .select(
+          `
+          id,
+          issue_department_assignment_id,
+          worker_profile_id,
+          assigned_by_profile_id,
+          status,
+          notes,
+          assigned_at,
+          started_at,
+          completed_at,
+          assigned_by:profiles!department_worker_assignments_assigned_by_profile_id_fkey(id, full_name, email),
+          issue_department_assignment:issue_department_assignments(
+            id,
+            issue_id,
+            department_id,
+            status,
+            department:departments(id, name),
+            issue:issues(
+              id,
+              title,
+              description,
+              category,
+              priority,
+              status,
+              latitude,
+              longitude,
+              location_text,
+              address_text,
+              created_at,
+              updated_at,
+              issue_images(id, storage_bucket, storage_path, image_type, created_at)
+            )
+          )
+        `,
+        )
+        .eq("worker_profile_id", currentProfileId)
+        .in("status", ["ASSIGNED", "IN_PROGRESS", "COMPLETED"])
+        .order("assigned_at", { ascending: false });
+
+      if (cancelled) {
+        return;
+      }
+
+      if (deptWorkerError) {
+        if (import.meta.env.DEV) {
+          console.error("Worker department assignments error", deptWorkerError);
+        }
+      }
+
+      if (!deptWorkerError && deptWorkerData && deptWorkerData.length > 0) {
+        const rows = deptWorkerData as unknown as DeptWorkerQueryRow[];
+        const mapped: WorkerAssignmentCard[] = rows
+          .filter((d) => Boolean(d.issue_department_assignment?.issue))
+          .map((d) => ({
+            id: d.id,
+            issue_id: d.issue_department_assignment!.issue!.id,
+            department_id: d.issue_department_assignment!.department_id,
+            worker_id: d.worker_profile_id,
+            assigned_by_profile_id: d.assigned_by_profile_id ?? "",
+            status: d.status === "COMPLETED" ? ("COMPLETED" as const) : ("ACTIVE" as const),
+            assigned_at: d.assigned_at,
+            unassigned_at: null,
+            department: d.issue_department_assignment!.department,
+            assigned_by: d.assigned_by,
+            worker: profile ? { id: profile.id, full_name: profile.full_name, email: profile.email } : null,
+            issue: d.issue_department_assignment!.issue,
+          }));
+
+        setAssignments(mapped);
+        setLoading(false);
+        return;
+      }
+
+      // Legacy fallback: load from issue_assignments
       const { data, error: loadError } = await supabase
         .from("issue_assignments")
         .select(
@@ -201,7 +312,7 @@ export function WorkerDashboardPage() {
     return () => {
       cancelled = true;
     };
-  }, [profileId, refreshNonce, sessionStatus]);
+  }, [profile, profileId, refreshNonce, sessionStatus]);
 
   const stats = useMemo(() => {
     const issues = assignments.map((assignment) => assignment.issue).filter(Boolean) as NonNullable<WorkerAssignmentCard["issue"]>[];
@@ -295,70 +406,81 @@ export function WorkerDashboardPage() {
       {/* 1. Operational Header / Hero */}
       <PageHeader
         tag="Field Operations"
-        title="Field Worker Dashboard"
-        description="Review active assignments, start field tasks, capture resolution photos, and keep urban repairs moving forward."
+        title={profile?.full_name ? `${profile.full_name} · Field Portal` : "Field Worker Dashboard"}
+        description={
+          departmentName
+            ? `Assigned to ${departmentName}. Review tasks, capture resolution evidence, and submit work for departmental approval.`
+            : "Review active assignments, start field tasks, capture resolution photos, and keep urban repairs moving forward."
+        }
         actions={
           <div className="flex flex-wrap items-center gap-2.5">
             <Button asChild className="bg-gradient-to-r from-teal-600 via-cyan-600 to-blue-600 shadow-md shadow-teal-950/15">
               <Link to="/app/worker/assigned-issues">
                 <HardHat className="h-4 w-4 mr-2" aria-hidden="true" />
-                Open Task Queue
+                My Assigned Work
                 <ArrowRight className="h-4 w-4 ml-1.5" aria-hidden="true" />
+              </Link>
+            </Button>
+            <Button asChild variant="outline" className="text-xs">
+              <Link to="/app/worker/notifications">
+                Notifications
               </Link>
             </Button>
           </div>
         }
       >
-        {/* Quick highlight bar within page header */}
-        <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-4 pt-2">
-          <div className="rounded-2xl border border-sky-200/70 bg-white/75 p-3 backdrop-blur-sm">
-            <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">Total Assigned</p>
-            <p className="mt-1 text-xl sm:text-2xl font-bold tracking-tight text-foreground">{stats.assigned}</p>
-          </div>
-          <div className="rounded-2xl border border-amber-200/70 bg-white/75 p-3 backdrop-blur-sm">
-            <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-amber-700">In Progress</p>
-            <p className="mt-1 text-xl sm:text-2xl font-bold tracking-tight text-foreground">{stats.inProgress}</p>
-          </div>
-          <div className="rounded-2xl border border-violet-200/70 bg-white/75 p-3 backdrop-blur-sm">
-            <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-violet-700">Under Review</p>
-            <p className="mt-1 text-xl sm:text-2xl font-bold tracking-tight text-foreground">{stats.underReview}</p>
-          </div>
-          <div className="rounded-2xl border border-emerald-200/70 bg-white/75 p-3 backdrop-blur-sm">
-            <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-emerald-700">Completed</p>
-            <p className="mt-1 text-xl sm:text-2xl font-bold tracking-tight text-foreground">{stats.completed}</p>
-          </div>
+        {/* Worker Badge Details */}
+        <div className="flex flex-wrap items-center gap-3 pt-2 text-xs">
+          {departmentName && (
+            <div className="flex items-center gap-2 rounded-2xl border border-teal-200/80 bg-teal-50/70 px-3.5 py-1.5 font-bold text-teal-900 shadow-sm">
+              <HardHat className="h-4 w-4 text-teal-700" />
+              <span>{departmentName}</span>
+            </div>
+          )}
+          {profile?.employee_id && (
+            <div className="rounded-2xl border border-border/80 bg-white/80 px-3.5 py-1.5 font-mono text-xs font-semibold text-foreground shadow-sm">
+              Badge: <span className="text-teal-700">{profile.employee_id}</span>
+            </div>
+          )}
         </div>
       </PageHeader>
 
-      {/* 2. Worker Summary Metrics */}
-      <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+      {/* 2. Worker Summary 5 KPI Metrics */}
+      <section className="grid gap-3 grid-cols-2 sm:grid-cols-3 lg:grid-cols-5">
         <CompactMetricCard
           label="Assigned Tasks"
           value={stats.assigned}
-          caption="Open field assignments routed to you"
+          caption="Total assigned to you"
           icon={ClipboardList}
           variant="sky"
         />
         <CompactMetricCard
-          label="Active Work"
+          label="In Progress"
           value={stats.inProgress}
-          caption="Repairs currently being executed"
+          caption="Repairs underway"
           icon={SquarePen}
           variant="amber"
         />
         <CompactMetricCard
-          label="Awaiting Review"
+          label="Submitted for Review"
           value={stats.underReview}
-          caption="Evidence submitted to officer"
+          caption="Awaiting manager sign-off"
           icon={Clock3}
           variant="violet"
         />
         <CompactMetricCard
-          label="Resolved / Done"
+          label="Completed"
           value={stats.completed}
-          caption="Successfully closed repairs"
+          caption="Verified & resolved"
           icon={CheckCircle2}
           variant="emerald"
+        />
+        <CompactMetricCard
+          label="Rework Required"
+          value={stats.rework}
+          caption="Action needed by manager"
+          icon={RotateCcw}
+          variant="rose"
         />
       </section>
 

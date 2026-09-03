@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
 import {
   DEMO_DEPARTMENTS,
+  DEMO_MANAGER_PROFILE,
   DEMO_OFFICER_PROFILE,
   DEMO_SAMPLE_IMAGES,
   DEMO_WORKER_PROFILE,
@@ -29,7 +30,7 @@ type DemoContextType = {
     severity: "LOW" | "MEDIUM" | "HIGH" | "CRITICAL",
     departmentId?: string
   ) => void;
-  assignIssue: (issueId: string, departmentId: string, workerId: string, notes?: string) => void;
+  assignIssue: (issueId: string, departmentId: string, workerId?: string, notes?: string) => void;
   startWork: (issueId: string) => void;
   submitResolution: (issueId: string, notes: string, sampleImageKey?: keyof typeof DEMO_SAMPLE_IMAGES) => void;
   reviewResolution: (issueId: string, approved: boolean, notes: string) => void;
@@ -72,7 +73,12 @@ export function DemoProvider({
     }
   }, [issues]);
 
-  const currentUser = role === "MUNICIPAL_OFFICER" ? DEMO_OFFICER_PROFILE : DEMO_WORKER_PROFILE;
+  const currentUser =
+    role === "MUNICIPAL_OFFICER"
+      ? DEMO_OFFICER_PROFILE
+      : role === "DEPARTMENT_MANAGER"
+        ? DEMO_MANAGER_PROFILE
+        : DEMO_WORKER_PROFILE;
 
   const getIssue = (id: string) => issues.find((issue) => issue.id === id);
 
@@ -112,8 +118,8 @@ export function DemoProvider({
     );
   };
 
-  const assignIssue = (issueId: string, departmentId: string, workerId: string, notes?: string) => {
-    const worker = DEMO_WORKERS.find((w) => w.id === workerId);
+  const assignIssue = (issueId: string, departmentId: string, workerId?: string, notes?: string) => {
+    const worker = workerId ? DEMO_WORKERS.find((w) => w.id === workerId) : null;
     const department = DEMO_DEPARTMENTS.find((d) => d.id === departmentId);
 
     setIssues((prev) =>
@@ -124,7 +130,7 @@ export function DemoProvider({
           id: `assign-${Date.now()}`,
           issue_id: issueId,
           department_id: departmentId,
-          worker_id: workerId,
+          worker_id: workerId ?? null,
           assigned_by_name: currentUser.full_name,
           assigned_at: new Date().toISOString(),
           status: "ASSIGNED" as const,
@@ -139,7 +145,9 @@ export function DemoProvider({
             new_status: "ASSIGNED",
             notes:
               notes ||
-              `Assigned to ${worker?.full_name ?? "Worker"} (${department?.name ?? "Department"}) by ${currentUser.full_name}.`,
+              (worker
+                ? `Assigned to ${worker.full_name} (${department?.name ?? "Department"}) by ${currentUser.full_name}.`
+                : `Routed to ${department?.name ?? "Department"} by ${currentUser.full_name}.`),
             changed_by_name: currentUser.full_name,
             created_at: new Date().toISOString(),
           },

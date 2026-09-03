@@ -148,7 +148,7 @@ export function AdminIssuesPage() {
             status,
             assigned_at,
             unassigned_at,
-            department:departments(id, name),
+            department:departments!issue_assignments_department_id_fkey(id, name),
             worker:profiles!issue_assignments_worker_id_fkey(id, full_name, email)
           ),
           reporter_profile:profiles!issues_reporter_profile_id_fkey(id, full_name, email, phone)
@@ -303,46 +303,56 @@ export function AdminIssuesPage() {
       />
 
       {/* 2. Issue Volume Summary Metrics */}
-      <div className="grid gap-3.5 sm:grid-cols-2 lg:grid-cols-5">
+      <div className="grid gap-3 grid-cols-2 sm:grid-cols-3 lg:grid-cols-5">
         {[
-          { label: "Total Issues", value: issueStats.total, icon: Layers, tone: "info" as const },
-          { label: "Pending", value: issueStats.pending, icon: Clock3, tone: "warning" as const },
-          { label: "In Progress", value: issueStats.active, icon: RefreshCw, tone: "danger" as const },
-          { label: "Under Review", value: issueStats.underReview, icon: ShieldCheck, tone: "default" as const },
-          { label: "Critical Priority", value: issueStats.critical, icon: ShieldAlert, tone: "danger" as const },
-        ].map(({ label, value, icon: Icon, tone }) => (
-          <Card key={label} className="border border-border/80 bg-surface/95 shadow-sm">
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between gap-3">
-                <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{label}</p>
-                <div
-                  className={`flex h-8 w-8 items-center justify-center rounded-xl border ${
-                    tone === "warning"
-                      ? "border-amber-200 bg-amber-50 text-amber-700"
-                      : tone === "danger"
-                        ? "border-rose-200 bg-rose-50 text-rose-700"
-                        : "border-sky-200 bg-sky-50 text-sky-700"
-                  }`}
-                >
-                  <Icon className="h-4 w-4" aria-hidden="true" />
-                </div>
+          { label: "Total Issues", value: issueStats.total, icon: Layers, tone: "info" as const, desc: "Platform intake" },
+          { label: "Pending", value: issueStats.pending, icon: Clock3, tone: "warning" as const, desc: "Awaiting triage" },
+          { label: "In Progress", value: issueStats.active, icon: RefreshCw, tone: "danger" as const, desc: "Field dispatch active" },
+          { label: "Under Review", value: issueStats.underReview, icon: ShieldCheck, tone: "default" as const, desc: "Work completed" },
+          { label: "Critical Hazard", value: issueStats.critical, icon: ShieldAlert, tone: "danger" as const, desc: "Immediate SLA" },
+        ].map(({ label, value, icon: Icon, tone, desc }) => (
+          <div
+            key={label}
+            className={`flex flex-col justify-between h-28 rounded-2xl border p-4 shadow-sm ${
+              tone === "warning"
+                ? "border-amber-200/80 bg-gradient-to-br from-amber-50/70 via-surface to-orange-50/40"
+                : tone === "danger"
+                  ? "border-rose-200/80 bg-gradient-to-br from-rose-50/70 via-surface to-pink-50/40"
+                  : "border-sky-200/80 bg-gradient-to-br from-sky-50/70 via-surface to-teal-50/40"
+            }`}
+          >
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground truncate">{label}</span>
+              <div
+                className={`p-1.5 rounded-lg ${
+                  tone === "warning"
+                    ? "bg-amber-100 text-amber-700"
+                    : tone === "danger"
+                      ? "bg-rose-100 text-rose-700"
+                      : "bg-sky-100 text-sky-700"
+                }`}
+              >
+                <Icon className="h-3.5 w-3.5" aria-hidden="true" />
               </div>
-              <p className="mt-2 text-2xl font-bold tracking-tight text-foreground">{value}</p>
-            </CardContent>
-          </Card>
+            </div>
+            <div className="my-auto">
+              <p className="text-2xl font-bold tracking-tight text-foreground">{value}</p>
+            </div>
+            <p className="text-[11px] text-muted-foreground truncate">{desc}</p>
+          </div>
         ))}
       </div>
 
       {/* 3. Search & Filter Bar */}
       <Card className="border border-border/80 bg-surface/95 shadow-sm">
-        <CardContent className="p-4">
-          <div className="flex flex-col gap-3">
-            <div className="flex flex-col md:flex-row gap-3 items-stretch md:items-center justify-between">
+        <CardContent className="p-3.5">
+          <div className="flex flex-col gap-2.5">
+            <div className="flex flex-col md:flex-row gap-2.5 items-stretch md:items-center justify-between">
               {/* Search Bar */}
               <div className="relative flex-1">
                 <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                 <input
-                  className="w-full rounded-xl border border-border/80 bg-background py-2.5 pl-10 pr-4 text-xs sm:text-sm text-foreground outline-none transition placeholder:text-muted-foreground focus:border-primary/50 focus:ring-2 focus:ring-primary/20"
+                  className="w-full h-10 rounded-xl border border-border/80 bg-background pl-10 pr-4 text-xs sm:text-sm text-foreground outline-none transition placeholder:text-muted-foreground focus:border-primary/50 focus:ring-2 focus:ring-primary/20"
                   onChange={(event) => {
                     setSearch(event.target.value);
                     setPage(1);
@@ -355,7 +365,7 @@ export function AdminIssuesPage() {
               {/* Desktop Filters */}
               <div className="hidden lg:flex items-center gap-2">
                 <select
-                  className="rounded-xl border border-border/80 bg-background px-3 py-2.5 text-xs text-foreground outline-none focus:border-primary/50"
+                  className="h-10 rounded-xl border border-border/80 bg-background px-3 text-xs sm:text-sm text-foreground outline-none transition focus:border-primary/50 focus:ring-2 focus:ring-primary/20"
                   onChange={(event) => {
                     setStatusFilter(event.target.value as "all" | Database["public"]["Enums"]["issue_status"]);
                     setPage(1);
@@ -370,7 +380,7 @@ export function AdminIssuesPage() {
                 </select>
 
                 <select
-                  className="rounded-xl border border-border/80 bg-background px-3 py-2.5 text-xs text-foreground outline-none focus:border-primary/50"
+                  className="h-10 rounded-xl border border-border/80 bg-background px-3 text-xs sm:text-sm text-foreground outline-none transition focus:border-primary/50 focus:ring-2 focus:ring-primary/20"
                   onChange={(event) => {
                     setPriorityFilter(event.target.value as "all" | Database["public"]["Enums"]["issue_priority"]);
                     setPage(1);
@@ -385,7 +395,7 @@ export function AdminIssuesPage() {
                 </select>
 
                 <select
-                  className="rounded-xl border border-border/80 bg-background px-3 py-2.5 text-xs text-foreground outline-none focus:border-primary/50"
+                  className="h-10 rounded-xl border border-border/80 bg-background px-3 text-xs sm:text-sm text-foreground outline-none transition focus:border-primary/50 focus:ring-2 focus:ring-primary/20"
                   onChange={(event) => {
                     setCategoryFilter(event.target.value);
                     setPage(1);
@@ -400,7 +410,7 @@ export function AdminIssuesPage() {
                 </select>
 
                 <select
-                  className="rounded-xl border border-border/80 bg-background px-3 py-2.5 text-xs text-foreground outline-none focus:border-primary/50"
+                  className="h-10 rounded-xl border border-border/80 bg-background px-3 text-xs sm:text-sm text-foreground outline-none transition focus:border-primary/50 focus:ring-2 focus:ring-primary/20"
                   onChange={(event) => {
                     setSortOrder(event.target.value as SortOrder);
                     setPage(1);
@@ -421,7 +431,7 @@ export function AdminIssuesPage() {
                   onClick={() => setMobileFilterOpen(true)}
                   size="sm"
                   variant="outline"
-                  className="flex-1 text-xs"
+                  className="h-10 flex-1 text-xs"
                 >
                   <Filter className="h-3.5 w-3.5 mr-1.5" />
                   Filters & Sorting

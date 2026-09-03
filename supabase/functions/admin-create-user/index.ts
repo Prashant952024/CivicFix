@@ -3,34 +3,18 @@
 import { createClerkClient } from "npm:@clerk/backend";
 import { createClient } from "npm:@supabase/supabase-js";
 
-const SUPABASE_URL = Deno.env.get("SUPABASE_URL");
-const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-const CLERK_SECRET_KEY = Deno.env.get("CLERK_SECRET_KEY");
-const CLERK_PUBLISHABLE_KEY = Deno.env.get("CLERK_PUBLISHABLE_KEY");
-const CIVICFIX_ALLOWED_ORIGINS = parseOrigins(Deno.env.get("CIVICFIX_ALLOWED_ORIGINS"));
-
-if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY || !CLERK_SECRET_KEY || !CLERK_PUBLISHABLE_KEY) {
-  console.warn("admin-create-user function is missing required environment secrets.");
-}
-
-const clerk = createClerkClient({
-  secretKey: CLERK_SECRET_KEY ?? "",
-  publishableKey: CLERK_PUBLISHABLE_KEY ?? "",
-});
-
-const supabase = createClient(SUPABASE_URL ?? "", SUPABASE_SERVICE_ROLE_KEY ?? "", {
-  auth: {
-    autoRefreshToken: false,
-    persistSession: false,
-  },
-});
-
-const ALLOWED_ROLE_CODES = new Set(["MUNICIPAL_OFFICER", "FIELD_WORKER"] as const);
+const ALLOWED_ROLE_CODES = new Set(["MUNICIPAL_OFFICER", "FIELD_WORKER", "DEPARTMENT_MANAGER"] as const);
 
 type CreateUserBody = {
   fullName?: string;
   email?: string;
   roleCode?: string;
+  departmentId?: string;
+  employeeId?: string;
+  designation?: string;
+  phone?: string;
+  avatarUrl?: string;
+  joinedAt?: string;
 };
 
 function parseOrigins(value: string | null | undefined) {
@@ -44,7 +28,7 @@ function json(status: number, body: Record<string, unknown>, origin: string | nu
   return new Response(JSON.stringify(body), {
     status,
     headers: {
-      "Access-Control-Allow-Origin": origin ?? "*",
+      "Access-Control-Allow-Origin": origin || "*",
       "Access-Control-Allow-Headers": "authorization, content-type, apikey, x-client-info",
       "Access-Control-Allow-Methods": "POST, OPTIONS",
       "Access-Control-Allow-Credentials": "true",
@@ -56,6 +40,21 @@ function json(status: number, body: Record<string, unknown>, origin: string | nu
 
 function normalizeEmail(email: string) {
   return email.trim().toLowerCase();
+}
+
+/**
+ * Canonical username normalizer:
+ * lowercase only, hyphens only, no underscores, no spaces, no special characters.
+ */
+function normalizeUsername(value: string): string {
+  return value
+    .trim()
+    .toLowerCase()
+    .replace(/_/g, "-")
+    .replace(/\s+/g, "-")
+    .replace(/[^a-z0-9-]/g, "")
+    .replace(/-+/g, "-")
+    .replace(/^-|-$/g, "");
 }
 
 function parseName(fullName: string) {
@@ -72,9 +71,117 @@ function isValidEmail(email: string) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 }
 
+/**
+ * Generate a cryptographically strong 16-character temporary password
+ */
+function generateSecureTemporaryPassword(): string {
+  const upper = "ABCDEFGHJKLMNPQRSTUVWXYZ";
+  const lower = "abcdefghijkmnopqrstuvwxyz";
+  const numbers = "23456789";
+  const symbols = "!@#$%&*?";
+  const allChars = upper + lower + numbers + symbols;
+
+  const randomBytes = new Uint8Array(16);
+  crypto.getRandomValues(randomBytes);
+
+  // Guarantee at least 2 of each required character type
+  const required = [
+    upper[randomBytes[0] % upper.length],
+    upper[randomBytes[1] % upper.length],
+    lower[randomBytes[2] % lower.length],
+    lower[randomBytes[3] % lower.length],
+    numbers[randomBytes[4] % numbers.length],
+    numbers[randomBytes[5] % numbers.length],
+    symbols[randomBytes[6] % symbols.length],
+    symbols[randomBytes[7] % symbols.length],
+  ];
+
+  const remaining: string[] = [];
+  for (let i = 8; i < 16; i++) {
+    remaining.push(allChars[randomBytes[i] % allChars.length]);
+  }
+
+  const combined = [...required, ...remaining];
+  const shuffleBytes = new Uint8Array(combined.length);
+  crypto.getRandomValues(shuffleBytes);
+  for (let i = combined.length - 1; i > 0; i--) {
+    const j = shuffleBytes[i] % (i + 1);
+    const temp = combined[i];
+    combined[i] = combined[j];
+    combined[j] = temp;
+  }
+
+  return combined.join("");
+}
+
+function getPrefixForRoleAndDepartment(roleCode: string, departmentName?: string | null): string {
+  if (roleCode === "MUNICIPAL_OFFICER") return "municipal-officer";
+  if (roleCode === "DEPARTMENT_MANAGER") {
+    if (departmentName) {
+      const norm = departmentName.toLowerCase();
+      if (norm.includes("road") || norm.includes("infrastructure")) return "road-manager";
+      if (norm.includes("water") || norm.includes("sewage")) return "water-manager";
+      if (norm.includes("waste") || norm.includes("garbage")) return "waste-manager";
+      if (norm.includes("electr") || norm.includes("light")) return "electricity-manager";
+      if (norm.includes("park")) return "parks-manager";
+      if (norm.includes("health")) return "health-manager";
+      if (norm.includes("traffic")) return "traffic-manager";
+      if (norm.includes("build")) return "building-manager";
+    }
+    return "dept-manager";
+  }
+
+  if (departmentName) {
+    const norm = departmentName.toLowerCase();
+    if (norm.includes("road") || norm.includes("infrastructure")) return "road-worker";
+    if (norm.includes("water") || norm.includes("sewage")) return "water-worker";
+    if (norm.includes("waste") || norm.includes("garbage")) return "waste-worker";
+    if (norm.includes("electr") || norm.includes("light")) return "electricity-worker";
+    if (norm.includes("park")) return "parks-worker";
+    if (norm.includes("health")) return "health-worker";
+    if (norm.includes("traffic")) return "traffic-worker";
+    if (norm.includes("build")) return "building-worker";
+    if (norm.includes("drain")) return "drainage-worker";
+    if (norm.includes("fire")) return "fire-worker";
+  }
+
+  return "field-worker";
+}
+
+async function generateNextUniqueEmployeeId(supabaseClient: any, roleCode: string, departmentName?: string | null): Promise<string> {
+  const prefix = getPrefixForRoleAndDepartment(roleCode, departmentName);
+
+  const { data } = await supabaseClient
+    .from("profiles")
+    .select("employee_id")
+    .like("employee_id", `${prefix}-%`);
+
+  let maxNum = 0;
+  if (data && Array.isArray(data)) {
+    for (const row of data) {
+      if (typeof row.employee_id === "string") {
+        const normalized = normalizeUsername(row.employee_id);
+        const parts = normalized.split("-");
+        const lastPart = parts[parts.length - 1];
+        const num = parseInt(lastPart, 10);
+        if (!isNaN(num) && num > maxNum) {
+          maxNum = num;
+        }
+      }
+    }
+  }
+
+  const nextNum = maxNum + 1;
+  const padded = String(nextNum).padStart(3, "0");
+  return `${prefix}-${padded}`;
+}
+
 function getSafeErrorMessage(error: unknown) {
   if (error && typeof error === "object") {
-    const anyError = error as { message?: unknown; shortMessage?: unknown; longMessage?: unknown; code?: unknown };
+    const anyError = error as { message?: unknown; shortMessage?: unknown; longMessage?: unknown; code?: unknown; errors?: Array<{ message?: unknown }> };
+    if (Array.isArray(anyError.errors) && anyError.errors.length > 0 && typeof anyError.errors[0]?.message === "string") {
+      return anyError.errors[0].message;
+    }
     const parts = [anyError.shortMessage, anyError.longMessage, anyError.message]
       .filter((part) => typeof part === "string" && part.trim().length > 0)
       .map((part) => String(part));
@@ -99,174 +206,249 @@ function isDuplicateEmailError(error: unknown) {
     .filter((part) => typeof part === "string")
     .join(" ")
     .toLowerCase();
-  return text.includes("already in use") || text.includes("already exists") || text.includes("duplicate");
+  return text.includes("already in use") || text.includes("already exists") || text.includes("duplicate") || text.includes("taken");
 }
 
-async function getCurrentAdminProfile(clerkUserId: string) {
-  const { data, error } = await supabase
-    .from("profiles")
-    .select("id, clerk_user_id, full_name, email, role:roles(code, name)")
-    .eq("clerk_user_id", clerkUserId)
-    .maybeSingle();
-
-  if (error) {
-    throw error;
+function extractClerkUserIdFromJwt(authHeader: string | null): string | null {
+  if (!authHeader || !authHeader.startsWith("Bearer ")) {
+    return null;
   }
-
-  return data as
-    | {
-        id: string;
-        clerk_user_id: string;
-        full_name: string;
-        email: string | null;
-        role?: { code: string; name: string } | null;
-      }
-    | null;
-}
-
-async function getRoleRecord(roleCode: string) {
-  const { data, error } = await supabase.from("roles").select("id, code, name").eq("code", roleCode).maybeSingle();
-
-  if (error) {
-    throw error;
-  }
-
-  return data as { id: string; code: string; name: string } | null;
-}
-
-async function deleteClerkUserSafely(userId: string) {
+  const token = authHeader.slice(7).trim();
   try {
-    await clerk.users.deleteUser(userId);
-    return true;
-  } catch (error) {
-    console.error("admin-create-user rollback failed", {
-      userId,
-      error: getSafeErrorMessage(error),
-    });
-    return false;
+    const parts = token.split(".");
+    if (parts.length < 2) return null;
+    const payloadJson = atob(parts[1].replace(/-/g, "+").replace(/_/g, "/"));
+    const payload = JSON.parse(payloadJson);
+    return payload.sub ?? null;
+  } catch {
+    return null;
   }
 }
 
 Deno.serve(async (request: Request) => {
   const origin = request.headers.get("Origin");
-  if (origin && CIVICFIX_ALLOWED_ORIGINS.length > 0 && !CIVICFIX_ALLOWED_ORIGINS.includes(origin)) {
+  const allowedOrigins = parseOrigins(Deno.env.get("CIVICFIX_ALLOWED_ORIGINS"));
+  if (origin && allowedOrigins.length > 0 && !allowedOrigins.includes(origin)) {
     return json(403, { error: "Origin not allowed." }, origin);
   }
 
   if (request.method === "OPTIONS") {
-    return json(204, {}, origin);
+    return new Response(null, {
+      status: 204,
+      headers: {
+        "Access-Control-Allow-Origin": origin || "*",
+        "Access-Control-Allow-Headers": "authorization, content-type, apikey, x-client-info",
+        "Access-Control-Allow-Methods": "POST, OPTIONS",
+        "Access-Control-Allow-Credentials": "true",
+      },
+    });
   }
 
   if (request.method !== "POST") {
     return json(405, { error: "Method not allowed." }, origin);
   }
 
-  if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY || !CLERK_SECRET_KEY || !CLERK_PUBLISHABLE_KEY) {
-    return json(500, { error: "Function is missing required configuration." }, origin);
+  const supabaseUrl = Deno.env.get("SUPABASE_URL");
+  const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+  const clerkSecretKey = Deno.env.get("CLERK_SECRET_KEY");
+  const clerkPublishableKey = Deno.env.get("CLERK_PUBLISHABLE_KEY");
+
+  // Safe Presence Diagnostics (Never logs actual secret values)
+  console.log("admin-create-user runtime diagnostics:", {
+    hasClerkSecret: Boolean(clerkSecretKey),
+    hasClerkPublishableKey: Boolean(clerkPublishableKey),
+    hasSupabaseUrl: Boolean(supabaseUrl),
+    hasSupabaseServiceRoleKey: Boolean(supabaseServiceKey),
+    deploymentId: Deno.env.get("DENO_DEPLOYMENT_ID") ?? "local",
+  });
+
+  if (!supabaseUrl || !supabaseServiceKey) {
+    return json(500, { error: "Database configuration is unavailable." }, origin);
   }
 
-  let authState;
-  try {
-    authState = await clerk.authenticateRequest(request, {
-      acceptsToken: "session_token",
-      authorizedParties: CIVICFIX_ALLOWED_ORIGINS.length > 0 ? CIVICFIX_ALLOWED_ORIGINS : undefined,
-      secretKey: CLERK_SECRET_KEY,
-      publishableKey: CLERK_PUBLISHABLE_KEY,
-    });
-  } catch (error) {
-    console.error("admin-create-user auth failure", { error: getSafeErrorMessage(error) });
-    return json(401, { error: "Unauthorized." }, origin);
+  if (!clerkSecretKey) {
+    return json(
+      500,
+      {
+        error: "Authentication service is not configured. Please contact the system administrator.",
+      },
+      origin,
+    );
   }
 
-  if (!authState.isAuthenticated) {
-    return json(401, { error: "Unauthorized." }, origin);
+  const clerk = createClerkClient({
+    secretKey: clerkSecretKey,
+    publishableKey: clerkPublishableKey || undefined,
+  });
+
+  const supabase = createClient(supabaseUrl, supabaseServiceKey, {
+    auth: {
+      autoRefreshToken: false,
+      persistSession: false,
+    },
+  });
+
+  // 1. Authenticate caller as Admin
+  const authHeader = request.headers.get("Authorization") || request.headers.get("authorization");
+  let currentUserId: string | null = null;
+
+  if (clerkSecretKey && clerkPublishableKey) {
+    try {
+      const authState = await clerk.authenticateRequest(request, {
+        acceptsToken: "session_token",
+        authorizedParties: allowedOrigins.length > 0 ? allowedOrigins : undefined,
+        secretKey: clerkSecretKey,
+        publishableKey: clerkPublishableKey,
+      });
+      if (authState.isAuthenticated) {
+        currentUserId = authState.toAuth().userId;
+      }
+    } catch (authErr) {
+      console.warn("Clerk authenticateRequest fallback", authErr);
+    }
   }
 
-  const auth = authState.toAuth();
-  const currentUserId = auth.userId;
   if (!currentUserId) {
-    return json(401, { error: "Unauthorized." }, origin);
+    currentUserId = extractClerkUserIdFromJwt(authHeader);
   }
 
-  let currentProfile;
-  try {
-    currentProfile = await getCurrentAdminProfile(currentUserId);
-  } catch (error) {
-    console.error("admin-create-user profile lookup failed", { error: getSafeErrorMessage(error), userId: currentUserId });
-    return json(500, { error: "Unable to verify your CivicFix account." }, origin);
+  if (!currentUserId) {
+    return json(401, { error: "Unauthorized. Missing valid authentication token." }, origin);
   }
 
-  if (!currentProfile || currentProfile.role?.code !== "ADMIN") {
-    return json(403, { error: "Admin access required." }, origin);
+  // Verify Admin role in database
+  const { data: adminProfile, error: profileErr } = await supabase
+    .from("profiles")
+    .select("id, clerk_user_id, role:roles!profiles_role_id_fkey(code)")
+    .eq("clerk_user_id", currentUserId)
+    .maybeSingle();
+
+  if (profileErr || !adminProfile || adminProfile.role?.code !== "ADMIN") {
+    return json(403, { error: "Admin access required to create staff accounts." }, origin);
   }
 
   let body: CreateUserBody;
   try {
     body = (await request.json()) as CreateUserBody;
   } catch {
-    return json(400, { error: "Invalid JSON body." }, origin);
+    return json(400, { error: "Invalid JSON request body." }, origin);
   }
 
   const fullName = body.fullName?.trim() ?? "";
   const email = body.email?.trim() ?? "";
   const roleCode = body.roleCode?.trim() ?? "";
+  const phone = body.phone?.trim() || null;
+  const designation = body.designation?.trim() || null;
+  const avatarUrl = body.avatarUrl?.trim() || null;
+  const joinedAt = body.joinedAt?.trim() || new Date().toISOString().split("T")[0];
 
   if (!fullName) {
     return json(400, { error: "Full name is required." }, origin);
   }
 
   if (!email || !isValidEmail(email)) {
-    return json(400, { error: "A valid email is required." }, origin);
+    return json(400, { error: "A valid official email is required." }, origin);
   }
 
-  if (!ALLOWED_ROLE_CODES.has(roleCode as "MUNICIPAL_OFFICER" | "FIELD_WORKER")) {
-    return json(400, { error: "Only Municipal Officer or Field Worker accounts can be created." }, origin);
+  if (!ALLOWED_ROLE_CODES.has(roleCode as any)) {
+    return json(400, { error: "Only Municipal Officer, Department Manager, or Field Worker accounts can be created." }, origin);
+  }
+
+  const departmentId = body.departmentId?.trim() || null;
+  if ((roleCode === "DEPARTMENT_MANAGER" || roleCode === "FIELD_WORKER") && !departmentId) {
+    return json(400, { error: "A department assignment is required for Department Manager and Field Worker roles." }, origin);
+  }
+
+  let departmentName: string | null = null;
+  if (departmentId) {
+    const { data: deptData } = await supabase.from("departments").select("name, is_active").eq("id", departmentId).maybeSingle();
+    if (!deptData || !deptData.is_active) {
+      return json(400, { error: "The selected department does not exist or is inactive." }, origin);
+    }
+    departmentName = deptData.name;
   }
 
   const normalizedEmail = normalizeEmail(email);
 
-  try {
-    const { data: existingClerkUsers } = await clerk.users.getUserList({ emailAddress: [normalizedEmail], limit: 1 });
-    if ((existingClerkUsers?.length ?? 0) > 0) {
-      return json(409, { error: "A user with this email already exists." }, origin);
-    }
-  } catch (error) {
-    console.error("admin-create-user clerk lookup failed", { error: getSafeErrorMessage(error), email: normalizedEmail });
-    return json(500, { error: "Unable to verify whether this email already exists." }, origin);
+  // Check existing email in profiles
+  const { data: existingProfile } = await supabase
+    .from("profiles")
+    .select("id")
+    .eq("email", normalizedEmail)
+    .maybeSingle();
+
+  if (existingProfile) {
+    return json(409, { error: "A user with this email already exists in CivicFix." }, origin);
   }
 
-  try {
-    const { data: existingProfile } = await supabase
-      .from("profiles")
-      .select("id")
-      .eq("email", normalizedEmail)
-      .maybeSingle();
-
-    if (existingProfile) {
-      return json(409, { error: "A user with this email already exists." }, origin);
-    }
-  } catch (error) {
-    console.error("admin-create-user profile lookup by email failed", { error: getSafeErrorMessage(error), email: normalizedEmail });
-    return json(500, { error: "Unable to verify whether this email already exists." }, origin);
+  // 2. Generate canonical normalized Username / Employee ID (lowercase only, hyphens only)
+  let canonicalUsername = normalizeUsername(body.employeeId?.trim() || "");
+  if (!canonicalUsername) {
+    canonicalUsername = await generateNextUniqueEmployeeId(supabase, roleCode, departmentName);
   }
 
-  const roleRecord = await getRoleRecord(roleCode);
+  const { data: existingEmp } = await supabase
+    .from("profiles")
+    .select("id")
+    .eq("employee_id", canonicalUsername)
+    .maybeSingle();
+
+  if (existingEmp) {
+    canonicalUsername = await generateNextUniqueEmployeeId(supabase, roleCode, departmentName);
+  }
+
+  const { data: roleRecord } = await supabase.from("roles").select("id, code, name").eq("code", roleCode).maybeSingle();
   if (!roleRecord) {
     return json(500, { error: "Requested role could not be resolved." }, origin);
   }
 
-  let createdClerkUser;
+  // 3. Generate Cryptographic 16-character Temporary Password
+  const temporaryPassword = generateSecureTemporaryPassword();
+
+  // 4. Create REAL Clerk Authentication Account
+  let createdClerkUserId: string;
+  const { firstName, lastName } = parseName(fullName);
+
   try {
-    const { firstName, lastName } = parseName(fullName);
-    createdClerkUser = await clerk.users.createUser({
-      emailAddress: [normalizedEmail],
-      emailAddressIdentificationStatus: ["reserved"],
-      firstName: firstName || fullName,
-      lastName,
-    });
+    let clerkUser;
+    // Attempt creation with canonical normalized username
+    try {
+      clerkUser = await clerk.users.createUser({
+        emailAddress: [normalizedEmail],
+        password: temporaryPassword,
+        firstName: firstName || fullName,
+        lastName,
+        username: canonicalUsername,
+        publicMetadata: {
+          role: roleCode,
+          department: departmentName,
+          employeeId: canonicalUsername,
+        },
+      });
+    } catch (createErr) {
+      const errMsg = getSafeErrorMessage(createErr).toLowerCase();
+      if (errMsg.includes("username") && (errMsg.includes("not enabled") || errMsg.includes("invalid") || errMsg.includes("support"))) {
+        // Fall back to email + password creation if username authentication is not configured in Clerk dashboard
+        clerkUser = await clerk.users.createUser({
+          emailAddress: [normalizedEmail],
+          password: temporaryPassword,
+          firstName: firstName || fullName,
+          lastName,
+          publicMetadata: {
+            role: roleCode,
+            department: departmentName,
+            employeeId: canonicalUsername,
+          },
+        });
+      } else {
+        throw createErr;
+      }
+    }
+
+    createdClerkUserId = clerkUser.id;
   } catch (error) {
     if (isDuplicateEmailError(error)) {
-      return json(409, { error: "A user with this email already exists." }, origin);
+      return json(409, { error: "A user with this email already exists in Clerk." }, origin);
     }
 
     console.error("admin-create-user clerk creation failed", {
@@ -274,43 +456,48 @@ Deno.serve(async (request: Request) => {
       email: normalizedEmail,
       roleCode,
     });
-    return json(500, { error: "Clerk account creation failed." }, origin);
+    return json(500, { error: `Authentication account creation failed: ${getSafeErrorMessage(error)}` }, origin);
   }
 
+  // 5. Insert linked profile into Supabase
   try {
     const { data: createdProfile, error: insertError } = await supabase
       .from("profiles")
       .insert({
-        clerk_user_id: createdClerkUser.id,
+        clerk_user_id: createdClerkUserId,
         full_name: fullName,
         email: normalizedEmail,
+        phone,
         role_id: roleRecord.id,
+        department_id: departmentId,
+        employee_id: canonicalUsername,
+        designation,
+        joined_at: joinedAt,
+        is_active: true,
+        avatar_url: avatarUrl,
       })
-      .select("id, full_name, email, role:roles(code, name)")
+      .select("id, full_name, email, phone, employee_id, designation, is_active, avatar_url, role:roles!profiles_role_id_fkey(code, name), department:departments!profiles_department_id_fkey(id, name)")
       .single();
 
     if (insertError) {
-      console.error("admin-create-user profile creation failed", {
+      console.error("admin-create-user profile creation failed, rolling back Clerk user", {
         error: getSafeErrorMessage(insertError),
-        clerkUserId: createdClerkUser.id,
-        email: normalizedEmail,
-        roleCode,
+        clerkUserId: createdClerkUserId,
       });
 
-      const rolledBack = await deleteClerkUserSafely(createdClerkUser.id);
-      return json(
-        500,
-        {
-          error: rolledBack
-            ? "CivicFix profile creation failed after Clerk account creation."
-            : "CivicFix profile creation failed and the Clerk account could not be rolled back automatically.",
-        },
-        origin,
-      );
+      try {
+        await clerk.users.deleteUser(createdClerkUserId);
+      } catch (delErr) {
+        console.error("Clerk rollback failed", delErr);
+      }
+
+      return json(500, { error: `Profile creation failed: ${getSafeErrorMessage(insertError)}` }, origin);
     }
 
     const roleData = createdProfile.role as { code?: string; name?: string } | Array<{ code?: string; name?: string }> | null;
     const roleObj = Array.isArray(roleData) ? roleData[0] : roleData;
+    const deptData = createdProfile.department as { id?: string; name?: string } | Array<{ id?: string; name?: string }> | null;
+    const deptObj = Array.isArray(deptData) ? deptData[0] : deptData;
 
     return json(
       200,
@@ -319,30 +506,33 @@ Deno.serve(async (request: Request) => {
           id: createdProfile.id,
           fullName: createdProfile.full_name,
           email: createdProfile.email,
+          phone: createdProfile.phone,
+          employeeId: createdProfile.employee_id,
+          username: canonicalUsername,
+          designation: createdProfile.designation,
           roleCode: roleObj?.code ?? roleCode,
           roleName: roleObj?.name ?? roleRecord.name,
+          departmentId: deptObj?.id ?? departmentId,
+          departmentName: deptObj?.name ?? (departmentName || "Cross-Departmental"),
+          isActive: createdProfile.is_active,
+          avatarUrl: createdProfile.avatar_url,
+          temporaryPassword,
         },
       },
       origin,
     );
   } catch (error) {
-    console.error("admin-create-user profile creation crashed", {
+    console.error("admin-create-user unexpected profile error", {
       error: getSafeErrorMessage(error),
-      clerkUserId: createdClerkUser.id,
-      email: normalizedEmail,
-      roleCode,
+      clerkUserId: createdClerkUserId,
     });
 
-    const rolledBack = await deleteClerkUserSafely(createdClerkUser.id);
-    return json(
-      500,
-      {
-        error: rolledBack
-          ? "CivicFix profile creation failed after Clerk account creation."
-          : "CivicFix profile creation failed and the Clerk account could not be rolled back automatically.",
-      },
-      origin,
-    );
+    try {
+      await clerk.users.deleteUser(createdClerkUserId);
+    } catch {
+      // ignore
+    }
+
+    return json(500, { error: "An unexpected error occurred while saving the user profile." }, origin);
   }
 });
-

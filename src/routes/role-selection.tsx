@@ -37,8 +37,15 @@ const roleCards: RoleCard[] = [
   {
     code: "MUNICIPAL_OFFICER",
     title: "Municipal Officer",
-    description: "Review, verify and manage civic issues",
+    description: "Review, verify and route civic issues to departments",
     icon: Building2,
+    tone: "info",
+  },
+  {
+    code: "DEPARTMENT_MANAGER",
+    title: "Department Manager",
+    description: "Manage departmental tasks and dispatch field workers",
+    icon: ShieldCheck,
     tone: "info",
   },
   {

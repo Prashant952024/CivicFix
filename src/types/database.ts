@@ -42,6 +42,11 @@ export interface Database {
           phone: string | null;
           role_id: string;
           department_id: string | null;
+          employee_id: string | null;
+          designation: string | null;
+          is_active: boolean;
+          avatar_url: string | null;
+          joined_at: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -53,6 +58,11 @@ export interface Database {
           phone?: string | null;
           role_id?: string;
           department_id?: string | null;
+          employee_id?: string | null;
+          designation?: string | null;
+          is_active?: boolean;
+          avatar_url?: string | null;
+          joined_at?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -64,6 +74,11 @@ export interface Database {
           phone?: string | null;
           role_id?: string;
           department_id?: string | null;
+          employee_id?: string | null;
+          designation?: string | null;
+          is_active?: boolean;
+          avatar_url?: string | null;
+          joined_at?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -90,6 +105,7 @@ export interface Database {
           name: string;
           description: string | null;
           is_active: boolean;
+          manager_profile_id: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -98,6 +114,7 @@ export interface Database {
           name: string;
           description?: string | null;
           is_active?: boolean;
+          manager_profile_id?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -106,10 +123,19 @@ export interface Database {
           name?: string;
           description?: string | null;
           is_active?: boolean;
+          manager_profile_id?: string | null;
           created_at?: string;
           updated_at?: string;
         };
-        Relationships: [];
+        Relationships: [
+          {
+            foreignKeyName: "departments_manager_profile_id_fkey";
+            columns: ["manager_profile_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
       };
       issues: {
         Row: {
@@ -340,6 +366,137 @@ export interface Database {
           },
         ];
       };
+      issue_department_assignments: {
+        Row: {
+          id: string;
+          issue_id: string;
+          department_id: string;
+          assigned_by_profile_id: string;
+          status: Database["public"]["Enums"]["department_assignment_status"];
+          notes: string | null;
+          assigned_at: string;
+          accepted_at: string | null;
+          completed_at: string | null;
+          reviewed_at: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          issue_id: string;
+          department_id: string;
+          assigned_by_profile_id: string;
+          status?: Database["public"]["Enums"]["department_assignment_status"];
+          notes?: string | null;
+          assigned_at?: string;
+          accepted_at?: string | null;
+          completed_at?: string | null;
+          reviewed_at?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          issue_id?: string;
+          department_id?: string;
+          assigned_by_profile_id?: string;
+          status?: Database["public"]["Enums"]["department_assignment_status"];
+          notes?: string | null;
+          assigned_at?: string;
+          accepted_at?: string | null;
+          completed_at?: string | null;
+          reviewed_at?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "issue_department_assignments_assigned_by_profile_id_fkey";
+            columns: ["assigned_by_profile_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "issue_department_assignments_department_id_fkey";
+            columns: ["department_id"];
+            isOneToOne: false;
+            referencedRelation: "departments";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "issue_department_assignments_issue_id_fkey";
+            columns: ["issue_id"];
+            isOneToOne: false;
+            referencedRelation: "issues";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      department_worker_assignments: {
+        Row: {
+          id: string;
+          issue_department_assignment_id: string;
+          worker_profile_id: string;
+          assigned_by_profile_id: string;
+          status: Database["public"]["Enums"]["worker_assignment_status"];
+          notes: string | null;
+          assigned_at: string;
+          started_at: string | null;
+          completed_at: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          issue_department_assignment_id: string;
+          worker_profile_id: string;
+          assigned_by_profile_id: string;
+          status?: Database["public"]["Enums"]["worker_assignment_status"];
+          notes?: string | null;
+          assigned_at?: string;
+          started_at?: string | null;
+          completed_at?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          issue_department_assignment_id?: string;
+          worker_profile_id?: string;
+          assigned_by_profile_id?: string;
+          status?: Database["public"]["Enums"]["worker_assignment_status"];
+          notes?: string | null;
+          assigned_at?: string;
+          started_at?: string | null;
+          completed_at?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "department_worker_assignments_assigned_by_profile_id_fkey";
+            columns: ["assigned_by_profile_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "department_worker_assignments_issue_department_assignment__fkey";
+            columns: ["issue_department_assignment_id"];
+            isOneToOne: false;
+            referencedRelation: "issue_department_assignments";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "department_worker_assignments_worker_profile_id_fkey";
+            columns: ["worker_profile_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       issue_status_history: {
         Row: {
           id: string;
@@ -528,6 +685,8 @@ export interface Database {
     Functions: Record<string, never>;
     Enums: {
       assignment_status: "ACTIVE" | "COMPLETED" | "UNASSIGNED";
+      department_assignment_status: "ASSIGNED" | "IN_PROGRESS" | "UNDER_REVIEW" | "COMPLETED" | "REJECTED" | "REOPENED";
+      worker_assignment_status: "ASSIGNED" | "IN_PROGRESS" | "COMPLETED" | "REASSIGNED" | "CANCELLED";
       duplicate_detection_method: "GPS_PROXIMITY" | "CATEGORY" | "TIME" | "IMAGE_SIMILARITY" | "MANUAL_REVIEW";
       duplicate_status: "PENDING" | "CONFIRMED" | "DISMISSED";
       issue_image_type: "INITIAL_REPORT" | "RESOLUTION_EVIDENCE";
@@ -541,11 +700,12 @@ export interface Database {
         | "REJECTED"
         | "ASSIGNED"
         | "IN_PROGRESS"
+        | "PARTIALLY_COMPLETED"
         | "RESOLVED"
         | "CITIZEN_VERIFIED"
         | "REOPENED";
       notification_type: "STATUS_CHANGE" | "ASSIGNMENT" | "SYSTEM" | "VERIFICATION";
-      role_code: "CITIZEN" | "MUNICIPAL_OFFICER" | "FIELD_WORKER" | "ADMIN";
+      role_code: "CITIZEN" | "MUNICIPAL_OFFICER" | "DEPARTMENT_MANAGER" | "FIELD_WORKER" | "ADMIN";
       verification_result: "VERIFIED" | "UNRESOLVED";
     };
     CompositeTypes: Record<string, never>;

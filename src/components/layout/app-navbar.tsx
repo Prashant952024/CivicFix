@@ -19,7 +19,9 @@ export function AppNavbar({ title, subtitle, roleCode, onMenuClick }: AppNavbarP
       ? "/app/officer/notifications" 
       : roleCode === "FIELD_WORKER" 
         ? "/app/worker/notifications" 
-        : "/app/admin/dashboard";
+        : roleCode === "DEPARTMENT_MANAGER"
+          ? "/app/manager/notifications"
+          : "/app/admin/notifications";
 
   return (
     <header className="sticky top-0 z-30 border-b border-teal-100/90 bg-[linear-gradient(90deg,rgba(247,250,248,0.96)_0%,rgba(240,248,247,0.92)_45%,rgba(238,244,247,0.94)_100%)] shadow-sm shadow-teal-950/5 backdrop-blur-xl">

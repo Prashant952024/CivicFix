@@ -2,7 +2,7 @@
 // Isolated mock datasets for Public Demo Mode (Officer & Worker sandboxes)
 // NEVER connected to production Supabase or Clerk
 
-export type DemoRole = "MUNICIPAL_OFFICER" | "FIELD_WORKER";
+export type DemoRole = "MUNICIPAL_OFFICER" | "DEPARTMENT_MANAGER" | "FIELD_WORKER";
 
 export type DemoDepartment = {
   id: string;
@@ -15,7 +15,7 @@ export type DemoProfile = {
   full_name: string;
   email: string;
   phone?: string;
-  role: "MUNICIPAL_OFFICER" | "FIELD_WORKER" | "CITIZEN";
+  role: "MUNICIPAL_OFFICER" | "DEPARTMENT_MANAGER" | "FIELD_WORKER" | "CITIZEN";
   department_id?: string;
 };
 
@@ -60,6 +60,7 @@ export type DemoIssue = {
     | "VERIFIED"
     | "ASSIGNED"
     | "IN_PROGRESS"
+    | "PARTIALLY_COMPLETED"
     | "UNDER_REVIEW"
     | "RESOLVED"
     | "CITIZEN_VERIFIED"
@@ -130,6 +131,15 @@ export const DEMO_OFFICER_PROFILE: DemoProfile = {
   email: "alex.morgan@demo.civicfix.internal",
   phone: "+1 (555) 100-2000",
   role: "MUNICIPAL_OFFICER",
+};
+
+export const DEMO_MANAGER_PROFILE: DemoProfile = {
+  id: "manager-demo-user",
+  full_name: "Manager Anita Sharma",
+  email: "anita.sharma@demo.civicfix.internal",
+  phone: "+1 (555) 901-2345",
+  role: "DEPARTMENT_MANAGER",
+  department_id: "dept-1",
 };
 
 export const DEMO_WORKER_PROFILE: DemoProfile = {

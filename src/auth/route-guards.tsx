@@ -71,6 +71,10 @@ export function RequireRole({ allowedRoles, children, redirectTo = "/unauthorize
     return <Navigate replace to={redirectTo} state={{ reason: appSession.error ?? "Missing CivicFix profile." }} />;
   }
 
+  if (appSession.profile.is_active === false) {
+    return <Navigate replace to={redirectTo} state={{ reason: "Your CivicFix staff account has been deactivated. Please contact your system administrator." }} />;
+  }
+
   if (appSession.error) {
     return <Navigate replace to={redirectTo} state={{ reason: appSession.error }} />;
   }
@@ -104,6 +108,10 @@ export function RedirectToRoleDashboard() {
       return <Navigate replace to="/app/onboarding" state={{ from: location.pathname }} />;
     }
     return <Navigate replace to="/unauthorized" state={{ reason: appSession.error ?? "Missing CivicFix profile." }} />;
+  }
+
+  if (appSession.profile.is_active === false) {
+    return <Navigate replace to="/unauthorized" state={{ reason: "Your CivicFix staff account has been deactivated. Please contact your system administrator." }} />;
   }
 
   if (!appSession.roleCode) {

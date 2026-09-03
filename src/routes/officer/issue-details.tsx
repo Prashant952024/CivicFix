@@ -15,7 +15,6 @@ import {
   ThumbsDown,
   ThumbsUp,
   User,
-  UserCog,
   XCircle,
 } from "lucide-react";
 import { Link, useParams } from "react-router-dom";
@@ -26,14 +25,17 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { PageHeader } from "@/components/ui/page-header";
+import { cn } from "@/lib/utils";
 import {
-  formatOfficerDepartmentLabel,
   formatOfficerIssueCoordinates,
   formatOfficerIssueDate,
   formatOfficerIssueDateTime,
   formatOfficerIssueImageUrl,
   formatOfficerIssuePriority,
   formatOfficerProfileLabel,
+  getAiDepartmentRecommendations,
+  getDepartmentAssignmentStatusLabel,
+  getDepartmentAssignmentStatusTone,
   getOfficerIssueSeverityLabel,
   getOfficerIssueSeverityTone,
   getOfficerIssueStatusLabel,
@@ -41,7 +43,7 @@ import {
   pickOfficerIssueThumbnail,
   type OfficerDepartmentRow,
   type OfficerIssueAiAnalysisRow,
-  type OfficerIssueAssignmentRow,
+  type OfficerIssueDepartmentAssignmentRow,
   type OfficerIssueHistoryRow,
   type OfficerIssueImageRow,
   type OfficerIssuePriority,
@@ -74,15 +76,6 @@ type IssueRow = Pick<
   issue_status_history?: OfficerIssueHistoryRow[] | null;
   department?: Pick<OfficerDepartmentRow, "id" | "name"> | null;
   reporter_profile?: Pick<OfficerProfileRow, "id" | "full_name" | "email" | "phone"> | null;
-};
-
-type AssignmentWithRelations = OfficerIssueAssignmentRow & {
-  department?: Pick<OfficerDepartmentRow, "id" | "name"> | null;
-  worker?: Pick<OfficerProfileRow, "id" | "full_name" | "email" | "phone"> | null;
-};
-
-type OfficerWorkerRow = Pick<OfficerProfileRow, "id" | "full_name" | "email" | "phone" | "department_id"> & {
-  role?: { code: Database["public"]["Enums"]["role_code"]; name: string } | null;
 };
 
 type TimelineItem = {
@@ -138,10 +131,11 @@ export function OfficerIssueDetailsPage() {
   const { issueId } = useParams();
   const { profile, status: sessionStatus, error: sessionError } = useAppSession();
   const [issue, setIssue] = useState<IssueRow | null>(null);
-  const [assignment, setAssignment] = useState<AssignmentWithRelations | null>(null);
+  const [departmentAssignments, setDepartmentAssignments] = useState<OfficerIssueDepartmentAssignmentRow[]>([]);
+  const [selectedDeptIds, setSelectedDeptIds] = useState<string[]>([]);
+  const [additionalDeptDraft, setAdditionalDeptDraft] = useState("");
   const [aiAnalysis, setAiAnalysis] = useState<OfficerIssueAiAnalysisRow | null>(null);
   const [departments, setDepartments] = useState<OfficerDepartmentRow[]>([]);
-  const [workers, setWorkers] = useState<OfficerWorkerRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [refreshNonce, setRefreshNonce] = useState(0);
@@ -151,8 +145,6 @@ export function OfficerIssueDetailsPage() {
   const [actionError, setActionError] = useState<string | null>(null);
   const [actionMessage, setActionMessage] = useState<string | null>(null);
   const [priorityDraft, setPriorityDraft] = useState<OfficerIssuePriority>("LOW");
-  const [departmentDraft, setDepartmentDraft] = useState("");
-  const [workerDraft, setWorkerDraft] = useState("");
   const [resolutionDecisionNote, setResolutionDecisionNote] = useState("");
   const profileId = profile?.id;
   const sessionProblem = sessionStatus === "error" ? sessionError ?? "CivicFix profile is unavailable." : null;
@@ -169,7 +161,7 @@ export function OfficerIssueDetailsPage() {
       setLoading(true);
       setError(null);
 
-      const [issueResult, aiResult, departmentsResult, workersResult, assignmentResult] = await Promise.all([
+      const [issueResult, aiResult, departmentsResult, deptAssignmentsResult] = await Promise.all([
         supabase
           .from("issues")
           .select(
@@ -205,21 +197,34 @@ export function OfficerIssueDetailsPage() {
           .order("created_at", { ascending: false })
           .limit(1)
           .maybeSingle(),
-        supabase.from("departments").select("id, name, description, is_active, created_at, updated_at").order("name", { ascending: true }),
+        supabase.from("departments").select("id, name, description, is_active, manager_profile_id, created_at, updated_at").order("name", { ascending: true }),
         supabase
-          .from("profiles")
-          .select("id, full_name, email, phone, department_id, role:roles(code, name)")
-          .order("full_name", { ascending: true }),
-        supabase
-          .from("issue_assignments")
+          .from("issue_department_assignments")
           .select(
-            "id, issue_id, department_id, worker_id, assigned_by_profile_id, status, assigned_at, unassigned_at, department:departments(id, name), worker:profiles!issue_assignments_worker_id_fkey(id, full_name, email, phone)",
+            `
+            id,
+            issue_id,
+            department_id,
+            assigned_by_profile_id,
+            status,
+            notes,
+            assigned_at,
+            completed_at,
+            reviewed_at,
+            department:departments(id, name, is_active),
+            worker_assignments:department_worker_assignments(
+              id,
+              worker_profile_id,
+              status,
+              assigned_at,
+              started_at,
+              completed_at,
+              worker:profiles!department_worker_assignments_worker_profile_id_fkey(id, full_name, email, phone)
+            )
+          `,
           )
           .eq("issue_id", currentIssueId)
-          .is("unassigned_at", null)
-          .order("assigned_at", { ascending: false })
-          .limit(1)
-          .maybeSingle(),
+          .order("assigned_at", { ascending: true }),
       ]);
 
       if (cancelled) {
@@ -232,10 +237,9 @@ export function OfficerIssueDetailsPage() {
         }
         setError("Unable to load this issue right now.");
         setIssue(null);
-        setAssignment(null);
+        setDepartmentAssignments([]);
         setAiAnalysis(null);
         setDepartments([]);
-        setWorkers([]);
         setLoading(false);
         return;
       }
@@ -243,10 +247,9 @@ export function OfficerIssueDetailsPage() {
       if (!issueResult.data) {
         setError("This issue was not found or is not available to your account.");
         setIssue(null);
-        setAssignment(null);
+        setDepartmentAssignments([]);
         setAiAnalysis(null);
         setDepartments([]);
-        setWorkers([]);
         setLoading(false);
         return;
       }
@@ -262,12 +265,9 @@ export function OfficerIssueDetailsPage() {
       setIssue(nextIssue);
       setAiAnalysis(aiResult.data ?? null);
       setDepartments(departmentsResult.data ?? []);
-      setWorkers((workersResult.data ?? []).filter((worker) => worker.role?.code === "FIELD_WORKER"));
-      setAssignment(assignmentResult.data);
-
-      const activeAssignment = assignmentResult.data;
-      setDepartmentDraft(activeAssignment?.department_id ?? nextIssue.department_id ?? "");
-      setWorkerDraft(activeAssignment?.worker_id ?? "");
+      const loadedAssignments = (deptAssignmentsResult.data ?? []) as OfficerIssueDepartmentAssignmentRow[];
+      setDepartmentAssignments(loadedAssignments);
+      setSelectedDeptIds(loadedAssignments.map((da) => da.department_id));
       setPriorityDraft(nextIssue.priority);
 
       if (aiResult.error && import.meta.env.DEV) {
@@ -278,12 +278,8 @@ export function OfficerIssueDetailsPage() {
         console.error("Officer departments load failed", departmentsResult.error);
       }
 
-      if (workersResult.error && import.meta.env.DEV) {
-        console.error("Officer workers load failed", workersResult.error);
-      }
-
-      if (assignmentResult.error && import.meta.env.DEV) {
-        console.error("Officer assignment load failed", assignmentResult.error);
+      if (deptAssignmentsResult.error && import.meta.env.DEV) {
+        console.error("Officer department assignments load failed", deptAssignmentsResult.error);
       }
 
       setLoading(false);
@@ -307,24 +303,20 @@ export function OfficerIssueDetailsPage() {
   const severityTone = issue ? getOfficerIssueSeverityTone(issue.severity) : "default";
   const severityLabel = issue ? getOfficerIssueSeverityLabel(issue.severity) : "";
 
-  const workerOptions = useMemo(
-    () =>
-      workers.map((worker) => ({
-        id: worker.id,
-        label: worker.full_name?.trim() || worker.email || `Worker ${worker.id.slice(0, 8)}`,
-        departmentLabel: formatOfficerDepartmentLabel(departments.find((department) => department.id === worker.department_id)),
-      })),
-    [departments, workers],
+  const aiRecommendations = useMemo(
+    () => (issue ? getAiDepartmentRecommendations(issue) : []),
+    [issue],
   );
 
   const aiConfidence = confidencePercent(aiAnalysis?.confidence_score);
-  const hasWorkerRoster = workerOptions.length > 0;
   const issueIsClosed = issue ? issue.status === "RESOLVED" || issue.status === "CITIZEN_VERIFIED" : false;
   const canVerifyComplaint = issue ? issue.status === "SUBMITTED" || issue.status === "AI_ANALYZED" : false;
-  const canAssignIssue = issue ? issue.status === "VERIFIED" || issue.status === "REOPENED" : false;
-  const canReviewResolution = issue ? issue.status === "UNDER_REVIEW" : false;
+  const allDepartmentsCompleted = useMemo(
+    () => departmentAssignments.length > 0 && departmentAssignments.every((da) => da.status === "COMPLETED"),
+    [departmentAssignments],
+  );
+  const canReviewResolution = issue ? issue.status === "UNDER_REVIEW" || allDepartmentsCompleted : false;
   const canSavePriority = issue ? !issueIsClosed && priorityDraft !== issue.priority : false;
-  const canSaveRouting = issue ? !issueIsClosed : false;
 
   function refreshIssue(message?: string) {
     if (message) {
@@ -411,7 +403,7 @@ export function OfficerIssueDetailsPage() {
     refreshIssue("Issue priority updated.");
   }
 
-  async function handleRoutingSave() {
+  async function handleAssignDepartments() {
     if (!issue || !profileId || actionState !== "idle") {
       return;
     }
@@ -421,8 +413,8 @@ export function OfficerIssueDetailsPage() {
       return;
     }
 
-    if (workerDraft && !canAssignIssue) {
-      setActionError("This issue can only be assigned after it has been verified or reopened.");
+    if (selectedDeptIds.length === 0) {
+      setActionError("Please select at least one department.");
       return;
     }
 
@@ -430,74 +422,59 @@ export function OfficerIssueDetailsPage() {
     setActionMessage(null);
     setActionState("savingRouting");
 
-    const { data: activeAssignment, error: assignmentLookupError } = await supabase
-      .from("issue_assignments")
-      .select("id, assigned_by_profile_id")
-      .eq("issue_id", issue.id)
-      .is("unassigned_at", null)
-      .maybeSingle();
+    const existingAssignedDeptIds = new Set(departmentAssignments.map((da) => da.department_id));
+    const newDeptIds = selectedDeptIds.filter((deptId) => !existingAssignedDeptIds.has(deptId));
 
-    if (assignmentLookupError) {
-      if (import.meta.env.DEV) {
-        console.error("Officer assignment lookup failed", assignmentLookupError);
+    if (newDeptIds.length > 0) {
+      const inserts = newDeptIds.map((deptId) => ({
+        issue_id: issue.id,
+        department_id: deptId,
+        assigned_by_profile_id: profileId,
+        status: "ASSIGNED" as const,
+      }));
+
+      const { error: insertError } = await supabase
+        .from("issue_department_assignments")
+        .insert(inserts);
+
+      if (insertError) {
+        if (import.meta.env.DEV) {
+          console.error("Department assignments insert failed", insertError);
+        }
+        setActionError(
+          import.meta.env.DEV
+            ? `Failed to assign departments: ${insertError.message}`
+            : "Could not assign departments right now. Please try again.",
+        );
+        setActionState("idle");
+        return;
       }
-      setActionError(
-        import.meta.env.DEV
-          ? `Failed to load the active assignment: ${assignmentLookupError.message}${assignmentLookupError.code ? ` (${assignmentLookupError.code})` : ""}`
-          : "We could not update the routing right now. Please try again.",
-      );
-      setActionState("idle");
-      return;
     }
 
-    const assignmentPayload = {
-      issue_id: issue.id,
-      department_id: departmentDraft || null,
-      worker_id: workerDraft || null,
-      assigned_by_profile_id: activeAssignment?.assigned_by_profile_id ?? profileId,
-      status: "ACTIVE" as const,
-    };
+    // Advance issue status to ASSIGNED if currently in VERIFIED or SUBMITTED or REOPENED
+    if (issue.status === "VERIFIED" || issue.status === "REOPENED" || issue.status === "SUBMITTED") {
+      const { error: statusError } = await supabase.from("issue_status_history").insert({
+        issue_id: issue.id,
+        old_status: issue.status,
+        new_status: "ASSIGNED",
+        changed_by_profile_id: profileId,
+        notes: `Municipal officer assigned ${selectedDeptIds.length} department(s) to this issue.`,
+      });
 
-    const { error: routingError } = activeAssignment
-      ? await supabase.from("issue_assignments").update({
-          department_id: assignmentPayload.department_id,
-          worker_id: assignmentPayload.worker_id,
-          status: assignmentPayload.status,
-        }).eq("id", activeAssignment.id)
-      : await supabase.from("issue_assignments").insert(assignmentPayload);
-
-    if (routingError) {
-      if (import.meta.env.DEV) {
-        console.error("Officer routing save failed", routingError);
+      if (statusError && import.meta.env.DEV) {
+        console.warn("Status history transition note warning", statusError);
       }
-      setActionError(
-        import.meta.env.DEV
-          ? `Failed to save routing: ${routingError.message}${routingError.code ? ` (${routingError.code})` : ""}`
-          : "We could not save the routing right now. Please try again.",
-      );
-      setActionState("idle");
-      return;
     }
 
-    const { error: issueUpdateError } = await supabase
-      .from("issues")
-      .update({ department_id: departmentDraft || null })
-      .eq("id", issue.id);
-
-    if (issueUpdateError) {
-      if (import.meta.env.DEV) {
-        console.error("Officer issue department update failed", issueUpdateError);
-      }
-      setActionError(
-        import.meta.env.DEV
-          ? `Routing saved but issue update failed: ${issueUpdateError.message}${issueUpdateError.code ? ` (${issueUpdateError.code})` : ""}`
-          : "Routing was saved, but we could not finalize the issue department update.",
-      );
-      setActionState("idle");
-      return;
+    // Set primary department on issues table
+    if (selectedDeptIds.length > 0) {
+      await supabase
+        .from("issues")
+        .update({ department_id: selectedDeptIds[0] })
+        .eq("id", issue.id);
     }
 
-    refreshIssue("Routing updated successfully.");
+    refreshIssue("Departments assigned successfully. Department Managers can now dispatch field workers.");
   }
 
   async function handleApproveResolution() {
@@ -845,13 +822,15 @@ export function OfficerIssueDetailsPage() {
                   </div>
                 </div>
 
-                <div className="rounded-xl border border-border/70 bg-white/80 p-3.5 text-xs text-muted-foreground">
+                <div className="rounded-xl border border-border/70 bg-white/80 p-3.5 text-xs text-muted-foreground space-y-1">
                   <p>
-                    Submitted by worker:{" "}
+                    Submitted on <span className="font-semibold text-foreground">{formatOfficerIssueDateTime(resolutionImage.created_at)}</span>
+                  </p>
+                  <p>
+                    Department status:{" "}
                     <span className="font-semibold text-foreground">
-                      {assignment?.worker ? formatOfficerProfileLabel(assignment.worker) : "Field Worker"}
-                    </span>{" "}
-                    on {formatOfficerIssueDateTime(resolutionImage.created_at)}
+                      {departmentAssignments.map((da) => `${da.department?.name ?? "Dept"} (${getDepartmentAssignmentStatusLabel(da.status)})`).join(", ") || "No departments assigned"}
+                    </span>
                   </p>
                 </div>
 
@@ -1035,84 +1014,176 @@ export function OfficerIssueDetailsPage() {
             </Button>
           </Card>
 
-          {/* Section B: Department & Worker Routing */}
+          {/* Section B: Department Assignment */}
           <Card className="p-5 sm:p-6 space-y-4">
-            <div className="flex items-center gap-2">
-              <Building2 className="h-4 w-4 text-primary" aria-hidden="true" />
-              <h3 className="text-base font-bold text-foreground">
-                Department & Worker Routing
-              </h3>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Building2 className="h-4 w-4 text-primary" aria-hidden="true" />
+                <h3 className="text-base font-bold text-foreground">
+                  Department Assignment
+                </h3>
+              </div>
+              <span className="text-xs text-muted-foreground font-semibold">
+                {departmentAssignments.length} assigned
+              </span>
             </div>
 
-            <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-muted-foreground mb-1.5">
-                Responsible Department
-              </label>
-              <select
-                className="w-full rounded-xl border border-border/80 bg-background/80 px-3.5 py-2.5 text-sm font-medium text-foreground outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20"
-                onChange={(event) => setDepartmentDraft(event.target.value)}
-                value={departmentDraft}
-                disabled={issueIsClosed}
+            {/* AI Recommended Departments */}
+            <div className="space-y-2.5">
+              <div className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-violet-900">
+                <Bot className="h-3.5 w-3.5 text-violet-600" aria-hidden="true" />
+                <span>AI Recommended Departments</span>
+              </div>
+
+              <div className="space-y-2">
+                {aiRecommendations.map((rec) => {
+                  const matchingDept = departments.find(
+                    (d) => d.name.toLowerCase() === rec.departmentName.toLowerCase() && d.is_active,
+                  );
+                  if (!matchingDept) return null;
+                  const isSelected = selectedDeptIds.includes(matchingDept.id);
+                  const isAlreadyAssigned = departmentAssignments.some(
+                    (da) => da.department_id === matchingDept.id,
+                  );
+
+                  return (
+                    <div
+                      key={matchingDept.id}
+                      onClick={() => {
+                        if (issueIsClosed || isAlreadyAssigned) return;
+                        setSelectedDeptIds((prev) =>
+                          prev.includes(matchingDept.id)
+                            ? prev.filter((id) => id !== matchingDept.id)
+                            : [...prev, matchingDept.id],
+                        );
+                      }}
+                      className={cn(
+                        "flex items-start gap-3 p-3 rounded-xl border transition cursor-pointer text-xs",
+                        isSelected
+                          ? "border-violet-300 bg-violet-50/70 shadow-sm ring-1 ring-violet-300/60"
+                          : "border-border/70 bg-background/60 hover:bg-muted/40",
+                        isAlreadyAssigned && "opacity-80 cursor-default",
+                      )}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={isSelected}
+                        disabled={issueIsClosed || isAlreadyAssigned}
+                        onChange={() => {}}
+                        className="mt-0.5 rounded border-border text-primary focus:ring-primary h-4 w-4"
+                      />
+                      <div className="flex-1 min-w-0 space-y-0.5">
+                        <div className="flex items-center justify-between gap-1">
+                          <span className="font-bold text-foreground">{matchingDept.name}</span>
+                          <Badge variant="violet" size="sm">
+                            {Math.round(rec.confidence * 100)}%
+                          </Badge>
+                        </div>
+                        <p className="text-[11px] text-muted-foreground leading-normal">{rec.reason}</p>
+                        {isAlreadyAssigned ? (
+                          <span className="inline-block text-[10px] font-semibold text-emerald-600">
+                            ✓ Currently Assigned
+                          </span>
+                        ) : null}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Manual Additional Department Selection */}
+            {!issueIsClosed ? (
+              <div className="space-y-1.5 pt-2 border-t border-border/70">
+                <label className="block text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                  Add Other Department
+                </label>
+                <div className="flex gap-2">
+                  <select
+                    className="flex-1 rounded-xl border border-border/80 bg-background/80 px-3 py-2 text-xs font-medium text-foreground outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
+                    value={additionalDeptDraft}
+                    onChange={(event) => setAdditionalDeptDraft(event.target.value)}
+                  >
+                    <option value="">Select department...</option>
+                    {departments
+                      .filter((dept) => dept.is_active && !selectedDeptIds.includes(dept.id))
+                      .map((dept) => (
+                        <option key={dept.id} value={dept.id}>
+                          {dept.name}
+                        </option>
+                      ))}
+                  </select>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    disabled={!additionalDeptDraft}
+                    onClick={() => {
+                      if (additionalDeptDraft && !selectedDeptIds.includes(additionalDeptDraft)) {
+                        setSelectedDeptIds((prev) => [...prev, additionalDeptDraft]);
+                        setAdditionalDeptDraft("");
+                      }
+                    }}
+                  >
+                    Add
+                  </Button>
+                </div>
+              </div>
+            ) : null}
+
+            {/* Assign Departments Action */}
+            {!issueIsClosed ? (
+              <Button
+                disabled={actionState !== "idle" || selectedDeptIds.length === 0}
+                onClick={() => void handleAssignDepartments()}
+                type="button"
+                className="w-full min-h-[44px]"
               >
-                <option value="">Unassigned Department</option>
-                {departments.map((dept) => (
-                  <option key={dept.id} value={dept.id}>
-                    {dept.name}
-                  </option>
-                ))}
-              </select>
-            </div>
+                {actionState === "savingRouting" ? (
+                  <Loader2 className="h-4 w-4 animate-spin mr-1.5" />
+                ) : (
+                  <Building2 className="h-4 w-4 mr-1.5" />
+                )}
+                Assign {selectedDeptIds.length} Department{selectedDeptIds.length === 1 ? "" : "s"}
+              </Button>
+            ) : null}
 
-            <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-muted-foreground mb-1.5">
-                Assign Field Worker
-              </label>
-              <select
-                className="w-full rounded-xl border border-border/80 bg-background/80 px-3.5 py-2.5 text-sm font-medium text-foreground outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20"
-                onChange={(event) => setWorkerDraft(event.target.value)}
-                value={workerDraft}
-                disabled={issueIsClosed || !hasWorkerRoster}
-              >
-                <option value="">{hasWorkerRoster ? "Unassigned Worker" : "No field workers available"}</option>
-                {workerOptions.map((worker) => (
-                  <option key={worker.id} value={worker.id}>
-                    {worker.label} {worker.departmentLabel ? `(${worker.departmentLabel})` : ""}
-                  </option>
-                ))}
-              </select>
-              {!canAssignIssue && workerDraft !== "" ? (
-                <p className="text-[11px] text-amber-700 mt-1">
-                  * Note: Worker assignment requires the complaint to be verified first.
-                </p>
-              ) : null}
-            </div>
-
-            <div className="rounded-xl border border-border/70 bg-surface-elevated p-3 text-xs space-y-1">
-              <p className="text-muted-foreground">
-                Active Dept: <span className="font-semibold text-foreground">{issue.department?.name ?? "Unassigned"}</span>
-              </p>
-              <p className="text-muted-foreground">
-                Active Worker:{" "}
-                <span className="font-semibold text-foreground">
-                  {assignment?.worker ? formatOfficerProfileLabel(assignment.worker) : "Unassigned"}
+            {/* Assigned Departments Status & Field Worker Roster */}
+            {departmentAssignments.length > 0 ? (
+              <div className="space-y-2 pt-2 border-t border-border/70">
+                <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                  Assigned Departments
                 </span>
-              </p>
-            </div>
+                <div className="space-y-2">
+                  {departmentAssignments.map((da) => {
+                    const activeWorkerAssignment = da.worker_assignments?.find(
+                      (wa) => wa.status === "ASSIGNED" || wa.status === "IN_PROGRESS" || wa.status === "COMPLETED",
+                    );
+                    const worker = activeWorkerAssignment?.worker;
 
-            <Button
-              disabled={actionState !== "idle" || !canSaveRouting || (workerDraft !== "" && !canAssignIssue)}
-              onClick={() => void handleRoutingSave()}
-              type="button"
-              variant="outline"
-              className="w-full min-h-[44px]"
-            >
-              {actionState === "savingRouting" ? (
-                <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
-              ) : (
-                <UserCog className="h-4 w-4 mr-1.5" aria-hidden="true" />
-              )}
-              Save Routing Assignment
-            </Button>
+                    return (
+                      <div key={da.id} className="rounded-xl border border-border/70 bg-surface-elevated p-3 text-xs space-y-1.5">
+                        <div className="flex items-center justify-between gap-1">
+                          <span className="font-bold text-foreground">{da.department?.name ?? "Department"}</span>
+                          <Badge variant={getDepartmentAssignmentStatusTone(da.status)} size="sm">
+                            {getDepartmentAssignmentStatusLabel(da.status)}
+                          </Badge>
+                        </div>
+                        <div className="text-muted-foreground flex items-center gap-1.5">
+                          <User className="h-3 w-3 shrink-0" />
+                          <span>
+                            Worker:{" "}
+                            <strong className="text-foreground font-semibold">
+                              {worker ? formatOfficerProfileLabel(worker) : "Not yet assigned (Pending Dept Manager)"}
+                            </strong>
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            ) : null}
           </Card>
 
           {/* Section C: Operational Snapshot Summary */}
