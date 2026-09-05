@@ -6,6 +6,7 @@ import {
   ExternalLink,
   Eye,
   Layers,
+  Plus,
   RefreshCw,
   Save,
   Users,
@@ -34,6 +35,7 @@ type ProfileRow = Pick<
 
 type DepartmentDraft = {
   name: string;
+  code: string;
   description: string;
   is_active: boolean;
   manager_profile_id: string | null;
@@ -71,6 +73,17 @@ export function AdminDepartmentsPage() {
   const [savedSuccessId, setSavedSuccessId] = useState<string | null>(null);
   const [refreshNonce, setRefreshNonce] = useState(0);
   const [loadedTimestamp, setLoadedTimestamp] = useState<number>(0);
+
+  // New Department Dialog state
+  const [isCreatingDeptOpen, setIsCreatingDeptOpen] = useState(false);
+  const [newDeptName, setNewDeptName] = useState("");
+  const [newDeptCode, setNewDeptCode] = useState("");
+  const [newDeptDesc, setNewDeptDesc] = useState("");
+  const [newDeptActive, setNewDeptActive] = useState(true);
+  const [newDeptManagerId, setNewDeptManagerId] = useState<string | null>(null);
+  const [isSubmittingCreate, setIsSubmittingCreate] = useState(false);
+  const [createError, setCreateError] = useState<string | null>(null);
+
   const sessionProblem = sessionStatus === "error" ? sessionError ?? "CivicFix profile is unavailable." : null;
 
   useEffect(() => {
@@ -85,7 +98,7 @@ export function AdminDepartmentsPage() {
       setError(null);
 
       const [departmentsResult, issuesResult, profilesResult] = await Promise.all([
-        supabase.from("departments").select("id, name, description, is_active, manager_profile_id, created_at, updated_at").order("name", { ascending: true }),
+        supabase.from("departments").select("id, name, code, description, is_active, manager_profile_id, created_at, updated_at").order("name", { ascending: true }),
         supabase.from("issues").select("id, department_id, status, created_at, updated_at"),
         supabase.from("profiles").select("id, department_id, role_id, full_name, email, phone, employee_id, is_active, role:roles(code, name)"),
       ]);
@@ -114,6 +127,7 @@ export function AdminDepartmentsPage() {
             department.id,
             {
               name: department.name,
+              code: department.code ?? "",
               description: department.description ?? "",
               is_active: department.is_active,
               manager_profile_id: department.manager_profile_id ?? null,
@@ -131,6 +145,49 @@ export function AdminDepartmentsPage() {
       cancelled = true;
     };
   }, [profile?.id, refreshNonce, sessionStatus]);
+
+  async function handleCreateDepartment(event: React.FormEvent) {
+    event.preventDefault();
+    const nameTrimmed = newDeptName.trim();
+    if (!nameTrimmed) {
+      setCreateError("Department name is required.");
+      return;
+    }
+
+    const formattedCode =
+      newDeptCode.trim().toUpperCase().replace(/[^A-Z0-9_]/g, "_") ||
+      nameTrimmed.toUpperCase().replace(/[^A-Z0-9]+/g, "_");
+
+    setIsSubmittingCreate(true);
+    setCreateError(null);
+
+    const { error: insertError } = await supabase.from("departments").insert({
+      name: nameTrimmed,
+      code: formattedCode,
+      description: newDeptDesc.trim() || null,
+      is_active: newDeptActive,
+      manager_profile_id: newDeptManagerId || null,
+    });
+
+    setIsSubmittingCreate(false);
+
+    if (insertError) {
+      if (import.meta.env.DEV) {
+        console.error("Create department failed", insertError);
+      }
+      setCreateError(insertError.message || "Failed to create department. Please ensure the code/name is unique.");
+      return;
+    }
+
+    // Reset and close dialog
+    setNewDeptName("");
+    setNewDeptCode("");
+    setNewDeptDesc("");
+    setNewDeptActive(true);
+    setNewDeptManagerId(null);
+    setIsCreatingDeptOpen(false);
+    setRefreshNonce((curr) => curr + 1);
+  }
 
   const issueCounts = useMemo(() => {
     const map = new Map<string, number>();
@@ -202,6 +259,7 @@ export function AdminDepartmentsPage() {
       .from("departments")
       .update({
         name: draft.name.trim(),
+        code: draft.code?.trim() || null,
         description: draft.description.trim() || null,
         is_active: draft.is_active,
         manager_profile_id: draft.manager_profile_id,
@@ -270,10 +328,24 @@ export function AdminDepartmentsPage() {
         title="Department Management"
         description="Configure municipal departments, adjust routing availability, inspect staff assignments, and monitor operational capacity."
         actions={
-          <Button onClick={() => setRefreshNonce((value) => value + 1)} size="sm" type="button" variant="outline">
-            <RefreshCw className="mr-2 h-4 w-4" />
-            Refresh
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              onClick={() => {
+                setCreateError(null);
+                setIsCreatingDeptOpen(true);
+              }}
+              size="sm"
+              type="button"
+              className="bg-primary hover:bg-primary/90 text-primary-foreground shadow-sm"
+            >
+              <Plus className="mr-1.5 h-4 w-4" />
+              Create Department
+            </Button>
+            <Button onClick={() => setRefreshNonce((value) => value + 1)} size="sm" type="button" variant="outline">
+              <RefreshCw className="mr-2 h-4 w-4" />
+              Refresh
+            </Button>
+          </div>
         }
       />
 
@@ -343,8 +415,13 @@ export function AdminDepartmentsPage() {
                       <Building2 className="h-5 w-5" aria-hidden="true" />
                     </div>
                     <div>
-                      <div className="flex items-center gap-2">
+                      <div className="flex flex-wrap items-center gap-2">
                         <CardTitle className="text-base font-bold text-foreground">{department.name}</CardTitle>
+                        {department.code && (
+                          <Badge variant="outline" size="sm" className="font-mono text-[10px] bg-muted/50">
+                            {department.code}
+                          </Badge>
+                        )}
                         <Badge variant={department.is_active ? "success" : "outline"} size="sm">
                           {department.is_active ? "Active" : "Inactive"}
                         </Badge>
@@ -411,7 +488,7 @@ export function AdminDepartmentsPage() {
                 </div>
 
                 {/* Edit Form */}
-                <div className="grid gap-4 md:grid-cols-[1fr_1.2fr_1fr_auto] items-start pt-2">
+                <div className="grid gap-4 md:grid-cols-[1fr_1fr_1.2fr_1fr_auto] items-start pt-2">
                   <div>
                     <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground block mb-1.5">
                       Department Name
@@ -423,6 +500,23 @@ export function AdminDepartmentsPage() {
                         setDrafts((curr) => ({
                           ...curr,
                           [department.id]: { ...draft, name: e.target.value },
+                        }))
+                      }
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground block mb-1.5">
+                      Code
+                    </label>
+                    <input
+                      className="w-full h-10 rounded-xl border border-border/80 bg-background px-3 text-xs sm:text-sm text-foreground font-mono shadow-xs outline-none focus:ring-2 focus:ring-primary/20"
+                      value={draft.code}
+                      placeholder="e.g. ROAD_INFRASTRUCTURE"
+                      onChange={(e) =>
+                        setDrafts((curr) => ({
+                          ...curr,
+                          [department.id]: { ...draft, code: e.target.value.toUpperCase().replace(/[^A-Z0-9_]/g, "_") },
                         }))
                       }
                     />
@@ -513,7 +607,14 @@ export function AdminDepartmentsPage() {
           <div className="space-y-5 py-2 text-xs sm:text-sm">
             <div className="rounded-2xl border border-teal-200 bg-teal-50/60 p-4 space-y-2">
               <div className="flex items-center justify-between">
-                <span className="font-bold text-base text-teal-950">{viewingDept.name}</span>
+                <div className="flex items-center gap-2">
+                  <span className="font-bold text-base text-teal-950">{viewingDept.name}</span>
+                  {viewingDept.code && (
+                    <Badge variant="outline" size="sm" className="font-mono text-[10px]">
+                      {viewingDept.code}
+                    </Badge>
+                  )}
+                </div>
                 <Badge variant={viewingDept.is_active ? "success" : "outline"} size="sm">
                   {viewingDept.is_active ? "Active" : "Inactive"}
                 </Badge>
@@ -570,6 +671,122 @@ export function AdminDepartmentsPage() {
               </Button>
             </div>
           </div>
+        </Dialog>
+      )}
+
+      {/* 5. Create Department Dialog Modal */}
+      {isCreatingDeptOpen && (
+        <Dialog
+          className="max-w-md w-full"
+          onClose={() => setIsCreatingDeptOpen(false)}
+          open={isCreatingDeptOpen}
+          title="Create New Civic Department"
+        >
+          <form
+            onSubmit={(e) => {
+              void handleCreateDepartment(e);
+            }}
+            className="space-y-4 py-2 text-xs sm:text-sm"
+          >
+            {createError && (
+              <div className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-xs text-rose-800">
+                {createError}
+              </div>
+            )}
+
+            <div className="space-y-1.5">
+              <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground block">
+                Department Name <span className="text-rose-500">*</span>
+              </label>
+              <input
+                required
+                className="w-full h-10 rounded-xl border border-border/80 bg-background px-3 text-sm text-foreground shadow-xs outline-none focus:ring-2 focus:ring-primary/20"
+                placeholder="e.g. Flood & Disaster Management"
+                value={newDeptName}
+                onChange={(e) => {
+                  setNewDeptName(e.target.value);
+                  if (!newDeptCode) {
+                    setNewDeptCode(e.target.value.toUpperCase().replace(/[^A-Z0-9]+/g, "_"));
+                  }
+                }}
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground block">
+                Department Code
+              </label>
+              <input
+                className="w-full h-10 rounded-xl border border-border/80 bg-background px-3 text-sm font-mono text-foreground shadow-xs outline-none focus:ring-2 focus:ring-primary/20"
+                placeholder="e.g. FLOOD_DISASTER"
+                value={newDeptCode}
+                onChange={(e) => setNewDeptCode(e.target.value.toUpperCase().replace(/[^A-Z0-9_]/g, "_"))}
+              />
+              <p className="text-[11px] text-muted-foreground">Unique identifier used for automated routing and system events.</p>
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground block">
+                Description
+              </label>
+              <textarea
+                rows={3}
+                className="w-full rounded-xl border border-border/80 bg-background p-2.5 text-sm text-foreground shadow-xs outline-none focus:ring-2 focus:ring-primary/20 resize-none"
+                placeholder="Brief description of municipal scope and responsibilities..."
+                value={newDeptDesc}
+                onChange={(e) => setNewDeptDesc(e.target.value)}
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground block">
+                Assign Initial Department Manager
+              </label>
+              <select
+                className="w-full h-10 rounded-xl border border-border/80 bg-background px-3 text-sm text-foreground shadow-xs outline-none focus:ring-2 focus:ring-primary/20"
+                value={newDeptManagerId ?? ""}
+                onChange={(e) => setNewDeptManagerId(e.target.value || null)}
+              >
+                <option value="">No manager assigned (optional)</option>
+                {profiles
+                  .filter((p) => p.role?.code === "DEPARTMENT_MANAGER")
+                  .map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.full_name || p.email || `Manager ${p.id.slice(0, 6)}`}
+                    </option>
+                  ))}
+              </select>
+            </div>
+
+            <div className="pt-1">
+              <label className="flex items-center gap-2.5 rounded-xl border border-border/80 bg-background p-3 cursor-pointer select-none hover:bg-muted/20 transition">
+                <input
+                  type="checkbox"
+                  checked={newDeptActive}
+                  onChange={(e) => setNewDeptActive(e.target.checked)}
+                  className="h-4 w-4 rounded border-border text-primary focus:ring-primary/30"
+                />
+                <div>
+                  <span className="text-xs font-semibold text-foreground block">Active for Routing</span>
+                  <span className="text-[11px] text-muted-foreground">Eligible for AI recommendations and officer issue assignments.</span>
+                </div>
+              </label>
+            </div>
+
+            <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-border/60">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setIsCreatingDeptOpen(false)}
+                disabled={isSubmittingCreate}
+              >
+                Cancel
+              </Button>
+              <Button type="submit" disabled={isSubmittingCreate}>
+                {isSubmittingCreate ? "Creating..." : "Create Department"}
+              </Button>
+            </div>
+          </form>
         </Dialog>
       )}
     </div>

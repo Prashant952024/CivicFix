@@ -103,6 +103,7 @@ export interface Database {
         Row: {
           id: string;
           name: string;
+          code: string | null;
           description: string | null;
           is_active: boolean;
           manager_profile_id: string | null;
@@ -112,6 +113,7 @@ export interface Database {
         Insert: {
           id?: string;
           name: string;
+          code?: string | null;
           description?: string | null;
           is_active?: boolean;
           manager_profile_id?: string | null;
@@ -121,6 +123,7 @@ export interface Database {
         Update: {
           id?: string;
           name?: string;
+          code?: string | null;
           description?: string | null;
           is_active?: boolean;
           manager_profile_id?: string | null;

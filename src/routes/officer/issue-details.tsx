@@ -14,7 +14,6 @@ import {
   ShieldAlert,
   Sparkles,
   ThumbsDown,
-  ThumbsUp,
   User,
   XCircle,
 } from "lucide-react";
@@ -32,7 +31,6 @@ import {
   formatOfficerIssueDate,
   formatOfficerIssueDateTime,
   formatOfficerIssueImageUrl,
-  formatOfficerIssuePriority,
   formatOfficerProfileLabel,
   getAiDepartmentRecommendations,
   getDepartmentAssignmentStatusLabel,
@@ -50,7 +48,10 @@ import {
   type OfficerIssuePriority,
   type OfficerProfileRow,
 } from "@/lib/officer-issues";
-import { pickCitizenIssueImageByType } from "@/lib/citizen-issues";
+import {
+  citizenIssueCategories,
+  pickCitizenIssueImageByType,
+} from "@/lib/citizen-issues";
 import { supabase } from "@/lib/supabase";
 import type { Database } from "@/types/database";
 
@@ -141,11 +142,13 @@ export function OfficerIssueDetailsPage() {
   const [error, setError] = useState<string | null>(null);
   const [refreshNonce, setRefreshNonce] = useState(0);
   const [actionState, setActionState] = useState<
-    "idle" | "verifying" | "rejecting" | "savingPriority" | "savingRouting" | "approvingResolution" | "rejectingResolution"
+    "idle" | "verifying" | "rejecting" | "savingTriage" | "savingRouting" | "approvingResolution" | "rejectingResolution" | "approvingAi"
   >("idle");
   const [actionError, setActionError] = useState<string | null>(null);
   const [actionMessage, setActionMessage] = useState<string | null>(null);
-  const [priorityDraft, setPriorityDraft] = useState<OfficerIssuePriority>("LOW");
+  const [categoryDraft, setCategoryDraft] = useState<string>("Other");
+  const [severityDraft, setSeverityDraft] = useState<Database["public"]["Enums"]["issue_severity"]>("MEDIUM");
+  const [priorityDraft, setPriorityDraft] = useState<OfficerIssuePriority>("MEDIUM");
   const [resolutionDecisionNote, setResolutionDecisionNote] = useState("");
   const [analyzingAi, setAnalyzingAi] = useState(false);
   const profileId = profile?.id;
@@ -264,13 +267,34 @@ export function OfficerIssueDetailsPage() {
         (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime(),
       );
 
-      setIssue(nextIssue);
-      setAiAnalysis(aiResult.data ?? null);
-      setDepartments(departmentsResult.data ?? []);
+      const nextAiAnalysis = aiResult.data ?? null;
+      const loadedDepts = (departmentsResult.data ?? []) as OfficerDepartmentRow[];
       const loadedAssignments = (deptAssignmentsResult.data ?? []) as OfficerIssueDepartmentAssignmentRow[];
+
+      setIssue(nextIssue);
+      setAiAnalysis(nextAiAnalysis);
+      setDepartments(loadedDepts);
       setDepartmentAssignments(loadedAssignments);
-      setSelectedDeptIds(loadedAssignments.map((da) => da.department_id));
-      setPriorityDraft(nextIssue.priority);
+
+      // Pre-fill form drafts with real AI recommendations (or current issue data)
+      setCategoryDraft(nextAiAnalysis?.category_recommendation || nextIssue.category || "Other");
+      setSeverityDraft(nextAiAnalysis?.severity_recommendation || nextIssue.severity || "MEDIUM");
+      setPriorityDraft(nextAiAnalysis?.priority_recommendation || nextIssue.priority || "MEDIUM");
+
+      if (loadedAssignments.length > 0) {
+        setSelectedDeptIds(loadedAssignments.map((da) => da.department_id));
+      } else if (nextAiAnalysis?.department_recommendation) {
+        const matchingDept = loadedDepts.find(
+          (d) => d.name.toLowerCase() === nextAiAnalysis.department_recommendation?.toLowerCase() && d.is_active,
+        );
+        if (matchingDept) {
+          setSelectedDeptIds([matchingDept.id]);
+        } else {
+          setSelectedDeptIds([]);
+        }
+      } else {
+        setSelectedDeptIds([]);
+      }
 
       if (aiResult.error && import.meta.env.DEV) {
         console.error("Officer AI analysis load failed", aiResult.error);
@@ -304,6 +328,29 @@ export function OfficerIssueDetailsPage() {
   const statusLabel = issue ? getOfficerIssueStatusLabel(issue.status) : "";
   const severityTone = issue ? getOfficerIssueSeverityTone(issue.severity) : "default";
   const severityLabel = issue ? getOfficerIssueSeverityLabel(issue.severity) : "";
+
+  const isCategoryAi = Boolean(aiAnalysis?.category_recommendation && categoryDraft === aiAnalysis.category_recommendation);
+  const isCategoryOverridden = Boolean(aiAnalysis?.category_recommendation && categoryDraft !== aiAnalysis.category_recommendation);
+
+  const isSeverityAi = Boolean(aiAnalysis?.severity_recommendation && severityDraft === aiAnalysis.severity_recommendation);
+  const isSeverityOverridden = Boolean(aiAnalysis?.severity_recommendation && severityDraft !== aiAnalysis.severity_recommendation);
+
+  const isPriorityAi = Boolean(aiAnalysis?.priority_recommendation && priorityDraft === aiAnalysis.priority_recommendation);
+  const isPriorityOverridden = Boolean(aiAnalysis?.priority_recommendation && priorityDraft !== aiAnalysis.priority_recommendation);
+
+  const aiDept = departments.find(
+    (d) => aiAnalysis?.department_recommendation && d.name.toLowerCase() === aiAnalysis.department_recommendation.toLowerCase(),
+  );
+  const isDeptAi = Boolean(aiDept && selectedDeptIds.length === 1 && selectedDeptIds[0] === aiDept.id);
+  const isDeptOverridden = Boolean(aiAnalysis?.department_recommendation && (!aiDept || selectedDeptIds.length !== 1 || selectedDeptIds[0] !== aiDept.id));
+
+  const isAllAiApproved = Boolean(
+    aiAnalysis &&
+      isCategoryAi &&
+      isSeverityAi &&
+      isPriorityAi &&
+      (isDeptAi || (!aiAnalysis.department_recommendation && selectedDeptIds.length === 0)),
+  );
 
   const aiRecommendations = useMemo(() => {
     if (!issue) return [];
@@ -372,7 +419,10 @@ export function OfficerIssueDetailsPage() {
     [departmentAssignments],
   );
   const canReviewResolution = issue ? issue.status === "UNDER_REVIEW" || allDepartmentsCompleted : false;
-  const canSavePriority = issue ? !issueIsClosed && priorityDraft !== issue.priority : false;
+  const canSaveTriage = issue
+    ? !issueIsClosed &&
+      (categoryDraft !== issue.category || severityDraft !== issue.severity || priorityDraft !== issue.priority)
+    : false;
 
   function refreshIssue(message?: string) {
     if (message) {
@@ -424,8 +474,105 @@ export function OfficerIssueDetailsPage() {
     refreshIssue(nextStatus === "VERIFIED" ? "The complaint has been verified." : "The complaint has been rejected.");
   }
 
-  async function handlePrioritySave() {
-    if (!issue || actionState !== "idle" || priorityDraft === issue.priority) {
+  async function handleApproveAndVerify() {
+    if (!issue || !profileId || actionState !== "idle") {
+      return;
+    }
+
+    if (!canVerifyComplaint) {
+      setActionError("This issue is not in a pending verification state.");
+      return;
+    }
+
+    setActionError(null);
+    setActionMessage(null);
+    setActionState("approvingAi");
+
+    // 1. Update issue fields (category, severity, priority, primary department)
+    const primaryDeptId = selectedDeptIds.length > 0 ? selectedDeptIds[0] : null;
+    const { error: updateError } = await supabase
+      .from("issues")
+      .update({
+        category: categoryDraft,
+        severity: severityDraft,
+        priority: priorityDraft,
+        department_id: primaryDeptId,
+      })
+      .eq("id", issue.id);
+
+    if (updateError) {
+      if (import.meta.env.DEV) {
+        console.error("Issue update failed during approval", updateError);
+      }
+      setActionError(`Failed to save issue triage details: ${updateError.message}`);
+      setActionState("idle");
+      return;
+    }
+
+    // 2. Insert status history transition to VERIFIED
+    const notes = isAllAiApproved
+      ? "Municipal officer reviewed and approved all AI recommendations."
+      : "Municipal officer triaged and verified complaint details.";
+
+    const { error: verifyHistoryError } = await supabase.from("issue_status_history").insert({
+      issue_id: issue.id,
+      old_status: issue.status,
+      new_status: "VERIFIED",
+      changed_by_profile_id: profileId,
+      notes,
+    });
+
+    if (verifyHistoryError) {
+      if (import.meta.env.DEV) {
+        console.error("Verification status history insert failed", verifyHistoryError);
+      }
+      setActionError(`Failed to verify issue: ${verifyHistoryError.message}`);
+      setActionState("idle");
+      return;
+    }
+
+    // 3. If departments were selected, create department assignments and advance to ASSIGNED
+    if (selectedDeptIds.length > 0) {
+      const existingAssignedDeptIds = new Set(departmentAssignments.map((da) => da.department_id));
+      const newDeptIds = selectedDeptIds.filter((deptId) => !existingAssignedDeptIds.has(deptId));
+
+      if (newDeptIds.length > 0) {
+        const inserts = newDeptIds.map((deptId) => ({
+          issue_id: issue.id,
+          department_id: deptId,
+          assigned_by_profile_id: profileId,
+          status: "ASSIGNED" as const,
+        }));
+
+        const { error: assignError } = await supabase.from("issue_department_assignments").insert(inserts);
+        if (assignError) {
+          console.warn("Department assignments insert warning", assignError);
+        }
+      }
+
+      // Transition from VERIFIED to ASSIGNED
+      const { error: assignHistoryError } = await supabase.from("issue_status_history").insert({
+        issue_id: issue.id,
+        old_status: "VERIFIED",
+        new_status: "ASSIGNED",
+        changed_by_profile_id: profileId,
+        notes: `Municipal officer assigned ${selectedDeptIds.length} department(s) to this issue.`,
+      });
+
+      if (assignHistoryError) {
+        console.warn("Assign status history transition warning", assignHistoryError);
+      }
+    }
+
+    refreshIssue(
+      selectedDeptIds.length > 0
+        ? "Complaint approved, verified, and assigned to departments."
+        : "Complaint approved and verified.",
+    );
+  }
+
+  async function handleSaveTriage() {
+    if (!issue || actionState !== "idle" || !canSaveTriage) {
       return;
     }
 
@@ -436,27 +583,31 @@ export function OfficerIssueDetailsPage() {
 
     setActionError(null);
     setActionMessage(null);
-    setActionState("savingPriority");
+    setActionState("savingTriage");
 
     const { error: updateError } = await supabase
       .from("issues")
-      .update({ priority: priorityDraft })
+      .update({
+        category: categoryDraft,
+        severity: severityDraft,
+        priority: priorityDraft,
+      })
       .eq("id", issue.id);
 
     if (updateError) {
       if (import.meta.env.DEV) {
-        console.error("Officer priority update failed", updateError);
+        console.error("Officer triage update failed", updateError);
       }
       setActionError(
         import.meta.env.DEV
-          ? `Failed to save priority: ${updateError.message}${updateError.code ? ` (${updateError.code})` : ""}`
-          : "We could not save the priority change right now. Please try again.",
+          ? `Failed to save triage: ${updateError.message}`
+          : "We could not save the triage changes right now. Please try again.",
       );
       setActionState("idle");
       return;
     }
 
-    refreshIssue("Issue priority updated.");
+    refreshIssue("Issue triage details updated successfully.");
   }
 
   async function handleAssignDepartments() {
@@ -709,29 +860,38 @@ export function OfficerIssueDetailsPage() {
             <div className="space-y-1">
               <div className="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-amber-900">
                 <ShieldAlert className="h-4 w-4 text-amber-700" aria-hidden="true" />
-                <span>Action Required: Complaint Triage</span>
+                <span>Action Required: Complaint Triage & Verification</span>
               </div>
               <h3 className="text-lg font-bold text-amber-950">
-                This citizen report is awaiting officer verification.
+                {isAllAiApproved
+                  ? "AI recommendations pre-filled and ready for one-click approval."
+                  : "Review, adjust recommendations, and verify complaint."}
               </h3>
               <p className="text-xs sm:text-sm text-amber-900/90 leading-relaxed max-w-2xl">
-                Verify this issue to make it eligible for departmental routing and field worker dispatch, or reject if invalid.
+                Review the pre-filled category, severity, priority, and department recommendations below. Click approve to dispatch immediately or adjust any field before confirming.
               </p>
             </div>
 
             <div className="flex items-center gap-2.5 shrink-0">
               <Button
                 disabled={actionState !== "idle"}
-                onClick={() => void handleStatusDecision("VERIFIED")}
+                onClick={() => void handleApproveAndVerify()}
                 type="button"
-                className="bg-emerald-600 hover:bg-emerald-700 text-white min-h-[44px]"
-              >
-                {actionState === "verifying" ? (
-                  <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
-                ) : (
-                  <ThumbsUp className="h-4 w-4 mr-1.5" aria-hidden="true" />
+                className={cn(
+                  "min-h-[44px] text-white shadow-sm",
+                  isAllAiApproved
+                    ? "bg-violet-600 hover:bg-violet-700"
+                    : "bg-emerald-600 hover:bg-emerald-700",
                 )}
-                Verify Complaint
+              >
+                {actionState === "approvingAi" ? (
+                  <Loader2 className="h-4 w-4 animate-spin mr-1.5" aria-hidden="true" />
+                ) : isAllAiApproved ? (
+                  <Sparkles className="h-4 w-4 mr-1.5" aria-hidden="true" />
+                ) : (
+                  <CheckCircle2 className="h-4 w-4 mr-1.5" aria-hidden="true" />
+                )}
+                {isAllAiApproved ? "✓ Approve AI Recommendations" : "✓ Approve & Verify Complaint"}
               </Button>
               <Button
                 disabled={actionState !== "idle"}
@@ -741,7 +901,7 @@ export function OfficerIssueDetailsPage() {
                 className="border-amber-300 bg-white/80 hover:bg-rose-50 hover:text-rose-700 min-h-[44px]"
               >
                 {actionState === "rejecting" ? (
-                  <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+                  <Loader2 className="h-4 w-4 animate-spin mr-1.5" aria-hidden="true" />
                 ) : (
                   <ThumbsDown className="h-4 w-4 mr-1.5" aria-hidden="true" />
                 )}
@@ -1067,26 +1227,108 @@ export function OfficerIssueDetailsPage() {
 
         {/* Right Officer Control Sidebar Rail */}
         <div className="space-y-5 min-w-0">
-          {/* Section A: Priority & Urgency Control */}
+          {/* Section A: Triage & Classification Form Card */}
           <Card className="p-5 sm:p-6 space-y-4">
-            <div className="flex items-center gap-2">
-              <ShieldAlert className="h-4 w-4 text-primary" aria-hidden="true" />
-              <h3 className="text-base font-bold text-foreground">
-                Urgency & Priority
-              </h3>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <ShieldAlert className="h-4 w-4 text-primary" aria-hidden="true" />
+                <h3 className="text-base font-bold text-foreground">
+                  Classification & Triage
+                </h3>
+              </div>
+              {canVerifyComplaint && (
+                <Badge variant={isAllAiApproved ? "violet" : "outline"} size="sm">
+                  {isAllAiApproved ? "AI Synced" : "Customized"}
+                </Badge>
+              )}
             </div>
 
-            <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-muted-foreground mb-1.5">
-                Dispatch Priority
-              </label>
+            {/* Field 1: Category */}
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                  Category
+                </label>
+                {isCategoryAi ? (
+                  <Badge variant="violet" size="sm" className="gap-1 text-[10px] py-0 px-1.5">
+                    <Sparkles className="h-2.5 w-2.5" /> AI Recommended
+                  </Badge>
+                ) : isCategoryOverridden ? (
+                  <Badge variant="outline" size="sm" className="gap-1 text-[10px] py-0 px-1.5 text-amber-800 border-amber-300 bg-amber-50">
+                    ✏️ Officer Override
+                  </Badge>
+                ) : null}
+              </div>
               <select
-                className="w-full rounded-xl border border-border/80 bg-background/80 px-3.5 py-2.5 text-sm font-medium text-foreground outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20"
+                className="w-full rounded-xl border border-border/80 bg-background/80 px-3.5 py-2 text-xs sm:text-sm font-medium text-foreground outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20"
+                onChange={(event) => setCategoryDraft(event.target.value)}
+                value={categoryDraft}
+                disabled={issueIsClosed}
+              >
+                {citizenIssueCategories.map((cat) => (
+                  <option key={cat} value={cat}>
+                    {cat}
+                  </option>
+                ))}
+                {!citizenIssueCategories.includes(categoryDraft as (typeof citizenIssueCategories)[number]) && (
+                  <option value={categoryDraft}>{categoryDraft}</option>
+                )}
+              </select>
+            </div>
+
+            {/* Field 2: Severity */}
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                  Severity (Impact Level)
+                </label>
+                {isSeverityAi ? (
+                  <Badge variant="violet" size="sm" className="gap-1 text-[10px] py-0 px-1.5">
+                    <Sparkles className="h-2.5 w-2.5" /> AI Recommended
+                  </Badge>
+                ) : isSeverityOverridden ? (
+                  <Badge variant="outline" size="sm" className="gap-1 text-[10px] py-0 px-1.5 text-amber-800 border-amber-300 bg-amber-50">
+                    ✏️ Officer Override
+                  </Badge>
+                ) : null}
+              </div>
+              <select
+                className="w-full rounded-xl border border-border/80 bg-background/80 px-3.5 py-2 text-xs sm:text-sm font-medium text-foreground outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20"
+                onChange={(event) => setSeverityDraft(event.target.value as Database["public"]["Enums"]["issue_severity"])}
+                value={severityDraft}
+                disabled={issueIsClosed}
+              >
+                {(["LOW", "MEDIUM", "HIGH", "CRITICAL"] as const).map((sev) => (
+                  <option key={sev} value={sev}>
+                    {getOfficerIssueSeverityLabel(sev)} ({sev})
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Field 3: Dispatch Priority */}
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                  Dispatch Priority
+                </label>
+                {isPriorityAi ? (
+                  <Badge variant="violet" size="sm" className="gap-1 text-[10px] py-0 px-1.5">
+                    <Sparkles className="h-2.5 w-2.5" /> AI Recommended
+                  </Badge>
+                ) : isPriorityOverridden ? (
+                  <Badge variant="outline" size="sm" className="gap-1 text-[10px] py-0 px-1.5 text-amber-800 border-amber-300 bg-amber-50">
+                    ✏️ Officer Override
+                  </Badge>
+                ) : null}
+              </div>
+              <select
+                className="w-full rounded-xl border border-border/80 bg-background/80 px-3.5 py-2 text-xs sm:text-sm font-medium text-foreground outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20"
                 onChange={(event) => setPriorityDraft(event.target.value as OfficerIssuePriority)}
                 value={priorityDraft}
                 disabled={issueIsClosed}
               >
-                {["LOW", "MEDIUM", "HIGH", "URGENT"].map((priority) => (
+                {(["LOW", "MEDIUM", "HIGH", "URGENT"] as const).map((priority) => (
                   <option key={priority} value={priority}>
                     {priority}
                   </option>
@@ -1094,23 +1336,22 @@ export function OfficerIssueDetailsPage() {
               </select>
             </div>
 
-            <div className="rounded-xl border border-border/70 bg-surface-elevated p-3 text-xs text-muted-foreground">
-              Current level: <span className="font-semibold text-foreground">{formatOfficerIssuePriority(issue.priority)}</span>
-            </div>
-
-            <Button
-              disabled={actionState !== "idle" || !canSavePriority}
-              onClick={() => void handlePrioritySave()}
-              type="button"
-              className="w-full min-h-[44px]"
-            >
-              {actionState === "savingPriority" ? (
-                <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
-              ) : (
-                <Save className="h-4 w-4 mr-1.5" aria-hidden="true" />
-              )}
-              Save Priority
-            </Button>
+            {/* Save Button for already-verified issues */}
+            {!canVerifyComplaint && !issueIsClosed ? (
+              <Button
+                disabled={actionState !== "idle" || !canSaveTriage}
+                onClick={() => void handleSaveTriage()}
+                type="button"
+                className="w-full min-h-[40px] text-xs"
+              >
+                {actionState === "savingTriage" ? (
+                  <Loader2 className="h-4 w-4 animate-spin mr-1.5" />
+                ) : (
+                  <Save className="h-4 w-4 mr-1.5" />
+                )}
+                Save Triage Changes
+              </Button>
+            ) : null}
           </Card>
 
           {/* Section B: Department Assignment */}
@@ -1119,22 +1360,33 @@ export function OfficerIssueDetailsPage() {
               <div className="flex items-center gap-2">
                 <Building2 className="h-4 w-4 text-primary" aria-hidden="true" />
                 <h3 className="text-base font-bold text-foreground">
-                  Department Assignment
+                  Department Routing
                 </h3>
               </div>
-              <span className="text-xs text-muted-foreground font-semibold">
-                {departmentAssignments.length} assigned
-              </span>
+              {isDeptAi ? (
+                <Badge variant="violet" size="sm" className="gap-1 text-[10px] py-0 px-1.5">
+                  <Sparkles className="h-2.5 w-2.5" /> AI Recommended
+                </Badge>
+              ) : isDeptOverridden ? (
+                <Badge variant="outline" size="sm" className="gap-1 text-[10px] py-0 px-1.5 text-amber-800 border-amber-300 bg-amber-50">
+                  ✏️ Officer Override
+                </Badge>
+              ) : null}
             </div>
 
             {/* AI Recommended Departments */}
             <div className="space-y-2.5">
-              <div className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-violet-900">
-                <Bot className="h-3.5 w-3.5 text-violet-600" aria-hidden="true" />
-                <span>AI Recommended Departments</span>
+              <div className="flex items-center justify-between text-xs font-bold uppercase tracking-wider text-violet-900">
+                <div className="flex items-center gap-1.5">
+                  <Bot className="h-3.5 w-3.5 text-violet-600" aria-hidden="true" />
+                  <span>Recommended Departments</span>
+                </div>
+                <span className="text-[11px] text-muted-foreground font-normal">
+                  {selectedDeptIds.length} selected
+                </span>
               </div>
 
-              <div className="space-y-2">
+              <div className="space-y-2 max-h-56 overflow-y-auto pr-0.5">
                 {aiRecommendations.map((rec) => {
                   const matchingDept = departments.find(
                     (d) => d.name.toLowerCase() === rec.departmentName.toLowerCase() && d.is_active,
@@ -1203,7 +1455,7 @@ export function OfficerIssueDetailsPage() {
                     value={additionalDeptDraft}
                     onChange={(event) => setAdditionalDeptDraft(event.target.value)}
                   >
-                    <option value="">Select department...</option>
+                    <option value="">Select from 25 civic departments...</option>
                     {departments
                       .filter((dept) => dept.is_active && !selectedDeptIds.includes(dept.id))
                       .map((dept) => (
@@ -1230,8 +1482,40 @@ export function OfficerIssueDetailsPage() {
               </div>
             ) : null}
 
-            {/* Assign Departments Action */}
-            {!issueIsClosed ? (
+            {/* Primary Action Button */}
+            {canVerifyComplaint ? (
+              <div className="space-y-2 pt-2 border-t border-border/70">
+                <Button
+                  disabled={actionState !== "idle"}
+                  onClick={() => void handleApproveAndVerify()}
+                  type="button"
+                  className={cn(
+                    "w-full min-h-[44px] text-white shadow-sm font-semibold",
+                    isAllAiApproved
+                      ? "bg-violet-600 hover:bg-violet-700"
+                      : "bg-emerald-600 hover:bg-emerald-700",
+                  )}
+                >
+                  {actionState === "approvingAi" ? (
+                    <Loader2 className="h-4 w-4 animate-spin mr-1.5" />
+                  ) : isAllAiApproved ? (
+                    <Sparkles className="h-4 w-4 mr-1.5" />
+                  ) : (
+                    <CheckCircle2 className="h-4 w-4 mr-1.5" />
+                  )}
+                  {isAllAiApproved ? "✓ Approve AI Recommendations" : "✓ Approve & Verify Complaint"}
+                </Button>
+                <Button
+                  disabled={actionState !== "idle"}
+                  onClick={() => void handleStatusDecision("REJECTED")}
+                  type="button"
+                  variant="outline"
+                  className="w-full border-rose-200 text-rose-700 hover:bg-rose-50 min-h-[40px] text-xs"
+                >
+                  Reject Complaint
+                </Button>
+              </div>
+            ) : !issueIsClosed ? (
               <Button
                 disabled={actionState !== "idle" || selectedDeptIds.length === 0}
                 onClick={() => void handleAssignDepartments()}
