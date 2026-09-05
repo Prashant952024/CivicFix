@@ -12,6 +12,7 @@ import {
   Phone,
   Save,
   ShieldAlert,
+  Sparkles,
   ThumbsDown,
   ThumbsUp,
   User,
@@ -146,6 +147,7 @@ export function OfficerIssueDetailsPage() {
   const [actionMessage, setActionMessage] = useState<string | null>(null);
   const [priorityDraft, setPriorityDraft] = useState<OfficerIssuePriority>("LOW");
   const [resolutionDecisionNote, setResolutionDecisionNote] = useState("");
+  const [analyzingAi, setAnalyzingAi] = useState(false);
   const profileId = profile?.id;
   const sessionProblem = sessionStatus === "error" ? sessionError ?? "CivicFix profile is unavailable." : null;
 
@@ -303,10 +305,64 @@ export function OfficerIssueDetailsPage() {
   const severityTone = issue ? getOfficerIssueSeverityTone(issue.severity) : "default";
   const severityLabel = issue ? getOfficerIssueSeverityLabel(issue.severity) : "";
 
-  const aiRecommendations = useMemo(
-    () => (issue ? getAiDepartmentRecommendations(issue) : []),
-    [issue],
-  );
+  const aiRecommendations = useMemo(() => {
+    if (!issue) return [];
+    if (aiAnalysis && aiAnalysis.department_recommendation) {
+      const structured = aiAnalysis.structured_response;
+      const explanation =
+        structured && typeof structured === "object" && !Array.isArray(structured)
+          ? ((structured as Record<string, unknown>).explanation as string)
+          : null;
+
+      const realRec = {
+        departmentName: aiAnalysis.department_recommendation,
+        confidence: Number(aiAnalysis.confidence_score) || 0.95,
+        reason: typeof explanation === "string" && explanation.trim()
+          ? explanation.trim()
+          : "Recommended by Gemini Multimodal AI based on visual evidence and complaint text.",
+      };
+
+      const fallbackRecs = getAiDepartmentRecommendations(issue).filter(
+        (f) => f.departmentName.toLowerCase() !== aiAnalysis.department_recommendation?.toLowerCase(),
+      );
+
+      return [realRec, ...fallbackRecs];
+    }
+    return getAiDepartmentRecommendations(issue);
+  }, [issue, aiAnalysis]);
+
+  async function handleTriggerAiAnalysis() {
+    if (!issue || analyzingAi) return;
+    setAnalyzingAi(true);
+    setActionError(null);
+    setActionMessage(null);
+
+    try {
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+      const anonKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+      const response = await fetch(`${supabaseUrl}/functions/v1/analyze-issue`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          apikey: anonKey,
+          Authorization: `Bearer ${anonKey}`,
+        },
+        body: JSON.stringify({ issue_id: issue.id }),
+      });
+
+      const resData = (await response.json()) as { success?: boolean; error?: string };
+      if (response.ok && resData.success) {
+        refreshIssue("Gemini AI analysis completed and recommendations updated.");
+      } else {
+        setActionError(typeof resData.error === "string" ? resData.error : "AI analysis failed. Please try again.");
+      }
+    } catch (triggerErr) {
+      setActionError("Failed to trigger AI analysis service.");
+      console.error("AI trigger error:", triggerErr);
+    } finally {
+      setAnalyzingAi(false);
+    }
+  }
 
   const aiConfidence = confidencePercent(aiAnalysis?.confidence_score);
   const issueIsClosed = issue ? issue.status === "RESOLVED" || issue.status === "CITIZEN_VERIFIED" : false;
@@ -932,36 +988,79 @@ export function OfficerIssueDetailsPage() {
             </div>
 
             {aiAnalysis ? (
-              <div className="grid gap-2.5 sm:grid-cols-2 text-xs pt-1">
-                <div className="rounded-xl border border-violet-100 bg-white/80 p-3">
-                  <span className="text-muted-foreground font-semibold">Recommended Category</span>
-                  <p className="text-sm font-bold text-foreground mt-0.5">
-                    {aiAnalysis.category_recommendation || "Not provided"}
-                  </p>
+              <div className="space-y-3 pt-1">
+                <div className="grid gap-2.5 sm:grid-cols-2 text-xs">
+                  <div className="rounded-xl border border-violet-100 bg-white/80 p-3">
+                    <span className="text-muted-foreground font-semibold">Recommended Category</span>
+                    <p className="text-sm font-bold text-foreground mt-0.5">
+                      {aiAnalysis.category_recommendation || "Not provided"}
+                    </p>
+                  </div>
+                  <div className="rounded-xl border border-violet-100 bg-white/80 p-3">
+                    <span className="text-muted-foreground font-semibold">Recommended Severity</span>
+                    <p className="text-sm font-bold text-foreground mt-0.5">
+                      {aiAnalysis.severity_recommendation || "Not provided"}
+                    </p>
+                  </div>
+                  <div className="rounded-xl border border-violet-100 bg-white/80 p-3">
+                    <span className="text-muted-foreground font-semibold">Recommended Priority</span>
+                    <p className="text-sm font-bold text-foreground mt-0.5">
+                      {aiAnalysis.priority_recommendation || "Not provided"}
+                    </p>
+                  </div>
+                  <div className="rounded-xl border border-violet-100 bg-white/80 p-3">
+                    <span className="text-muted-foreground font-semibold">Recommended Department</span>
+                    <p className="text-sm font-bold text-foreground mt-0.5">
+                      {aiAnalysis.department_recommendation || "Not provided"}
+                    </p>
+                  </div>
                 </div>
-                <div className="rounded-xl border border-violet-100 bg-white/80 p-3">
-                  <span className="text-muted-foreground font-semibold">Recommended Severity</span>
-                  <p className="text-sm font-bold text-foreground mt-0.5">
-                    {aiAnalysis.severity_recommendation || "Not provided"}
-                  </p>
-                </div>
-                <div className="rounded-xl border border-violet-100 bg-white/80 p-3">
-                  <span className="text-muted-foreground font-semibold">Recommended Priority</span>
-                  <p className="text-sm font-bold text-foreground mt-0.5">
-                    {aiAnalysis.priority_recommendation || "Not provided"}
-                  </p>
-                </div>
-                <div className="rounded-xl border border-violet-100 bg-white/80 p-3">
-                  <span className="text-muted-foreground font-semibold">Recommended Department</span>
-                  <p className="text-sm font-bold text-foreground mt-0.5">
-                    {aiAnalysis.department_recommendation || "Not provided"}
-                  </p>
-                </div>
+
+                {/* AI Explanation / Visual Evidence */}
+                {(() => {
+                  const structured = aiAnalysis.structured_response;
+                  const explanation =
+                    structured && typeof structured === "object" && !Array.isArray(structured)
+                      ? ((structured as Record<string, unknown>).explanation as string)
+                      : null;
+                  if (typeof explanation === "string" && explanation.trim()) {
+                    return (
+                      <div className="rounded-xl border border-violet-100 bg-white/90 p-3.5 space-y-1">
+                        <span className="text-muted-foreground font-semibold text-[11px] uppercase tracking-wider">
+                          AI Evidence & Analysis
+                        </span>
+                        <p className="text-xs text-foreground leading-relaxed">
+                          {explanation.trim()}
+                        </p>
+                      </div>
+                    );
+                  }
+                  return null;
+                })()}
               </div>
             ) : (
-              <p className="text-xs text-muted-foreground">
-                No automated AI analysis is associated with this report.
-              </p>
+              <div className="space-y-3 pt-1">
+                <p className="text-xs text-muted-foreground">
+                  No automated AI analysis is associated with this report yet.
+                </p>
+                {!issueIsClosed ? (
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    disabled={analyzingAi}
+                    onClick={() => void handleTriggerAiAnalysis()}
+                    className="border-violet-300 text-violet-800 hover:bg-violet-100/70"
+                  >
+                    {analyzingAi ? (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" aria-hidden="true" />
+                    ) : (
+                      <Sparkles className="h-3.5 w-3.5 mr-1.5 text-violet-600" aria-hidden="true" />
+                    )}
+                    Run Gemini AI Analysis
+                  </Button>
+                ) : null}
+              </div>
             )}
           </Card>
         </div>

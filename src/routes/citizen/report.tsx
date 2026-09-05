@@ -569,6 +569,30 @@ function CitizenReportComposer({ profileId }: { profileId: string }) {
         }
       }
 
+      // Asynchronously trigger Gemini AI issue analysis (non-blocking)
+      const targetIssueId = uploadedIssue.id;
+      void (async () => {
+        try {
+          const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+          const anonKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+          if (supabaseUrl && anonKey) {
+            await fetch(`${supabaseUrl}/functions/v1/analyze-issue`, {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                apikey: anonKey,
+                Authorization: `Bearer ${anonKey}`,
+              },
+              body: JSON.stringify({ issue_id: targetIssueId }),
+            });
+          }
+        } catch (aiTriggerError) {
+          if (import.meta.env.DEV) {
+            console.warn("[CitizenReport] Async AI trigger encountered error:", aiTriggerError);
+          }
+        }
+      })();
+
       setOutcome({
         kind: "success",
         issueId: uploadedIssue.id,
