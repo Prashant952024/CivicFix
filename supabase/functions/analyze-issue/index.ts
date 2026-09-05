@@ -508,6 +508,24 @@ Return a JSON object with this exact structure:
       }
     }
 
+    // 11. Asynchronously trigger Duplicate Issue Detection (non-blocking)
+    try {
+      const detectDuplicatesUrl = `${supabaseUrl}/functions/v1/detect-duplicates`;
+      fetch(detectDuplicatesUrl, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          apikey: supabaseServiceKey,
+          Authorization: `Bearer ${supabaseServiceKey}`,
+        },
+        body: JSON.stringify({ issue_id: targetIssueId }),
+      }).catch((detectErr) => {
+        console.warn("[analyze-issue] Async duplicate detection trigger encountered error:", detectErr);
+      });
+    } catch (triggerErr) {
+      console.warn("[analyze-issue] Non-fatal: Duplicate detection dispatch error:", triggerErr);
+    }
+
     return json(200, {
       success: true,
       data: insertedAnalysis,

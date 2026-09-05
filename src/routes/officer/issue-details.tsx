@@ -4,17 +4,21 @@ import {
   BadgeCheck,
   Bot,
   Building2,
+  Check,
   CheckCircle2,
   ExternalLink,
+  GitCompare,
   History,
   Loader2,
   MapPin,
   Phone,
   Save,
+  Search,
   ShieldAlert,
   Sparkles,
   ThumbsDown,
   User,
+  X,
   XCircle,
 } from "lucide-react";
 import { Link, useParams } from "react-router-dom";
@@ -80,6 +84,58 @@ type IssueRow = Pick<
   reporter_profile?: Pick<OfficerProfileRow, "id" | "full_name" | "email" | "phone"> | null;
 };
 
+type DuplicateCandidateItem = {
+  id: string;
+  source_issue_id: string;
+  duplicate_issue_id: string;
+  confidence_score: number | null;
+  similarity_score: number | null;
+  confidence: "HIGH" | "MEDIUM" | "LOW" | null;
+  matching_signals: {
+    distance_meters?: number | null;
+    category_match_score?: number;
+    time_diff_days?: number;
+    text_similarity_score?: number;
+    signals?: string[];
+  } | null;
+  detection_method: Database["public"]["Enums"]["duplicate_detection_method"];
+  status: Database["public"]["Enums"]["duplicate_status"];
+  reviewed_at: string | null;
+  reviewed_by: string | null;
+  review_notes: string | null;
+  created_at: string;
+  related_issue: {
+    id: string;
+    title: string;
+    description: string;
+    category: string | null;
+    status: Database["public"]["Enums"]["issue_status"];
+    created_at: string;
+    location_text: string | null;
+    address_text: string | null;
+    latitude: string | number | null;
+    longitude: string | number | null;
+  } | null;
+};
+
+type RawDuplicateRow = Omit<Database["public"]["Tables"]["issue_duplicates"]["Row"], "matching_signals"> & {
+  matching_signals?: {
+    distance_meters?: number | null;
+    category_match_score?: number;
+    time_diff_days?: number;
+    text_similarity_score?: number;
+    signals?: string[];
+  } | null;
+  source_issue?: Pick<
+    Database["public"]["Tables"]["issues"]["Row"],
+    "id" | "title" | "description" | "category" | "status" | "created_at" | "location_text" | "address_text" | "latitude" | "longitude"
+  > | null;
+  duplicate_issue?: Pick<
+    Database["public"]["Tables"]["issues"]["Row"],
+    "id" | "title" | "description" | "category" | "status" | "created_at" | "location_text" | "address_text" | "latitude" | "longitude"
+  > | null;
+};
+
 type TimelineItem = {
   id: string;
   title: string;
@@ -138,6 +194,9 @@ export function OfficerIssueDetailsPage() {
   const [additionalDeptDraft, setAdditionalDeptDraft] = useState("");
   const [aiAnalysis, setAiAnalysis] = useState<OfficerIssueAiAnalysisRow | null>(null);
   const [departments, setDepartments] = useState<OfficerDepartmentRow[]>([]);
+  const [duplicates, setDuplicates] = useState<DuplicateCandidateItem[]>([]);
+  const [scanningDuplicates, setScanningDuplicates] = useState(false);
+  const [duplicateActionId, setDuplicateActionId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [refreshNonce, setRefreshNonce] = useState(0);
@@ -166,7 +225,7 @@ export function OfficerIssueDetailsPage() {
       setLoading(true);
       setError(null);
 
-      const [issueResult, aiResult, departmentsResult, deptAssignmentsResult] = await Promise.all([
+      const [issueResult, aiResult, departmentsResult, deptAssignmentsResult, duplicatesResult] = await Promise.all([
         supabase
           .from("issues")
           .select(
@@ -230,6 +289,33 @@ export function OfficerIssueDetailsPage() {
           )
           .eq("issue_id", currentIssueId)
           .order("assigned_at", { ascending: true }),
+        supabase
+          .from("issue_duplicates")
+          .select(
+            `
+            id,
+            source_issue_id,
+            duplicate_issue_id,
+            confidence_score,
+            similarity_score,
+            confidence,
+            matching_signals,
+            detection_method,
+            status,
+            reviewed_at,
+            reviewed_by,
+            review_notes,
+            created_at,
+            source_issue:issues!issue_duplicates_source_issue_id_fkey(
+              id, title, description, category, status, created_at, location_text, address_text, latitude, longitude
+            ),
+            duplicate_issue:issues!issue_duplicates_duplicate_issue_id_fkey(
+              id, title, description, category, status, created_at, location_text, address_text, latitude, longitude
+            )
+          `,
+          )
+          .or(`source_issue_id.eq.${currentIssueId},duplicate_issue_id.eq.${currentIssueId}`)
+          .order("created_at", { ascending: false }),
       ]);
 
       if (cancelled) {
@@ -271,10 +357,43 @@ export function OfficerIssueDetailsPage() {
       const loadedDepts = (departmentsResult.data ?? []) as OfficerDepartmentRow[];
       const loadedAssignments = (deptAssignmentsResult.data ?? []) as OfficerIssueDepartmentAssignmentRow[];
 
+      // Map raw issue_duplicates into structured candidate items
+      const rawDuplicates = (duplicatesResult.data ?? []) as unknown as RawDuplicateRow[];
+      const mappedDuplicates: DuplicateCandidateItem[] = rawDuplicates.map((row) => {
+        const isSource = row.source_issue_id === currentIssueId;
+        const related = (isSource ? row.duplicate_issue : row.source_issue) ?? null;
+        return {
+          id: row.id,
+          source_issue_id: row.source_issue_id,
+          duplicate_issue_id: row.duplicate_issue_id,
+          confidence_score: row.confidence_score,
+          similarity_score: row.similarity_score ?? row.confidence_score,
+          confidence: row.confidence,
+          matching_signals: row.matching_signals ?? null,
+          detection_method: row.detection_method,
+          status: row.status,
+          reviewed_at: row.reviewed_at,
+          reviewed_by: row.reviewed_by,
+          review_notes: row.review_notes,
+          created_at: row.created_at,
+          related_issue: related,
+        };
+      });
+
+      // Sort: pending first, then by similarity_score desc
+      mappedDuplicates.sort((a, b) => {
+        if (a.status === "PENDING" && b.status !== "PENDING") return -1;
+        if (a.status !== "PENDING" && b.status === "PENDING") return 1;
+        const scoreA = a.similarity_score ?? a.confidence_score ?? 0;
+        const scoreB = b.similarity_score ?? b.confidence_score ?? 0;
+        return scoreB - scoreA;
+      });
+
       setIssue(nextIssue);
       setAiAnalysis(nextAiAnalysis);
       setDepartments(loadedDepts);
       setDepartmentAssignments(loadedAssignments);
+      setDuplicates(mappedDuplicates);
 
       // Pre-fill form drafts with real AI recommendations (or current issue data)
       setCategoryDraft(nextAiAnalysis?.category_recommendation || nextIssue.category || "Other");
@@ -306,6 +425,10 @@ export function OfficerIssueDetailsPage() {
 
       if (deptAssignmentsResult.error && import.meta.env.DEV) {
         console.error("Officer department assignments load failed", deptAssignmentsResult.error);
+      }
+
+      if (duplicatesResult.error && import.meta.env.DEV) {
+        console.error("Officer duplicates load failed", duplicatesResult.error);
       }
 
       setLoading(false);
@@ -411,6 +534,101 @@ export function OfficerIssueDetailsPage() {
       console.error("AI trigger error:", triggerErr);
     } finally {
       setAnalyzingAi(false);
+    }
+  }
+
+  async function handleConfirmDuplicate(duplicateId: string) {
+    if (!profileId || duplicateActionId) return;
+    setDuplicateActionId(duplicateId);
+    setActionError(null);
+    setActionMessage(null);
+
+    const { error: confirmError } = await supabase
+      .from("issue_duplicates")
+      .update({
+        status: "CONFIRMED",
+        reviewed_at: new Date().toISOString(),
+        reviewed_by: profileId,
+      })
+      .eq("id", duplicateId);
+
+    if (confirmError) {
+      if (import.meta.env.DEV) {
+        console.error("Failed to confirm duplicate", confirmError);
+      }
+      setActionError(`Failed to confirm duplicate: ${confirmError.message}`);
+    } else {
+      setActionMessage("Duplicate relationship confirmed.");
+      setRefreshNonce((v) => v + 1);
+    }
+    setDuplicateActionId(null);
+  }
+
+  async function handleRejectDuplicate(duplicateId: string) {
+    if (!profileId || duplicateActionId) return;
+    setDuplicateActionId(duplicateId);
+    setActionError(null);
+    setActionMessage(null);
+
+    const { error: rejectError } = await supabase
+      .from("issue_duplicates")
+      .update({
+        status: "REJECTED",
+        reviewed_at: new Date().toISOString(),
+        reviewed_by: profileId,
+      })
+      .eq("id", duplicateId);
+
+    if (rejectError) {
+      if (import.meta.env.DEV) {
+        console.error("Failed to reject duplicate", rejectError);
+      }
+      setActionError(`Failed to update duplicate status: ${rejectError.message}`);
+    } else {
+      setActionMessage("Marked as not a duplicate.");
+      setRefreshNonce((v) => v + 1);
+    }
+    setDuplicateActionId(null);
+  }
+
+  async function handleScanDuplicates() {
+    if (!issue || scanningDuplicates) return;
+    setScanningDuplicates(true);
+    setActionError(null);
+    setActionMessage(null);
+
+    try {
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+      const anonKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+      if (!supabaseUrl || !anonKey) {
+        throw new Error("Missing Supabase configuration.");
+      }
+
+      const res = await fetch(`${supabaseUrl}/functions/v1/detect-duplicates`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          apikey: anonKey,
+          Authorization: `Bearer ${anonKey}`,
+        },
+        body: JSON.stringify({ issue_id: issue.id }),
+      });
+
+      const data = (await res.json()) as { success?: boolean; potential_duplicates_found?: number; error?: string };
+      if (res.ok && data.success) {
+        const found = data.potential_duplicates_found || 0;
+        refreshIssue(
+          found > 0
+            ? `Duplicate scan completed: found ${found} potential duplicate candidate(s).`
+            : "Duplicate scan completed: no duplicates detected.",
+        );
+      } else {
+        setActionError(typeof data.error === "string" ? data.error : "Duplicate scan service encountered an issue.");
+      }
+    } catch (err: unknown) {
+      setActionError(`Duplicate scan failed: ${err instanceof Error ? err.message : String(err)}`);
+    } finally {
+      setScanningDuplicates(false);
     }
   }
 
@@ -1225,6 +1443,228 @@ export function OfficerIssueDetailsPage() {
                 ) : null}
               </div>
             )}
+          </Card>
+
+          {/* Section: Potential Duplicate Issues Card */}
+          <Card className="overflow-hidden border border-border/80 bg-surface/95 shadow-sm">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between border-b border-border/70 bg-muted/20 px-5 py-4 sm:px-6">
+              <div className="flex items-center gap-2.5">
+                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-amber-50 text-amber-800 border border-amber-200">
+                  <GitCompare className="h-4 w-4" aria-hidden="true" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-base font-bold text-foreground">
+                      Potential Duplicate Issues
+                    </h3>
+                    <Badge variant={duplicates.length > 0 ? "warning" : "outline"} size="sm">
+                      {duplicates.length} {duplicates.length === 1 ? "candidate" : "candidates"}
+                    </Badge>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Multi-signal detection based on GPS proximity, category match, time window, and text similarity.
+                  </p>
+                </div>
+              </div>
+
+              {!issueIsClosed && (
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  disabled={scanningDuplicates}
+                  onClick={() => void handleScanDuplicates()}
+                  className="shrink-0 border-amber-300 text-amber-900 hover:bg-amber-100/60"
+                >
+                  {scanningDuplicates ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" aria-hidden="true" />
+                  ) : (
+                    <Search className="h-3.5 w-3.5 mr-1.5 text-amber-700" aria-hidden="true" />
+                  )}
+                  Scan for Duplicates
+                </Button>
+              )}
+            </div>
+
+            <div className="p-5 sm:p-6 space-y-4">
+              {duplicates.length === 0 ? (
+                <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-border/80 bg-muted/10 p-6 text-center">
+                  <CheckCircle2 className="h-8 w-8 text-emerald-700 mb-2" />
+                  <p className="text-sm font-semibold text-foreground">No Potential Duplicates Found</p>
+                  <p className="text-xs text-muted-foreground mt-1 max-w-md">
+                    No matching complaints were found within the proximity, category, and time threshold.
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-3.5">
+                  {duplicates.map((dup, index) => {
+                    const related = dup.related_issue;
+                    const score = dup.similarity_score ?? dup.confidence_score ?? 0;
+                    const scorePercent = Math.round(score * 100);
+                    const isPending = dup.status === "PENDING";
+                    const isConfirmed = dup.status === "CONFIRMED";
+                    const isRejected = dup.status === "REJECTED" || dup.status === "DISMISSED";
+                    const signalsList = dup.matching_signals?.signals ?? [];
+                    const isOperating = duplicateActionId === dup.id;
+
+                    return (
+                      <div
+                        key={dup.id}
+                        className={cn(
+                          "rounded-2xl border p-4 sm:p-5 transition-all space-y-3.5",
+                          isConfirmed
+                            ? "border-emerald-200 bg-emerald-50/40"
+                            : isRejected
+                              ? "border-border/60 bg-muted/20 opacity-75"
+                              : scorePercent >= 80
+                                ? "border-rose-200 bg-gradient-to-br from-rose-50/50 via-surface to-amber-50/30"
+                                : "border-amber-200 bg-gradient-to-br from-amber-50/50 via-surface to-slate-50/30",
+                        )}
+                      >
+                        {/* Top Row: Candidate Header & Confidence Score */}
+                        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2.5">
+                          <div className="flex items-start gap-3">
+                            <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-background border text-xs font-bold text-muted-foreground shadow-xs">
+                              {index + 1}
+                            </span>
+                            <div>
+                              <div className="flex flex-wrap items-center gap-2">
+                                <h4 className="text-sm font-bold text-foreground">
+                                  {related?.title || "Civic Complaint"}
+                                </h4>
+                                {related?.category && (
+                                  <Badge variant="outline" size="sm" className="text-[11px]">
+                                    {related.category}
+                                  </Badge>
+                                )}
+                              </div>
+                              {related?.location_text || related?.address_text ? (
+                                <p className="text-xs text-muted-foreground mt-0.5 flex items-center gap-1">
+                                  <MapPin className="h-3 w-3 shrink-0" />
+                                  <span className="truncate">{related.address_text || related.location_text}</span>
+                                </p>
+                              ) : null}
+                            </div>
+                          </div>
+
+                          {/* Confidence Badge & Status */}
+                          <div className="flex items-center gap-2 self-start sm:self-center">
+                            <Badge
+                              variant={
+                                scorePercent >= 80
+                                  ? "danger"
+                                  : scorePercent >= 60
+                                    ? "warning"
+                                    : "info"
+                              }
+                              size="sm"
+                              className="font-bold"
+                            >
+                              {scorePercent}% Match · {dup.confidence || (scorePercent >= 80 ? "HIGH" : scorePercent >= 60 ? "MEDIUM" : "LOW")}
+                            </Badge>
+
+                            {isConfirmed ? (
+                              <Badge variant="success" size="sm" className="gap-1">
+                                <CheckCircle2 className="h-3 w-3" /> Confirmed Duplicate
+                              </Badge>
+                            ) : isRejected ? (
+                              <Badge variant="outline" size="sm" className="gap-1 text-muted-foreground">
+                                <XCircle className="h-3 w-3" /> Rejected
+                              </Badge>
+                            ) : (
+                              <Badge variant="warning" size="sm">
+                                Pending Review
+                              </Badge>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Signals Breakdown Checklist */}
+                        {signalsList.length > 0 && (
+                          <div className="rounded-xl border border-border/60 bg-background/80 p-3 text-xs space-y-1.5">
+                            <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
+                              Matching Evidence & Signals
+                            </p>
+                            <div className="grid gap-1.5 sm:grid-cols-2">
+                              {signalsList.map((sig, sIdx) => (
+                                <div key={sIdx} className="flex items-center gap-1.5 text-foreground">
+                                  <Check className="h-3.5 w-3.5 text-emerald-700 shrink-0" />
+                                  <span>{sig}</span>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Actions Row */}
+                        <div className="flex flex-wrap items-center justify-between gap-2.5 pt-1 border-t border-border/40">
+                          {related?.id ? (
+                            <Link
+                              to={`/app/officer/issues/${related.id}`}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="inline-flex items-center gap-1.5 text-xs font-semibold text-primary hover:underline"
+                            >
+                              <ExternalLink className="h-3.5 w-3.5" />
+                              View Issue ({related.id.slice(0, 8)}...)
+                            </Link>
+                          ) : <div />}
+
+                          {!issueIsClosed && (
+                            <div className="flex items-center gap-2">
+                              {isPending ? (
+                                <>
+                                  <Button
+                                    type="button"
+                                    size="sm"
+                                    disabled={isOperating}
+                                    onClick={() => void handleConfirmDuplicate(dup.id)}
+                                    className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs h-8"
+                                  >
+                                    {isOperating ? (
+                                      <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" />
+                                    ) : (
+                                      <Check className="h-3.5 w-3.5 mr-1" />
+                                    )}
+                                    Confirm Duplicate
+                                  </Button>
+                                  <Button
+                                    type="button"
+                                    size="sm"
+                                    variant="outline"
+                                    disabled={isOperating}
+                                    onClick={() => void handleRejectDuplicate(dup.id)}
+                                    className="border-rose-200 text-rose-700 hover:bg-rose-50 text-xs h-8"
+                                  >
+                                    {isOperating ? (
+                                      <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" />
+                                    ) : (
+                                      <X className="h-3.5 w-3.5 mr-1" />
+                                    )}
+                                    Not a Duplicate
+                                  </Button>
+                                </>
+                              ) : (
+                                <Button
+                                  type="button"
+                                  size="sm"
+                                  variant="ghost"
+                                  disabled={isOperating}
+                                  onClick={() => void (isConfirmed ? handleRejectDuplicate(dup.id) : handleConfirmDuplicate(dup.id))}
+                                  className="text-xs text-muted-foreground hover:text-foreground h-8"
+                                >
+                                  {isConfirmed ? "Mark as Not Duplicate" : "Re-mark as Confirmed"}
+                                </Button>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
           </Card>
         </div>
 

@@ -551,8 +551,14 @@ export interface Database {
           source_issue_id: string;
           duplicate_issue_id: string;
           confidence_score: number | null;
+          similarity_score: number | null;
+          confidence: "HIGH" | "MEDIUM" | "LOW" | null;
+          matching_signals: Record<string, unknown>;
           detection_method: Database["public"]["Enums"]["duplicate_detection_method"];
           status: Database["public"]["Enums"]["duplicate_status"];
+          reviewed_at: string | null;
+          reviewed_by: string | null;
+          review_notes: string | null;
           created_at: string;
         };
         Insert: {
@@ -560,8 +566,14 @@ export interface Database {
           source_issue_id: string;
           duplicate_issue_id: string;
           confidence_score?: number | null;
+          similarity_score?: number | null;
+          confidence?: "HIGH" | "MEDIUM" | "LOW" | null;
+          matching_signals?: Record<string, unknown>;
           detection_method: Database["public"]["Enums"]["duplicate_detection_method"];
           status?: Database["public"]["Enums"]["duplicate_status"];
+          reviewed_at?: string | null;
+          reviewed_by?: string | null;
+          review_notes?: string | null;
           created_at?: string;
         };
         Update: {
@@ -569,8 +581,14 @@ export interface Database {
           source_issue_id?: string;
           duplicate_issue_id?: string;
           confidence_score?: number | null;
+          similarity_score?: number | null;
+          confidence?: "HIGH" | "MEDIUM" | "LOW" | null;
+          matching_signals?: Record<string, unknown>;
           detection_method?: Database["public"]["Enums"]["duplicate_detection_method"];
           status?: Database["public"]["Enums"]["duplicate_status"];
+          reviewed_at?: string | null;
+          reviewed_by?: string | null;
+          review_notes?: string | null;
           created_at?: string;
         };
         Relationships: [
@@ -690,8 +708,8 @@ export interface Database {
       assignment_status: "ACTIVE" | "COMPLETED" | "UNASSIGNED";
       department_assignment_status: "ASSIGNED" | "IN_PROGRESS" | "UNDER_REVIEW" | "COMPLETED" | "REJECTED" | "REOPENED";
       worker_assignment_status: "ASSIGNED" | "IN_PROGRESS" | "COMPLETED" | "REASSIGNED" | "CANCELLED";
-      duplicate_detection_method: "GPS_PROXIMITY" | "CATEGORY" | "TIME" | "IMAGE_SIMILARITY" | "MANUAL_REVIEW";
-      duplicate_status: "PENDING" | "CONFIRMED" | "DISMISSED";
+      duplicate_detection_method: "GPS_PROXIMITY" | "CATEGORY" | "TIME" | "IMAGE_SIMILARITY" | "MANUAL_REVIEW" | "AI_MULTI_SIGNAL";
+      duplicate_status: "PENDING" | "CONFIRMED" | "DISMISSED" | "REJECTED";
       issue_image_type: "INITIAL_REPORT" | "RESOLUTION_EVIDENCE";
       issue_priority: "LOW" | "MEDIUM" | "HIGH" | "URGENT";
       issue_severity: "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
