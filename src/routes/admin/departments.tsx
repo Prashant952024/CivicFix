@@ -72,7 +72,7 @@ export function AdminDepartmentsPage() {
   const [savingDepartmentId, setSavingDepartmentId] = useState<string | null>(null);
   const [savedSuccessId, setSavedSuccessId] = useState<string | null>(null);
   const [refreshNonce, setRefreshNonce] = useState(0);
-  const [loadedTimestamp, setLoadedTimestamp] = useState<number>(0);
+  const [referenceTime, setReferenceTime] = useState<number>(0);
 
   // New Department Dialog state
   const [isCreatingDeptOpen, setIsCreatingDeptOpen] = useState(false);
@@ -135,7 +135,7 @@ export function AdminDepartmentsPage() {
           ]),
         ),
       );
-      setLoadedTimestamp(Date.now());
+      setReferenceTime(Date.now());
       setLoading(false);
     }
 
@@ -161,23 +161,36 @@ export function AdminDepartmentsPage() {
     setIsSubmittingCreate(true);
     setCreateError(null);
 
-    const { error: insertError } = await supabase.from("departments").insert({
-      name: nameTrimmed,
-      code: formattedCode,
-      description: newDeptDesc.trim() || null,
-      is_active: newDeptActive,
-      manager_profile_id: newDeptManagerId || null,
-    });
-
-    setIsSubmittingCreate(false);
+    const { data: createdDept, error: insertError } = await supabase
+      .from("departments")
+      .insert({
+        name: nameTrimmed,
+        code: formattedCode,
+        description: newDeptDesc.trim() || null,
+        is_active: newDeptActive,
+        manager_profile_id: newDeptManagerId || null,
+      })
+      .select("id")
+      .single();
 
     if (insertError) {
+      setIsSubmittingCreate(false);
       if (import.meta.env.DEV) {
         console.error("Create department failed", insertError);
       }
       setCreateError(insertError.message || "Failed to create department. Please ensure the code/name is unique.");
       return;
     }
+
+    // If manager was assigned, synchronize manager's profile.department_id
+    if (newDeptManagerId && createdDept?.id) {
+      await supabase
+        .from("profiles")
+        .update({ department_id: createdDept.id })
+        .eq("id", newDeptManagerId);
+    }
+
+    setIsSubmittingCreate(false);
 
     // Reset and close dialog
     setNewDeptName("");
@@ -188,65 +201,6 @@ export function AdminDepartmentsPage() {
     setIsCreatingDeptOpen(false);
     setRefreshNonce((curr) => curr + 1);
   }
-
-  const issueCounts = useMemo(() => {
-    const map = new Map<string, number>();
-    for (const issue of issues) {
-      if (issue.department_id) {
-        map.set(issue.department_id, (map.get(issue.department_id) ?? 0) + 1);
-      }
-    }
-    return map;
-  }, [issues]);
-
-  const staffCounts = useMemo(() => {
-    const map = new Map<string, number>();
-    for (const p of profiles) {
-      if (p.department_id) {
-        map.set(p.department_id, (map.get(p.department_id) ?? 0) + 1);
-      }
-    }
-    return map;
-  }, [profiles]);
-
-  const workloadByDepartment = useMemo(() => {
-    const map = new Map<string, { total: number; open: number; resolved: number; reopened: number; stale: number }>();
-    const now = loadedTimestamp || 0;
-    const staleThresholdMs = 3 * 24 * 60 * 60 * 1000;
-
-    for (const department of departments) {
-      const departmentIssues = issues.filter((issue) => issue.department_id === department.id);
-      let open = 0;
-      let resolved = 0;
-      let reopened = 0;
-      let stale = 0;
-
-      for (const issue of departmentIssues) {
-        if (isResolvedLikeStatus(issue.status)) {
-          resolved += 1;
-        } else {
-          open += 1;
-          const updatedAtMs = new Date(issue.updated_at).getTime();
-          if (now - updatedAtMs > staleThresholdMs) {
-            stale += 1;
-          }
-        }
-        if (issue.status === "REOPENED") {
-          reopened += 1;
-        }
-      }
-
-      map.set(department.id, {
-        total: departmentIssues.length,
-        open,
-        resolved,
-        reopened,
-        stale,
-      });
-    }
-
-    return map;
-  }, [departments, issues, loadedTimestamp]);
 
   async function saveDepartment(department: DepartmentRow) {
     const draft = drafts[department.id];
@@ -267,9 +221,8 @@ export function AdminDepartmentsPage() {
       })
       .eq("id", department.id);
 
-    setSavingDepartmentId(null);
-
     if (saveError) {
+      setSavingDepartmentId(null);
       if (import.meta.env.DEV) {
         console.error("Failed to save department", saveError);
       }
@@ -277,10 +230,78 @@ export function AdminDepartmentsPage() {
       return;
     }
 
+    // If manager was assigned, synchronize manager's profile.department_id
+    if (draft.manager_profile_id) {
+      await supabase
+        .from("profiles")
+        .update({ department_id: department.id })
+        .eq("id", draft.manager_profile_id);
+    }
+
+    setSavingDepartmentId(null);
     setSavedSuccessId(department.id);
     setTimeout(() => setSavedSuccessId(null), 3000);
     setRefreshNonce((value) => value + 1);
   }
+
+  const issueCounts = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const issue of issues) {
+      if (issue.department_id) {
+        counts.set(issue.department_id, (counts.get(issue.department_id) ?? 0) + 1);
+      }
+    }
+    return counts;
+  }, [issues]);
+
+  const staffCounts = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const p of profiles) {
+      if (p.department_id) {
+        counts.set(p.department_id, (counts.get(p.department_id) ?? 0) + 1);
+      }
+    }
+    return counts;
+  }, [profiles]);
+
+  const workloadByDepartment = useMemo(() => {
+    const workloads = new Map<
+      string,
+      { total: number; open: number; resolved: number; reopened: number; stale: number }
+    >();
+
+    const now = referenceTime || 0;
+    const staleThresholdMs = 14 * 24 * 60 * 60 * 1000;
+
+    for (const issue of issues) {
+      if (!issue.department_id) continue;
+      const current = workloads.get(issue.department_id) ?? {
+        total: 0,
+        open: 0,
+        resolved: 0,
+        reopened: 0,
+        stale: 0,
+      };
+      current.total += 1;
+      const status = issue.status;
+      if (isResolvedLikeStatus(status)) {
+        current.resolved += 1;
+      } else if (status === "REOPENED") {
+        current.reopened += 1;
+        current.open += 1;
+      } else {
+        current.open += 1;
+      }
+
+      const updatedAtMs = issue.updated_at ? new Date(issue.updated_at).getTime() : 0;
+      if (!isResolvedLikeStatus(status) && updatedAtMs > 0 && now > 0 && now - updatedAtMs > staleThresholdMs) {
+        current.stale += 1;
+      }
+
+      workloads.set(issue.department_id, current);
+    }
+    return workloads;
+  }, [issues, referenceTime]);
 
   if (sessionProblem || error) {
     return (

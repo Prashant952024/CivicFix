@@ -354,6 +354,8 @@ export function OfficerIssueDetailsPage() {
 
   const aiRecommendations = useMemo(() => {
     if (!issue) return [];
+    const activeDepts = departments.filter((d) => d.is_active);
+
     if (aiAnalysis && aiAnalysis.department_recommendation) {
       const structured = aiAnalysis.structured_response;
       const explanation =
@@ -364,19 +366,20 @@ export function OfficerIssueDetailsPage() {
       const realRec = {
         departmentName: aiAnalysis.department_recommendation,
         confidence: Number(aiAnalysis.confidence_score) || 0.95,
-        reason: typeof explanation === "string" && explanation.trim()
-          ? explanation.trim()
-          : "Recommended by Gemini Multimodal AI based on visual evidence and complaint text.",
+        reason:
+          typeof explanation === "string" && explanation.trim()
+            ? explanation.trim()
+            : "Recommended by Gemini Multimodal AI based on visual evidence and complaint text.",
       };
 
-      const fallbackRecs = getAiDepartmentRecommendations(issue).filter(
+      const fallbackRecs = getAiDepartmentRecommendations(issue, activeDepts).filter(
         (f) => f.departmentName.toLowerCase() !== aiAnalysis.department_recommendation?.toLowerCase(),
       );
 
       return [realRec, ...fallbackRecs];
     }
-    return getAiDepartmentRecommendations(issue);
-  }, [issue, aiAnalysis]);
+    return getAiDepartmentRecommendations(issue, activeDepts);
+  }, [issue, aiAnalysis, departments]);
 
   async function handleTriggerAiAnalysis() {
     if (!issue || analyzingAi) return;
@@ -1455,7 +1458,7 @@ export function OfficerIssueDetailsPage() {
                     value={additionalDeptDraft}
                     onChange={(event) => setAdditionalDeptDraft(event.target.value)}
                   >
-                    <option value="">Select from 25 civic departments...</option>
+                    <option value="">Select department...</option>
                     {departments
                       .filter((dept) => dept.is_active && !selectedDeptIds.includes(dept.id))
                       .map((dept) => (

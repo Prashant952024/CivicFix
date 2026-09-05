@@ -64,10 +64,10 @@ function normalizeEnum<T extends string>(value: unknown, allowed: readonly T[], 
 
 function matchDepartment(
   suggestedName: unknown,
-  activeDepartments: Array<{ id: string; name: string }>,
+  activeDepartments: Array<{ id: string; name: string; code?: string | null; description?: string | null }>,
 ): string {
   if (activeDepartments.length === 0) {
-    return "Road & Infrastructure";
+    return "";
   }
 
   if (typeof suggestedName !== "string" || !suggestedName.trim()) {
@@ -76,51 +76,48 @@ function matchDepartment(
 
   const clean = suggestedName.trim().toLowerCase();
 
-  // 1. Exact case-insensitive match
-  const exact = activeDepartments.find((d) => d.name.toLowerCase() === clean);
-  if (exact) return exact.name;
+  // 1. Exact case-insensitive match on name
+  const exactName = activeDepartments.find((d) => d.name.toLowerCase() === clean);
+  if (exactName) return exactName.name;
 
-  // 2. Substring match
+  // 2. Exact match on code
+  const exactCode = activeDepartments.find((d) => d.code && d.code.toLowerCase() === clean);
+  if (exactCode) return exactCode.name;
+
+  // 3. Substring match
   const substringMatch = activeDepartments.find(
     (d) => d.name.toLowerCase().includes(clean) || clean.includes(d.name.toLowerCase()),
   );
   if (substringMatch) return substringMatch.name;
 
-  // 3. Keyword heuristic fallback
-  if (clean.includes("road") || clean.includes("pothole") || clean.includes("pavement") || clean.includes("asphalt")) {
-    const roadDept = activeDepartments.find((d) => d.name.toLowerCase().includes("road"));
-    if (roadDept) return roadDept.name;
-  }
-  if (clean.includes("water") || clean.includes("pipe") || clean.includes("leak") || clean.includes("sewer")) {
-    const waterDept = activeDepartments.find((d) => d.name.toLowerCase().includes("water"));
-    if (waterDept) return waterDept.name;
-  }
-  if (clean.includes("garbage") || clean.includes("waste") || clean.includes("trash") || clean.includes("dump")) {
-    const wasteDept = activeDepartments.find((d) => d.name.toLowerCase().includes("waste"));
-    if (wasteDept) return wasteDept.name;
-  }
-  if (clean.includes("light") || clean.includes("electricity") || clean.includes("power") || clean.includes("lamp")) {
-    const lightDept = activeDepartments.find((d) => d.name.toLowerCase().includes("light") || d.name.toLowerCase().includes("electr"));
-    if (lightDept) return lightDept.name;
-  }
-  if (clean.includes("drain") || clean.includes("flood") || clean.includes("storm")) {
-    const drainDept = activeDepartments.find((d) => d.name.toLowerCase().includes("flood") || d.name.toLowerCase().includes("drain"));
-    if (drainDept) return drainDept.name;
-  }
-  if (clean.includes("health") || clean.includes("sanitat") || clean.includes("hygiene")) {
-    const healthDept = activeDepartments.find((d) => d.name.toLowerCase().includes("health") || d.name.toLowerCase().includes("sanitat"));
-    if (healthDept) return healthDept.name;
-  }
-  if (clean.includes("traffic") || clean.includes("transport") || clean.includes("sign")) {
-    const trafficDept = activeDepartments.find((d) => d.name.toLowerCase().includes("traffic") || d.name.toLowerCase().includes("transport"));
-    if (trafficDept) return trafficDept.name;
-  }
-  if (clean.includes("park") || clean.includes("tree") || clean.includes("garden")) {
-    const parkDept = activeDepartments.find((d) => d.name.toLowerCase().includes("park") || d.name.toLowerCase().includes("hort"));
-    if (parkDept) return parkDept.name;
+  // 4. Word/token overlap scoring against dynamic active departments
+  const cleanTokens = clean.split(/[\s,._\-/]+/).filter((t) => t.length > 2);
+  let bestDept = activeDepartments[0];
+  let maxScore = 0;
+
+  for (const dept of activeDepartments) {
+    const deptTokens = `${dept.name} ${dept.code || ""} ${dept.description || ""}`
+      .toLowerCase()
+      .split(/[\s,._\-/]+/)
+      .filter((t) => t.length > 2);
+
+    let score = 0;
+    for (const token of cleanTokens) {
+      if (deptTokens.includes(token)) {
+        score += 1;
+      }
+    }
+    if (score > maxScore) {
+      maxScore = score;
+      bestDept = dept;
+    }
   }
 
-  // Default to first active department
+  if (maxScore > 0) {
+    return bestDept.name;
+  }
+
+  // Fallback to first active department
   return activeDepartments[0].name;
 }
 
@@ -229,11 +226,11 @@ Deno.serve(async (req: Request) => {
     // 4. Fetch active municipal departments
     const { data: departmentsData } = await supabaseAdmin
       .from("departments")
-      .select("id, name, description")
+      .select("id, name, code, description")
       .eq("is_active", true)
       .order("name", { ascending: true });
 
-    const activeDepartments = (departmentsData ?? []) as Array<{ id: string; name: string; description?: string | null }>;
+    const activeDepartments = (departmentsData ?? []) as Array<{ id: string; name: string; code?: string | null; description?: string | null }>;
     const departmentNames = activeDepartments.map((d) => d.name);
 
     // 5. Download image data if available

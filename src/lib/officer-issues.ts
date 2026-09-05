@@ -142,111 +142,68 @@ export type DepartmentRecommendation = {
   reason: string;
 };
 
-export function getAiDepartmentRecommendations(issue: {
-  title: string;
-  description: string;
-  category: string;
-}): DepartmentRecommendation[] {
+export function getAiDepartmentRecommendations(
+  issue: {
+    title: string;
+    description: string;
+    category: string;
+  },
+  activeDepartments: OfficerDepartmentRow[] = [],
+): DepartmentRecommendation[] {
+  if (activeDepartments.length === 0) {
+    return [];
+  }
+
   const text = `${issue.title} ${issue.description} ${issue.category}`.toLowerCase();
+  const words = text
+    .split(/[\s,._\-/]+/)
+    .map((w) => w.trim())
+    .filter((w) => w.length > 2);
+
   const recommendations: DepartmentRecommendation[] = [];
 
-  // Road & Infrastructure
-  if (text.includes("pothole") || text.includes("road") || text.includes("footpath") || text.includes("pavement") || text.includes("bridge") || text.includes("asphalt")) {
-    recommendations.push({
-      departmentName: "Road & Infrastructure",
-      confidence: 0.98,
-      reason: "Surface degradation, road crater, or pedestrian walkway defect identified.",
-    });
-  }
+  for (const dept of activeDepartments) {
+    if (!dept.is_active) continue;
 
-  // Water Supply & Sewerage
-  if (text.includes("water") || text.includes("leak") || text.includes("pipe") || text.includes("sewage") || text.includes("sewer") || text.includes("pipeline") || text.includes("tap")) {
-    recommendations.push({
-      departmentName: "Water Supply & Sewerage",
-      confidence: text.includes("pothole") ? 0.92 : 0.97,
-      reason: "Water pipe rupture, supply leakage, or sewage overflow detected.",
-    });
-  }
+    const deptNameClean = dept.name.toLowerCase();
+    const deptDescClean = (dept.description || "").toLowerCase();
+    const deptCodeClean = (dept.code || "").toLowerCase().replace(/_/g, " ");
 
-  // Stormwater & Flood Management
-  if (text.includes("flood") || text.includes("accumulation") || text.includes("drain") || text.includes("culvert") || text.includes("waterlogging") || text.includes("gutter")) {
-    recommendations.push({
-      departmentName: "Stormwater & Flood Management",
-      confidence: 0.65,
-      reason: "Stormwater accumulation or storm runoff drainage blockage suspected.",
-    });
-  }
+    let score = 0;
+    const matchReasons: string[] = [];
 
-  // Waste Management
-  if (text.includes("garbage") || text.includes("trash") || text.includes("waste") || text.includes("dump") || text.includes("litter") || text.includes("debris")) {
-    recommendations.push({
-      departmentName: "Waste Management",
-      confidence: 0.96,
-      reason: "Accumulated uncollected solid waste or public dumping ground reported.",
-    });
-  }
+    // Exact or strong substring match
+    if (text.includes(deptNameClean)) {
+      score += 0.9;
+      matchReasons.push(`matches "${dept.name}"`);
+    }
 
-  // Electricity & Street Lighting
-  if (text.includes("light") || text.includes("lamp") || text.includes("dark") || text.includes("wire") || text.includes("pole") || text.includes("electricity") || text.includes("power")) {
-    recommendations.push({
-      departmentName: "Electricity & Street Lighting",
-      confidence: 0.95,
-      reason: "Faulty public luminaire, exposed live cabling, or pole defect identified.",
-    });
-  }
+    // Keyword & description token matches
+    const deptTokens = `${deptNameClean} ${deptCodeClean} ${deptDescClean}`
+      .split(/[\s,._\-/]+/)
+      .map((w) => w.trim())
+      .filter((w) => w.length > 2);
 
-  // Parks & Horticulture
-  if (text.includes("tree") || text.includes("branch") || text.includes("park") || text.includes("garden") || text.includes("plant") || text.includes("lawn")) {
-    recommendations.push({
-      departmentName: "Parks & Horticulture",
-      confidence: 0.91,
-      reason: "Fallen tree limbs, public park upkeep, or overgrown roadside greenery.",
-    });
-  }
+    for (const w of words) {
+      if (deptTokens.includes(w)) {
+        score += 0.3;
+        if (matchReasons.length === 0) {
+          matchReasons.push(`related keyword "${w}"`);
+        }
+      }
+    }
 
-  // Public Health & Sanitation
-  if (text.includes("mosquito") || text.includes("sanitation") || text.includes("hygiene") || text.includes("smell") || text.includes("odor") || text.includes("toilet") || text.includes("pest")) {
-    recommendations.push({
-      departmentName: "Public Health & Sanitation",
-      confidence: 0.89,
-      reason: "Sanitary health risk, vector infestation, or bio-hazard condition.",
-    });
-  }
-
-  // Traffic & Transport
-  if (text.includes("traffic") || text.includes("signal") || text.includes("sign") || text.includes("zebra") || text.includes("crossing") || text.includes("divider")) {
-    recommendations.push({
-      departmentName: "Traffic & Transport",
-      confidence: 0.93,
-      reason: "Traffic signal malfunction, damaged transit signage, or lane divider issue.",
-    });
-  }
-
-  // Animal Control
-  if (text.includes("dog") || text.includes("animal") || text.includes("cow") || text.includes("cat") || text.includes("stray") || text.includes("bitten") || text.includes("rabies")) {
-    recommendations.push({
-      departmentName: "Animal Control",
-      confidence: 0.94,
-      reason: "Stray animal menace, injured fauna, or public safety intervention needed.",
-    });
-  }
-
-  // Building & Urban Planning
-  if (text.includes("building") || text.includes("wall") || text.includes("encroach") || text.includes("crack") || text.includes("collapse") || text.includes("structure")) {
-    recommendations.push({
-      departmentName: "Building & Urban Planning",
-      confidence: 0.86,
-      reason: "Structural hazard or unauthorized municipal space encroachment.",
-    });
-  }
-
-  // If no recommendations matched, default to category-based recommendation
-  if (recommendations.length === 0) {
-    recommendations.push({
-      departmentName: "Public Works",
-      confidence: 0.75,
-      reason: "General municipal civil maintenance required.",
-    });
+    if (score > 0) {
+      const confidence = Math.min(0.98, Math.max(0.6, Number(score.toFixed(2))));
+      recommendations.push({
+        departmentName: dept.name,
+        confidence,
+        reason:
+          matchReasons.length > 0
+            ? `Relevant to ${dept.name} (${matchReasons.join(", ")}) based on report content.`
+            : `Keyword match for ${dept.name}.`,
+      });
+    }
   }
 
   return recommendations.sort((a, b) => b.confidence - a.confidence);
