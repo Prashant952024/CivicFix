@@ -51,7 +51,7 @@ type DepartmentRow = Pick<Database["public"]["Tables"]["departments"]["Row"], "i
 type IssueRow = Pick<Database["public"]["Tables"]["issues"]["Row"], "id" | "reporter_profile_id" | "updated_at">;
 type AssignmentRow = Pick<Database["public"]["Tables"]["issue_assignments"]["Row"], "id" | "worker_id" | "department_id" | "status" | "unassigned_at">;
 
-type ManagedRoleCode = "MUNICIPAL_OFFICER" | "DEPARTMENT_MANAGER" | "FIELD_WORKER";
+type ManagedRoleCode = "MUNICIPAL_OFFICER" | "DEPARTMENT_MANAGER" | "FIELD_WORKER" | "INNOVATION_MANAGER";
 type WizardStep = 1 | 2 | 3 | 4;
 
 type CreateUserFormState = {
@@ -89,7 +89,7 @@ type UserRecord = ProfileRow & {
 };
 
 const PAGE_SIZE = 10;
-type RoleFilter = "all" | "CITIZEN" | "MUNICIPAL_OFFICER" | "DEPARTMENT_MANAGER" | "FIELD_WORKER" | "ADMIN";
+type RoleFilter = "all" | "CITIZEN" | "MUNICIPAL_OFFICER" | "DEPARTMENT_MANAGER" | "FIELD_WORKER" | "ADMIN" | "INNOVATION_MANAGER";
 type StatusFilter = "all" | "active" | "inactive";
 
 const DEFAULT_CREATE_FORM: CreateUserFormState = {
@@ -107,6 +107,7 @@ const DEFAULT_CREATE_FORM: CreateUserFormState = {
 
 function getSuggestedPrefix(roleCode: ManagedRoleCode, departmentName?: string | null): string {
   if (roleCode === "MUNICIPAL_OFFICER") return "municipal-officer";
+  if (roleCode === "INNOVATION_MANAGER") return "innovation-manager";
   if (roleCode === "DEPARTMENT_MANAGER") {
     if (departmentName) {
       const norm = departmentName.toLowerCase();
@@ -328,7 +329,8 @@ export function AdminUsersPage() {
         (role) =>
           role.code === "MUNICIPAL_OFFICER" ||
           role.code === "DEPARTMENT_MANAGER" ||
-          role.code === "FIELD_WORKER",
+          role.code === "FIELD_WORKER" ||
+          role.code === "INNOVATION_MANAGER",
       ),
     [roles],
   );
@@ -987,6 +989,7 @@ export function AdminUsersPage() {
                 <option value="MUNICIPAL_OFFICER">Municipal Officer</option>
                 <option value="DEPARTMENT_MANAGER">Department Manager</option>
                 <option value="FIELD_WORKER">Field Worker</option>
+                <option value="INNOVATION_MANAGER">Innovation Manager</option>
                 <option value="ADMIN">Admin</option>
               </select>
 
@@ -1100,6 +1103,7 @@ export function AdminUsersPage() {
               <option value="MUNICIPAL_OFFICER">Municipal Officer</option>
               <option value="DEPARTMENT_MANAGER">Department Manager</option>
               <option value="FIELD_WORKER">Field Worker</option>
+              <option value="INNOVATION_MANAGER">Innovation Manager</option>
               <option value="ADMIN">Admin</option>
             </select>
           </div>
@@ -1705,11 +1709,12 @@ export function AdminUsersPage() {
                 <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground block">
                   Staff Role <span className="text-destructive">*</span>
                 </label>
-                <div className="grid gap-2 sm:grid-cols-3">
+                <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
                   {[
                     { code: "FIELD_WORKER" as const, name: "Field Worker", desc: "Executes repairs & evidence" },
                     { code: "DEPARTMENT_MANAGER" as const, name: "Dept Manager", desc: "Manages department crew" },
                     { code: "MUNICIPAL_OFFICER" as const, name: "Municipal Officer", desc: "Triage & routes issues" },
+                    { code: "INNOVATION_MANAGER" as const, name: "Innovation Manager", desc: "Oversees complex challenges" },
                   ].map((r) => (
                     <button
                       key={r.code}
@@ -1732,16 +1737,16 @@ export function AdminUsersPage() {
               <div className="space-y-1.5">
                 <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground block">
                   Assigned Municipal Department{" "}
-                  {createForm.roleCode !== "MUNICIPAL_OFFICER" ? (
+                  {createForm.roleCode !== "MUNICIPAL_OFFICER" && createForm.roleCode !== "INNOVATION_MANAGER" ? (
                     <span className="text-destructive">*</span>
                   ) : (
-                    <span className="text-muted-foreground font-normal">(Optional for Officer)</span>
+                    <span className="text-muted-foreground font-normal">(Optional for Officer / Innovation)</span>
                   )}
                 </label>
                 <select
                   className="w-full rounded-xl border border-border/80 bg-background px-3.5 py-2.5 text-sm text-foreground outline-none focus:border-primary/50 focus:ring-2 focus:ring-primary/20"
                   onChange={(e) => handleRoleOrDeptChange(createForm.roleCode, e.target.value)}
-                  required={createForm.roleCode !== "MUNICIPAL_OFFICER"}
+                  required={createForm.roleCode !== "MUNICIPAL_OFFICER" && createForm.roleCode !== "INNOVATION_MANAGER"}
                   value={createForm.departmentId}
                 >
                   <option value="">Select Department...</option>

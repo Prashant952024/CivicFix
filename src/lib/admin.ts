@@ -12,6 +12,7 @@ const ROLE_TONES: Record<AdminRoleCode, "default" | "success" | "warning" | "dan
   DEPARTMENT_MANAGER: "info",
   FIELD_WORKER: "danger",
   ADMIN: "success",
+  INNOVATION_MANAGER: "info",
 };
 
 const PRIORITY_TONES: Record<AdminIssuePriority, "default" | "success" | "warning" | "danger" | "info"> = {
@@ -42,6 +43,8 @@ export function getAdminRoleLabel(roleCode: AdminRoleCode) {
       return "Field Worker";
     case "ADMIN":
       return "Admin";
+    case "INNOVATION_MANAGER":
+      return "Innovation Manager";
     case "CITIZEN":
     default:
       return "Citizen";

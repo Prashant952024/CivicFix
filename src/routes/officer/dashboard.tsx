@@ -113,6 +113,7 @@ export function OfficerDashboardPage() {
       (issue) =>
         issue.status === "SUBMITTED" ||
         issue.status === "AI_ANALYZED" ||
+        issue.status === "CLASSIFIED_SIMPLE" ||
         issue.status === "VERIFIED",
     ).length;
     const assignedIssues = countStatus(issues, ["ASSIGNED"]);
@@ -138,8 +139,12 @@ export function OfficerDashboardPage() {
       underReviewIssues,
       resolvedIssues,
       multiDeptCount,
+      activeAssignments: deptAssignments.filter(
+        (da) => da.status === "ASSIGNED" || da.status === "IN_PROGRESS" || da.status === "UNDER_REVIEW",
+      ).length,
+      totalDepartments: departmentsList.length,
     };
-  }, [issues, deptAssignments]);
+  }, [issues, deptAssignments, departmentsList]);
 
   const departmentWorkloads = useMemo(() => {
     const activeAssignments = deptAssignments.filter(
@@ -164,6 +169,7 @@ export function OfficerDashboardPage() {
       .filter((issue) =>
         issue.status === "SUBMITTED" ||
         issue.status === "AI_ANALYZED" ||
+        issue.status === "CLASSIFIED_SIMPLE" ||
         issue.status === "UNDER_REVIEW" ||
         issue.status === "REOPENED" ||
         issue.priority === "URGENT",
@@ -313,7 +319,7 @@ export function OfficerDashboardPage() {
               const location = issue.address_text?.trim() || issue.location_text?.trim();
 
               const actionHint =
-                issue.status === "SUBMITTED" || issue.status === "AI_ANALYZED"
+                issue.status === "SUBMITTED" || issue.status === "AI_ANALYZED" || issue.status === "CLASSIFIED_SIMPLE"
                   ? "Verify Complaint"
                   : issue.status === "UNDER_REVIEW"
                     ? "Review Resolution Proof"

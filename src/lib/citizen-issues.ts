@@ -23,6 +23,9 @@ export type CitizenIssueHistoryRow = Database["public"]["Tables"]["issue_status_
 const ISSUE_STATUS_LABELS: Record<CitizenIssueStatus, string> = {
   SUBMITTED: "Pending",
   AI_ANALYZED: "Pending",
+  AWAITING_ADMIN_CLASSIFICATION: "Pending Classification",
+  CLASSIFIED_SIMPLE: "Classified (Simple)",
+  CLASSIFIED_COMPLEX: "Complex Challenge",
   UNDER_REVIEW: "Pending",
   VERIFIED: "Verified",
   REJECTED: "Rejected",
@@ -37,6 +40,9 @@ const ISSUE_STATUS_LABELS: Record<CitizenIssueStatus, string> = {
 const ISSUE_STATUS_TONES: Record<CitizenIssueStatus, "default" | "success" | "warning" | "danger" | "info"> = {
   SUBMITTED: "warning",
   AI_ANALYZED: "warning",
+  AWAITING_ADMIN_CLASSIFICATION: "warning",
+  CLASSIFIED_SIMPLE: "info",
+  CLASSIFIED_COMPLEX: "info",
   UNDER_REVIEW: "warning",
   VERIFIED: "info",
   REJECTED: "danger",
@@ -51,6 +57,9 @@ const ISSUE_STATUS_TONES: Record<CitizenIssueStatus, "default" | "success" | "wa
 const ISSUE_STATUS_BUCKETS: Partial<Record<CitizenIssueStatus, "pending" | "inProgress" | "resolved">> = {
   SUBMITTED: "pending",
   AI_ANALYZED: "pending",
+  AWAITING_ADMIN_CLASSIFICATION: "pending",
+  CLASSIFIED_SIMPLE: "pending",
+  CLASSIFIED_COMPLEX: "pending",
   UNDER_REVIEW: "pending",
   VERIFIED: "pending",
   ASSIGNED: "inProgress",
@@ -64,15 +73,18 @@ const ISSUE_STATUS_BUCKETS: Partial<Record<CitizenIssueStatus, "pending" | "inPr
 const ISSUE_STATUS_ORDER: Record<CitizenIssueStatus, number> = {
   SUBMITTED: 0,
   AI_ANALYZED: 1,
-  UNDER_REVIEW: 2,
-  VERIFIED: 3,
-  REJECTED: 4,
-  ASSIGNED: 5,
-  IN_PROGRESS: 6,
-  PARTIALLY_COMPLETED: 7,
-  RESOLVED: 8,
-  CITIZEN_VERIFIED: 9,
-  REOPENED: 10,
+  AWAITING_ADMIN_CLASSIFICATION: 2,
+  CLASSIFIED_SIMPLE: 3,
+  CLASSIFIED_COMPLEX: 4,
+  UNDER_REVIEW: 5,
+  VERIFIED: 6,
+  REJECTED: 7,
+  ASSIGNED: 8,
+  IN_PROGRESS: 9,
+  PARTIALLY_COMPLETED: 10,
+  RESOLVED: 11,
+  CITIZEN_VERIFIED: 12,
+  REOPENED: 13,
 };
 
 const ISSUE_PRIORITY_LABELS: Record<CitizenIssuePriority, string> = {
@@ -118,6 +130,9 @@ export function getCitizenIssueStatusFilterBucket(status: CitizenIssueStatus): E
   switch (status) {
     case "SUBMITTED":
     case "AI_ANALYZED":
+    case "AWAITING_ADMIN_CLASSIFICATION":
+    case "CLASSIFIED_SIMPLE":
+    case "CLASSIFIED_COMPLEX":
     case "UNDER_REVIEW":
       return "pending";
     case "VERIFIED":

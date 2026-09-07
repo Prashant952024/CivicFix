@@ -8,6 +8,8 @@ import {
   ClipboardList,
   LayoutDashboard,
   MapPinned,
+  Rocket,
+  ShieldCheck,
   SquarePen,
   UsersRound,
   X,
@@ -34,7 +36,9 @@ type NavIconKey =
   | "analytics"
   | "activity"
   | "users"
-  | "departments";
+  | "departments"
+  | "classification"
+  | "challenges";
 
 const navIcons: Record<NavIconKey, ComponentType<{ className?: string; "aria-hidden"?: boolean }>> = {
   dashboard: LayoutDashboard,
@@ -47,10 +51,14 @@ const navIcons: Record<NavIconKey, ComponentType<{ className?: string; "aria-hid
   activity: Activity,
   users: UsersRound,
   departments: Building2,
+  classification: ShieldCheck,
+  challenges: Rocket,
 };
 
 function getNavIcon(item: CivicFixRoleNavItem) {
   const lowered = item.path.toLowerCase();
+  if (lowered.includes("classification")) return navIcons.classification;
+  if (lowered.includes("challenge")) return navIcons.challenges;
   if (lowered.includes("report")) return navIcons.report;
   if (lowered.includes("assigned")) return navIcons.assigned;
   if (lowered.includes("notification")) return navIcons.notifications;
@@ -59,7 +67,13 @@ function getNavIcon(item: CivicFixRoleNavItem) {
   if (lowered.includes("analytic")) return navIcons.analytics;
   if (lowered.includes("user")) return navIcons.users;
   if (lowered.includes("department")) return navIcons.departments;
-  if (lowered.endsWith("/citizen") || lowered.endsWith("/officer") || lowered.endsWith("/worker") || lowered.endsWith("/admin")) {
+  if (
+    lowered.endsWith("/citizen") ||
+    lowered.endsWith("/officer") ||
+    lowered.endsWith("/worker") ||
+    lowered.endsWith("/admin") ||
+    lowered.endsWith("/innovation")
+  ) {
     return navIcons.dashboard;
   }
   return navIcons.issues;

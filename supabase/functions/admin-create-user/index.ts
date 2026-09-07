@@ -3,7 +3,7 @@
 import { createClerkClient } from "npm:@clerk/backend";
 import { createClient } from "npm:@supabase/supabase-js";
 
-const ALLOWED_ROLE_CODES = new Set(["MUNICIPAL_OFFICER", "FIELD_WORKER", "DEPARTMENT_MANAGER"] as const);
+const ALLOWED_ROLE_CODES = new Set(["MUNICIPAL_OFFICER", "FIELD_WORKER", "DEPARTMENT_MANAGER", "INNOVATION_MANAGER"] as const);
 
 type CreateUserBody = {
   fullName?: string;
@@ -323,7 +323,12 @@ Deno.serve(async (request: Request) => {
     .eq("clerk_user_id", currentUserId)
     .maybeSingle();
 
-  if (profileErr || !adminProfile || adminProfile.role?.code !== "ADMIN") {
+  const adminRoleRaw = adminProfile?.role as unknown;
+  const roleCodeVal = Array.isArray(adminRoleRaw)
+    ? (adminRoleRaw[0] as { code?: string } | undefined)?.code
+    : (adminRoleRaw as { code?: string } | null)?.code;
+
+  if (profileErr || !adminProfile || roleCodeVal !== "ADMIN") {
     return json(403, { error: "Admin access required to create staff accounts." }, origin);
   }
 

@@ -1,5 +1,16 @@
 export type Json = string | number | boolean | null | { [key: string]: Json | undefined } | Json[];
 
+export interface ComplexityFactors {
+  systemic_problem?: boolean;
+  recurring_problem?: boolean;
+  multi_domain?: boolean;
+  research_required?: boolean;
+  technology_potential?: boolean;
+  large_scale_impact?: boolean;
+  multiple_stakeholders?: boolean;
+  existing_municipal_solution?: boolean;
+}
+
 export interface Database {
   public: {
     Tables: {
@@ -156,6 +167,16 @@ export interface Database {
           address_text: string | null;
           department_id: string | null;
           resolved_at: string | null;
+          ai_issue_type: "SIMPLE" | "COMPLEX" | null;
+          ai_complexity_score: number | null;
+          ai_complexity_reasoning: string | null;
+          ai_required_expertise: string[];
+          ai_classification_confidence: number | null;
+          ai_complexity_factors?: ComplexityFactors | null;
+          final_issue_type: "SIMPLE" | "COMPLEX" | null;
+          classification_decided_by: string | null;
+          classification_decided_at: string | null;
+          classification_override_reason: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -174,6 +195,16 @@ export interface Database {
           address_text?: string | null;
           department_id?: string | null;
           resolved_at?: string | null;
+          ai_issue_type?: "SIMPLE" | "COMPLEX" | null;
+          ai_complexity_score?: number | null;
+          ai_complexity_reasoning?: string | null;
+          ai_required_expertise?: string[];
+          ai_classification_confidence?: number | null;
+          ai_complexity_factors?: ComplexityFactors | null;
+          final_issue_type?: "SIMPLE" | "COMPLEX" | null;
+          classification_decided_by?: string | null;
+          classification_decided_at?: string | null;
+          classification_override_reason?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -192,6 +223,16 @@ export interface Database {
           address_text?: string | null;
           department_id?: string | null;
           resolved_at?: string | null;
+          ai_issue_type?: "SIMPLE" | "COMPLEX" | null;
+          ai_complexity_score?: number | null;
+          ai_complexity_reasoning?: string | null;
+          ai_required_expertise?: string[];
+          ai_classification_confidence?: number | null;
+          ai_complexity_factors?: ComplexityFactors | null;
+          final_issue_type?: "SIMPLE" | "COMPLEX" | null;
+          classification_decided_by?: string | null;
+          classification_decided_at?: string | null;
+          classification_override_reason?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -206,6 +247,13 @@ export interface Database {
           {
             foreignKeyName: "issues_reporter_profile_id_fkey";
             columns: ["reporter_profile_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "issues_classification_decided_by_fkey";
+            columns: ["classification_decided_by"];
             isOneToOne: false;
             referencedRelation: "profiles";
             referencedColumns: ["id"];
@@ -267,7 +315,14 @@ export interface Database {
           severity_recommendation: Database["public"]["Enums"]["issue_severity"] | null;
           priority_recommendation: Database["public"]["Enums"]["issue_priority"] | null;
           department_recommendation: string | null;
+          issue_type?: "SIMPLE" | "COMPLEX" | null;
+          complexity_score?: number | null;
+          complexity_reasoning?: string | null;
+          required_expertise?: string[];
           confidence_score: number | null;
+          classification_confidence?: number | null;
+          complexity_factors?: ComplexityFactors | null;
+          classification_note?: string | null;
           structured_response: Json;
           created_at: string;
         };
@@ -280,7 +335,14 @@ export interface Database {
           severity_recommendation?: Database["public"]["Enums"]["issue_severity"] | null;
           priority_recommendation?: Database["public"]["Enums"]["issue_priority"] | null;
           department_recommendation?: string | null;
+          issue_type?: "SIMPLE" | "COMPLEX" | null;
+          complexity_score?: number | null;
+          complexity_reasoning?: string | null;
+          required_expertise?: string[];
           confidence_score?: number | null;
+          classification_confidence?: number | null;
+          complexity_factors?: ComplexityFactors | null;
+          classification_note?: string | null;
           structured_response?: Json;
           created_at?: string;
         };
@@ -293,7 +355,14 @@ export interface Database {
           severity_recommendation?: Database["public"]["Enums"]["issue_severity"] | null;
           priority_recommendation?: Database["public"]["Enums"]["issue_priority"] | null;
           department_recommendation?: string | null;
+          issue_type?: "SIMPLE" | "COMPLEX" | null;
+          complexity_score?: number | null;
+          complexity_reasoning?: string | null;
+          required_expertise?: string[];
           confidence_score?: number | null;
+          classification_confidence?: number | null;
+          complexity_factors?: ComplexityFactors | null;
+          classification_note?: string | null;
           structured_response?: Json;
           created_at?: string;
         };
@@ -701,6 +770,69 @@ export interface Database {
           },
         ];
       };
+      innovation_challenges: {
+        Row: {
+          id: string;
+          source_issue_id: string;
+          title: string;
+          problem_statement: string;
+          category: string;
+          complexity_score: number | null;
+          required_expertise: string[];
+          affected_population: string | null;
+          geographic_scope: string | null;
+          status: "DRAFT" | "OPEN_FOR_PROPOSALS" | "PILOT_ACTIVE" | "SOLVED" | "ARCHIVED";
+          created_by: string;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          source_issue_id: string;
+          title: string;
+          problem_statement: string;
+          category: string;
+          complexity_score?: number | null;
+          required_expertise?: string[];
+          affected_population?: string | null;
+          geographic_scope?: string | null;
+          status?: "DRAFT" | "OPEN_FOR_PROPOSALS" | "PILOT_ACTIVE" | "SOLVED" | "ARCHIVED";
+          created_by: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          source_issue_id?: string;
+          title?: string;
+          problem_statement?: string;
+          category?: string;
+          complexity_score?: number | null;
+          required_expertise?: string[];
+          affected_population?: string | null;
+          geographic_scope?: string | null;
+          status?: "DRAFT" | "OPEN_FOR_PROPOSALS" | "PILOT_ACTIVE" | "SOLVED" | "ARCHIVED";
+          created_by?: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "innovation_challenges_created_by_fkey";
+            columns: ["created_by"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "innovation_challenges_source_issue_id_fkey";
+            columns: ["source_issue_id"];
+            isOneToOne: false;
+            referencedRelation: "issues";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
     };
     Views: Record<string, never>;
     Functions: Record<string, never>;
@@ -716,6 +848,9 @@ export interface Database {
       issue_status:
         | "SUBMITTED"
         | "AI_ANALYZED"
+        | "AWAITING_ADMIN_CLASSIFICATION"
+        | "CLASSIFIED_SIMPLE"
+        | "CLASSIFIED_COMPLEX"
         | "UNDER_REVIEW"
         | "VERIFIED"
         | "REJECTED"
@@ -726,7 +861,7 @@ export interface Database {
         | "CITIZEN_VERIFIED"
         | "REOPENED";
       notification_type: "STATUS_CHANGE" | "ASSIGNMENT" | "SYSTEM" | "VERIFICATION";
-      role_code: "CITIZEN" | "MUNICIPAL_OFFICER" | "DEPARTMENT_MANAGER" | "FIELD_WORKER" | "ADMIN";
+      role_code: "CITIZEN" | "MUNICIPAL_OFFICER" | "DEPARTMENT_MANAGER" | "FIELD_WORKER" | "ADMIN" | "INNOVATION_MANAGER";
       verification_result: "VERIFIED" | "UNRESOLVED";
     };
     CompositeTypes: Record<string, never>;

@@ -634,7 +634,9 @@ export function OfficerIssueDetailsPage() {
 
   const aiConfidence = confidencePercent(aiAnalysis?.confidence_score);
   const issueIsClosed = issue ? issue.status === "RESOLVED" || issue.status === "CITIZEN_VERIFIED" : false;
-  const canVerifyComplaint = issue ? issue.status === "SUBMITTED" || issue.status === "AI_ANALYZED" : false;
+  const canVerifyComplaint = issue
+    ? issue.status === "SUBMITTED" || issue.status === "AI_ANALYZED" || issue.status === "CLASSIFIED_SIMPLE"
+    : false;
   const allDepartmentsCompleted = useMemo(
     () => departmentAssignments.length > 0 && departmentAssignments.every((da) => da.status === "COMPLETED"),
     [departmentAssignments],
@@ -879,8 +881,8 @@ export function OfficerIssueDetailsPage() {
       }
     }
 
-    // Advance issue status to ASSIGNED if currently in VERIFIED or SUBMITTED or REOPENED
-    if (issue.status === "VERIFIED" || issue.status === "REOPENED" || issue.status === "SUBMITTED") {
+    // Advance issue status to ASSIGNED if currently in VERIFIED or SUBMITTED or REOPENED or CLASSIFIED_SIMPLE
+    if (issue.status === "VERIFIED" || issue.status === "REOPENED" || issue.status === "SUBMITTED" || issue.status === "CLASSIFIED_SIMPLE") {
       const { error: statusError } = await supabase.from("issue_status_history").insert({
         issue_id: issue.id,
         old_status: issue.status,

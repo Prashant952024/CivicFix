@@ -35,14 +35,19 @@ export const civicFixRoleConfigs: Record<CivicFixRoleCode, CivicFixRoleConfig> =
     label: "Admin",
     dashboardPath: "/app/admin",
   },
+  INNOVATION_MANAGER: {
+    code: "INNOVATION_MANAGER",
+    label: "Innovation Manager",
+    dashboardPath: "/app/innovation",
+  },
 };
 
 export function getCivicFixRoleLabel(roleCode: CivicFixRoleCode | null | undefined) {
-  return roleCode ? civicFixRoleConfigs[roleCode].label : "CivicFix User";
+  return roleCode ? civicFixRoleConfigs[roleCode]?.label ?? "CivicFix User" : "CivicFix User";
 }
 
 export function getCivicFixDashboardPath(roleCode: CivicFixRoleCode | null | undefined) {
-  return roleCode ? civicFixRoleConfigs[roleCode].dashboardPath : "/unauthorized";
+  return roleCode ? civicFixRoleConfigs[roleCode]?.dashboardPath ?? "/unauthorized" : "/unauthorized";
 }
 
 export async function loadCivicFixRoleCode(roleId: string) {
@@ -98,11 +103,18 @@ export const civicFixNavItems: Record<CivicFixRoleCode, CivicFixRoleNavItem[]> =
   ],
   ADMIN: [
     { label: "Overview", path: "/app/admin", description: "Command center overview and metrics." },
+    { label: "Classification", path: "/app/admin/classification", description: "Review and route AI-classified issues." },
     { label: "Issues", path: "/app/admin/issues", description: "Platform-wide issue triage and audit." },
     { label: "Users", path: "/app/admin/users", description: "Manage municipal staff and credentials." },
     { label: "Departments", path: "/app/admin/departments", description: "Manage municipal departments." },
     { label: "Analytics", path: "/app/admin/analytics", description: "System throughput and resolution trends." },
     { label: "Activity", path: "/app/admin/activity", description: "Audit log of state transitions." },
     { label: "Notifications", path: "/app/admin/notifications", description: "Administrative alerts and notices." },
+  ],
+  INNOVATION_MANAGER: [
+    { label: "Dashboard", path: "/app/innovation", description: "Innovation command center & metrics." },
+    { label: "Complex Issues", path: "/app/innovation/issues", description: "Review Admin-approved complex problems." },
+    { label: "Challenges", path: "/app/innovation/challenges", description: "Track innovation challenge formulations." },
+    { label: "Notifications", path: "/app/innovation/notifications", description: "Alerts on newly routed challenges." },
   ],
 };
