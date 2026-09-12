@@ -51,6 +51,8 @@ const InnovationDashboardPage = lazy(() => import("@/routes/innovation/dashboard
 const InnovationIssuesPage = lazy(() => import("@/routes/innovation/issues").then((module) => ({ default: module.InnovationIssuesPage })));
 const InnovationIssueDetailsPage = lazy(() => import("@/routes/innovation/issue-details").then((module) => ({ default: module.InnovationIssueDetailsPage })));
 const InnovationChallengesPage = lazy(() => import("@/routes/innovation/challenges").then((module) => ({ default: module.InnovationChallengesPage })));
+const InnovationChallengeDetailsPage = lazy(() => import("@/routes/innovation/challenge-details").then((module) => ({ default: module.InnovationChallengeDetailsPage })));
+const InnovationNotificationsPage = lazy(() => import("@/routes/innovation/notifications").then((module) => ({ default: module.InnovationNotificationsPage })));
 
 const SignupPage = lazy(() => import("@/routes/signup").then((module) => ({ default: module.SignupPage })));
 const UnauthorizedPage = lazy(() => import("@/routes/unauthorized").then((module) => ({ default: module.UnauthorizedPage })));
@@ -294,6 +296,8 @@ export function AppRoutes() {
             <Route path="issues" element={<InnovationIssuesPage />} />
             <Route path="issues/:issueId" element={<InnovationIssueDetailsPage />} />
             <Route path="challenges" element={<InnovationChallengesPage />} />
+            <Route path="challenges/:challengeId" element={<InnovationChallengeDetailsPage />} />
+            <Route path="notifications" element={<InnovationNotificationsPage />} />
           </Route>
 
           {/* Backwards-compatible /app/innovation-manager alias */}

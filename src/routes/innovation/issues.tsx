@@ -183,7 +183,7 @@ export function InnovationIssuesPage() {
                   <div className="flex items-start justify-between gap-2">
                     <div className="space-y-1">
                       <div className="flex items-center gap-2">
-                        <Badge variant="danger" size="sm" className="bg-purple-600 text-[10px]">
+                        <Badge variant="teal" size="sm" className="text-[10px]">
                           COMPLEX
                         </Badge>
                         <span className="text-[11px] text-muted-foreground font-mono">
@@ -199,7 +199,7 @@ export function InnovationIssuesPage() {
 
                     <div className="text-right shrink-0">
                       <span className="text-[10px] uppercase font-mono text-muted-foreground block">Score</span>
-                      <Badge variant="outline" className="font-mono text-purple-700 dark:text-purple-300 font-bold">
+                      <Badge variant="outline" className="font-mono text-teal-800 font-bold">
                         {score}/100
                       </Badge>
                     </div>

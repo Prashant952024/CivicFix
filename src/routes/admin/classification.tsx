@@ -149,44 +149,44 @@ function getComplexityScale(score: number | null | undefined): {
   if (val <= 30) {
     return {
       label: "Strongly Simple",
-      badgeBg: "bg-emerald-500/15 border-emerald-500/30",
-      badgeText: "text-emerald-700 dark:text-emerald-400",
-      progressColor: "bg-emerald-500",
+      badgeBg: "bg-emerald-50 border-emerald-300",
+      badgeText: "text-emerald-950 font-bold",
+      progressColor: "bg-emerald-600",
       description: "Routine localized defect; resolvable by a standard municipal field crew.",
     };
   }
   if (val <= 50) {
     return {
       label: "Likely Simple",
-      badgeBg: "bg-sky-500/15 border-sky-500/30",
-      badgeText: "text-sky-700 dark:text-sky-400",
-      progressColor: "bg-sky-500",
+      badgeBg: "bg-sky-50 border-sky-300",
+      badgeText: "text-sky-950 font-bold",
+      progressColor: "bg-sky-600",
       description: "Moderate civic defect; standard municipal department workflow applicable.",
     };
   }
   if (val <= 65) {
     return {
       label: "Borderline Review",
-      badgeBg: "bg-amber-500/15 border-amber-500/30",
-      badgeText: "text-amber-700 dark:text-amber-400",
-      progressColor: "bg-amber-500",
+      badgeBg: "bg-amber-50 border-amber-300",
+      badgeText: "text-amber-950 font-bold",
+      progressColor: "bg-amber-600",
       description: "Requires close human administrator review to determine operational feasibility.",
     };
   }
   if (val <= 80) {
     return {
       label: "Likely Complex",
-      badgeBg: "bg-purple-500/15 border-purple-500/30",
-      badgeText: "text-purple-700 dark:text-purple-400",
-      progressColor: "bg-purple-500",
+      badgeBg: "bg-teal-50 border-teal-300",
+      badgeText: "text-teal-950 font-bold",
+      progressColor: "bg-teal-600",
       description: "Multi-domain, chronic, or systemic factors require innovation management.",
     };
   }
   return {
     label: "Strongly Complex",
-    badgeBg: "bg-rose-500/15 border-rose-500/30",
-    badgeText: "text-rose-700 dark:text-rose-400",
-    progressColor: "bg-rose-500",
+    badgeBg: "bg-teal-100/90 border-teal-400",
+    badgeText: "text-teal-950 font-extrabold",
+    progressColor: "bg-teal-700",
     description: "Deep systemic, research-driven, or predictive challenge requiring specialized pilot.",
   };
 }
@@ -606,82 +606,86 @@ export function AdminClassificationPage() {
 
       {/* KPI Overview Cards */}
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-        <Card className="border-l-4 border-l-amber-500">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-xs font-medium text-muted-foreground uppercase tracking-wider flex items-center justify-between">
-              <span>Awaiting Review</span>
-              <Clock className="h-3.5 w-3.5 text-amber-500" />
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-amber-600 dark:text-amber-400">
-              {stats.awaitingReview}
+        <div className="flex flex-col justify-between h-28 rounded-2xl border border-amber-200/80 bg-gradient-to-br from-amber-50/80 via-background to-orange-50/40 p-4 shadow-sm hover:shadow-md transition">
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-amber-900">Awaiting Review</span>
+            <div className="p-1.5 rounded-lg bg-amber-100 text-amber-700">
+              <Clock className="h-3.5 w-3.5" />
             </div>
-            <p className="text-[11px] text-muted-foreground mt-0.5">Need Admin authoritative decision</p>
-          </CardContent>
-        </Card>
+          </div>
+          <div className="my-auto">
+            <p className="text-2xl font-black tracking-tight text-amber-950">{stats.awaitingReview}</p>
+          </div>
+          <div className="flex items-center justify-between text-[11px] text-muted-foreground">
+            <span>Needs authoritative action</span>
+            <span className="font-bold text-amber-800">{stats.total > 0 ? Math.round((stats.awaitingReview / stats.total) * 100) : 0}%</span>
+          </div>
+        </div>
 
-        <Card className="border-l-4 border-l-emerald-500">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-xs font-medium text-muted-foreground uppercase tracking-wider flex items-center justify-between">
-              <span>AI Rec: Simple</span>
-              <Wrench className="h-3.5 w-3.5 text-emerald-500" />
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">
-              {stats.aiSimple}
+        <div className="flex flex-col justify-between h-28 rounded-2xl border border-emerald-200/80 bg-gradient-to-br from-emerald-50/80 via-background to-teal-50/40 p-4 shadow-sm hover:shadow-md transition">
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-900">AI Rec: Simple</span>
+            <div className="p-1.5 rounded-lg bg-emerald-100 text-emerald-700">
+              <Wrench className="h-3.5 w-3.5" />
             </div>
-            <p className="text-[11px] text-muted-foreground mt-0.5">Routine municipal maintenance</p>
-          </CardContent>
-        </Card>
+          </div>
+          <div className="my-auto">
+            <p className="text-2xl font-black tracking-tight text-emerald-950">{stats.aiSimple}</p>
+          </div>
+          <div className="flex items-center justify-between text-[11px] text-muted-foreground">
+            <span>Routine municipal fixes</span>
+            <span className="font-bold text-emerald-800">{stats.total > 0 ? Math.round((stats.aiSimple / stats.total) * 100) : 0}%</span>
+          </div>
+        </div>
 
-        <Card className="border-l-4 border-l-purple-500">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-xs font-medium text-muted-foreground uppercase tracking-wider flex items-center justify-between">
-              <span>AI Rec: Complex</span>
-              <Rocket className="h-3.5 w-3.5 text-purple-500" />
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-purple-600 dark:text-purple-400">
-              {stats.aiComplex}
+        <div className="flex flex-col justify-between h-28 rounded-2xl border border-teal-200/80 bg-gradient-to-br from-teal-50/80 via-background to-cyan-50/40 p-4 shadow-sm hover:shadow-md transition">
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-teal-900">AI Rec: Complex</span>
+            <div className="p-1.5 rounded-lg bg-teal-100 text-teal-700">
+              <Rocket className="h-3.5 w-3.5" />
             </div>
-            <p className="text-[11px] text-muted-foreground mt-0.5">Systemic societal challenges</p>
-          </CardContent>
-        </Card>
+          </div>
+          <div className="my-auto">
+            <p className="text-2xl font-black tracking-tight text-teal-950">{stats.aiComplex}</p>
+          </div>
+          <div className="flex items-center justify-between text-[11px] text-muted-foreground">
+            <span>Innovation pipeline</span>
+            <span className="font-bold text-teal-800">{stats.total > 0 ? Math.round((stats.aiComplex / stats.total) * 100) : 0}%</span>
+          </div>
+        </div>
 
-        <Card className="border-l-4 border-l-sky-500">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-xs font-medium text-muted-foreground uppercase tracking-wider flex items-center justify-between">
-              <span>Admin Overrides</span>
-              <ShieldAlert className="h-3.5 w-3.5 text-sky-500" />
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-sky-600 dark:text-sky-400">
-              {stats.overrides}
+        <div className="flex flex-col justify-between h-28 rounded-2xl border border-sky-200/80 bg-gradient-to-br from-sky-50/80 via-background to-blue-50/40 p-4 shadow-sm hover:shadow-md transition">
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-sky-900">Admin Overrides</span>
+            <div className="p-1.5 rounded-lg bg-sky-100 text-sky-700">
+              <ShieldAlert className="h-3.5 w-3.5" />
             </div>
-            <p className="text-[11px] text-muted-foreground mt-0.5">Admin-supervised adjustments</p>
-          </CardContent>
-        </Card>
+          </div>
+          <div className="my-auto">
+            <p className="text-2xl font-black tracking-tight text-sky-950">{stats.overrides}</p>
+          </div>
+          <div className="flex items-center justify-between text-[11px] text-muted-foreground">
+            <span>Governance adjustments</span>
+            <span className="font-bold text-sky-800">{stats.overrides}</span>
+          </div>
+        </div>
       </div>
 
       {/* Filter and Search Bar */}
-      <Card className="p-4 space-y-3">
+      <Card className="p-4 space-y-3 rounded-2xl border border-border/80 shadow-sm">
         <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
           {/* Filter Pills */}
           <div className="flex flex-wrap items-center gap-1.5 text-xs">
-            <span className="text-muted-foreground font-medium flex items-center gap-1 mr-1">
+            <span className="text-muted-foreground font-semibold flex items-center gap-1 mr-1">
               <Filter className="h-3.5 w-3.5" /> Filter:
             </span>
             <button
               type="button"
               onClick={() => setFilterTab("awaiting")}
-              className={`px-2.5 py-1 rounded-full font-medium transition-all ${
+              className={`px-3 py-1 rounded-full text-xs font-semibold transition-all ${
                 filterTab === "awaiting"
-                  ? "bg-amber-500 text-white shadow-sm"
-                  : "bg-muted text-muted-foreground hover:text-foreground"
+                  ? "bg-amber-600 text-white shadow-sm"
+                  : "bg-muted/80 text-muted-foreground hover:text-foreground"
               }`}
             >
               Awaiting Review ({stats.awaitingReview})
@@ -689,10 +693,10 @@ export function AdminClassificationPage() {
             <button
               type="button"
               onClick={() => setFilterTab("all")}
-              className={`px-2.5 py-1 rounded-full font-medium transition-all ${
+              className={`px-3 py-1 rounded-full text-xs font-semibold transition-all ${
                 filterTab === "all"
-                  ? "bg-primary text-primary-foreground shadow-sm"
-                  : "bg-muted text-muted-foreground hover:text-foreground"
+                  ? "bg-teal-700 text-white shadow-sm"
+                  : "bg-muted/80 text-muted-foreground hover:text-foreground"
               }`}
             >
               All ({stats.total})
@@ -700,10 +704,10 @@ export function AdminClassificationPage() {
             <button
               type="button"
               onClick={() => setFilterTab("ai_simple")}
-              className={`px-2.5 py-1 rounded-full font-medium transition-all ${
+              className={`px-3 py-1 rounded-full text-xs font-semibold transition-all ${
                 filterTab === "ai_simple"
                   ? "bg-emerald-600 text-white shadow-sm"
-                  : "bg-muted text-muted-foreground hover:text-foreground"
+                  : "bg-muted/80 text-muted-foreground hover:text-foreground"
               }`}
             >
               AI Simple ({stats.aiSimple})
@@ -711,10 +715,10 @@ export function AdminClassificationPage() {
             <button
               type="button"
               onClick={() => setFilterTab("ai_complex")}
-              className={`px-2.5 py-1 rounded-full font-medium transition-all ${
+              className={`px-3 py-1 rounded-full text-xs font-semibold transition-all ${
                 filterTab === "ai_complex"
-                  ? "bg-purple-600 text-white shadow-sm"
-                  : "bg-muted text-muted-foreground hover:text-foreground"
+                  ? "bg-teal-700 text-white shadow-sm"
+                  : "bg-muted/80 text-muted-foreground hover:text-foreground"
               }`}
             >
               AI Complex ({stats.aiComplex})
@@ -722,10 +726,10 @@ export function AdminClassificationPage() {
             <button
               type="button"
               onClick={() => setFilterTab("high_complexity")}
-              className={`px-2.5 py-1 rounded-full font-medium transition-all ${
+              className={`px-3 py-1 rounded-full text-xs font-semibold transition-all ${
                 filterTab === "high_complexity"
-                  ? "bg-rose-600 text-white shadow-sm"
-                  : "bg-muted text-muted-foreground hover:text-foreground"
+                  ? "bg-teal-900 text-white shadow-sm"
+                  : "bg-muted/80 text-muted-foreground hover:text-foreground"
               }`}
             >
               High Complexity (≥66)
@@ -733,10 +737,10 @@ export function AdminClassificationPage() {
             <button
               type="button"
               onClick={() => setFilterTab("low_confidence")}
-              className={`px-2.5 py-1 rounded-full font-medium transition-all ${
+              className={`px-3 py-1 rounded-full text-xs font-semibold transition-all ${
                 filterTab === "low_confidence"
-                  ? "bg-orange-600 text-white shadow-sm"
-                  : "bg-muted text-muted-foreground hover:text-foreground"
+                  ? "bg-amber-700 text-white shadow-sm"
+                  : "bg-muted/80 text-muted-foreground hover:text-foreground"
               }`}
             >
               Low Confidence (&lt;70%)
@@ -744,10 +748,10 @@ export function AdminClassificationPage() {
             <button
               type="button"
               onClick={() => setFilterTab("overridden")}
-              className={`px-2.5 py-1 rounded-full font-medium transition-all ${
+              className={`px-3 py-1 rounded-full text-xs font-semibold transition-all ${
                 filterTab === "overridden"
-                  ? "bg-sky-600 text-white shadow-sm"
-                  : "bg-muted text-muted-foreground hover:text-foreground"
+                  ? "bg-sky-700 text-white shadow-sm"
+                  : "bg-muted/80 text-muted-foreground hover:text-foreground"
               }`}
             >
               Overridden ({stats.overrides})
@@ -791,19 +795,19 @@ export function AdminClassificationPage() {
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
         {/* Left Column: Issues Queue / Table */}
         <div className="lg:col-span-5 space-y-4">
-          <Card className="overflow-hidden border">
-            <CardHeader className="py-3 px-4 bg-muted/40 border-b flex flex-row items-center justify-between">
-              <div className="font-semibold text-xs text-foreground flex items-center gap-2">
-                <Layers className="h-4 w-4 text-primary" />
+          <Card className="overflow-hidden rounded-2xl border border-border/80 shadow-sm">
+            <CardHeader className="py-3 px-4 bg-muted/40 border-b border-border/70 flex flex-row items-center justify-between">
+              <div className="font-bold text-xs text-foreground flex items-center gap-2">
+                <Layers className="h-4 w-4 text-teal-700" />
                 <span>Classification Queue</span>
-                <Badge variant="outline" size="sm" className="text-[10px]">
+                <Badge variant="outline" size="sm" className="text-[10px] font-bold">
                   {filteredIssues.length}
                 </Badge>
               </div>
-              <span className="text-[11px] text-muted-foreground">Select an issue to govern</span>
+              <span className="text-[11px] text-muted-foreground font-medium">Select an issue to govern</span>
             </CardHeader>
 
-            <div className="divide-y divide-border max-h-[700px] overflow-y-auto">
+            <div className="divide-y divide-border/70 max-h-[700px] overflow-y-auto">
               {loading ? (
                 <div className="p-8 text-center text-xs text-muted-foreground flex flex-col items-center gap-2">
                   <Loader2 className="h-6 w-6 animate-spin text-primary" />
@@ -842,7 +846,7 @@ export function AdminClassificationPage() {
                       onClick={() => handleSelectIssue(issue)}
                       className={`w-full text-left p-3.5 transition-all flex flex-col gap-2 relative ${
                         isSelected
-                          ? "bg-primary/5 border-l-4 border-l-primary shadow-sm"
+                          ? "bg-teal-50/80 border-l-4 border-l-teal-700 shadow-sm"
                           : "hover:bg-muted/40"
                       }`}
                     >
@@ -852,28 +856,28 @@ export function AdminClassificationPage() {
                           <span className="font-mono text-[10px] text-muted-foreground shrink-0">
                             #{issue.id.slice(0, 8)}
                           </span>
-                          <span className="text-[11px] font-semibold text-foreground truncate">
+                          <span className="text-[11px] font-bold text-foreground truncate">
                             {issue.title}
                           </span>
                         </div>
 
                         <div className="flex items-center gap-1.5 shrink-0">
                           {isAwaiting ? (
-                            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-amber-500/15 text-amber-700 dark:text-amber-400 border border-amber-500/30">
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-900 border border-amber-300">
                               <Clock className="h-2.5 w-2.5" /> Awaiting
                             </span>
                           ) : isOverridden ? (
-                            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-sky-500/15 text-sky-700 dark:text-sky-400 border border-sky-500/30">
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold bg-sky-100 text-sky-900 border border-sky-300">
                               Override
                             </span>
                           ) : (
-                            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border border-emerald-500/30">
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-900 border border-emerald-300">
                               Decided
                             </span>
                           )}
 
                           <Badge
-                            variant={itemAiType === "COMPLEX" ? "danger" : "success"}
+                            variant={itemAiType === "COMPLEX" ? "teal" : "emerald"}
                             size="sm"
                             className="text-[10px] uppercase font-bold"
                           >
@@ -960,8 +964,8 @@ export function AdminClassificationPage() {
               ) : null}
 
               {/* 1. CITIZEN PROBLEM INSPECTION CARD */}
-              <Card>
-                <CardHeader className="pb-3 border-b bg-muted/20">
+              <Card className="rounded-2xl border border-border/80 shadow-sm overflow-hidden">
+                <CardHeader className="pb-3 border-b border-border/70 bg-muted/30">
                   <div className="flex items-center justify-between gap-4">
                     <div>
                       <div className="flex items-center gap-2">
@@ -973,10 +977,11 @@ export function AdminClassificationPage() {
                             selectedIssue.status === "AWAITING_ADMIN_CLASSIFICATION"
                               ? "warning"
                               : selectedIssue.final_issue_type === "COMPLEX"
-                              ? "danger"
-                              : "success"
+                              ? "teal"
+                              : "emerald"
                           }
                           size="sm"
+                          className="font-bold text-[10px]"
                         >
                           {getCitizenIssueStatusLabel(selectedIssue.status)}
                         </Badge>
@@ -991,7 +996,7 @@ export function AdminClassificationPage() {
                       {selectedIssue.reporter_profile ? (
                         <div className="flex items-center gap-1 justify-end mt-0.5">
                           <User className="h-3 w-3" />
-                          <span>{selectedIssue.reporter_profile.full_name || "Citizen"}</span>
+                          <span className="font-medium text-foreground">{selectedIssue.reporter_profile.full_name || "Citizen"}</span>
                         </div>
                       ) : null}
                     </div>
@@ -1004,30 +1009,30 @@ export function AdminClassificationPage() {
                     <span className="font-semibold text-muted-foreground block text-[11px] uppercase tracking-wider">
                       Original Citizen Problem Statement
                     </span>
-                    <div className="p-3.5 rounded-xl bg-muted/40 border text-foreground leading-relaxed text-xs">
+                    <div className="p-3.5 rounded-xl bg-muted/40 border border-border/70 text-foreground leading-relaxed text-xs">
                       {selectedIssue.description}
                     </div>
                   </div>
 
                   {/* Metadata Grid */}
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1">
-                    <div className="p-2.5 rounded-lg border bg-card">
+                    <div className="p-2.5 rounded-lg border border-border/70 bg-card">
                       <span className="text-[10px] text-muted-foreground block">Category</span>
                       <span className="font-semibold text-foreground">{selectedIssue.category || "General"}</span>
                     </div>
-                    <div className="p-2.5 rounded-lg border bg-card">
+                    <div className="p-2.5 rounded-lg border border-border/70 bg-card">
                       <span className="text-[10px] text-muted-foreground block">Physical Severity</span>
                       <Badge variant={getOfficerIssueSeverityTone(selectedIssue.severity)} size="sm" className="mt-0.5">
                         {getOfficerIssueSeverityLabel(selectedIssue.severity)}
                       </Badge>
                     </div>
-                    <div className="p-2.5 rounded-lg border bg-card">
+                    <div className="p-2.5 rounded-lg border border-border/70 bg-card">
                       <span className="text-[10px] text-muted-foreground block">Dispatch Priority</span>
                       <Badge variant={getOfficerIssuePriorityTone(selectedIssue.priority)} size="sm" className="mt-0.5">
                         {formatOfficerIssuePriority(selectedIssue.priority)}
                       </Badge>
                     </div>
-                    <div className="p-2.5 rounded-lg border bg-card">
+                    <div className="p-2.5 rounded-lg border border-border/70 bg-card">
                       <span className="text-[10px] text-muted-foreground block">Location</span>
                       <span className="font-medium text-foreground truncate block" title={selectedIssue.address_text || selectedIssue.location_text || ""}>
                         {selectedIssue.address_text || selectedIssue.location_text || "Geo Location"}
@@ -1070,17 +1075,17 @@ export function AdminClassificationPage() {
               </Card>
 
               {/* 2. AI CLASSIFICATION ADVISORY CARD */}
-              <Card className="border-2 border-primary/20 shadow-sm overflow-hidden">
-                <CardHeader className="py-3 px-4 bg-primary/5 border-b border-primary/15 flex flex-row items-center justify-between">
+              <Card className="border-2 border-teal-200/80 rounded-2xl shadow-sm overflow-hidden">
+                <CardHeader className="py-3 px-4 bg-teal-50/70 border-b border-teal-200/80 flex flex-row items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <div className="p-1.5 rounded-lg bg-primary/15 text-primary">
+                    <div className="p-1.5 rounded-lg bg-teal-100 text-teal-800">
                       <Bot className="h-4 w-4" />
                     </div>
                     <div>
-                      <CardTitle className="text-xs font-bold text-foreground uppercase tracking-wider">
+                      <CardTitle className="text-xs font-bold text-teal-950 uppercase tracking-wider">
                         AI Advisory Recommendation
                       </CardTitle>
-                      <p className="text-[10px] text-muted-foreground">
+                      <p className="text-[10px] text-teal-800/80">
                         Gemini 16-Factor Multi-Dimensional Diagnostic
                       </p>
                     </div>
@@ -1088,7 +1093,7 @@ export function AdminClassificationPage() {
 
                   <div className="flex items-center gap-2">
                     <Badge
-                      variant={aiType === "COMPLEX" ? "danger" : "success"}
+                      variant={aiType === "COMPLEX" ? "teal" : "emerald"}
                       size="default"
                       className="font-bold text-xs uppercase px-2.5 py-0.5"
                     >
@@ -1099,7 +1104,7 @@ export function AdminClassificationPage() {
 
                 <CardContent className="space-y-4 pt-4 text-xs">
                   {/* Score & Confidence Metric Box */}
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 p-3.5 rounded-xl border bg-muted/20">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 p-3.5 rounded-xl border border-border/70 bg-muted/20">
                     <div>
                       <div className="text-[10px] font-semibold text-muted-foreground uppercase">
                         Complexity Score
@@ -1144,7 +1149,7 @@ export function AdminClassificationPage() {
 
                   {/* Borderline Case Advisory Note */}
                   {classificationNote ? (
-                    <div className="p-3 rounded-xl border border-amber-300 bg-amber-50 text-amber-900 dark:bg-amber-950/40 dark:text-amber-200 dark:border-amber-800 flex items-start gap-2.5">
+                    <div className="p-3.5 rounded-xl border border-amber-300 bg-amber-50 text-amber-950 flex items-start gap-2.5">
                       <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
                       <div>
                         <span className="font-bold block text-xs">Borderline Classification Note:</span>
@@ -1155,17 +1160,17 @@ export function AdminClassificationPage() {
 
                   {/* Two-Stage Assessment: Underlying Root Cause & Operational Resolvability */}
                   {rootProblemSummary || operationalResolvability ? (
-                    <div className="p-3 rounded-xl border border-primary/20 bg-primary/5 dark:bg-primary/10 space-y-2">
+                    <div className="p-3.5 rounded-xl border border-teal-200 bg-teal-50/40 space-y-2">
                       <div className="flex items-center justify-between">
-                        <span className="font-bold text-[11px] uppercase tracking-wider text-primary flex items-center gap-1.5">
+                        <span className="font-bold text-[11px] uppercase tracking-wider text-teal-900 flex items-center gap-1.5">
                           <SlidersHorizontal className="h-3.5 w-3.5" /> Stage A: Operational Resolvability Assessment
                         </span>
                         {operationalResolvability && (
                           <span
                             className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
                               operationalResolvability.isResolvable
-                                ? "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800"
-                                : "bg-purple-50 text-purple-700 border-purple-200 dark:bg-purple-950/40 dark:text-purple-300 dark:border-purple-800"
+                                ? "bg-emerald-100 text-emerald-900 border-emerald-300"
+                                : "bg-teal-100 text-teal-950 border-teal-300"
                             }`}
                           >
                             {operationalResolvability.isResolvable
@@ -1199,7 +1204,7 @@ export function AdminClassificationPage() {
                     <span className="font-semibold text-muted-foreground block text-[11px] uppercase tracking-wider flex items-center gap-1.5">
                       <FileText className="h-3.5 w-3.5" /> AI Diagnostic Reasoning
                     </span>
-                    <p className="p-3 rounded-lg bg-card border text-foreground leading-relaxed text-xs">
+                    <p className="p-3.5 rounded-xl bg-card border border-border/70 text-foreground leading-relaxed text-xs">
                       {latestAi?.complexity_reasoning ||
                         selectedIssue.ai_complexity_reasoning ||
                         "Standard civic infrastructure maintenance resolvable through routine departmental procedures."}
@@ -1220,7 +1225,7 @@ export function AdminClassificationPage() {
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                       {FACTOR_DEFINITIONS.map((factor) => {
                         const isPresent = Boolean(complexityFactors[factor.key]);
-                        // If factor indicates complexity and is present -> highlight purple
+                        // If factor indicates complexity and is present -> highlight teal
                         // If factor is routine fix and is present -> highlight emerald
                         const isComplexSignal = factor.isFavorableForComplex
                           ? isPresent
@@ -1231,14 +1236,14 @@ export function AdminClassificationPage() {
                             key={factor.key}
                             className={`p-2.5 rounded-lg border text-xs flex items-start gap-2.5 transition-colors ${
                               isComplexSignal
-                                ? "border-purple-200 bg-purple-50/60 dark:bg-purple-950/20 dark:border-purple-900/40"
-                                : "border-border bg-card"
+                                ? "border-teal-300 bg-teal-50/70"
+                                : "border-border/80 bg-card"
                             }`}
                           >
                             <div
                               className={`h-4 w-4 rounded-full flex items-center justify-center shrink-0 mt-0.5 text-[10px] font-bold ${
                                 isPresent
-                                  ? "bg-emerald-500 text-white"
+                                  ? "bg-teal-700 text-white"
                                   : "bg-muted text-muted-foreground"
                               }`}
                             >
@@ -1269,7 +1274,7 @@ export function AdminClassificationPage() {
                         {latestAi.required_expertise.map((exp) => (
                           <span
                             key={exp}
-                            className="inline-flex items-center px-2.5 py-1 rounded-md text-[11px] font-medium bg-purple-100 text-purple-800 dark:bg-purple-950/60 dark:text-purple-300 border border-purple-200 dark:border-purple-800"
+                            className="inline-flex items-center px-2.5 py-1 rounded-md text-[11px] font-semibold bg-teal-50 text-teal-900 border border-teal-200"
                           >
                             {exp}
                           </span>
@@ -1281,10 +1286,10 @@ export function AdminClassificationPage() {
               </Card>
 
               {/* 3. FINAL ADMINISTRATIVE CLASSIFICATION & ROUTING WORKSPACE */}
-              <Card className="border-2 border-amber-500/40 shadow-md">
-                <CardHeader className="py-3.5 px-4 bg-amber-500/10 border-b border-amber-500/20">
-                  <div className="flex items-center gap-2 text-amber-900 dark:text-amber-200 font-bold text-sm">
-                    <ShieldCheck className="h-5 w-5 text-amber-600 dark:text-amber-400" />
+              <Card className="border-2 border-teal-600/30 rounded-2xl shadow-md overflow-hidden">
+                <CardHeader className="py-3.5 px-4 bg-gradient-to-r from-teal-50/90 via-emerald-50/50 to-teal-50/90 border-b border-teal-200/80">
+                  <div className="flex items-center gap-2 text-teal-950 font-bold text-sm">
+                    <ShieldCheck className="h-5 w-5 text-teal-700" />
                     <span>Final Administrative Classification & Routing</span>
                   </div>
                   <p className="text-[11px] text-muted-foreground mt-0.5">
@@ -1301,13 +1306,13 @@ export function AdminClassificationPage() {
                       onClick={() => setDecisionType("SIMPLE")}
                       className={`p-4 rounded-xl border-2 text-left transition-all relative ${
                         decisionType === "SIMPLE"
-                          ? "border-emerald-600 bg-emerald-500/10 shadow-sm"
-                          : "border-border hover:border-muted-foreground/40 bg-card"
+                          ? "border-emerald-600 bg-emerald-50/70 shadow-sm ring-1 ring-emerald-600/20"
+                          : "border-border/80 hover:border-muted-foreground/40 bg-card"
                       }`}
                     >
                       <div className="flex items-center justify-between mb-2">
-                        <span className="font-bold text-sm text-foreground flex items-center gap-2">
-                          <Wrench className="h-4 w-4 text-emerald-600" />
+                        <span className="font-bold text-sm text-emerald-950 flex items-center gap-2">
+                          <Wrench className="h-4 w-4 text-emerald-700" />
                           SIMPLE
                         </span>
                         <div
@@ -1331,19 +1336,19 @@ export function AdminClassificationPage() {
                       onClick={() => setDecisionType("COMPLEX")}
                       className={`p-4 rounded-xl border-2 text-left transition-all relative ${
                         decisionType === "COMPLEX"
-                          ? "border-purple-600 bg-purple-500/10 shadow-sm"
-                          : "border-border hover:border-muted-foreground/40 bg-card"
+                          ? "border-teal-700 bg-teal-50/70 shadow-sm ring-1 ring-teal-700/20"
+                          : "border-border/80 hover:border-muted-foreground/40 bg-card"
                       }`}
                     >
                       <div className="flex items-center justify-between mb-2">
-                        <span className="font-bold text-sm text-foreground flex items-center gap-2">
-                          <Rocket className="h-4 w-4 text-purple-600" />
+                        <span className="font-bold text-sm text-teal-950 flex items-center gap-2">
+                          <Rocket className="h-4 w-4 text-teal-700" />
                           COMPLEX
                         </span>
                         <div
                           className={`h-4 w-4 rounded-full border-2 flex items-center justify-center ${
                             decisionType === "COMPLEX"
-                              ? "border-purple-600 bg-purple-600 text-white"
+                              ? "border-teal-700 bg-teal-700 text-white"
                               : "border-muted-foreground/40"
                           }`}
                         >
@@ -1357,8 +1362,8 @@ export function AdminClassificationPage() {
                   </div>
 
                   {/* Dynamic Decision Preview */}
-                  <div className="p-3.5 rounded-xl border bg-muted/30 flex items-start gap-3">
-                    <ArrowRight className="h-4 w-4 text-primary shrink-0 mt-0.5" />
+                  <div className="p-3.5 rounded-xl border border-teal-200/80 bg-teal-50/30 flex items-start gap-3">
+                    <ArrowRight className="h-4 w-4 text-teal-700 shrink-0 mt-0.5" />
                     <div>
                       <div className="font-bold text-xs text-foreground">
                         Next Destination: {decisionType === "SIMPLE" ? "Municipal Officer Triage Queue" : "Innovation Manager Command Center"}
@@ -1373,12 +1378,12 @@ export function AdminClassificationPage() {
 
                   {/* Override Warning & Required Justification */}
                   {isOverride ? (
-                    <div className="p-4 rounded-xl border border-amber-300 bg-amber-500/10 space-y-2.5 animate-in fade-in-50">
-                      <div className="flex items-center gap-2 text-amber-900 dark:text-amber-200 font-bold text-xs">
-                        <AlertTriangle className="h-4 w-4 text-amber-600" />
+                    <div className="p-4 rounded-xl border border-amber-300 bg-amber-50/90 space-y-2.5 animate-in fade-in-50">
+                      <div className="flex items-center gap-2 text-amber-950 font-bold text-xs">
+                        <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0" />
                         <span>Administrative Override Detected (AI Recommended {aiType})</span>
                       </div>
-                      <p className="text-[11px] text-muted-foreground">
+                      <p className="text-[11px] text-amber-900/80 leading-relaxed">
                         You are departing from the AI recommendation. Please provide a clear audit justification for this governance decision.
                       </p>
 
@@ -1390,7 +1395,7 @@ export function AdminClassificationPage() {
                           rows={3}
                           value={overrideReason}
                           onChange={(e) => setOverrideReason(e.target.value)}
-                          className="w-full text-xs p-2.5 rounded-lg border border-amber-300 dark:border-amber-800 bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                          className="w-full text-xs p-2.5 rounded-lg border border-amber-300 bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-amber-500"
                           placeholder="e.g. Existing municipal agricultural extension program has established workflow to resolve this localized issue without a new innovation project..."
                         />
                         {overrideReason.trim().length > 0 && overrideReason.trim().length < 10 ? (
@@ -1404,7 +1409,7 @@ export function AdminClassificationPage() {
 
                   {/* Current Audit Record (if previously decided) */}
                   {selectedIssue.final_issue_type ? (
-                    <div className="p-3 rounded-lg border bg-muted/20 text-[11px] space-y-1">
+                    <div className="p-3 rounded-xl border border-border/70 bg-muted/20 text-[11px] space-y-1">
                       <div className="font-semibold text-foreground flex items-center justify-between">
                         <span>Current Active Decision: {selectedIssue.final_issue_type}</span>
                         <span className="text-muted-foreground text-[10px]">
@@ -1419,7 +1424,7 @@ export function AdminClassificationPage() {
                         </div>
                       ) : null}
                       {selectedIssue.classification_override_reason ? (
-                        <div className="text-amber-800 dark:text-amber-300 italic pt-0.5">
+                        <div className="text-amber-900 italic pt-0.5">
                           Override Note: {selectedIssue.classification_override_reason}
                         </div>
                       ) : null}
@@ -1443,8 +1448,8 @@ export function AdminClassificationPage() {
 
               {/* 4. AUDIT TIMELINE (GOVERNANCE HISTORY) */}
               {selectedIssue.issue_status_history && selectedIssue.issue_status_history.length > 0 ? (
-                <Card>
-                  <CardHeader className="py-3 px-4 border-b bg-muted/20 flex flex-row items-center justify-between">
+                <Card className="rounded-2xl border border-border/80 shadow-sm overflow-hidden">
+                  <CardHeader className="py-3 px-4 border-b border-border/70 bg-muted/30 flex flex-row items-center justify-between">
                     <CardTitle className="text-xs font-bold text-foreground flex items-center gap-2">
                       <History className="h-3.5 w-3.5 text-muted-foreground" />
                       <span>Governance Audit Trail</span>
@@ -1508,31 +1513,38 @@ export function AdminClassificationPage() {
           maxWidth="md"
         >
           <div className="space-y-4 pt-2 text-xs">
-            <div className="p-3 bg-muted rounded-lg space-y-1">
-              <p className="font-semibold text-foreground">{selectedIssue.title}</p>
-              <p className="text-muted-foreground font-mono text-[11px]">ID: {selectedIssue.id}</p>
+            <div className="p-3 border border-border/70 rounded-xl bg-muted/20 space-y-1">
+              <span className="font-mono text-[10px] text-muted-foreground block">
+                ID: {selectedIssue.id}
+              </span>
+              <span className="font-bold text-foreground text-sm block">
+                {selectedIssue.title}
+              </span>
+              <span className="text-muted-foreground block text-[11px]">
+                {selectedIssue.category} • {selectedIssue.address_text || selectedIssue.location_text || "Geo Location"}
+              </span>
             </div>
 
             <div className="grid grid-cols-2 gap-2 text-xs">
-              <div className="p-2.5 border rounded-lg bg-card">
+              <div className="p-2.5 border border-border/80 rounded-lg bg-card">
                 <span className="text-muted-foreground block text-[10px] uppercase font-medium">
                   AI Recommendation
                 </span>
-                <Badge variant={aiType === "COMPLEX" ? "danger" : "success"} size="sm" className="mt-1">
+                <Badge variant={aiType === "COMPLEX" ? "teal" : "emerald"} size="sm" className="mt-1 font-bold">
                   {aiType} ({complexityScore}/100)
                 </Badge>
               </div>
-              <div className="p-2.5 border rounded-lg bg-primary/5">
+              <div className="p-2.5 border border-border/80 rounded-lg bg-teal-50/40">
                 <span className="text-muted-foreground block text-[10px] uppercase font-medium">
                   Admin Final Decision
                 </span>
-                <Badge variant={decisionType === "COMPLEX" ? "danger" : "success"} size="sm" className="mt-1">
+                <Badge variant={decisionType === "COMPLEX" ? "teal" : "emerald"} size="sm" className="mt-1 font-bold">
                   {decisionType}
                 </Badge>
               </div>
             </div>
 
-            <div className="p-3 rounded-lg border bg-muted/30">
+            <div className="p-3 rounded-lg border border-border/70 bg-muted/30">
               <span className="text-[10px] text-muted-foreground uppercase font-bold block">
                 Target Operational Route
               </span>
@@ -1547,7 +1559,7 @@ export function AdminClassificationPage() {
             </div>
 
             {isOverride ? (
-              <div className="p-3 bg-amber-50 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-800 rounded-lg text-amber-900 dark:text-amber-200 space-y-1">
+              <div className="p-3 bg-amber-50 border border-amber-300 rounded-lg text-amber-950 space-y-1">
                 <span className="font-bold block text-xs">Administrative Override Justification:</span>
                 <p className="text-[11px] italic leading-relaxed">{overrideReason.trim()}</p>
               </div>

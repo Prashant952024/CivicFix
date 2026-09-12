@@ -1,18 +1,18 @@
 import { useEffect, useState } from "react";
 import {
   AlertCircle,
+  ArrowRight,
   Bot,
-  CheckCircle2,
   Eye,
   Lightbulb,
   Loader2,
   MapPin,
   Rocket,
   ShieldCheck,
+  Sparkles,
 } from "lucide-react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
 
-import { useAppSession } from "@/auth/app-session";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -38,23 +38,16 @@ type ComplexIssueDetail = Database["public"]["Tables"]["issues"]["Row"] & {
 
 export function InnovationIssueDetailsPage() {
   const { issueId } = useParams<{ issueId: string }>();
-  const { profile } = useAppSession();
+  const navigate = useNavigate();
   const [issue, setIssue] = useState<ComplexIssueDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [previewImage, setPreviewImage] = useState<string | null>(null);
   const [refreshNonce, setRefreshNonce] = useState(0);
 
-  // Formulate Challenge State
-  const [formulateModalOpen, setFormulateModalOpen] = useState(false);
-  const [challengeTitle, setChallengeTitle] = useState("");
-  const [problemStatement, setProblemStatement] = useState("");
-  const [affectedPopulation, setAffectedPopulation] = useState("");
-  const [geographicScope, setGeographicScope] = useState("");
-  const [requiredExpertiseInput, setRequiredExpertiseInput] = useState("");
-  const [submittingChallenge, setSubmittingChallenge] = useState(false);
-  const [challengeError, setChallengeError] = useState<string | null>(null);
-  const [challengeSuccess, setChallengeSuccess] = useState<string | null>(null);
+  // Challenge Generation State
+  const [generatingChallenge, setGeneratingChallenge] = useState(false);
+  const [challengeActionError, setChallengeActionError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!issueId) return;
@@ -90,15 +83,6 @@ export function InnovationIssueDetailsPage() {
 
       setIssue(data as ComplexIssueDetail);
 
-      // Pre-fill challenge creation form
-      setChallengeTitle(`Innovation Challenge: ${data.title}`);
-      setProblemStatement(
-        `${data.description}\n\nSystemic Complexity: ${data.ai_complexity_reasoning || "Requires interdisciplinary solution."}`,
-      );
-      setAffectedPopulation("Local civic community and municipal zone");
-      setGeographicScope(data.address_text || data.location_text || "Municipal Jurisdiction");
-      setRequiredExpertiseInput((data.ai_required_expertise || []).join(", "));
-
       setLoading(false);
     }
 
@@ -109,46 +93,57 @@ export function InnovationIssueDetailsPage() {
     };
   }, [issueId, refreshNonce]);
 
-  async function handleCreateChallenge() {
-    if (!issue || !profile?.id) return;
+  async function handleGenerateOrOpenChallenge() {
+    if (!issue) return;
 
-    if (!challengeTitle.trim() || !problemStatement.trim()) {
-      setChallengeError("Title and Problem Statement are mandatory.");
+    // If an innovation challenge already exists for this issue, navigate directly to it
+    const existing = issue.innovation_challenges?.[0];
+    if (existing?.id) {
+      void navigate(`/app/innovation/challenges/${existing.id}`);
       return;
     }
 
-    setSubmittingChallenge(true);
-    setChallengeError(null);
-
-    const expertiseList = requiredExpertiseInput
-      .split(",")
-      .map((s) => s.trim())
-      .filter(Boolean);
+    // Otherwise, invoke the Edge Function to synthesize an AI draft and initialize the challenge
+    setGeneratingChallenge(true);
+    setChallengeActionError(null);
 
     try {
-      const { error: insertErr } = await supabase.from("innovation_challenges").insert({
-        source_issue_id: issue.id,
-        title: challengeTitle.trim(),
-        problem_statement: problemStatement.trim(),
-        category: issue.category,
-        complexity_score: issue.ai_complexity_score ?? 75,
-        required_expertise: expertiseList,
-        affected_population: affectedPopulation.trim() || null,
-        geographic_scope: geographicScope.trim() || null,
-        status: "OPEN_FOR_PROPOSALS",
-        created_by: profile.id,
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+      const anonKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+
+      const response = await fetch(`${supabaseUrl}/functions/v1/generate-challenge`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          apikey: anonKey,
+          Authorization: `Bearer ${anonKey}`,
+        },
+        body: JSON.stringify({
+          issue_id: issue.id,
+          save_draft: true,
+        }),
       });
 
-      if (insertErr) throw insertErr;
+      const resData = (await response.json()) as {
+        success?: boolean;
+        challenge?: { id: string };
+        error?: string;
+      };
 
-      setChallengeSuccess("Innovation challenge formulated successfully!");
-      setFormulateModalOpen(false);
-      setRefreshNonce((prev) => prev + 1);
-    } catch (err) {
-      if (import.meta.env.DEV) console.error("Challenge creation error:", err);
-      setChallengeError(err instanceof Error ? err.message : "Failed to create challenge.");
+      if (!response.ok || !resData.success) {
+        throw new Error(resData.error || "Failed to generate challenge statement.");
+      }
+
+      if (resData.challenge?.id) {
+        void navigate(`/app/innovation/challenges/${resData.challenge.id}`);
+      } else {
+        setRefreshNonce((prev) => prev + 1);
+      }
+    } catch (err: unknown) {
+      if (import.meta.env.DEV) console.error("Challenge generation error:", err);
+      setChallengeActionError(err instanceof Error ? err.message : "Failed to formulate innovation challenge.");
     } finally {
-      setSubmittingChallenge(false);
+      setGeneratingChallenge(false);
     }
   }
 
@@ -177,6 +172,8 @@ export function InnovationIssueDetailsPage() {
   const complexityScore = issue.ai_complexity_score ?? latestAi?.complexity_score ?? 75;
   const challenges = issue.innovation_challenges ?? [];
 
+  const primaryChallenge = challenges[0];
+
   return (
     <div className="space-y-6">
       <PageHeader
@@ -187,41 +184,63 @@ export function InnovationIssueDetailsPage() {
         tag="Innovation Portal"
         actions={
           <div className="flex items-center gap-2">
-            <Button
-              size="sm"
-              onClick={() => setFormulateModalOpen(true)}
-              className="gap-1.5 bg-purple-600 hover:bg-purple-700 text-white"
-            >
-              <Rocket className="h-4 w-4" />
-              Formulate Challenge
-            </Button>
+            {primaryChallenge ? (
+              <Button
+                size="sm"
+                asChild
+                className="gap-1.5 shadow-sm"
+              >
+                <Link to={`/app/innovation/challenges/${primaryChallenge.id}`}>
+                  <Rocket className="h-4 w-4" />
+                  Open Challenge Workspace
+                </Link>
+              </Button>
+            ) : (
+              <Button
+                size="sm"
+                onClick={() => void handleGenerateOrOpenChallenge()}
+                disabled={generatingChallenge}
+                className="gap-1.5 shadow-sm bg-primary text-primary-foreground font-semibold"
+              >
+                {generatingChallenge ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Synthesizing with Gemini...
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="h-4 w-4" />
+                    Formulate Innovation Challenge
+                  </>
+                )}
+              </Button>
+            )}
           </div>
         }
       />
 
-      {challengeSuccess ? (
-        <div className="rounded-lg border border-emerald-300 bg-emerald-50 p-4 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-200 dark:border-emerald-800 flex items-start gap-3">
-          <CheckCircle2 className="h-5 w-5 text-emerald-600 shrink-0 mt-0.5" />
+      {/* Challenge Generation Error Banner */}
+      {challengeActionError ? (
+        <div className="rounded-xl border border-destructive/30 bg-destructive/10 p-4 text-destructive flex items-start gap-3 shadow-xs">
+          <AlertCircle className="h-5 w-5 shrink-0 mt-0.5" />
           <div className="text-xs">
-            <p className="font-semibold">{challengeSuccess}</p>
-            <p className="mt-0.5 text-muted-foreground">
-              This challenge statement is now registered in the innovation pipeline.
-            </p>
+            <p className="font-bold">Challenge Generation Failed</p>
+            <p className="mt-0.5 text-muted-foreground">{challengeActionError}</p>
           </div>
         </div>
       ) : null}
 
       {/* Authoritative Admin Decision Banner */}
-      <Card className="border-purple-300 bg-gradient-to-r from-purple-500/10 via-purple-500/5 to-transparent shadow-sm">
+      <Card className="border-teal-200 bg-gradient-to-r from-teal-50/70 via-surface to-transparent shadow-sm">
         <CardContent className="p-4 sm:p-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-start gap-3">
-            <ShieldCheck className="h-6 w-6 text-purple-600 shrink-0 mt-0.5" />
+            <ShieldCheck className="h-6 w-6 text-primary shrink-0 mt-0.5" />
             <div>
               <div className="flex items-center gap-2">
                 <span className="font-bold text-sm text-foreground">
                   Admin Approved as COMPLEX
                 </span>
-                <Badge variant="danger" size="sm" className="bg-purple-600 text-[10px]">
+                <Badge variant="teal" size="sm" className="text-[10px]">
                   Authoritative
                 </Badge>
               </div>
@@ -235,7 +254,7 @@ export function InnovationIssueDetailsPage() {
                   : null}
               </p>
               {issue.classification_override_reason ? (
-                <p className="text-xs text-amber-700 dark:text-amber-400 mt-1 italic">
+                <p className="text-xs text-amber-900 mt-1 italic font-medium">
                   &ldquo;Override Reason: {issue.classification_override_reason}&rdquo;
                 </p>
               ) : null}
@@ -246,7 +265,7 @@ export function InnovationIssueDetailsPage() {
             <span className="text-[11px] text-muted-foreground block uppercase font-mono">
               Complexity Rating
             </span>
-            <div className="text-2xl font-black font-mono text-purple-700 dark:text-purple-400">
+            <div className="text-2xl font-black font-mono text-teal-800">
               {complexityScore} / 100
             </div>
           </div>
@@ -339,42 +358,89 @@ export function InnovationIssueDetailsPage() {
           <Card>
             <CardHeader className="pb-3 border-b flex flex-row items-center justify-between">
               <CardTitle className="text-base font-bold flex items-center gap-2">
-                <Rocket className="h-4 w-4 text-purple-600" />
+                <Rocket className="h-4 w-4 text-primary" />
                 Formulated Innovation Challenges ({challenges.length})
               </CardTitle>
-              <Button size="sm" onClick={() => setFormulateModalOpen(true)} className="gap-1 text-xs">
-                + New Challenge
-              </Button>
+              {!primaryChallenge && (
+                <Button
+                  size="sm"
+                  onClick={() => void handleGenerateOrOpenChallenge()}
+                  disabled={generatingChallenge}
+                  className="gap-1 text-xs"
+                >
+                  {generatingChallenge ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}
+                  Synthesize Challenge
+                </Button>
+              )}
             </CardHeader>
 
             <CardContent className="p-0 divide-y">
               {challenges.length === 0 ? (
-                <div className="p-6 text-center text-xs text-muted-foreground">
-                  <p>No innovation challenges formulated for this issue yet.</p>
-                  <p className="mt-1">
-                    Click &ldquo;Formulate Challenge&rdquo; to structure this problem statement for research labs and startups.
+                <div className="p-6 text-center text-xs text-muted-foreground space-y-3">
+                  <p className="font-semibold text-foreground">No Innovation Challenge Drafted Yet</p>
+                  <p className="leading-relaxed">
+                    Convert this complex grievance into a 14-point structured challenge for universities, researchers, and startups using Gemini AI.
                   </p>
+                  <Button
+                    size="sm"
+                    onClick={() => void handleGenerateOrOpenChallenge()}
+                    disabled={generatingChallenge}
+                    className="gap-1.5 shadow-sm"
+                  >
+                    {generatingChallenge ? (
+                      <>
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        Generating AI Problem Statement...
+                      </>
+                    ) : (
+                      <>
+                        <Sparkles className="h-4 w-4" />
+                        Generate AI Challenge Statement
+                      </>
+                    )}
+                  </Button>
                 </div>
               ) : (
                 challenges.map((c) => (
-                  <div key={c.id} className="p-4 space-y-2">
-                    <div className="flex items-center justify-between">
-                      <h4 className="font-bold text-sm text-foreground">{c.title}</h4>
-                      <Badge variant="outline" size="sm">
+                  <div key={c.id} className="p-4 space-y-3 hover:bg-muted/20 transition">
+                    <div className="flex items-start justify-between gap-2">
+                      <div>
+                        <h4 className="font-bold text-sm text-foreground">{c.title}</h4>
+                        <span className="text-[11px] text-muted-foreground">
+                          Category: {c.problem_category || c.category}
+                        </span>
+                      </div>
+                      <Badge
+                        variant={c.status === "APPROVED" ? "teal" : "amber"}
+                        size="sm"
+                        className="font-bold"
+                      >
                         {c.status}
                       </Badge>
                     </div>
-                    <p className="text-xs text-muted-foreground leading-relaxed">{c.problem_statement}</p>
-                    <div className="flex flex-wrap gap-1 pt-1">
-                      {c.required_expertise.map((exp, idx) => (
-                        <Badge key={idx} variant="outline" size="sm" className="text-[10px]">
-                          {exp}
-                        </Badge>
-                      ))}
-                    </div>
-                    <div className="flex items-center justify-between text-[11px] text-muted-foreground pt-1 border-t">
-                      <span>Scope: {c.geographic_scope || "General"}</span>
-                      <span>Created {formatCitizenIssueDateTime(c.created_at)}</span>
+
+                    <p className="text-xs text-muted-foreground leading-relaxed line-clamp-3">
+                      {c.problem_statement}
+                    </p>
+
+                    {(c.required_domains?.length || c.required_expertise?.length) ? (
+                      <div className="flex flex-wrap gap-1 pt-1">
+                        {(c.required_domains?.length ? c.required_domains : c.required_expertise || []).map((exp, idx) => (
+                          <Badge key={idx} variant="outline" size="sm" className="text-[10px] bg-background">
+                            {exp}
+                          </Badge>
+                        ))}
+                      </div>
+                    ) : null}
+
+                    <div className="flex items-center justify-between text-[11px] text-muted-foreground pt-2 border-t">
+                      <span>Scope: {c.geographic_scope || "Regional"}</span>
+                      <Button size="sm" asChild variant="outline" className="h-7 text-xs gap-1">
+                        <Link to={`/app/innovation/challenges/${c.id}`}>
+                          <span>Open Workspace</span>
+                          <ArrowRight className="h-3.5 w-3.5" />
+                        </Link>
+                      </Button>
                     </div>
                   </div>
                 ))
@@ -385,10 +451,10 @@ export function InnovationIssueDetailsPage() {
 
         {/* Right Column: AI Complexity Diagnostic & Domain Tags */}
         <div className="space-y-6 lg:col-span-5">
-          <Card className="border-indigo-200/80 bg-indigo-50/20 dark:bg-indigo-950/10">
-            <CardHeader className="pb-3 border-b border-indigo-100 dark:border-indigo-900/40">
-              <CardTitle className="text-xs font-semibold uppercase tracking-wider text-indigo-900 dark:text-indigo-300 flex items-center gap-2">
-                <Bot className="h-4 w-4 text-indigo-600" />
+          <Card className="border-teal-200/80 bg-teal-50/20">
+            <CardHeader className="pb-3 border-b border-teal-100">
+              <CardTitle className="text-xs font-semibold uppercase tracking-wider text-teal-950 flex items-center gap-2">
+                <Bot className="h-4 w-4 text-primary" />
                 AI Complexity Diagnostic
               </CardTitle>
             </CardHeader>
@@ -398,13 +464,13 @@ export function InnovationIssueDetailsPage() {
               <div>
                 <div className="flex justify-between items-center mb-1">
                   <span className="text-muted-foreground">Complexity Score:</span>
-                  <span className="font-mono font-bold text-sm text-purple-700 dark:text-purple-400">
+                  <span className="font-mono font-bold text-sm text-teal-800">
                     {complexityScore} / 100
                   </span>
                 </div>
                 <div className="w-full bg-muted rounded-full h-2.5 overflow-hidden">
                   <div
-                    className="h-full rounded-full bg-purple-600"
+                    className="h-full rounded-full bg-primary"
                     style={{ width: `${Math.min(100, complexityScore)}%` }}
                   />
                 </div>
@@ -473,118 +539,6 @@ export function InnovationIssueDetailsPage() {
               alt="Evidence"
               className="max-h-[75vh] w-auto object-contain rounded-lg shadow-md"
             />
-          </div>
-        </Dialog>
-      ) : null}
-
-      {/* Formulate Challenge Modal */}
-      {formulateModalOpen ? (
-        <Dialog
-          open={formulateModalOpen}
-          onClose={() => setFormulateModalOpen(false)}
-          title="Formulate Innovation Challenge"
-          description="Convert this complex issue into a structured ecosystem challenge."
-          maxWidth="lg"
-        >
-          <div className="space-y-4 pt-2 text-xs">
-            {challengeError ? (
-              <div className="p-2.5 rounded border border-rose-200 bg-rose-50 text-rose-800 text-xs">
-                {challengeError}
-              </div>
-            ) : null}
-
-            <div className="space-y-1">
-              <label className="font-semibold text-foreground block">
-                Challenge Title <span className="text-destructive">*</span>
-              </label>
-              <input
-                type="text"
-                value={challengeTitle}
-                onChange={(e) => setChallengeTitle(e.target.value)}
-                className="w-full text-xs p-2 rounded-lg border border-input bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
-                placeholder="e.g. Distributed Runoff Sensor Network for Ward 4"
-              />
-            </div>
-
-            <div className="space-y-1">
-              <label className="font-semibold text-foreground block">
-                Problem Statement & Scope <span className="text-destructive">*</span>
-              </label>
-              <textarea
-                rows={4}
-                value={problemStatement}
-                onChange={(e) => setProblemStatement(e.target.value)}
-                className="w-full text-xs p-2 rounded-lg border border-input bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
-                placeholder="Detailed description of the systemic failure, required research, and pilot objectives..."
-              />
-            </div>
-
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1">
-                <label className="font-semibold text-foreground block">
-                  Affected Population
-                </label>
-                <input
-                  type="text"
-                  value={affectedPopulation}
-                  onChange={(e) => setAffectedPopulation(e.target.value)}
-                  className="w-full text-xs p-2 rounded-lg border border-input bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
-                  placeholder="e.g. ~12,000 residents"
-                />
-              </div>
-
-              <div className="space-y-1">
-                <label className="font-semibold text-foreground block">
-                  Geographic Scope
-                </label>
-                <input
-                  type="text"
-                  value={geographicScope}
-                  onChange={(e) => setGeographicScope(e.target.value)}
-                  className="w-full text-xs p-2 rounded-lg border border-input bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
-                  placeholder="e.g. Sector 5 Drainage Basin"
-                />
-              </div>
-            </div>
-
-            <div className="space-y-1">
-              <label className="font-semibold text-foreground block">
-                Required Expertises (comma-separated)
-              </label>
-              <input
-                type="text"
-                value={requiredExpertiseInput}
-                onChange={(e) => setRequiredExpertiseInput(e.target.value)}
-                className="w-full text-xs p-2 rounded-lg border border-input bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
-                placeholder="e.g. Hydrology, IoT, Civil Engineering"
-              />
-            </div>
-
-            <div className="flex items-center justify-end gap-2 pt-3 border-t">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setFormulateModalOpen(false)}
-                disabled={submittingChallenge}
-              >
-                Cancel
-              </Button>
-              <Button
-                size="sm"
-                onClick={() => {
-                  void handleCreateChallenge();
-                }}
-                disabled={submittingChallenge}
-                className="gap-1.5 bg-purple-600 hover:bg-purple-700 text-white"
-              >
-                {submittingChallenge ? (
-                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                ) : (
-                  <Rocket className="h-3.5 w-3.5" />
-                )}
-                Register Challenge
-              </Button>
-            </div>
           </div>
         </Dialog>
       ) : null}
