@@ -57,6 +57,7 @@ export interface Database {
           designation: string | null;
           is_active: boolean;
           avatar_url: string | null;
+          institution_id: string | null;
           joined_at: string | null;
           created_at: string;
           updated_at: string;
@@ -73,6 +74,7 @@ export interface Database {
           designation?: string | null;
           is_active?: boolean;
           avatar_url?: string | null;
+          institution_id?: string | null;
           joined_at?: string | null;
           created_at?: string;
           updated_at?: string;
@@ -89,6 +91,7 @@ export interface Database {
           designation?: string | null;
           is_active?: boolean;
           avatar_url?: string | null;
+          institution_id?: string | null;
           joined_at?: string | null;
           created_at?: string;
           updated_at?: string;
@@ -99,6 +102,13 @@ export interface Database {
             columns: ["department_id"];
             isOneToOne: false;
             referencedRelation: "departments";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "profiles_institution_id_fkey";
+            columns: ["institution_id"];
+            isOneToOne: false;
+            referencedRelation: "institutions";
             referencedColumns: ["id"];
           },
           {
@@ -885,6 +895,236 @@ export interface Database {
           },
         ];
       };
+      institutions: {
+        Row: {
+          id: string;
+          name: string;
+          official_name: string | null;
+          institution_type: string;
+          acronym: string | null;
+          description: string | null;
+          official_email: string | null;
+          phone: string | null;
+          website: string | null;
+          address: string | null;
+          city: string;
+          district: string | null;
+          state: string;
+          pincode: string | null;
+          latitude: number | null;
+          longitude: number | null;
+          established_year: number | null;
+          departments: string[];
+          research_domains: string[];
+          areas_of_expertise: string[];
+          technologies: string[];
+          laboratories: string[];
+          facilities: string[];
+          equipment: string[];
+          research_areas: string[];
+          field_capabilities: string[];
+          collaboration_capabilities: string[];
+          nirf_rank: number | null;
+          naac_grade: string | null;
+          verification_status: Database["public"]["Enums"]["institution_verification_status"];
+          is_active: boolean;
+          verified_at: string | null;
+          verified_by: string | null;
+          created_by: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          name: string;
+          official_name?: string | null;
+          institution_type?: string;
+          acronym?: string | null;
+          description?: string | null;
+          official_email?: string | null;
+          phone?: string | null;
+          website?: string | null;
+          address?: string | null;
+          city: string;
+          district?: string | null;
+          state: string;
+          pincode?: string | null;
+          latitude?: number | null;
+          longitude?: number | null;
+          established_year?: number | null;
+          departments?: string[];
+          research_domains?: string[];
+          areas_of_expertise?: string[];
+          technologies?: string[];
+          laboratories?: string[];
+          facilities?: string[];
+          equipment?: string[];
+          research_areas?: string[];
+          field_capabilities?: string[];
+          collaboration_capabilities?: string[];
+          nirf_rank?: number | null;
+          naac_grade?: string | null;
+          verification_status?: Database["public"]["Enums"]["institution_verification_status"];
+          is_active?: boolean;
+          verified_at?: string | null;
+          verified_by?: string | null;
+          created_by?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          name?: string;
+          official_name?: string | null;
+          institution_type?: string;
+          acronym?: string | null;
+          description?: string | null;
+          official_email?: string | null;
+          phone?: string | null;
+          website?: string | null;
+          address?: string | null;
+          city?: string;
+          district?: string | null;
+          state?: string;
+          pincode?: string | null;
+          latitude?: number | null;
+          longitude?: number | null;
+          established_year?: number | null;
+          departments?: string[];
+          research_domains?: string[];
+          areas_of_expertise?: string[];
+          technologies?: string[];
+          laboratories?: string[];
+          facilities?: string[];
+          equipment?: string[];
+          research_areas?: string[];
+          field_capabilities?: string[];
+          collaboration_capabilities?: string[];
+          nirf_rank?: number | null;
+          naac_grade?: string | null;
+          verification_status?: Database["public"]["Enums"]["institution_verification_status"];
+          is_active?: boolean;
+          verified_at?: string | null;
+          verified_by?: string | null;
+          created_by?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "institutions_verified_by_fkey";
+            columns: ["verified_by"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "institutions_created_by_fkey";
+            columns: ["created_by"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      institution_projects: {
+        Row: {
+          id: string;
+          institution_id: string;
+          title: string;
+          description: string | null;
+          domain: string | null;
+          technologies: string[];
+          outcomes: string[];
+          start_year: number | null;
+          end_year: number | null;
+          is_completed: boolean;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          institution_id: string;
+          title: string;
+          description?: string | null;
+          domain?: string | null;
+          technologies?: string[];
+          outcomes?: string[];
+          start_year?: number | null;
+          end_year?: number | null;
+          is_completed?: boolean;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          institution_id?: string;
+          title?: string;
+          description?: string | null;
+          domain?: string | null;
+          technologies?: string[];
+          outcomes?: string[];
+          start_year?: number | null;
+          end_year?: number | null;
+          is_completed?: boolean;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "institution_projects_institution_id_fkey";
+            columns: ["institution_id"];
+            isOneToOne: false;
+            referencedRelation: "institutions";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      institution_members: {
+        Row: {
+          id: string;
+          institution_id: string;
+          profile_id: string;
+          role_title: string;
+          is_primary_contact: boolean;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          institution_id: string;
+          profile_id: string;
+          role_title?: string;
+          is_primary_contact?: boolean;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          institution_id?: string;
+          profile_id?: string;
+          role_title?: string;
+          is_primary_contact?: boolean;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "institution_members_institution_id_fkey";
+            columns: ["institution_id"];
+            isOneToOne: false;
+            referencedRelation: "institutions";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "institution_members_profile_id_fkey";
+            columns: ["profile_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
     };
     Views: Record<string, never>;
     Functions: Record<string, never>;
@@ -894,6 +1134,7 @@ export interface Database {
       worker_assignment_status: "ASSIGNED" | "IN_PROGRESS" | "COMPLETED" | "REASSIGNED" | "CANCELLED";
       duplicate_detection_method: "GPS_PROXIMITY" | "CATEGORY" | "TIME" | "IMAGE_SIMILARITY" | "MANUAL_REVIEW" | "AI_MULTI_SIGNAL";
       duplicate_status: "PENDING" | "CONFIRMED" | "DISMISSED" | "REJECTED";
+      institution_verification_status: "DRAFT" | "PENDING_VERIFICATION" | "VERIFIED" | "SUSPENDED" | "ARCHIVED";
       issue_image_type: "INITIAL_REPORT" | "RESOLUTION_EVIDENCE";
       issue_priority: "LOW" | "MEDIUM" | "HIGH" | "URGENT";
       issue_severity: "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
@@ -913,9 +1154,22 @@ export interface Database {
         | "CITIZEN_VERIFIED"
         | "REOPENED";
       notification_type: "STATUS_CHANGE" | "ASSIGNMENT" | "SYSTEM" | "VERIFICATION";
-      role_code: "CITIZEN" | "MUNICIPAL_OFFICER" | "DEPARTMENT_MANAGER" | "FIELD_WORKER" | "ADMIN" | "INNOVATION_MANAGER";
+      role_code: "CITIZEN" | "MUNICIPAL_OFFICER" | "DEPARTMENT_MANAGER" | "FIELD_WORKER" | "ADMIN" | "INNOVATION_MANAGER" | "INSTITUTION";
       verification_result: "VERIFIED" | "UNRESOLVED";
     };
     CompositeTypes: Record<string, never>;
   };
 }
+
+export type InstitutionRow = Database["public"]["Tables"]["institutions"]["Row"];
+export type InstitutionInsert = Database["public"]["Tables"]["institutions"]["Insert"];
+export type InstitutionUpdate = Database["public"]["Tables"]["institutions"]["Update"];
+export type InstitutionVerificationStatus = Database["public"]["Enums"]["institution_verification_status"];
+
+export type InstitutionProjectRow = Database["public"]["Tables"]["institution_projects"]["Row"];
+export type InstitutionProjectInsert = Database["public"]["Tables"]["institution_projects"]["Insert"];
+export type InstitutionProjectUpdate = Database["public"]["Tables"]["institution_projects"]["Update"];
+
+export type InstitutionMemberRow = Database["public"]["Tables"]["institution_members"]["Row"];
+export type InstitutionMemberInsert = Database["public"]["Tables"]["institution_members"]["Insert"];
+export type InstitutionMemberUpdate = Database["public"]["Tables"]["institution_members"]["Update"];

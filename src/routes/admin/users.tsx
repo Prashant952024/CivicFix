@@ -219,7 +219,7 @@ export function AdminUsersPage() {
         supabase
           .from("profiles")
           .select(
-            "id, clerk_user_id, full_name, email, phone, role_id, department_id, employee_id, designation, is_active, avatar_url, joined_at, created_at, updated_at, role:roles!profiles_role_id_fkey(id, code, name), department:departments!profiles_department_id_fkey(id, name, is_active)",
+            "id, clerk_user_id, full_name, email, phone, role_id, department_id, employee_id, designation, is_active, avatar_url, institution_id, joined_at, created_at, updated_at, role:roles!profiles_role_id_fkey(id, code, name), department:departments!profiles_department_id_fkey(id, name, is_active)",
           )
           .order("created_at", { ascending: false }),
         supabase.from("roles").select("id, code, name, description, is_system_role").order("name", { ascending: true }),

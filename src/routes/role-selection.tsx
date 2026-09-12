@@ -4,6 +4,7 @@ import {
   ArrowRight,
   Building2,
   Crown,
+  GraduationCap,
   HardHat,
   Lightbulb,
   Loader2,
@@ -61,6 +62,13 @@ const roleCards: RoleCard[] = [
     title: "Innovation Manager",
     description: "Manage complex societal challenges and ecosystem pilots",
     icon: Lightbulb,
+    tone: "info",
+  },
+  {
+    code: "INSTITUTION",
+    title: "University / Institution",
+    description: "Collaborate on complex civic challenges & research pilots",
+    icon: GraduationCap,
     tone: "info",
   },
   {

@@ -4,16 +4,27 @@ import {
   AlertTriangle,
   ArrowRight,
   Bot,
+  Check,
   CheckCircle2,
   ChevronDown,
+  ChevronLeft,
+  ChevronRight,
   ChevronUp,
+  Cpu,
   Eye,
   FileText,
+  LayoutGrid,
+  ListChecks,
   Loader2,
+  PanelLeftClose,
+  PanelLeftOpen,
   Plus,
   Rocket,
   Save,
+  Scale,
+  Search,
   ShieldCheck,
+  Target,
   Trash2,
   X,
 } from "lucide-react";
@@ -64,6 +75,8 @@ type ChallengeRecord = Database["public"]["Tables"]["innovation_challenges"]["Ro
   approver_profile?: Pick<Database["public"]["Tables"]["profiles"]["Row"], "id" | "full_name" | "email"> | null;
 };
 
+type FormulationTab = "scope" | "analysis" | "objectives" | "tech" | "governance";
+
 export function InnovationChallengeDetailsPage() {
   const { challengeId } = useParams<{ challengeId: string }>();
   const { profile } = useAppSession();
@@ -73,6 +86,11 @@ export function InnovationChallengeDetailsPage() {
   const [error, setError] = useState<string | null>(null);
   const [previewImage, setPreviewImage] = useState<string | null>(null);
   const [refreshNonce, setRefreshNonce] = useState(0);
+
+  // Layout & Navigation State
+  const [showSourceDossier, setShowSourceDossier] = useState(true);
+  const [activeTab, setActiveTab] = useState<FormulationTab>("scope");
+  const [viewMode, setViewMode] = useState<"tabbed" | "full">("tabbed");
 
   // Form State for 14 Structured Fields
   const [title, setTitle] = useState("");
@@ -154,7 +172,7 @@ export function InnovationChallengeDetailsPage() {
         setAffectedPopulation(rec.affected_population || "");
         setGeographicScope(rec.geographic_scope || "");
         setProblemCategory(rec.problem_category || rec.category || "");
-        setRequiredDomains(rec.required_domains?.length ? rec.required_domains : rec.required_expertise || []);
+        setRequiredDomains(rec.required_domains || rec.required_expertise || []);
         setCurrentLimitations(rec.current_limitations || "");
         setObjectives(rec.objectives || []);
         setExpectedOutcomes(rec.expected_outcomes || []);
@@ -163,9 +181,9 @@ export function InnovationChallengeDetailsPage() {
         setResearchRequirements(rec.research_requirements || "");
         setSuccessCriteria(rec.success_criteria || []);
       } catch (err: unknown) {
-        if (!cancelled) {
-          setError(err instanceof Error ? err.message : "Failed to load challenge details.");
-        }
+        if (cancelled) return;
+        if (import.meta.env.DEV) console.error("Challenge fetch exception:", err);
+        setError("Failed to load innovation challenge details.");
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -178,12 +196,7 @@ export function InnovationChallengeDetailsPage() {
     };
   }, [challengeId, refreshNonce]);
 
-  // Derived source issue helpers
-  const sourceIssue = challenge?.source_issue;
-  const latestAi = sourceIssue?.issue_ai_analysis?.[0];
-  const isApproved = challenge?.status === "APPROVED";
-
-  // List management helpers
+  // Field manipulation handlers
   function handleAddDomain() {
     const val = newDomainInput.trim();
     if (!val || requiredDomains.includes(val)) return;
@@ -362,7 +375,7 @@ export function InnovationChallengeDetailsPage() {
 
       if (approveErr) throw approveErr;
 
-      setActionSuccess("Innovation Challenge approved and locked as authoritative! Ready for Phase 3C Institution Matching.");
+      setActionSuccess("Innovation Challenge approved and finalized for academic & institutional matching!");
       setConfirmApproveOpen(false);
       setRefreshNonce((prev) => prev + 1);
     } catch (err: unknown) {
@@ -375,38 +388,35 @@ export function InnovationChallengeDetailsPage() {
 
   // Regenerate with AI Action
   async function handleRegenerateWithAi() {
-    if (!challenge || !sourceIssue) return;
-
+    if (!challenge) return;
     setRegenerating(true);
     setActionError(null);
     setActionSuccess(null);
 
     try {
-      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-      const anonKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
-
-      const response = await fetch(`${supabaseUrl}/functions/v1/generate-challenge`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          apikey: anonKey,
-          Authorization: `Bearer ${anonKey}`,
-        },
-        body: JSON.stringify({
-          issue_id: sourceIssue.id,
-          regenerate: true,
-          save_draft: true,
-        }),
-      });
-
-      const resData = (await response.json()) as {
+      const response = await supabase.functions.invoke<{
         success?: boolean;
         ai_draft?: AiGeneratedDraftSnapshot;
         error?: string;
-      };
+      }>("generate-challenge", {
+        body: {
+          issue_id: challenge.source_issue_id,
+          challenge_id: challenge.id,
+          force_regenerate: true,
+        },
+      });
 
-      if (!response.ok || !resData.success) {
-        throw new Error(resData.error || "Failed to regenerate challenge with AI.");
+      if (response.error) {
+        const errMsg =
+          response.error instanceof Error
+            ? response.error.message
+            : "Failed to regenerate challenge with AI.";
+        throw new Error(errMsg);
+      }
+
+      const resData = response.data;
+      if (!resData?.success) {
+        throw new Error(resData?.error || "Failed to regenerate challenge with AI.");
       }
 
       const draft = resData.ai_draft;
@@ -447,7 +457,7 @@ export function InnovationChallengeDetailsPage() {
     );
   }
 
-  if (error || !challenge || !sourceIssue) {
+  if (error || !challenge || !challenge.source_issue) {
     return (
       <div className="p-8 text-center space-y-4">
         <AlertCircle className="h-8 w-8 text-destructive mx-auto" />
@@ -459,7 +469,796 @@ export function InnovationChallengeDetailsPage() {
     );
   }
 
+  const sourceIssue = challenge.source_issue;
+  const isApproved = challenge.status === "APPROVED";
+  const latestAi = sourceIssue?.issue_ai_analysis?.[0];
   const rawAiDraft = challenge.ai_generated_draft as unknown as AiGeneratedDraftSnapshot | null;
+
+  // Evaluation & Validation Checklist for Managerial Governance
+  const requiredFieldsChecklist = [
+    { label: "1. Problem Title", met: Boolean(title.trim()) },
+    { label: "2. Problem Statement & Scope", met: Boolean(problemStatement.trim()) },
+    { label: "3. Root Cause Analysis", met: Boolean(rootCause.trim()) },
+    { label: "7. Multidisciplinary Domains", met: requiredDomains.length > 0 },
+    { label: "9. Challenge Objectives", met: objectives.length > 0 },
+    { label: "10. Expected Outcomes", met: expectedOutcomes.length > 0 },
+    { label: "14. Success Criteria", met: successCriteria.length > 0 },
+  ];
+  const completedRequiredCount = requiredFieldsChecklist.filter((f) => f.met).length;
+  const isReadyForApproval = completedRequiredCount === 7;
+
+  // Thematic Tab Definition
+  const tabsList: {
+    id: FormulationTab;
+    label: string;
+    icon: typeof Rocket;
+    badgeCount?: number;
+    badgeTone?: "default" | "teal" | "amber";
+  }[] = [
+    {
+      id: "scope",
+      label: "Scope & Context",
+      icon: Target,
+      badgeCount: [title, problemStatement, problemCategory, affectedPopulation, geographicScope].filter(Boolean).length,
+    },
+    {
+      id: "analysis",
+      label: "Root Cause & Gaps",
+      icon: Search,
+      badgeCount: [rootCause, currentLimitations].filter(Boolean).length,
+    },
+    {
+      id: "objectives",
+      label: "Objectives & Outcomes",
+      icon: Rocket,
+      badgeCount: objectives.length + expectedOutcomes.length,
+      badgeTone: objectives.length > 0 && expectedOutcomes.length > 0 ? "teal" : "amber",
+    },
+    {
+      id: "tech",
+      label: "Disciplines & Tech",
+      icon: Cpu,
+      badgeCount: requiredDomains.length + potentialTech.length,
+      badgeTone: requiredDomains.length > 0 ? "teal" : "amber",
+    },
+    {
+      id: "governance",
+      label: "Benchmarks & Sign-off",
+      icon: Scale,
+      badgeCount: successCriteria.length,
+      badgeTone: successCriteria.length > 0 ? "teal" : "amber",
+    },
+  ];
+
+  const tabSequence: FormulationTab[] = ["scope", "analysis", "objectives", "tech", "governance"];
+  const currentTabIdx = tabSequence.indexOf(activeTab);
+  const prevTab = currentTabIdx > 0 ? tabSequence[currentTabIdx - 1] : null;
+  const nextTab = currentTabIdx < tabSequence.length - 1 ? tabSequence[currentTabIdx + 1] : null;
+
+  // Sub-section Renderers
+  const renderScopeSection = () => (
+    <div className="space-y-4">
+      {/* Field 1: Problem Title */}
+      <div className="p-4 rounded-xl border border-border/80 bg-card shadow-xs space-y-2">
+        <div className="flex items-center justify-between">
+          <label className="font-bold text-foreground text-xs flex items-center gap-1.5">
+            <span className="flex h-5 w-5 items-center justify-center rounded-md bg-primary/10 text-primary font-mono text-[11px]">
+              1
+            </span>
+            Problem Title <span className="text-destructive font-bold">*</span>
+          </label>
+          <span className="text-[10px] text-muted-foreground">Professional &amp; Innovation Oriented</span>
+        </div>
+        {isApproved ? (
+          <p className="p-3 rounded-lg border border-border/70 bg-muted/20 font-bold text-sm text-foreground">
+            {title}
+          </p>
+        ) : (
+          <input
+            type="text"
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            className="w-full text-xs p-2.5 rounded-lg border border-input bg-background text-foreground font-semibold focus:outline-none focus:ring-1 focus:ring-primary shadow-xs"
+            placeholder="e.g. Predictive Water Availability Modeling and Precision Irrigation Decision Support"
+          />
+        )}
+      </div>
+
+      {/* Field 2: Problem Statement & Scope */}
+      <div className="p-4 rounded-xl border border-border/80 bg-card shadow-xs space-y-2">
+        <div className="flex items-center justify-between">
+          <label className="font-bold text-foreground text-xs flex items-center gap-1.5">
+            <span className="flex h-5 w-5 items-center justify-center rounded-md bg-primary/10 text-primary font-mono text-[11px]">
+              2
+            </span>
+            Problem Statement &amp; Scope <span className="text-destructive font-bold">*</span>
+          </label>
+          <span className="text-[10px] text-muted-foreground">Distinguish systemic causes from surface symptoms</span>
+        </div>
+        {isApproved ? (
+          <p className="p-3.5 rounded-lg border border-border/70 bg-muted/20 leading-relaxed text-foreground whitespace-pre-line text-xs">
+            {problemStatement}
+          </p>
+        ) : (
+          <textarea
+            rows={5}
+            value={problemStatement}
+            onChange={(e) => setProblemStatement(e.target.value)}
+            className="w-full text-xs p-3 rounded-lg border border-input bg-background text-foreground leading-relaxed focus:outline-none focus:ring-1 focus:ring-primary shadow-xs"
+            placeholder="Detail what the problem is, who experiences it, where it occurs, why it matters, current consequences, and why routine municipal procedures fail..."
+          />
+        )}
+      </div>
+
+      {/* Row: 4. Population, 5. Geographic Scope, 6. Category (3-Column Grid) */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        {/* Field 4: Affected Population */}
+        <div className="p-3.5 rounded-xl border border-border/80 bg-card shadow-xs space-y-1.5">
+          <label className="font-bold text-foreground text-xs flex items-center gap-1.5">
+            <span className="flex h-4 w-4 items-center justify-center rounded bg-muted text-[10px] font-mono">
+              4
+            </span>
+            Affected Population
+          </label>
+          {isApproved ? (
+            <p className="p-2.5 rounded-lg border border-border/70 bg-muted/20 text-foreground text-xs">
+              {affectedPopulation || "Not specified"}
+            </p>
+          ) : (
+            <input
+              type="text"
+              value={affectedPopulation}
+              onChange={(e) => setAffectedPopulation(e.target.value)}
+              className="w-full text-xs p-2 rounded-lg border border-input bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary shadow-xs"
+              placeholder="e.g. Smallholder farmers &amp; cooperatives"
+            />
+          )}
+          <span className="text-[10px] text-muted-foreground block">Qualitative stakeholder scale</span>
+        </div>
+
+        {/* Field 5: Geographic Scope */}
+        <div className="p-3.5 rounded-xl border border-border/80 bg-card shadow-xs space-y-1.5">
+          <label className="font-bold text-foreground text-xs flex items-center gap-1.5">
+            <span className="flex h-4 w-4 items-center justify-center rounded bg-muted text-[10px] font-mono">
+              5
+            </span>
+            Geographic Scope
+          </label>
+          {isApproved ? (
+            <p className="p-2.5 rounded-lg border border-border/70 bg-muted/20 text-foreground text-xs">
+              {geographicScope || "Municipal Jurisdiction"}
+            </p>
+          ) : (
+            <input
+              type="text"
+              value={geographicScope}
+              onChange={(e) => setGeographicScope(e.target.value)}
+              className="w-full text-xs p-2 rounded-lg border border-input bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary shadow-xs"
+              placeholder="e.g. Regional Drainage Basin, Ward 4"
+            />
+          )}
+          <span className="text-[10px] text-muted-foreground block">Spatial catchment jurisdiction</span>
+        </div>
+
+        {/* Field 6: Problem Category */}
+        <div className="p-3.5 rounded-xl border border-border/80 bg-card shadow-xs space-y-1.5">
+          <label className="font-bold text-foreground text-xs flex items-center gap-1.5">
+            <span className="flex h-4 w-4 items-center justify-center rounded bg-muted text-[10px] font-mono">
+              6
+            </span>
+            Problem Category
+          </label>
+          {isApproved ? (
+            <p className="p-2.5 rounded-lg border border-border/70 bg-muted/20 text-foreground text-xs">
+              {problemCategory || "Civic Infrastructure"}
+            </p>
+          ) : (
+            <input
+              type="text"
+              value={problemCategory}
+              onChange={(e) => setProblemCategory(e.target.value)}
+              className="w-full text-xs p-2 rounded-lg border border-input bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary shadow-xs"
+              placeholder="e.g. Agriculture / Water Management"
+            />
+          )}
+          <span className="text-[10px] text-muted-foreground block">Innovation taxonomy classification</span>
+        </div>
+      </div>
+    </div>
+  );
+
+  const renderAnalysisSection = () => (
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+      {/* Field 3: Root Cause Analysis */}
+      <div className="p-4 rounded-xl border border-amber-200/80 bg-amber-50/20 shadow-xs space-y-2.5">
+        <div className="flex items-center justify-between">
+          <label className="font-bold text-foreground text-xs flex items-center gap-1.5">
+            <span className="flex h-5 w-5 items-center justify-center rounded-md bg-amber-100 text-amber-900 font-mono text-[11px]">
+              3
+            </span>
+            Root Cause Analysis <span className="text-destructive font-bold">*</span>
+          </label>
+          <span className="text-[10px] font-semibold text-amber-800 uppercase tracking-wide">
+            Systemic Driver
+          </span>
+        </div>
+        {isApproved ? (
+          <p className="p-3 rounded-lg border border-amber-200/70 bg-card leading-relaxed text-foreground whitespace-pre-line text-xs min-h-[160px]">
+            {rootCause}
+          </p>
+        ) : (
+          <textarea
+            rows={7}
+            value={rootCause}
+            onChange={(e) => setRootCause(e.target.value)}
+            className="w-full text-xs p-3 rounded-lg border border-input bg-background text-foreground leading-relaxed focus:outline-none focus:ring-1 focus:ring-primary shadow-xs"
+            placeholder="Identify systemic, hydrological, infrastructural, analytical, or behavioral root causes that drive this recurring problem..."
+          />
+        )}
+        <p className="text-[10px] text-muted-foreground">
+          Focuses on underlying causal mechanics rather than visible symptoms.
+        </p>
+      </div>
+
+      {/* Field 8: Current Limitations of Existing Methods */}
+      <div className="p-4 rounded-xl border border-border/80 bg-card shadow-xs space-y-2.5">
+        <div className="flex items-center justify-between">
+          <label className="font-bold text-foreground text-xs flex items-center gap-1.5">
+            <span className="flex h-5 w-5 items-center justify-center rounded-md bg-muted text-foreground font-mono text-[11px]">
+              8
+            </span>
+            Current Municipal Limitations
+          </label>
+          <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">
+            Methodological Gaps
+          </span>
+        </div>
+        {isApproved ? (
+          <p className="p-3 rounded-lg border border-border/70 bg-muted/20 leading-relaxed text-foreground whitespace-pre-line text-xs min-h-[160px]">
+            {currentLimitations || "No specific limitations recorded."}
+          </p>
+        ) : (
+          <textarea
+            rows={7}
+            value={currentLimitations}
+            onChange={(e) => setCurrentLimitations(e.target.value)}
+            className="w-full text-xs p-3 rounded-lg border border-input bg-background text-foreground leading-relaxed focus:outline-none focus:ring-1 focus:ring-primary shadow-xs"
+            placeholder="Explain why standard departmental tools, off-the-shelf equipment, or manual practices fall short and necessitate outside innovation..."
+          />
+        )}
+        <p className="text-[10px] text-muted-foreground">
+          Justifies why standard departmental routine resolution cannot fix this issue.
+        </p>
+      </div>
+    </div>
+  );
+
+  const renderObjectivesSection = () => (
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+      {/* Field 9: Key Challenge Objectives */}
+      <div className="p-4 rounded-xl border border-border/80 bg-card shadow-xs space-y-3">
+        <div className="flex items-center justify-between">
+          <label className="font-bold text-foreground text-xs flex items-center gap-1.5">
+            <span className="flex h-5 w-5 items-center justify-center rounded-md bg-teal-100 text-teal-900 font-mono text-[11px]">
+              9
+            </span>
+            Key Challenge Objectives <span className="text-destructive font-bold">*</span>
+          </label>
+          <Badge variant="teal" size="sm">
+            {objectives.length} {objectives.length === 1 ? "Objective" : "Objectives"}
+          </Badge>
+        </div>
+
+        <div className="space-y-1.5 max-h-[300px] overflow-y-auto pr-1">
+          {objectives.map((obj, i) => (
+            <div
+              key={i}
+              className="p-2.5 rounded-lg border border-border/70 bg-muted/20 flex items-start justify-between gap-2 shadow-2xs hover:border-teal-300 transition-colors"
+            >
+              <div className="flex items-start gap-2 min-w-0">
+                <span className="font-mono text-[10px] font-bold px-1.5 py-0.5 rounded bg-teal-100 text-teal-800 shrink-0 mt-0.5">
+                  #{i + 1}
+                </span>
+                <span className="text-foreground text-xs leading-snug">{obj}</span>
+              </div>
+              {!isApproved ? (
+                <button
+                  type="button"
+                  onClick={() => handleRemoveObjective(i)}
+                  className="text-muted-foreground hover:text-rose-600 shrink-0 p-1 transition-colors"
+                  title="Remove objective"
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                </button>
+              ) : null}
+            </div>
+          ))}
+          {objectives.length === 0 ? (
+            <div className="p-4 text-center border border-dashed rounded-lg text-muted-foreground text-xs">
+              No objectives added yet. Add at least one objective for approval.
+            </div>
+          ) : null}
+        </div>
+
+        {!isApproved ? (
+          <div className="flex items-center gap-2 pt-1 border-t border-border/60">
+            <input
+              type="text"
+              value={newObjectiveInput}
+              onChange={(e) => setNewObjectiveInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  handleAddObjective();
+                }
+              }}
+              placeholder="Add actionable research/pilot objective..."
+              className="flex-1 text-xs p-2 rounded-lg border border-input bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+            />
+            <Button type="button" size="sm" variant="outline" onClick={handleAddObjective} className="text-xs gap-1">
+              <Plus className="h-3.5 w-3.5" /> Add
+            </Button>
+          </div>
+        ) : null}
+      </div>
+
+      {/* Field 10: Expected Innovation Outcomes */}
+      <div className="p-4 rounded-xl border border-border/80 bg-card shadow-xs space-y-3">
+        <div className="flex items-center justify-between">
+          <label className="font-bold text-foreground text-xs flex items-center gap-1.5">
+            <span className="flex h-5 w-5 items-center justify-center rounded-md bg-emerald-100 text-emerald-900 font-mono text-[11px]">
+              10
+            </span>
+            Expected Innovation Outcomes <span className="text-destructive font-bold">*</span>
+          </label>
+          <Badge variant="teal" size="sm">
+            {expectedOutcomes.length} {expectedOutcomes.length === 1 ? "Outcome" : "Outcomes"}
+          </Badge>
+        </div>
+
+        <div className="space-y-1.5 max-h-[300px] overflow-y-auto pr-1">
+          {expectedOutcomes.map((out, i) => (
+            <div
+              key={i}
+              className="p-2.5 rounded-lg border border-border/70 bg-muted/20 flex items-start justify-between gap-2 shadow-2xs hover:border-emerald-300 transition-colors"
+            >
+              <div className="flex items-start gap-2 min-w-0">
+                <span className="text-emerald-600 font-bold text-xs shrink-0 mt-0.5">•</span>
+                <span className="text-foreground text-xs leading-snug">{out}</span>
+              </div>
+              {!isApproved ? (
+                <button
+                  type="button"
+                  onClick={() => handleRemoveOutcome(i)}
+                  className="text-muted-foreground hover:text-rose-600 shrink-0 p-1 transition-colors"
+                  title="Remove outcome"
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                </button>
+              ) : null}
+            </div>
+          ))}
+          {expectedOutcomes.length === 0 ? (
+            <div className="p-4 text-center border border-dashed rounded-lg text-muted-foreground text-xs">
+              No expected outcomes added yet.
+            </div>
+          ) : null}
+        </div>
+
+        {!isApproved ? (
+          <div className="flex items-center gap-2 pt-1 border-t border-border/60">
+            <input
+              type="text"
+              value={newOutcomeInput}
+              onChange={(e) => setNewOutcomeInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  handleAddOutcome();
+                }
+              }}
+              placeholder="Add expected outcome (e.g. 40% reduction in water losses)..."
+              className="flex-1 text-xs p-2 rounded-lg border border-input bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+            />
+            <Button type="button" size="sm" variant="outline" onClick={handleAddOutcome} className="text-xs gap-1">
+              <Plus className="h-3.5 w-3.5" /> Add
+            </Button>
+          </div>
+        ) : null}
+      </div>
+    </div>
+  );
+
+  const renderTechSection = () => (
+    <div className="space-y-4">
+      {/* Paired Grid: 7. Disciplines & 12. Potential Technologies */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+        {/* Field 7: Required Multidisciplinary Domains */}
+        <div className="p-4 rounded-xl border border-border/80 bg-card shadow-xs space-y-3">
+          <div className="flex items-center justify-between">
+            <label className="font-bold text-foreground text-xs flex items-center gap-1.5">
+              <span className="flex h-5 w-5 items-center justify-center rounded-md bg-teal-100 text-teal-900 font-mono text-[11px]">
+                7
+              </span>
+              Required Multidisciplinary Domains <span className="text-destructive font-bold">*</span>
+            </label>
+            <Badge variant="teal" size="sm">
+              {requiredDomains.length} Required
+            </Badge>
+          </div>
+
+          <div className="flex flex-wrap gap-1.5 min-h-[50px] p-2.5 rounded-lg border border-border/70 bg-muted/20">
+            {requiredDomains.map((d) => (
+              <span
+                key={d}
+                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-bold bg-teal-50 text-teal-900 border border-teal-200 shadow-2xs"
+              >
+                {d}
+                {!isApproved ? (
+                  <button
+                    type="button"
+                    onClick={() => handleRemoveDomain(d)}
+                    className="text-teal-700 hover:text-rose-600 ml-0.5"
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
+                ) : null}
+              </span>
+            ))}
+            {requiredDomains.length === 0 ? (
+              <span className="text-muted-foreground text-[11px] py-1">No domains added yet. Add at least one.</span>
+            ) : null}
+          </div>
+
+          {!isApproved ? (
+            <div className="flex items-center gap-2 pt-1 border-t border-border/60">
+              <input
+                type="text"
+                value={newDomainInput}
+                onChange={(e) => setNewDomainInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    handleAddDomain();
+                  }
+                }}
+                placeholder="e.g. Hydrology, Agronomy, IoT..."
+                className="flex-1 text-xs p-1.5 rounded-lg border border-input bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+              />
+              <Button type="button" size="sm" variant="outline" onClick={handleAddDomain} className="h-8 text-xs gap-1">
+                <Plus className="h-3.5 w-3.5" /> Add
+              </Button>
+            </div>
+          ) : null}
+        </div>
+
+        {/* Field 12: Potential Technology Areas */}
+        <div className="p-4 rounded-xl border border-border/80 bg-card shadow-xs space-y-3">
+          <div className="flex items-center justify-between">
+            <label className="font-bold text-foreground text-xs flex items-center gap-1.5">
+              <span className="flex h-5 w-5 items-center justify-center rounded-md bg-sky-100 text-sky-900 font-mono text-[11px]">
+                12
+              </span>
+              Potential Technology Areas
+            </label>
+            <span className="text-[10px] text-muted-foreground">Non-Mandatory Suggestions</span>
+          </div>
+
+          <div className="flex flex-wrap gap-1.5 min-h-[50px] p-2.5 rounded-lg border border-border/70 bg-muted/20">
+            {potentialTech.map((t) => (
+              <span
+                key={t}
+                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-bold bg-sky-50 text-sky-900 border border-sky-200 shadow-2xs"
+              >
+                {t}
+                {!isApproved ? (
+                  <button
+                    type="button"
+                    onClick={() => handleRemoveTech(t)}
+                    className="text-sky-700 hover:text-rose-600 ml-0.5"
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
+                ) : null}
+              </span>
+            ))}
+            {potentialTech.length === 0 ? (
+              <span className="text-muted-foreground text-[11px] py-1">No technologies specified yet.</span>
+            ) : null}
+          </div>
+
+          {!isApproved ? (
+            <div className="flex items-center gap-2 pt-1 border-t border-border/60">
+              <input
+                type="text"
+                value={newTechInput}
+                onChange={(e) => setNewTechInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    handleAddTech();
+                  }
+                }}
+                placeholder="e.g. Edge AI, Satellite Remote Sensing..."
+                className="flex-1 text-xs p-1.5 rounded-lg border border-input bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+              />
+              <Button type="button" size="sm" variant="outline" onClick={handleAddTech} className="h-8 text-xs gap-1">
+                <Plus className="h-3.5 w-3.5" /> Add
+              </Button>
+            </div>
+          ) : null}
+        </div>
+      </div>
+
+      {/* Field 13: Research & Methodological Requirements */}
+      <div className="p-4 rounded-xl border border-border/80 bg-card shadow-xs space-y-2">
+        <div className="flex items-center justify-between">
+          <label className="font-bold text-foreground text-xs flex items-center gap-1.5">
+            <span className="flex h-5 w-5 items-center justify-center rounded-md bg-muted text-foreground font-mono text-[11px]">
+              13
+            </span>
+            Research &amp; Experimental Requirements
+          </label>
+          <span className="text-[10px] text-muted-foreground">Empirical, mathematical, or lab verification</span>
+        </div>
+        {isApproved ? (
+          <p className="p-3 rounded-lg border border-border/70 bg-muted/20 leading-relaxed text-foreground whitespace-pre-line text-xs">
+            {researchRequirements || "No specialized research requirements specified."}
+          </p>
+        ) : (
+          <textarea
+            rows={3}
+            value={researchRequirements}
+            onChange={(e) => setResearchRequirements(e.target.value)}
+            className="w-full text-xs p-3 rounded-lg border border-input bg-background text-foreground leading-relaxed focus:outline-none focus:ring-1 focus:ring-primary shadow-xs"
+            placeholder="Outline open research questions, hydrological/climatic modeling techniques, or experimental field trials needed..."
+          />
+        )}
+      </div>
+    </div>
+  );
+
+  const renderGovernanceSection = () => (
+    <div className="space-y-5">
+      {/* 2-Column Grid: 11. Constraints & 14. Success Criteria */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+        {/* Field 11: Known Operational & Environmental Constraints */}
+        <div className="p-4 rounded-xl border border-amber-200/70 bg-card shadow-xs space-y-3">
+          <div className="flex items-center justify-between">
+            <label className="font-bold text-foreground text-xs flex items-center gap-1.5">
+              <span className="flex h-5 w-5 items-center justify-center rounded-md bg-amber-100 text-amber-900 font-mono text-[11px]">
+                11
+              </span>
+              Known Constraints
+            </label>
+            <Badge variant="amber" size="sm">
+              {constraints.length} Constraints
+            </Badge>
+          </div>
+
+          <div className="space-y-1.5 max-h-[220px] overflow-y-auto pr-1">
+            {constraints.map((c, i) => (
+              <div
+                key={i}
+                className="p-2.5 rounded-lg border border-border/70 bg-muted/20 flex items-start justify-between gap-2 shadow-2xs"
+              >
+                <div className="flex items-start gap-2 min-w-0">
+                  <span className="font-bold text-amber-600 text-xs shrink-0 mt-0.5">•</span>
+                  <span className="text-foreground text-xs leading-snug">{c}</span>
+                </div>
+                {!isApproved ? (
+                  <button
+                    type="button"
+                    onClick={() => handleRemoveConstraint(i)}
+                    className="text-muted-foreground hover:text-rose-600 shrink-0 p-1"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </button>
+                ) : null}
+              </div>
+            ))}
+            {constraints.length === 0 ? (
+              <div className="p-3 text-center border border-dashed rounded-lg text-muted-foreground text-xs">
+                No constraints specified.
+              </div>
+            ) : null}
+          </div>
+
+          {!isApproved ? (
+            <div className="flex items-center gap-2 pt-1 border-t border-border/60">
+              <input
+                type="text"
+                value={newConstraintInput}
+                onChange={(e) => setNewConstraintInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    handleAddConstraint();
+                  }
+                }}
+                placeholder="Add operational or budget constraint..."
+                className="flex-1 text-xs p-1.5 rounded-lg border border-input bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+              />
+              <Button type="button" size="sm" variant="outline" onClick={handleAddConstraint} className="h-8 text-xs gap-1">
+                <Plus className="h-3.5 w-3.5" /> Add
+              </Button>
+            </div>
+          ) : null}
+        </div>
+
+        {/* Field 14: Success Criteria & Evaluation Benchmarks */}
+        <div className="p-4 rounded-xl border border-emerald-200/70 bg-card shadow-xs space-y-3">
+          <div className="flex items-center justify-between">
+            <label className="font-bold text-foreground text-xs flex items-center gap-1.5">
+              <span className="flex h-5 w-5 items-center justify-center rounded-md bg-emerald-100 text-emerald-900 font-mono text-[11px]">
+                14
+              </span>
+              Success Criteria &amp; Benchmarks <span className="text-destructive font-bold">*</span>
+            </label>
+            <Badge variant="teal" size="sm">
+              {successCriteria.length} Criteria
+            </Badge>
+          </div>
+
+          <div className="space-y-1.5 max-h-[220px] overflow-y-auto pr-1">
+            {successCriteria.map((crit, i) => (
+              <div
+                key={i}
+                className="p-2.5 rounded-lg border border-border/70 bg-muted/20 flex items-start justify-between gap-2 shadow-2xs"
+              >
+                <div className="flex items-start gap-2 min-w-0">
+                  <span className="font-bold text-emerald-600 text-xs shrink-0 mt-0.5">✓</span>
+                  <span className="text-foreground text-xs leading-snug">{crit}</span>
+                </div>
+                {!isApproved ? (
+                  <button
+                    type="button"
+                    onClick={() => handleRemoveCriterion(i)}
+                    className="text-muted-foreground hover:text-rose-600 shrink-0 p-1"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </button>
+                ) : null}
+              </div>
+            ))}
+            {successCriteria.length === 0 ? (
+              <div className="p-3 text-center border border-dashed rounded-lg text-muted-foreground text-xs">
+                No success criteria specified yet. Add at least one for approval.
+              </div>
+            ) : null}
+          </div>
+
+          {!isApproved ? (
+            <div className="flex items-center gap-2 pt-1 border-t border-border/60">
+              <input
+                type="text"
+                value={newCriterionInput}
+                onChange={(e) => setNewCriterionInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    handleAddCriterion();
+                  }
+                }}
+                placeholder="Add benchmark (e.g. 90% forecast precision)..."
+                className="flex-1 text-xs p-1.5 rounded-lg border border-input bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+              />
+              <Button type="button" size="sm" variant="outline" onClick={handleAddCriterion} className="h-8 text-xs gap-1">
+                <Plus className="h-3.5 w-3.5" /> Add
+              </Button>
+            </div>
+          ) : null}
+        </div>
+      </div>
+
+      {/* Managerial Governance Sign-off & Audit Panel */}
+      <div className="p-4 rounded-xl border border-teal-200/80 bg-teal-50/30 shadow-xs space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+          <div className="flex items-center gap-2">
+            <ShieldCheck className="h-5 w-5 text-teal-700" />
+            <h4 className="font-bold text-sm text-teal-950">
+              Managerial Approval Readiness &amp; Governance
+            </h4>
+          </div>
+          <Badge variant={isReadyForApproval ? "teal" : "amber"} size="sm" className="font-bold">
+            {isReadyForApproval ? "Ready For Approval" : `${completedRequiredCount}/7 Required Complete`}
+          </Badge>
+        </div>
+
+        {/* 7 Required Criteria Checklist Cards */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2 text-xs">
+          {requiredFieldsChecklist.map((item, idx) => (
+            <div
+              key={idx}
+              className={`p-2 rounded-lg border flex items-center gap-2 transition-colors ${
+                item.met
+                  ? "bg-emerald-50/70 border-emerald-200 text-emerald-950"
+                  : "bg-muted/40 border-border/70 text-muted-foreground"
+              }`}
+            >
+              {item.met ? (
+                <Check className="h-3.5 w-3.5 text-emerald-700 shrink-0" />
+              ) : (
+                <span className="h-3.5 w-3.5 rounded-full border border-muted-foreground/40 shrink-0" />
+              )}
+              <span className="text-[11px] font-medium truncate" title={item.label}>
+                {item.label}
+              </span>
+            </div>
+          ))}
+        </div>
+
+        {/* Collapsible Original AI Draft Comparison Drawer */}
+        {rawAiDraft ? (
+          <div className="pt-2 border-t border-teal-200/60">
+            <button
+              type="button"
+              onClick={() => setShowAiDraftComparison(!showAiDraftComparison)}
+              className="flex items-center justify-between w-full p-2.5 rounded-lg border border-teal-200 bg-teal-100/40 hover:bg-teal-100/70 transition text-xs font-semibold text-teal-900"
+            >
+              <span className="flex items-center gap-2">
+                <Bot className="h-4 w-4 text-teal-700" />
+                <span>Audit: Inspect Original AI Draft ({challenge.ai_model_version || "Gemini"})</span>
+              </span>
+              {showAiDraftComparison ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+            </button>
+
+            {showAiDraftComparison ? (
+              <div className="mt-2 p-3.5 rounded-xl border border-teal-200 bg-card space-y-2.5 animate-in fade-in-50 text-xs">
+                <span className="font-bold text-teal-950 block text-[11px]">
+                  Original AI Output Snapshot ({challenge.ai_generated_at ? formatCitizenIssueDateTime(challenge.ai_generated_at) : "Synthesized"}):
+                </span>
+                <div className="space-y-2 max-h-[220px] overflow-y-auto pr-2 font-mono text-[11px]">
+                  <div>
+                    <strong className="text-foreground">AI Title:</strong> {rawAiDraft.title}
+                  </div>
+                  <div>
+                    <strong className="text-foreground">AI Root Cause:</strong> {rawAiDraft.root_cause}
+                  </div>
+                  <div>
+                    <strong className="text-foreground">AI Domains:</strong> {(rawAiDraft.required_domains || []).join(", ")}
+                  </div>
+                  <div>
+                    <strong className="text-foreground">AI Limitations:</strong> {rawAiDraft.current_limitations}
+                  </div>
+                </div>
+              </div>
+            ) : null}
+          </div>
+        ) : null}
+
+        {/* Approval Action Bar */}
+        {!isApproved ? (
+          <div className="pt-3 border-t border-teal-200/60 flex flex-wrap items-center justify-between gap-3">
+            <p className="text-[11px] text-teal-950/80">
+              Only your authoritative manager approval makes this Challenge binding and eligible for institutional matching.
+            </p>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => void handleSaveDraft()}
+                disabled={savingDraft || approving || regenerating}
+                className="gap-1.5 text-xs"
+              >
+                {savingDraft ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
+                Save Draft
+              </Button>
+              <Button
+                size="sm"
+                onClick={() => setConfirmApproveOpen(true)}
+                disabled={savingDraft || approving || regenerating || !isReadyForApproval}
+                className="gap-1.5 text-xs bg-primary text-primary-foreground font-semibold shadow-sm"
+              >
+                <ShieldCheck className="h-3.5 w-3.5" />
+                Confirm &amp; Approve Challenge
+              </Button>
+            </div>
+          </div>
+        ) : null}
+      </div>
+    </div>
+  );
 
   return (
     <div className="space-y-6">
@@ -501,7 +1300,7 @@ export function InnovationChallengeDetailsPage() {
                 <Button
                   size="sm"
                   onClick={() => setConfirmApproveOpen(true)}
-                  disabled={regenerating || savingDraft || approving}
+                  disabled={regenerating || savingDraft || approving || !isReadyForApproval}
                   className="gap-1.5 text-xs bg-primary text-primary-foreground font-semibold shadow-sm"
                 >
                   <ShieldCheck className="h-3.5 w-3.5" />
@@ -584,724 +1383,457 @@ export function InnovationChallengeDetailsPage() {
       ) : (
         <div className="rounded-2xl border border-amber-300 bg-amber-50/80 p-4 text-xs text-amber-950 flex items-start gap-3 shadow-xs">
           <AlertTriangle className="h-5 w-5 text-amber-700 shrink-0 mt-0.5" />
-          <div>
-            <span className="font-bold block text-sm">Managerial Governance Notice: AI Draft Under Review</span>
+          <div className="flex-1">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <span className="font-bold block text-sm">Managerial Governance Notice: AI Draft Under Review</span>
+              <span className="text-[11px] font-semibold text-amber-800">
+                {completedRequiredCount}/7 Mandatory Specifications Complete
+              </span>
+            </div>
             <p className="mt-0.5 leading-relaxed text-amber-900/90">
-              The problem statement below was synthesized by Gemini AI using the citizen&apos;s grievance and multi-factor diagnostic data.
-              AI provides recommendations; only your authoritative approval makes this Innovation Challenge official.
+              The formulation workspace synthesizes the citizen&apos;s grievance and multi-factor diagnostic data into 14 structured challenge fields.
+              AI provides draft recommendations; only your authoritative approval makes this Innovation Challenge official.
             </p>
           </div>
         </div>
       )}
 
-      {/* Main Two-Column Layout */}
+      {/* Main Responsive Layout */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-        {/* LEFT COLUMN: Source Issue Dossier & Multi-Factor AI Diagnostics (5 cols) */}
-        <div className="lg:col-span-5 space-y-4">
-          {/* 1. Original Citizen Issue Statement Card */}
-          <Card className="rounded-2xl border border-border/80 shadow-sm overflow-hidden">
-            <CardHeader className="py-3 px-4 bg-muted/40 border-b border-border/70 flex flex-row items-center justify-between">
-              <div className="flex items-center gap-2">
-                <FileText className="h-4 w-4 text-primary" />
-                <CardTitle className="text-xs font-bold text-foreground uppercase tracking-wider">
-                  Source Civic Grievance
-                </CardTitle>
-              </div>
-              <Button asChild variant="ghost" size="sm" className="h-7 text-xs gap-1">
-                <Link to={`/app/innovation/issues/${sourceIssue.id}`}>
-                  <span>Full View</span>
-                  <ArrowRight className="h-3 w-3" />
-                </Link>
-              </Button>
-            </CardHeader>
-
-            <CardContent className="space-y-3.5 pt-4 text-xs">
-              <div>
-                <span className="font-mono text-[10px] text-muted-foreground block">
-                  Issue #{sourceIssue.id.slice(0, 8)} • Submitted {formatCitizenIssueDateTime(sourceIssue.created_at)}
-                </span>
-                <span className="font-bold text-foreground text-sm mt-0.5 block">
-                  {sourceIssue.title}
-                </span>
-              </div>
-
-              <div className="p-3.5 rounded-xl bg-muted/40 border border-border/70 text-foreground leading-relaxed">
-                <span className="font-semibold text-[10px] text-muted-foreground uppercase block mb-1">
-                  Citizen Problem Statement:
-                </span>
-                &ldquo;{sourceIssue.description}&rdquo;
-              </div>
-
-              {/* Grievance Metadata Grid */}
-              <div className="grid grid-cols-2 gap-2 pt-1">
-                <div className="p-2.5 rounded-lg border border-border/70 bg-card">
-                  <span className="text-[10px] text-muted-foreground block">Category</span>
-                  <span className="font-semibold text-foreground">{sourceIssue.category}</span>
+        {/* LEFT COLUMN: Source Issue Dossier & Multi-Factor AI Diagnostics */}
+        {showSourceDossier ? (
+          <div className="lg:col-span-4 space-y-4">
+            {/* 1. Original Citizen Issue Statement Card */}
+            <Card className="rounded-2xl border border-border/80 shadow-sm overflow-hidden">
+              <CardHeader className="py-3 px-4 bg-muted/40 border-b border-border/70 flex flex-row items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <FileText className="h-4 w-4 text-primary" />
+                  <CardTitle className="text-xs font-bold text-foreground uppercase tracking-wider">
+                    Source Civic Grievance
+                  </CardTitle>
                 </div>
-                <div className="p-2.5 rounded-lg border border-border/70 bg-card">
-                  <span className="text-[10px] text-muted-foreground block">Location</span>
-                  <span className="font-medium text-foreground truncate block" title={sourceIssue.address_text || sourceIssue.location_text || ""}>
-                    {sourceIssue.address_text || sourceIssue.location_text || "Municipal Jurisdiction"}
+                <Button asChild variant="ghost" size="sm" className="h-7 text-xs gap-1">
+                  <Link to={`/app/innovation/issues/${sourceIssue.id}`}>
+                    <span>Full View</span>
+                    <ArrowRight className="h-3 w-3" />
+                  </Link>
+                </Button>
+              </CardHeader>
+
+              <CardContent className="space-y-3.5 pt-4 text-xs">
+                <div>
+                  <span className="font-mono text-[10px] text-muted-foreground block">
+                    Issue #{sourceIssue.id.slice(0, 8)} • Submitted {formatCitizenIssueDateTime(sourceIssue.created_at)}
+                  </span>
+                  <span className="font-bold text-foreground text-sm mt-0.5 block">
+                    {sourceIssue.title}
                   </span>
                 </div>
-                <div className="p-2.5 rounded-lg border border-border/70 bg-card">
-                  <span className="text-[10px] text-muted-foreground block">Severity</span>
-                  <Badge variant={getOfficerIssueSeverityTone(sourceIssue.severity)} size="sm" className="mt-0.5">
-                    {getOfficerIssueSeverityLabel(sourceIssue.severity)}
-                  </Badge>
-                </div>
-                <div className="p-2.5 rounded-lg border border-border/70 bg-card">
-                  <span className="text-[10px] text-muted-foreground block">Priority</span>
-                  <Badge variant={getOfficerIssuePriorityTone(sourceIssue.priority)} size="sm" className="mt-0.5">
-                    {formatOfficerIssuePriority(sourceIssue.priority)}
-                  </Badge>
-                </div>
-              </div>
 
-              {/* Photographic Evidence */}
-              {sourceIssue.issue_images && sourceIssue.issue_images.length > 0 ? (
-                <div className="space-y-1.5 pt-1">
-                  <span className="font-semibold text-muted-foreground block text-[11px] uppercase tracking-wider">
-                    Attached Evidence ({sourceIssue.issue_images.length})
+                <div className="p-3.5 rounded-xl bg-muted/40 border border-border/70 text-foreground leading-relaxed">
+                  <span className="font-semibold text-[10px] text-muted-foreground uppercase block mb-1">
+                    Citizen Problem Statement:
                   </span>
-                  <div className="flex flex-wrap gap-2">
-                    {sourceIssue.issue_images.map((img) => {
-                      const url = formatCitizenIssueImageUrl(img);
-                      if (!url) return null;
-                      return (
-                        <button
-                          key={img.id}
-                          type="button"
-                          onClick={() => setPreviewImage(url)}
-                          className="group relative h-16 w-24 overflow-hidden rounded-lg border border-border shadow-xs hover:ring-2 hover:ring-primary transition-all"
-                        >
-                          <img src={url} alt="Evidence" className="h-full w-full object-cover group-hover:scale-105 transition-transform" />
-                          <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity text-white">
-                            <Eye className="h-3.5 w-3.5" />
-                          </div>
-                        </button>
-                      );
-                    })}
+                  &ldquo;{sourceIssue.description}&rdquo;
+                </div>
+
+                {/* Grievance Metadata Grid */}
+                <div className="grid grid-cols-2 gap-2 pt-1">
+                  <div className="p-2.5 rounded-lg border border-border/70 bg-card">
+                    <span className="text-[10px] text-muted-foreground block">Category</span>
+                    <span className="font-semibold text-foreground">{sourceIssue.category}</span>
+                  </div>
+                  <div className="p-2.5 rounded-lg border border-border/70 bg-card">
+                    <span className="text-[10px] text-muted-foreground block">Location</span>
+                    <span className="font-medium text-foreground truncate block" title={sourceIssue.address_text || sourceIssue.location_text || ""}>
+                      {sourceIssue.address_text || sourceIssue.location_text || "Municipal Jurisdiction"}
+                    </span>
+                  </div>
+                  <div className="p-2.5 rounded-lg border border-border/70 bg-card">
+                    <span className="text-[10px] text-muted-foreground block">Severity</span>
+                    <Badge variant={getOfficerIssueSeverityTone(sourceIssue.severity)} size="sm" className="mt-0.5">
+                      {getOfficerIssueSeverityLabel(sourceIssue.severity)}
+                    </Badge>
+                  </div>
+                  <div className="p-2.5 rounded-lg border border-border/70 bg-card">
+                    <span className="text-[10px] text-muted-foreground block">Priority</span>
+                    <Badge variant={getOfficerIssuePriorityTone(sourceIssue.priority)} size="sm" className="mt-0.5">
+                      {formatOfficerIssuePriority(sourceIssue.priority)}
+                    </Badge>
                   </div>
                 </div>
-              ) : null}
-            </CardContent>
-          </Card>
 
-          {/* 2. Admin Authoritative Classification Banner */}
-          <Card className="rounded-2xl border border-teal-200/80 bg-teal-50/40 p-4 shadow-sm text-xs space-y-2">
-            <div className="flex items-center justify-between">
-              <span className="font-bold text-teal-950 flex items-center gap-1.5">
-                <ShieldCheck className="h-4 w-4 text-teal-700" />
-                Admin Authoritative Classification
-              </span>
-              <Badge variant="teal" size="sm" className="font-bold">
-                COMPLEX
-              </Badge>
-            </div>
-            <p className="text-muted-foreground leading-relaxed">
-              Decided by: <strong className="text-foreground">{sourceIssue.decided_by_profile?.full_name || "Platform Administrator"}</strong>
-              {sourceIssue.classification_decided_at ? ` on ${formatCitizenIssueDateTime(sourceIssue.classification_decided_at)}` : ""}
-            </p>
-            {sourceIssue.classification_override_reason ? (
-              <p className="p-2.5 rounded-lg border border-amber-200 bg-amber-50 text-amber-950 italic">
-                Override Note: {sourceIssue.classification_override_reason}
-              </p>
-            ) : null}
-          </Card>
-
-          {/* 3. AI 16-Factor Diagnostic Summary */}
-          <Card className="rounded-2xl border border-border/80 shadow-sm overflow-hidden text-xs">
-            <CardHeader className="py-3 px-4 bg-muted/40 border-b border-border/70 flex flex-row items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Bot className="h-4 w-4 text-primary" />
-                <CardTitle className="text-xs font-bold text-foreground uppercase tracking-wider">
-                  AI Multi-Factor Diagnostics
-                </CardTitle>
-              </div>
-              <span className="font-bold text-teal-800">
-                Score: {sourceIssue.ai_complexity_score ?? 75}/100
-              </span>
-            </CardHeader>
-            <CardContent className="pt-3 pb-4 px-4 space-y-3">
-              <div>
-                <span className="text-[10px] text-muted-foreground uppercase font-semibold block">
-                  Diagnostic Reasoning:
-                </span>
-                <p className="text-foreground leading-relaxed mt-0.5">
-                  {sourceIssue.ai_complexity_reasoning || latestAi?.complexity_reasoning || "Systemic inter-disciplinary failure identified."}
-                </p>
-              </div>
-
-              {/* Initial Recommended Expertise Chips */}
-              <div>
-                <span className="text-[10px] text-muted-foreground uppercase font-semibold block mb-1">
-                  Initial Triage Disciplines:
-                </span>
-                <div className="flex flex-wrap gap-1.5">
-                  {(sourceIssue.ai_required_expertise || latestAi?.required_expertise || []).map((exp) => (
-                    <span
-                      key={exp}
-                      className="px-2 py-0.5 rounded-md text-[10px] font-semibold bg-teal-50 text-teal-900 border border-teal-200"
-                    >
-                      {exp}
+                {/* Photographic Evidence */}
+                {sourceIssue.issue_images && sourceIssue.issue_images.length > 0 ? (
+                  <div className="space-y-1.5 pt-1">
+                    <span className="font-semibold text-muted-foreground block text-[11px] uppercase tracking-wider">
+                      Attached Evidence ({sourceIssue.issue_images.length})
                     </span>
-                  ))}
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* RIGHT COLUMN: 14-Field Structured Innovation Challenge Workspace (7 cols) */}
-        <div className="lg:col-span-7 space-y-5">
-          <Card className="rounded-2xl border border-border/80 shadow-md overflow-hidden">
-            <CardHeader className="py-3.5 px-5 bg-gradient-to-r from-teal-50/80 via-surface to-background border-b border-border/70 flex flex-row items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Rocket className="h-4 w-4 text-primary" />
-                <CardTitle className="text-sm font-bold text-foreground">
-                  Structured Problem Statement Formulation
-                </CardTitle>
-              </div>
-              <Badge variant={isApproved ? "teal" : "amber"} size="sm" className="font-bold">
-                {isApproved ? "APPROVED" : "DRAFT MODE"}
-              </Badge>
-            </CardHeader>
-
-            <CardContent className="p-5 space-y-5 text-xs">
-              {/* Field 1: Problem Title */}
-              <div className="space-y-1.5">
-                <label className="font-bold text-foreground text-xs block">
-                  1. Problem Title <span className="text-destructive">*</span>
-                </label>
-                {isApproved ? (
-                  <p className="p-3 rounded-xl border border-border/70 bg-muted/20 font-bold text-sm text-foreground">
-                    {title}
-                  </p>
-                ) : (
-                  <input
-                    type="text"
-                    value={title}
-                    onChange={(e) => setTitle(e.target.value)}
-                    className="w-full text-xs p-2.5 rounded-xl border border-input bg-background text-foreground font-semibold focus:outline-none focus:ring-1 focus:ring-primary shadow-xs"
-                    placeholder="e.g. Predictive Water Availability Modeling and Precision Irrigation Decision Support"
-                  />
-                )}
-                <span className="text-[10px] text-muted-foreground block">
-                  A professional, innovation/research-oriented title. Avoid generic phrases like &ldquo;Water Problem&rdquo;.
-                </span>
-              </div>
-
-              {/* Field 2: Problem Statement & Scope */}
-              <div className="space-y-1.5">
-                <label className="font-bold text-foreground text-xs block">
-                  2. Problem Statement & Scope <span className="text-destructive">*</span>
-                </label>
-                {isApproved ? (
-                  <p className="p-3.5 rounded-xl border border-border/70 bg-muted/20 leading-relaxed text-foreground whitespace-pre-line">
-                    {problemStatement}
-                  </p>
-                ) : (
-                  <textarea
-                    rows={5}
-                    value={problemStatement}
-                    onChange={(e) => setProblemStatement(e.target.value)}
-                    className="w-full text-xs p-3 rounded-xl border border-input bg-background text-foreground leading-relaxed focus:outline-none focus:ring-1 focus:ring-primary shadow-xs"
-                    placeholder="Detail what the problem is, who experiences it, where it occurs, why it matters, current consequences, and why existing municipal procedures fail..."
-                  />
-                )}
-                <span className="text-[10px] text-muted-foreground block">
-                  Articulate the systemic challenge, distinguishing surface symptoms from underlying root problems.
-                </span>
-              </div>
-
-              {/* Field 3: Root Cause Analysis */}
-              <div className="space-y-1.5">
-                <label className="font-bold text-foreground text-xs block">
-                  3. Root Cause Analysis <span className="text-destructive">*</span>
-                </label>
-                {isApproved ? (
-                  <p className="p-3.5 rounded-xl border border-border/70 bg-muted/20 leading-relaxed text-foreground whitespace-pre-line">
-                    {rootCause}
-                  </p>
-                ) : (
-                  <textarea
-                    rows={3}
-                    value={rootCause}
-                    onChange={(e) => setRootCause(e.target.value)}
-                    className="w-full text-xs p-3 rounded-xl border border-input bg-background text-foreground leading-relaxed focus:outline-none focus:ring-1 focus:ring-primary shadow-xs"
-                    placeholder="Identify the systemic, hydrological, infrastructural, or analytical causes..."
-                  />
-                )}
-              </div>
-
-              {/* Row 4 & 5: Affected Population & Geographic Scope */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="space-y-1.5">
-                  <label className="font-bold text-foreground text-xs block">
-                    4. Affected Population & Stakeholders
-                  </label>
-                  {isApproved ? (
-                    <p className="p-2.5 rounded-xl border border-border/70 bg-muted/20 text-foreground">
-                      {affectedPopulation || "Not specified"}
-                    </p>
-                  ) : (
-                    <input
-                      type="text"
-                      value={affectedPopulation}
-                      onChange={(e) => setAffectedPopulation(e.target.value)}
-                      className="w-full text-xs p-2.5 rounded-xl border border-input bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary shadow-xs"
-                      placeholder="e.g. Smallholder farmers and agricultural communities"
-                    />
-                  )}
-                  <span className="text-[10px] text-muted-foreground block">
-                    Do not fabricate numbers; describe qualitative scale.
-                  </span>
-                </div>
-
-                <div className="space-y-1.5">
-                  <label className="font-bold text-foreground text-xs block">
-                    5. Geographic Scope
-                  </label>
-                  {isApproved ? (
-                    <p className="p-2.5 rounded-xl border border-border/70 bg-muted/20 text-foreground">
-                      {geographicScope || "Municipal Jurisdiction"}
-                    </p>
-                  ) : (
-                    <input
-                      type="text"
-                      value={geographicScope}
-                      onChange={(e) => setGeographicScope(e.target.value)}
-                      className="w-full text-xs p-2.5 rounded-xl border border-input bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary shadow-xs"
-                      placeholder="e.g. Village/Ward cluster, Regional Drainage Basin"
-                    />
-                  )}
-                </div>
-              </div>
-
-              {/* Row 6 & 7: Category & Required Multidisciplinary Domains */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="space-y-1.5">
-                  <label className="font-bold text-foreground text-xs block">
-                    6. Problem Category
-                  </label>
-                  {isApproved ? (
-                    <p className="p-2.5 rounded-xl border border-border/70 bg-muted/20 text-foreground">
-                      {problemCategory || "Civic Infrastructure"}
-                    </p>
-                  ) : (
-                    <input
-                      type="text"
-                      value={problemCategory}
-                      onChange={(e) => setProblemCategory(e.target.value)}
-                      className="w-full text-xs p-2.5 rounded-xl border border-input bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary shadow-xs"
-                      placeholder="e.g. Agriculture / Water Management"
-                    />
-                  )}
-                </div>
-
-                <div className="space-y-1.5">
-                  <label className="font-bold text-foreground text-xs block">
-                    7. Required Multidisciplinary Domains <span className="text-destructive">*</span>
-                  </label>
-                  <div className="flex flex-wrap gap-1.5 min-h-[36px] p-2 rounded-xl border border-border/70 bg-muted/20">
-                    {requiredDomains.map((d) => (
-                      <span
-                        key={d}
-                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-bold bg-teal-50 text-teal-900 border border-teal-200"
-                      >
-                        {d}
-                        {!isApproved ? (
+                    <div className="flex flex-wrap gap-2">
+                      {sourceIssue.issue_images.map((img) => {
+                        const url = formatCitizenIssueImageUrl(img);
+                        if (!url) return null;
+                        return (
                           <button
+                            key={img.id}
                             type="button"
-                            onClick={() => handleRemoveDomain(d)}
-                            className="text-teal-700 hover:text-rose-600 ml-0.5"
+                            onClick={() => setPreviewImage(url)}
+                            className="group relative h-16 w-24 overflow-hidden rounded-lg border border-border shadow-xs hover:ring-2 hover:ring-primary transition-all"
                           >
-                            <X className="h-3 w-3" />
+                            <img src={url} alt="Evidence" className="h-full w-full object-cover group-hover:scale-105 transition-transform" />
+                            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity text-white">
+                              <Eye className="h-3.5 w-3.5" />
+                            </div>
                           </button>
-                        ) : null}
+                        );
+                      })}
+                    </div>
+                  </div>
+                ) : null}
+              </CardContent>
+            </Card>
+
+            {/* 2. Admin Authoritative Classification Banner */}
+            <Card className="rounded-2xl border border-teal-200/80 bg-teal-50/40 p-4 shadow-sm text-xs space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="font-bold text-teal-950 flex items-center gap-1.5">
+                  <ShieldCheck className="h-4 w-4 text-teal-700" />
+                  Admin Authoritative Classification
+                </span>
+                <Badge variant="teal" size="sm" className="font-bold">
+                  COMPLEX
+                </Badge>
+              </div>
+              <p className="text-muted-foreground leading-relaxed">
+                Decided by: <strong className="text-foreground">{sourceIssue.decided_by_profile?.full_name || "Platform Administrator"}</strong>
+                {sourceIssue.classification_decided_at ? ` on ${formatCitizenIssueDateTime(sourceIssue.classification_decided_at)}` : ""}
+              </p>
+              {sourceIssue.classification_override_reason ? (
+                <p className="p-2.5 rounded-lg border border-amber-200 bg-amber-50 text-amber-950 italic">
+                  Override Note: {sourceIssue.classification_override_reason}
+                </p>
+              ) : null}
+            </Card>
+
+            {/* 3. AI 16-Factor Diagnostic Summary */}
+            <Card className="rounded-2xl border border-border/80 shadow-sm overflow-hidden text-xs">
+              <CardHeader className="py-3 px-4 bg-muted/40 border-b border-border/70 flex flex-row items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Bot className="h-4 w-4 text-primary" />
+                  <CardTitle className="text-xs font-bold text-foreground uppercase tracking-wider">
+                    AI Multi-Factor Diagnostics
+                  </CardTitle>
+                </div>
+                <span className="font-bold text-teal-800">
+                  Score: {sourceIssue.ai_complexity_score ?? 75}/100
+                </span>
+              </CardHeader>
+              <CardContent className="pt-3 pb-4 px-4 space-y-3">
+                <div>
+                  <span className="text-[10px] text-muted-foreground uppercase font-semibold block">
+                    Diagnostic Reasoning:
+                  </span>
+                  <p className="text-foreground leading-relaxed mt-0.5">
+                    {sourceIssue.ai_complexity_reasoning || latestAi?.complexity_reasoning || "Systemic inter-disciplinary failure identified."}
+                  </p>
+                </div>
+
+                {/* Initial Recommended Expertise Chips */}
+                <div>
+                  <span className="text-[10px] text-muted-foreground uppercase font-semibold block mb-1">
+                    Initial Triage Disciplines:
+                  </span>
+                  <div className="flex flex-wrap gap-1.5">
+                    {(sourceIssue.ai_required_expertise || latestAi?.required_expertise || []).map((exp) => (
+                      <span
+                        key={exp}
+                        className="px-2 py-0.5 rounded-md text-[10px] font-semibold bg-teal-50 text-teal-900 border border-teal-200"
+                      >
+                        {exp}
                       </span>
                     ))}
-                    {requiredDomains.length === 0 ? (
-                      <span className="text-muted-foreground text-[11px] py-0.5">No domains added yet.</span>
-                    ) : null}
                   </div>
-                  {!isApproved ? (
-                    <div className="flex items-center gap-2 pt-1">
-                      <input
-                        type="text"
-                        value={newDomainInput}
-                        onChange={(e) => setNewDomainInput(e.target.value)}
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter") {
-                            e.preventDefault();
-                            handleAddDomain();
-                          }
-                        }}
-                        placeholder="Add domain (e.g. Hydrology, IoT, Agronomy)..."
-                        className="flex-1 text-xs p-1.5 rounded-lg border border-input bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
-                      />
-                      <Button type="button" size="sm" variant="outline" onClick={handleAddDomain} className="h-8 text-xs gap-1">
-                        <Plus className="h-3.5 w-3.5" /> Add
-                      </Button>
-                    </div>
-                  ) : null}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        ) : null}
+
+        {/* RIGHT COLUMN: Modern Formulated Problem Statement Workspace */}
+        <div className={showSourceDossier ? "lg:col-span-8 space-y-4" : "lg:col-span-12 space-y-4"}>
+          <Card className="rounded-2xl border border-border/80 shadow-sm overflow-hidden">
+            {/* Top Workspace Toolbar */}
+            <CardHeader className="py-3 px-5 bg-gradient-to-r from-teal-50/60 via-muted/20 to-background border-b border-border/70 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <div className="p-2 rounded-xl bg-teal-100 text-teal-800">
+                  <Rocket className="h-4 w-4" />
+                </div>
+                <div>
+                  <CardTitle className="text-sm font-bold text-foreground">
+                    Structured Problem Statement Formulation
+                  </CardTitle>
+                  <span className="text-[11px] text-muted-foreground block">
+                    14 Architectural Specifications for Academic &amp; Research Challenges
+                  </span>
                 </div>
               </div>
 
-              {/* Field 8: Current Limitations */}
-              <div className="space-y-1.5">
-                <label className="font-bold text-foreground text-xs block">
-                  8. Current Limitations of Existing Methods
-                </label>
-                {isApproved ? (
-                  <p className="p-3.5 rounded-xl border border-border/70 bg-muted/20 leading-relaxed text-foreground whitespace-pre-line">
-                    {currentLimitations || "No specific limitations noted."}
-                  </p>
-                ) : (
-                  <textarea
-                    rows={3}
-                    value={currentLimitations}
-                    onChange={(e) => setCurrentLimitations(e.target.value)}
-                    className="w-full text-xs p-3 rounded-xl border border-input bg-background text-foreground leading-relaxed focus:outline-none focus:ring-1 focus:ring-primary shadow-xs"
-                    placeholder="Explain why standard departmental tools, off-the-shelf equipment, or manual practices fall short..."
-                  />
-                )}
-              </div>
-
-              {/* Field 9: Challenge Objectives */}
-              <div className="space-y-2">
-                <label className="font-bold text-foreground text-xs block">
-                  9. Key Challenge Objectives <span className="text-destructive">*</span>
-                </label>
-                <div className="space-y-1.5">
-                  {objectives.map((obj, i) => (
-                    <div
-                      key={i}
-                      className="p-2.5 rounded-xl border border-border/70 bg-card flex items-start justify-between gap-2 shadow-xs"
-                    >
-                      <div className="flex items-start gap-2 min-w-0">
-                        <span className="font-bold text-primary text-xs shrink-0 mt-0.5">#{i + 1}</span>
-                        <span className="text-foreground leading-snug">{obj}</span>
-                      </div>
-                      {!isApproved ? (
-                        <button
-                          type="button"
-                          onClick={() => handleRemoveObjective(i)}
-                          className="text-muted-foreground hover:text-rose-600 shrink-0 p-1"
-                        >
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </button>
-                      ) : null}
-                    </div>
-                  ))}
-                </div>
-                {!isApproved ? (
-                  <div className="flex items-center gap-2 pt-1">
-                    <input
-                      type="text"
-                      value={newObjectiveInput}
-                      onChange={(e) => setNewObjectiveInput(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter") {
-                          e.preventDefault();
-                          handleAddObjective();
-                        }
-                      }}
-                      placeholder="Add an actionable research/pilot objective..."
-                      className="flex-1 text-xs p-2 rounded-lg border border-input bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
-                    />
-                    <Button type="button" size="sm" variant="outline" onClick={handleAddObjective} className="text-xs gap-1">
-                      <Plus className="h-3.5 w-3.5" /> Add
-                    </Button>
-                  </div>
-                ) : null}
-              </div>
-
-              {/* Field 10: Expected Outcomes */}
-              <div className="space-y-2">
-                <label className="font-bold text-foreground text-xs block">
-                  10. Expected Innovation Outcomes <span className="text-destructive">*</span>
-                </label>
-                <div className="space-y-1.5">
-                  {expectedOutcomes.map((out, i) => (
-                    <div
-                      key={i}
-                      className="p-2.5 rounded-xl border border-border/70 bg-card flex items-start justify-between gap-2 shadow-xs"
-                    >
-                      <div className="flex items-start gap-2 min-w-0">
-                        <span className="font-bold text-teal-700 text-xs shrink-0 mt-0.5">•</span>
-                        <span className="text-foreground leading-snug">{out}</span>
-                      </div>
-                      {!isApproved ? (
-                        <button
-                          type="button"
-                          onClick={() => handleRemoveOutcome(i)}
-                          className="text-muted-foreground hover:text-rose-600 shrink-0 p-1"
-                        >
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </button>
-                      ) : null}
-                    </div>
-                  ))}
-                </div>
-                {!isApproved ? (
-                  <div className="flex items-center gap-2 pt-1">
-                    <input
-                      type="text"
-                      value={newOutcomeInput}
-                      onChange={(e) => setNewOutcomeInput(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter") {
-                          e.preventDefault();
-                          handleAddOutcome();
-                        }
-                      }}
-                      placeholder="Add an anticipated outcome (e.g. reduced water wastage)..."
-                      className="flex-1 text-xs p-2 rounded-lg border border-input bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
-                    />
-                    <Button type="button" size="sm" variant="outline" onClick={handleAddOutcome} className="text-xs gap-1">
-                      <Plus className="h-3.5 w-3.5" /> Add
-                    </Button>
-                  </div>
-                ) : null}
-              </div>
-
-              {/* Field 11: Constraints */}
-              <div className="space-y-2">
-                <label className="font-bold text-foreground text-xs block">
-                  11. Known Operational & Environmental Constraints
-                </label>
-                <div className="space-y-1.5">
-                  {constraints.map((c, i) => (
-                    <div
-                      key={i}
-                      className="p-2.5 rounded-xl border border-border/70 bg-card flex items-start justify-between gap-2 shadow-xs"
-                    >
-                      <div className="flex items-start gap-2 min-w-0">
-                        <span className="font-bold text-amber-600 text-xs shrink-0 mt-0.5">•</span>
-                        <span className="text-foreground leading-snug">{c}</span>
-                      </div>
-                      {!isApproved ? (
-                        <button
-                          type="button"
-                          onClick={() => handleRemoveConstraint(i)}
-                          className="text-muted-foreground hover:text-rose-600 shrink-0 p-1"
-                        >
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </button>
-                      ) : null}
-                    </div>
-                  ))}
-                </div>
-                {!isApproved ? (
-                  <div className="flex items-center gap-2 pt-1">
-                    <input
-                      type="text"
-                      value={newConstraintInput}
-                      onChange={(e) => setNewConstraintInput(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter") {
-                          e.preventDefault();
-                          handleAddConstraint();
-                        }
-                      }}
-                      placeholder="Add an operational or budget constraint..."
-                      className="flex-1 text-xs p-2 rounded-lg border border-input bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
-                    />
-                    <Button type="button" size="sm" variant="outline" onClick={handleAddConstraint} className="text-xs gap-1">
-                      <Plus className="h-3.5 w-3.5" /> Add
-                    </Button>
-                  </div>
-                ) : null}
-              </div>
-
-              {/* Field 12: Potential Technology Areas */}
-              <div className="space-y-1.5">
-                <label className="font-bold text-foreground text-xs block">
-                  12. Potential Technology Areas (Non-Mandatory Suggestions)
-                </label>
-                <div className="flex flex-wrap gap-1.5 min-h-[36px] p-2 rounded-xl border border-border/70 bg-muted/20">
-                  {potentialTech.map((t) => (
-                    <span
-                      key={t}
-                      className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-bold bg-sky-50 text-sky-900 border border-sky-200"
-                    >
-                      {t}
-                      {!isApproved ? (
-                        <button
-                          type="button"
-                          onClick={() => handleRemoveTech(t)}
-                          className="text-sky-700 hover:text-rose-600 ml-0.5"
-                        >
-                          <X className="h-3 w-3" />
-                        </button>
-                      ) : null}
-                    </span>
-                  ))}
-                  {potentialTech.length === 0 ? (
-                    <span className="text-muted-foreground text-[11px] py-0.5">No specific technologies suggested.</span>
-                  ) : null}
-                </div>
-                {!isApproved ? (
-                  <div className="flex items-center gap-2 pt-1">
-                    <input
-                      type="text"
-                      value={newTechInput}
-                      onChange={(e) => setNewTechInput(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter") {
-                          e.preventDefault();
-                          handleAddTech();
-                        }
-                      }}
-                      placeholder="Add technology area (e.g. Predictive Analytics, Low-Power IoT, GIS)..."
-                      className="flex-1 text-xs p-1.5 rounded-lg border border-input bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
-                    />
-                    <Button type="button" size="sm" variant="outline" onClick={handleAddTech} className="h-8 text-xs gap-1">
-                      <Plus className="h-3.5 w-3.5" /> Add
-                    </Button>
-                  </div>
-                ) : null}
-              </div>
-
-              {/* Field 13: Research & Methodological Requirements */}
-              <div className="space-y-1.5">
-                <label className="font-bold text-foreground text-xs block">
-                  13. Research & Experimental Requirements
-                </label>
-                {isApproved ? (
-                  <p className="p-3.5 rounded-xl border border-border/70 bg-muted/20 leading-relaxed text-foreground whitespace-pre-line">
-                    {researchRequirements || "No specialized research required."}
-                  </p>
-                ) : (
-                  <textarea
-                    rows={3}
-                    value={researchRequirements}
-                    onChange={(e) => setResearchRequirements(e.target.value)}
-                    className="w-full text-xs p-3 rounded-xl border border-input bg-background text-foreground leading-relaxed focus:outline-none focus:ring-1 focus:ring-primary shadow-xs"
-                    placeholder="Outline open research questions, modeling techniques, or experimental verification needed..."
-                  />
-                )}
-              </div>
-
-              {/* Field 14: Success Criteria */}
-              <div className="space-y-2">
-                <label className="font-bold text-foreground text-xs block">
-                  14. Success Criteria & Evaluation Benchmarks <span className="text-destructive">*</span>
-                </label>
-                <div className="space-y-1.5">
-                  {successCriteria.map((crit, i) => (
-                    <div
-                      key={i}
-                      className="p-2.5 rounded-xl border border-border/70 bg-card flex items-start justify-between gap-2 shadow-xs"
-                    >
-                      <div className="flex items-start gap-2 min-w-0">
-                        <span className="font-bold text-emerald-600 text-xs shrink-0 mt-0.5">✓</span>
-                        <span className="text-foreground leading-snug">{crit}</span>
-                      </div>
-                      {!isApproved ? (
-                        <button
-                          type="button"
-                          onClick={() => handleRemoveCriterion(i)}
-                          className="text-muted-foreground hover:text-rose-600 shrink-0 p-1"
-                        >
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </button>
-                      ) : null}
-                    </div>
-                  ))}
-                </div>
-                {!isApproved ? (
-                  <div className="flex items-center gap-2 pt-1">
-                    <input
-                      type="text"
-                      value={newCriterionInput}
-                      onChange={(e) => setNewCriterionInput(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter") {
-                          e.preventDefault();
-                          handleAddCriterion();
-                        }
-                      }}
-                      placeholder="Add an evaluation criterion (e.g. adoption rate, prediction accuracy)..."
-                      className="flex-1 text-xs p-2 rounded-lg border border-input bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
-                    />
-                    <Button type="button" size="sm" variant="outline" onClick={handleAddCriterion} className="text-xs gap-1">
-                      <Plus className="h-3.5 w-3.5" /> Add
-                    </Button>
-                  </div>
-                ) : null}
-              </div>
-
-              {/* Collapsible Original AI Draft Comparison Drawer */}
-              {rawAiDraft ? (
-                <div className="pt-2 border-t border-border/70">
+              {/* Toolbar Controls */}
+              <div className="flex flex-wrap items-center gap-2">
+                {/* View Mode Toggle */}
+                <div className="flex items-center rounded-lg border border-border/70 bg-card p-0.5 text-xs shadow-2xs">
                   <button
                     type="button"
-                    onClick={() => setShowAiDraftComparison(!showAiDraftComparison)}
-                    className="flex items-center justify-between w-full p-2.5 rounded-xl border bg-muted/20 hover:bg-muted/40 transition text-xs font-semibold text-muted-foreground"
+                    onClick={() => setViewMode("tabbed")}
+                    className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md transition-colors ${
+                      viewMode === "tabbed"
+                        ? "bg-primary text-primary-foreground font-semibold shadow-2xs"
+                        : "text-muted-foreground hover:text-foreground"
+                    }`}
                   >
-                    <span className="flex items-center gap-2">
-                      <Bot className="h-4 w-4 text-primary" />
-                      <span>Audit: Inspect Original AI Draft ({challenge.ai_model_version || "Gemini"})</span>
-                    </span>
-                    {showAiDraftComparison ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                    <ListChecks className="h-3.5 w-3.5" />
+                    <span>Tabbed</span>
                   </button>
+                  <button
+                    type="button"
+                    onClick={() => setViewMode("full")}
+                    className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md transition-colors ${
+                      viewMode === "full"
+                        ? "bg-primary text-primary-foreground font-semibold shadow-2xs"
+                        : "text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    <LayoutGrid className="h-3.5 w-3.5" />
+                    <span>Full Overview</span>
+                  </button>
+                </div>
 
-                  {showAiDraftComparison ? (
-                    <div className="mt-3 p-4 rounded-xl border border-teal-200 bg-teal-50/30 space-y-3 animate-in fade-in-50 text-xs">
-                      <span className="font-bold text-teal-950 block">
-                        Original AI Output Snapshot ({challenge.ai_generated_at ? formatCitizenIssueDateTime(challenge.ai_generated_at) : "Synthesized"}):
+                {/* Dossier Toggle */}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowSourceDossier(!showSourceDossier)}
+                  className="h-7 text-xs gap-1"
+                  title={showSourceDossier ? "Collapse Left Dossier" : "Expand Left Dossier"}
+                >
+                  {showSourceDossier ? (
+                    <>
+                      <PanelLeftClose className="h-3.5 w-3.5" />
+                      <span className="hidden sm:inline">Expanded</span>
+                    </>
+                  ) : (
+                    <>
+                      <PanelLeftOpen className="h-3.5 w-3.5" />
+                      <span className="hidden sm:inline">Show Dossier</span>
+                    </>
+                  )}
+                </Button>
+
+                <Badge variant={isApproved ? "teal" : "amber"} size="sm" className="font-bold">
+                  {isApproved ? "APPROVED" : "DRAFT"}
+                </Badge>
+              </div>
+            </CardHeader>
+
+            {/* Thematic Tabs Navigation Ribbon (In Tabbed Mode) */}
+            {viewMode === "tabbed" ? (
+              <div className="border-b border-border/70 bg-muted/20 px-3 pt-2 overflow-x-auto">
+                <div className="flex items-center gap-1.5 min-w-max pb-2">
+                  {tabsList.map((tab) => {
+                    const Icon = tab.icon;
+                    const isActive = activeTab === tab.id;
+                    return (
+                      <button
+                        key={tab.id}
+                        type="button"
+                        onClick={() => setActiveTab(tab.id)}
+                        className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-semibold transition-all ${
+                          isActive
+                            ? "bg-card text-foreground shadow-xs border border-border/80 ring-1 ring-primary/20"
+                            : "text-muted-foreground hover:text-foreground hover:bg-card/50"
+                        }`}
+                      >
+                        <Icon className={`h-3.5 w-3.5 ${isActive ? "text-primary" : "text-muted-foreground"}`} />
+                        <span>{tab.label}</span>
+                        {typeof tab.badgeCount === "number" ? (
+                          <span
+                            className={`px-1.5 py-0.5 rounded-full text-[10px] font-mono ${
+                              tab.badgeTone === "teal"
+                                ? "bg-teal-100 text-teal-800"
+                                : tab.badgeTone === "amber"
+                                ? "bg-amber-100 text-amber-800"
+                                : "bg-muted text-muted-foreground"
+                            }`}
+                          >
+                            {tab.badgeCount}
+                          </span>
+                        ) : null}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            ) : null}
+
+            {/* Tab Body or Full Overview Content */}
+            <CardContent className="p-5 space-y-6">
+              {viewMode === "tabbed" ? (
+                <>
+                  {/* Current Active Tab Content */}
+                  <div className="space-y-4">
+                    {activeTab === "scope" && renderScopeSection()}
+                    {activeTab === "analysis" && renderAnalysisSection()}
+                    {activeTab === "objectives" && renderObjectivesSection()}
+                    {activeTab === "tech" && renderTechSection()}
+                    {activeTab === "governance" && renderGovernanceSection()}
+                  </div>
+
+                  {/* Tab Navigation Steps Footer */}
+                  <div className="pt-4 border-t border-border/70 flex flex-wrap items-center justify-between gap-3">
+                    <div>
+                      {prevTab ? (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setActiveTab(prevTab)}
+                          className="gap-1.5 text-xs"
+                        >
+                          <ChevronLeft className="h-3.5 w-3.5" />
+                          Previous Step
+                        </Button>
+                      ) : (
+                        <span className="text-[11px] text-muted-foreground font-mono">
+                          Step 1 of 5
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      {!isApproved ? (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => void handleSaveDraft()}
+                          disabled={savingDraft || approving || regenerating}
+                          className="gap-1.5 text-xs"
+                        >
+                          {savingDraft ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
+                          Save Draft
+                        </Button>
+                      ) : null}
+
+                      {nextTab ? (
+                        <Button
+                          size="sm"
+                          onClick={() => setActiveTab(nextTab)}
+                          className="gap-1.5 text-xs bg-primary text-primary-foreground font-semibold"
+                        >
+                          <span>Next Step</span>
+                          <ChevronRight className="h-3.5 w-3.5" />
+                        </Button>
+                      ) : !isApproved ? (
+                        <Button
+                          size="sm"
+                          onClick={() => setConfirmApproveOpen(true)}
+                          disabled={savingDraft || approving || regenerating || !isReadyForApproval}
+                          className="gap-1.5 text-xs bg-primary text-primary-foreground font-semibold shadow-sm"
+                        >
+                          <ShieldCheck className="h-3.5 w-3.5" />
+                          Approve Challenge
+                        </Button>
+                      ) : null}
+                    </div>
+                  </div>
+                </>
+              ) : (
+                /* Full Overview Mode: All 5 Thematic Sections Rendered in Multi-Column Grids */
+                <div className="space-y-8">
+                  {/* 1. Scope & Context */}
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-2 pb-2 border-b border-border/60">
+                      <Target className="h-4 w-4 text-primary" />
+                      <h3 className="font-bold text-sm text-foreground">
+                        Section 1: Problem Definition, Category &amp; Scope
+                      </h3>
+                    </div>
+                    {renderScopeSection()}
+                  </div>
+
+                  {/* 2. Root Cause & Gaps */}
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-2 pb-2 border-b border-border/60">
+                      <Search className="h-4 w-4 text-amber-600" />
+                      <h3 className="font-bold text-sm text-foreground">
+                        Section 2: Root Cause Analysis &amp; Current Municipal Gaps
+                      </h3>
+                    </div>
+                    {renderAnalysisSection()}
+                  </div>
+
+                  {/* 3. Objectives & Outcomes */}
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-2 pb-2 border-b border-border/60">
+                      <Rocket className="h-4 w-4 text-teal-600" />
+                      <h3 className="font-bold text-sm text-foreground">
+                        Section 3: Key Objectives &amp; Expected Innovation Outcomes
+                      </h3>
+                    </div>
+                    {renderObjectivesSection()}
+                  </div>
+
+                  {/* 4. Disciplines & Technology */}
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-2 pb-2 border-b border-border/60">
+                      <Cpu className="h-4 w-4 text-sky-600" />
+                      <h3 className="font-bold text-sm text-foreground">
+                        Section 4: Multidisciplinary Domains &amp; Technical Capabilities
+                      </h3>
+                    </div>
+                    {renderTechSection()}
+                  </div>
+
+                  {/* 5. Benchmarks & Governance */}
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-2 pb-2 border-b border-border/60">
+                      <Scale className="h-4 w-4 text-teal-700" />
+                      <h3 className="font-bold text-sm text-foreground">
+                        Section 5: Benchmarks, Evaluation Criteria &amp; Governance
+                      </h3>
+                    </div>
+                    {renderGovernanceSection()}
+                  </div>
+
+                  {/* Bottom Action Footer for Full Mode */}
+                  {!isApproved ? (
+                    <div className="flex flex-wrap items-center justify-between gap-3 pt-4 border-t border-border/70">
+                      <span className="text-[11px] text-muted-foreground">
+                        Last saved: {formatCitizenIssueDateTime(challenge.updated_at)}
                       </span>
-                      <div className="space-y-2 max-h-[300px] overflow-y-auto pr-2 font-mono text-[11px]">
-                        <div>
-                          <strong className="text-foreground">AI Title:</strong> {rawAiDraft.title}
-                        </div>
-                        <div>
-                          <strong className="text-foreground">AI Root Cause:</strong> {rawAiDraft.root_cause}
-                        </div>
-                        <div>
-                          <strong className="text-foreground">AI Domains:</strong> {(rawAiDraft.required_domains || []).join(", ")}
-                        </div>
-                        <div>
-                          <strong className="text-foreground">AI Limitations:</strong> {rawAiDraft.current_limitations}
-                        </div>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => void handleSaveDraft()}
+                          disabled={savingDraft || approving || regenerating}
+                          className="gap-1.5 text-xs"
+                        >
+                          {savingDraft ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
+                          Save Draft
+                        </Button>
+                        <Button
+                          size="sm"
+                          onClick={() => setConfirmApproveOpen(true)}
+                          disabled={savingDraft || approving || regenerating || !isReadyForApproval}
+                          className="gap-1.5 text-xs bg-primary text-primary-foreground font-semibold shadow-sm"
+                        >
+                          <ShieldCheck className="h-3.5 w-3.5" />
+                          Approve Challenge
+                        </Button>
                       </div>
                     </div>
                   ) : null}
                 </div>
-              ) : null}
-
-              {/* Bottom Action Footer for Draft */}
-              {!isApproved ? (
-                <div className="flex flex-wrap items-center justify-between gap-3 pt-4 border-t border-border/70">
-                  <span className="text-[11px] text-muted-foreground">
-                    Last updated: {formatCitizenIssueDateTime(challenge.updated_at)}
-                  </span>
-                  <div className="flex items-center gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => void handleSaveDraft()}
-                      disabled={savingDraft || approving || regenerating}
-                      className="gap-1.5 text-xs"
-                    >
-                      {savingDraft ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
-                      Save Draft
-                    </Button>
-                    <Button
-                      size="sm"
-                      onClick={() => setConfirmApproveOpen(true)}
-                      disabled={savingDraft || approving || regenerating}
-                      className="gap-1.5 text-xs bg-primary text-primary-foreground font-semibold shadow-sm"
-                    >
-                      <ShieldCheck className="h-3.5 w-3.5" />
-                      Approve Challenge
-                    </Button>
-                  </div>
-                </div>
-              ) : null}
+              )}
             </CardContent>
           </Card>
         </div>
@@ -1336,7 +1868,7 @@ export function InnovationChallengeDetailsPage() {
         >
           <div className="space-y-4 pt-2 text-xs">
             <div className="p-3.5 rounded-xl border border-amber-300 bg-amber-50 text-amber-950 space-y-1.5">
-              <span className="font-bold block flex items-center gap-1.5">
+              <span className="font-bold flex items-center gap-1.5">
                 <AlertTriangle className="h-4 w-4 text-amber-700" />
                 Warning: Manual Edits May Be Overwritten
               </span>

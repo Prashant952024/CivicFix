@@ -3,13 +3,22 @@
 import { createClerkClient } from "npm:@clerk/backend";
 import { createClient } from "npm:@supabase/supabase-js";
 
-const ALLOWED_ROLE_CODES = new Set(["MUNICIPAL_OFFICER", "FIELD_WORKER", "DEPARTMENT_MANAGER", "INNOVATION_MANAGER"] as const);
+const ALLOWED_ROLE_CODES = new Set([
+  "MUNICIPAL_OFFICER",
+  "FIELD_WORKER",
+  "DEPARTMENT_MANAGER",
+  "INNOVATION_MANAGER",
+  "INSTITUTION",
+] as const);
 
 type CreateUserBody = {
   fullName?: string;
   email?: string;
   roleCode?: string;
   departmentId?: string;
+  institutionId?: string;
+  roleTitle?: string;
+  isPrimaryContact?: boolean;
   employeeId?: string;
   designation?: string;
   phone?: string;
@@ -114,7 +123,15 @@ function generateSecureTemporaryPassword(): string {
   return combined.join("");
 }
 
-function getPrefixForRoleAndDepartment(roleCode: string, departmentName?: string | null): string {
+function getPrefixForRoleAndDepartment(roleCode: string, departmentName?: string | null, institutionAcronym?: string | null): string {
+  if (roleCode === "INSTITUTION") {
+    if (institutionAcronym) {
+      const acr = normalizeUsername(institutionAcronym);
+      if (acr) return `inst-${acr}`;
+    }
+    return "inst";
+  }
+  if (roleCode === "INNOVATION_MANAGER") return "innovation-manager";
   if (roleCode === "MUNICIPAL_OFFICER") return "municipal-officer";
   if (roleCode === "DEPARTMENT_MANAGER") {
     if (departmentName) {
@@ -148,8 +165,13 @@ function getPrefixForRoleAndDepartment(roleCode: string, departmentName?: string
   return "field-worker";
 }
 
-async function generateNextUniqueEmployeeId(supabaseClient: any, roleCode: string, departmentName?: string | null): Promise<string> {
-  const prefix = getPrefixForRoleAndDepartment(roleCode, departmentName);
+async function generateNextUniqueEmployeeId(
+  supabaseClient: any,
+  roleCode: string,
+  departmentName?: string | null,
+  institutionAcronym?: string | null,
+): Promise<string> {
+  const prefix = getPrefixForRoleAndDepartment(roleCode, departmentName, institutionAcronym);
 
   const { data } = await supabaseClient
     .from("profiles")
@@ -356,12 +378,17 @@ Deno.serve(async (request: Request) => {
   }
 
   if (!ALLOWED_ROLE_CODES.has(roleCode as any)) {
-    return json(400, { error: "Only Municipal Officer, Department Manager, or Field Worker accounts can be created." }, origin);
+    return json(400, { error: "Only Municipal Officer, Department Manager, Field Worker, Innovation Manager, or Institution accounts can be created." }, origin);
   }
 
   const departmentId = body.departmentId?.trim() || null;
   if ((roleCode === "DEPARTMENT_MANAGER" || roleCode === "FIELD_WORKER") && !departmentId) {
     return json(400, { error: "A department assignment is required for Department Manager and Field Worker roles." }, origin);
+  }
+
+  const institutionId = body.institutionId?.trim() || null;
+  if (roleCode === "INSTITUTION" && !institutionId) {
+    return json(400, { error: "An institution must be selected for Institution accounts." }, origin);
   }
 
   let departmentName: string | null = null;
@@ -371,6 +398,17 @@ Deno.serve(async (request: Request) => {
       return json(400, { error: "The selected department does not exist or is inactive." }, origin);
     }
     departmentName = deptData.name;
+  }
+
+  let institutionName: string | null = null;
+  let institutionAcronym: string | null = null;
+  if (institutionId) {
+    const { data: instData } = await supabase.from("institutions").select("name, acronym, is_active").eq("id", institutionId).maybeSingle();
+    if (!instData || !instData.is_active) {
+      return json(400, { error: "The selected institution does not exist or is inactive." }, origin);
+    }
+    institutionName = instData.name;
+    institutionAcronym = instData.acronym;
   }
 
   const normalizedEmail = normalizeEmail(email);
@@ -389,7 +427,7 @@ Deno.serve(async (request: Request) => {
   // 2. Generate canonical normalized Username / Employee ID (lowercase only, hyphens only)
   let canonicalUsername = normalizeUsername(body.employeeId?.trim() || "");
   if (!canonicalUsername) {
-    canonicalUsername = await generateNextUniqueEmployeeId(supabase, roleCode, departmentName);
+    canonicalUsername = await generateNextUniqueEmployeeId(supabase, roleCode, departmentName, institutionAcronym);
   }
 
   const { data: existingEmp } = await supabase
@@ -399,7 +437,7 @@ Deno.serve(async (request: Request) => {
     .maybeSingle();
 
   if (existingEmp) {
-    canonicalUsername = await generateNextUniqueEmployeeId(supabase, roleCode, departmentName);
+    canonicalUsername = await generateNextUniqueEmployeeId(supabase, roleCode, departmentName, institutionAcronym);
   }
 
   const { data: roleRecord } = await supabase.from("roles").select("id, code, name").eq("code", roleCode).maybeSingle();
@@ -427,6 +465,7 @@ Deno.serve(async (request: Request) => {
         publicMetadata: {
           role: roleCode,
           department: departmentName,
+          institution: institutionName,
           employeeId: canonicalUsername,
         },
       });
@@ -442,6 +481,7 @@ Deno.serve(async (request: Request) => {
           publicMetadata: {
             role: roleCode,
             department: departmentName,
+            institution: institutionName,
             employeeId: canonicalUsername,
           },
         });
@@ -475,8 +515,9 @@ Deno.serve(async (request: Request) => {
         phone,
         role_id: roleRecord.id,
         department_id: departmentId,
+        institution_id: institutionId,
         employee_id: canonicalUsername,
-        designation,
+        designation: designation || (roleCode === "INSTITUTION" ? (body.roleTitle?.trim() || "Institution Coordinator") : null),
         joined_at: joinedAt,
         is_active: true,
         avatar_url: avatarUrl,
@@ -499,6 +540,27 @@ Deno.serve(async (request: Request) => {
       return json(500, { error: `Profile creation failed: ${getSafeErrorMessage(insertError)}` }, origin);
     }
 
+    // If INSTITUTION role, record membership in institution_members
+    if (roleCode === "INSTITUTION" && institutionId) {
+      const { error: memberError } = await supabase
+        .from("institution_members")
+        .insert({
+          institution_id: institutionId,
+          profile_id: createdProfile.id,
+          role_title: body.roleTitle?.trim() || "Institution Coordinator",
+          is_primary_contact: Boolean(body.isPrimaryContact),
+        });
+
+      if (memberError) {
+        console.error("admin-create-user institution member failed, rolling back", memberError);
+        await supabase.from("profiles").delete().eq("id", createdProfile.id);
+        try {
+          await clerk.users.deleteUser(createdClerkUserId);
+        } catch {}
+        return json(500, { error: `Failed to link institution membership: ${getSafeErrorMessage(memberError)}` }, origin);
+      }
+    }
+
     const roleData = createdProfile.role as { code?: string; name?: string } | Array<{ code?: string; name?: string }> | null;
     const roleObj = Array.isArray(roleData) ? roleData[0] : roleData;
     const deptData = createdProfile.department as { id?: string; name?: string } | Array<{ id?: string; name?: string }> | null;
@@ -518,7 +580,9 @@ Deno.serve(async (request: Request) => {
           roleCode: roleObj?.code ?? roleCode,
           roleName: roleObj?.name ?? roleRecord.name,
           departmentId: deptObj?.id ?? departmentId,
-          departmentName: deptObj?.name ?? (departmentName || "Cross-Departmental"),
+          departmentName: deptObj?.name ?? (departmentName || (institutionName ? institutionName : "Cross-Departmental")),
+          institutionId,
+          institutionName,
           isActive: createdProfile.is_active,
           avatarUrl: createdProfile.avatar_url,
           temporaryPassword,

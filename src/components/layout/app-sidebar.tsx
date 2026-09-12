@@ -6,11 +6,13 @@ import {
   ChartNoAxesCombined,
   ClipboardCheck,
   ClipboardList,
+  GraduationCap,
   LayoutDashboard,
   MapPinned,
   Rocket,
   ShieldCheck,
   SquarePen,
+  User,
   UsersRound,
   X,
 } from "lucide-react";
@@ -38,7 +40,9 @@ type NavIconKey =
   | "users"
   | "departments"
   | "classification"
-  | "challenges";
+  | "challenges"
+  | "institutions"
+  | "profile";
 
 const navIcons: Record<NavIconKey, ComponentType<{ className?: string; "aria-hidden"?: boolean }>> = {
   dashboard: LayoutDashboard,
@@ -53,10 +57,19 @@ const navIcons: Record<NavIconKey, ComponentType<{ className?: string; "aria-hid
   departments: Building2,
   classification: ShieldCheck,
   challenges: Rocket,
+  institutions: GraduationCap,
+  profile: User,
 };
 
 function getNavIcon(item: CivicFixRoleNavItem) {
   const lowered = item.path.toLowerCase();
+  if (lowered.includes("institution") || lowered.includes("university")) {
+    if (lowered.endsWith("/profile")) return navIcons.profile;
+    if (lowered.endsWith("/challenges")) return navIcons.challenges;
+    if (lowered.endsWith("/notifications")) return navIcons.notifications;
+    if (lowered === "/app/university") return navIcons.dashboard;
+    return navIcons.institutions;
+  }
   if (lowered.includes("classification")) return navIcons.classification;
   if (lowered.includes("challenge")) return navIcons.challenges;
   if (lowered.includes("report")) return navIcons.report;
@@ -72,7 +85,8 @@ function getNavIcon(item: CivicFixRoleNavItem) {
     lowered.endsWith("/officer") ||
     lowered.endsWith("/worker") ||
     lowered.endsWith("/admin") ||
-    lowered.endsWith("/innovation")
+    lowered.endsWith("/innovation") ||
+    lowered.endsWith("/university")
   ) {
     return navIcons.dashboard;
   }

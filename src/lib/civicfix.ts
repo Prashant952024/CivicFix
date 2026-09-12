@@ -40,6 +40,11 @@ export const civicFixRoleConfigs: Record<CivicFixRoleCode, CivicFixRoleConfig> =
     label: "Innovation Manager",
     dashboardPath: "/app/innovation",
   },
+  INSTITUTION: {
+    code: "INSTITUTION",
+    label: "University / Institution",
+    dashboardPath: "/app/university",
+  },
 };
 
 export function getCivicFixRoleLabel(roleCode: CivicFixRoleCode | null | undefined) {
@@ -104,6 +109,7 @@ export const civicFixNavItems: Record<CivicFixRoleCode, CivicFixRoleNavItem[]> =
   ADMIN: [
     { label: "Overview", path: "/app/admin", description: "Command center overview and metrics." },
     { label: "Classification", path: "/app/admin/classification", description: "Review and route AI-classified issues." },
+    { label: "Institutions", path: "/app/admin/institutions", description: "Institution registry and capabilities." },
     { label: "Issues", path: "/app/admin/issues", description: "Platform-wide issue triage and audit." },
     { label: "Users", path: "/app/admin/users", description: "Manage municipal staff and credentials." },
     { label: "Departments", path: "/app/admin/departments", description: "Manage municipal departments." },
@@ -116,5 +122,11 @@ export const civicFixNavItems: Record<CivicFixRoleCode, CivicFixRoleNavItem[]> =
     { label: "Complex Issues", path: "/app/innovation/issues", description: "Review Admin-approved complex problems." },
     { label: "Challenges", path: "/app/innovation/challenges", description: "Track innovation challenge formulations." },
     { label: "Notifications", path: "/app/innovation/notifications", description: "Alerts on newly routed challenges." },
+  ],
+  INSTITUTION: [
+    { label: "Dashboard", path: "/app/university", description: "Institution overview and active engagements." },
+    { label: "Institution Profile", path: "/app/university/profile", description: "Manage research profile and capabilities." },
+    { label: "Challenges", path: "/app/university/challenges", description: "Explore civic innovation challenges." },
+    { label: "Notifications", path: "/app/university/notifications", description: "Matching invites and challenge updates." },
   ],
 };

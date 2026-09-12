@@ -102,7 +102,7 @@ export function AdminDashboardPage() {
       const [profilesResult, issuesResult, activitiesResult, departmentsResult] = await Promise.all([
         supabase
           .from("profiles")
-          .select("id, clerk_user_id, full_name, email, phone, role_id, department_id, employee_id, designation, is_active, avatar_url, joined_at, created_at, updated_at, role:roles!profiles_role_id_fkey(code, name), department:departments!profiles_department_id_fkey(id, name, is_active)")
+          .select("id, clerk_user_id, full_name, email, phone, role_id, department_id, employee_id, designation, is_active, avatar_url, institution_id, joined_at, created_at, updated_at, role:roles!profiles_role_id_fkey(code, name), department:departments!profiles_department_id_fkey(id, name, is_active)")
           .order("created_at", { ascending: false }),
         supabase
           .from("issues")

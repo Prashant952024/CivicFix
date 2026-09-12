@@ -39,6 +39,9 @@ const WorkerNotificationsPage = lazy(() =>
 );
 const AdminDashboardPage = lazy(() => import("@/routes/admin/dashboard").then((module) => ({ default: module.AdminDashboardPage })));
 const AdminClassificationPage = lazy(() => import("@/routes/admin/classification").then((module) => ({ default: module.AdminClassificationPage })));
+const AdminInstitutionsPage = lazy(() => import("@/routes/admin/institutions/index").then((module) => ({ default: module.AdminInstitutionsPage })));
+const AdminNewInstitutionPage = lazy(() => import("@/routes/admin/institutions/new").then((module) => ({ default: module.AdminNewInstitutionPage })));
+const AdminInstitutionDetailPage = lazy(() => import("@/routes/admin/institutions/detail").then((module) => ({ default: module.AdminInstitutionDetailPage })));
 const AdminIssueDetailPage = lazy(() => import("@/routes/admin/issue-details").then((module) => ({ default: module.AdminIssueDetailPage })));
 const AdminUsersPage = lazy(() => import("@/routes/admin/users").then((module) => ({ default: module.AdminUsersPage })));
 const AdminIssuesPage = lazy(() => import("@/routes/admin/issues").then((module) => ({ default: module.AdminIssuesPage })));
@@ -53,6 +56,11 @@ const InnovationIssueDetailsPage = lazy(() => import("@/routes/innovation/issue-
 const InnovationChallengesPage = lazy(() => import("@/routes/innovation/challenges").then((module) => ({ default: module.InnovationChallengesPage })));
 const InnovationChallengeDetailsPage = lazy(() => import("@/routes/innovation/challenge-details").then((module) => ({ default: module.InnovationChallengeDetailsPage })));
 const InnovationNotificationsPage = lazy(() => import("@/routes/innovation/notifications").then((module) => ({ default: module.InnovationNotificationsPage })));
+
+const UniversityDashboardPage = lazy(() => import("@/routes/university/index").then((module) => ({ default: module.UniversityDashboardPage })));
+const UniversityProfilePage = lazy(() => import("@/routes/university/profile").then((module) => ({ default: module.UniversityProfilePage })));
+const UniversityChallengesPage = lazy(() => import("@/routes/university/challenges").then((module) => ({ default: module.UniversityChallengesPage })));
+const UniversityNotificationsPage = lazy(() => import("@/routes/university/notifications").then((module) => ({ default: module.UniversityNotificationsPage })));
 
 const SignupPage = lazy(() => import("@/routes/signup").then((module) => ({ default: module.SignupPage })));
 const UnauthorizedPage = lazy(() => import("@/routes/unauthorized").then((module) => ({ default: module.UnauthorizedPage })));
@@ -274,6 +282,9 @@ export function AppRoutes() {
           >
             <Route index element={<AdminDashboardPage />} />
             <Route path="classification" element={<AdminClassificationPage />} />
+            <Route path="institutions" element={<AdminInstitutionsPage />} />
+            <Route path="institutions/new" element={<AdminNewInstitutionPage />} />
+            <Route path="institutions/:institutionId" element={<AdminInstitutionDetailPage />} />
             <Route path="users" element={<AdminUsersPage />} />
             <Route path="departments" element={<AdminDepartmentsPage />} />
             <Route path="issues" element={<AdminIssuesPage />} />
@@ -298,6 +309,34 @@ export function AppRoutes() {
             <Route path="challenges" element={<InnovationChallengesPage />} />
             <Route path="challenges/:challengeId" element={<InnovationChallengeDetailsPage />} />
             <Route path="notifications" element={<InnovationNotificationsPage />} />
+          </Route>
+
+          {/* University / Institution Portal */}
+          <Route
+            path="university"
+            element={
+              <RequireRole allowedRoles={["INSTITUTION"]}>
+                <AppLayout />
+              </RequireRole>
+            }
+          >
+            <Route index element={<UniversityDashboardPage />} />
+            <Route path="profile" element={<UniversityProfilePage />} />
+            <Route path="challenges" element={<UniversityChallengesPage />} />
+            <Route path="notifications" element={<UniversityNotificationsPage />} />
+          </Route>
+
+          {/* Backwards-compatible /app/institution alias */}
+          <Route
+            path="institution"
+            element={
+              <RequireRole allowedRoles={["INSTITUTION"]}>
+                <AppLayout />
+              </RequireRole>
+            }
+          >
+            <Route index element={<Navigate replace to="/app/university" />} />
+            <Route path="*" element={<Navigate replace to="/app/university" />} />
           </Route>
 
           {/* Backwards-compatible /app/innovation-manager alias */}

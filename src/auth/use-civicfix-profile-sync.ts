@@ -22,7 +22,7 @@ type SyncResult = {
 };
 
 const PROFILE_SELECT =
-  "id, clerk_user_id, full_name, email, phone, role_id, department_id, employee_id, designation, is_active, avatar_url, joined_at, created_at, updated_at, role:roles(code)";
+  "id, clerk_user_id, full_name, email, phone, role_id, department_id, employee_id, designation, is_active, avatar_url, institution_id, joined_at, created_at, updated_at, role:roles(code)";
 
 function displayNameFromClerkUser(user: ReturnType<typeof useUser>["user"]) {
   const fullName = user?.fullName?.trim();

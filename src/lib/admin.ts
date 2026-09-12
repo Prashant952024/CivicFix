@@ -13,6 +13,7 @@ const ROLE_TONES: Record<AdminRoleCode, "default" | "success" | "warning" | "dan
   FIELD_WORKER: "danger",
   ADMIN: "success",
   INNOVATION_MANAGER: "info",
+  INSTITUTION: "info",
 };
 
 const PRIORITY_TONES: Record<AdminIssuePriority, "default" | "success" | "warning" | "danger" | "info"> = {
