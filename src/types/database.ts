@@ -1440,6 +1440,211 @@ export interface Database {
           },
         ];
       };
+      challenge_projects: {
+        Row: {
+          id: string;
+          challenge_id: string;
+          institution_id: string;
+          invitation_id: string;
+          project_title: string;
+          project_summary: string | null;
+          status: "FORMING_TEAM" | "ACTIVE" | "PAUSED" | "COMPLETED" | "ARCHIVED";
+          project_lead_profile_id: string | null;
+          created_by: string;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          challenge_id: string;
+          institution_id: string;
+          invitation_id: string;
+          project_title: string;
+          project_summary?: string | null;
+          status?: "FORMING_TEAM" | "ACTIVE" | "PAUSED" | "COMPLETED" | "ARCHIVED";
+          project_lead_profile_id?: string | null;
+          created_by: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          challenge_id?: string;
+          institution_id?: string;
+          invitation_id?: string;
+          project_title?: string;
+          project_summary?: string | null;
+          status?: "FORMING_TEAM" | "ACTIVE" | "PAUSED" | "COMPLETED" | "ARCHIVED";
+          project_lead_profile_id?: string | null;
+          created_by?: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "challenge_projects_challenge_id_fkey";
+            columns: ["challenge_id"];
+            isOneToOne: false;
+            referencedRelation: "innovation_challenges";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "challenge_projects_institution_id_fkey";
+            columns: ["institution_id"];
+            isOneToOne: false;
+            referencedRelation: "institutions";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "challenge_projects_invitation_id_fkey";
+            columns: ["invitation_id"];
+            isOneToOne: true;
+            referencedRelation: "institution_invitations";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "challenge_projects_project_lead_profile_id_fkey";
+            columns: ["project_lead_profile_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "challenge_projects_created_by_fkey";
+            columns: ["created_by"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      challenge_project_members: {
+        Row: {
+          id: string;
+          project_id: string;
+          profile_id: string;
+          role: "PROJECT_LEAD" | "FACULTY" | "RESEARCHER" | "STUDENT" | "MEMBER";
+          joined_at: string;
+          added_by: string;
+          is_active: boolean;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          project_id: string;
+          profile_id: string;
+          role?: "PROJECT_LEAD" | "FACULTY" | "RESEARCHER" | "STUDENT" | "MEMBER";
+          joined_at?: string;
+          added_by: string;
+          is_active?: boolean;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          project_id?: string;
+          profile_id?: string;
+          role?: "PROJECT_LEAD" | "FACULTY" | "RESEARCHER" | "STUDENT" | "MEMBER";
+          joined_at?: string;
+          added_by?: string;
+          is_active?: boolean;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "challenge_project_members_project_id_fkey";
+            columns: ["project_id"];
+            isOneToOne: false;
+            referencedRelation: "challenge_projects";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "challenge_project_members_profile_id_fkey";
+            columns: ["profile_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "challenge_project_members_added_by_fkey";
+            columns: ["added_by"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      challenge_project_activity: {
+        Row: {
+          id: string;
+          project_id: string;
+          actor_profile_id: string;
+          activity_type:
+            | "PROJECT_CREATED"
+            | "MEMBER_ADDED"
+            | "MEMBER_ROLE_CHANGED"
+            | "MEMBER_DEACTIVATED"
+            | "MEMBER_REACTIVATED"
+            | "PROJECT_LEAD_CHANGED"
+            | "PROJECT_STATUS_CHANGED"
+            | "PROJECT_DETAILS_UPDATED";
+          description: string;
+          metadata: Json;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          project_id: string;
+          actor_profile_id: string;
+          activity_type:
+            | "PROJECT_CREATED"
+            | "MEMBER_ADDED"
+            | "MEMBER_ROLE_CHANGED"
+            | "MEMBER_DEACTIVATED"
+            | "MEMBER_REACTIVATED"
+            | "PROJECT_LEAD_CHANGED"
+            | "PROJECT_STATUS_CHANGED"
+            | "PROJECT_DETAILS_UPDATED";
+          description: string;
+          metadata?: Json;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          project_id?: string;
+          actor_profile_id?: string;
+          activity_type?:
+            | "PROJECT_CREATED"
+            | "MEMBER_ADDED"
+            | "MEMBER_ROLE_CHANGED"
+            | "MEMBER_DEACTIVATED"
+            | "MEMBER_REACTIVATED"
+            | "PROJECT_LEAD_CHANGED"
+            | "PROJECT_STATUS_CHANGED"
+            | "PROJECT_DETAILS_UPDATED";
+          description?: string;
+          metadata?: Json;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "challenge_project_activity_project_id_fkey";
+            columns: ["project_id"];
+            isOneToOne: false;
+            referencedRelation: "challenge_projects";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "challenge_project_activity_actor_profile_id_fkey";
+            columns: ["actor_profile_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
     };
     Views: Record<string, never>;
     Functions: Record<string, never>;
@@ -1521,4 +1726,17 @@ export interface MatchDimensionScores {
 
 export type MatchConfidence = "HIGH" | "MEDIUM" | "LOW";
 
+export type ChallengeProjectRow = Database["public"]["Tables"]["challenge_projects"]["Row"];
+export type ChallengeProjectInsert = Database["public"]["Tables"]["challenge_projects"]["Insert"];
+export type ChallengeProjectUpdate = Database["public"]["Tables"]["challenge_projects"]["Update"];
+export type ProjectWorkspaceStatus = ChallengeProjectRow["status"];
 
+export type ChallengeProjectMemberRow = Database["public"]["Tables"]["challenge_project_members"]["Row"];
+export type ChallengeProjectMemberInsert = Database["public"]["Tables"]["challenge_project_members"]["Insert"];
+export type ChallengeProjectMemberUpdate = Database["public"]["Tables"]["challenge_project_members"]["Update"];
+export type ProjectMemberRole = ChallengeProjectMemberRow["role"];
+
+export type ChallengeProjectActivityRow = Database["public"]["Tables"]["challenge_project_activity"]["Row"];
+export type ChallengeProjectActivityInsert = Database["public"]["Tables"]["challenge_project_activity"]["Insert"];
+export type ChallengeProjectActivityUpdate = Database["public"]["Tables"]["challenge_project_activity"]["Update"];
+export type ProjectActivityType = ChallengeProjectActivityRow["activity_type"];

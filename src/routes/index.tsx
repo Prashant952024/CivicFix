@@ -61,6 +61,7 @@ const InnovationNotificationsPage = lazy(() => import("@/routes/innovation/notif
 const UniversityDashboardPage = lazy(() => import("@/routes/university/index").then((module) => ({ default: module.UniversityDashboardPage })));
 const UniversityProfilePage = lazy(() => import("@/routes/university/profile").then((module) => ({ default: module.UniversityProfilePage })));
 const UniversityChallengesPage = lazy(() => import("@/routes/university/challenges").then((module) => ({ default: module.UniversityChallengesPage })));
+const UniversityProjectDetailPage = lazy(() => import("@/routes/university/projects/detail").then((module) => ({ default: module.UniversityProjectDetailPage })));
 const UniversityNotificationsPage = lazy(() => import("@/routes/university/notifications").then((module) => ({ default: module.UniversityNotificationsPage })));
 
 const SignupPage = lazy(() => import("@/routes/signup").then((module) => ({ default: module.SignupPage })));
@@ -310,6 +311,7 @@ export function AppRoutes() {
             <Route path="challenges" element={<InnovationChallengesPage />} />
             <Route path="challenges/:challengeId" element={<InnovationChallengeDetailsPage />} />
             <Route path="challenges/:challengeId/matching" element={<ChallengeMatchingPage />} />
+            <Route path="projects/:projectId" element={<UniversityProjectDetailPage />} />
             <Route path="notifications" element={<InnovationNotificationsPage />} />
           </Route>
 
@@ -317,7 +319,7 @@ export function AppRoutes() {
           <Route
             path="university"
             element={
-              <RequireRole allowedRoles={["INSTITUTION"]}>
+              <RequireRole allowedRoles={["INSTITUTION", "INNOVATION_MANAGER", "ADMIN"]}>
                 <AppLayout />
               </RequireRole>
             }
@@ -325,6 +327,7 @@ export function AppRoutes() {
             <Route index element={<UniversityDashboardPage />} />
             <Route path="profile" element={<UniversityProfilePage />} />
             <Route path="challenges" element={<UniversityChallengesPage />} />
+            <Route path="projects/:projectId" element={<UniversityProjectDetailPage />} />
             <Route path="notifications" element={<UniversityNotificationsPage />} />
           </Route>
 

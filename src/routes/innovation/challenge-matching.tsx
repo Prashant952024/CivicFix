@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   AlertCircle,
   ArrowLeft,
@@ -52,6 +52,10 @@ import {
   sendInstitutionInvitations,
   type ChallengeInvitationWithDetails,
 } from "@/lib/outreach";
+import {
+  fetchChallengeProjects,
+  type ChallengeProjectWithDetails,
+} from "@/lib/projects";
 import { supabase } from "@/lib/supabase";
 import type {
   Database,
@@ -81,6 +85,7 @@ export function ChallengeMatchingPage() {
 
   // Phase 3D-1 Outreach states
   const [invitations, setInvitations] = useState<ChallengeInvitationWithDetails[]>([]);
+  const [challengeProjects, setChallengeProjects] = useState<ChallengeProjectWithDetails[]>([]);
   const [sendDialogOpen, setSendDialogOpen] = useState(false);
   const [invitationMessage, setInvitationMessage] = useState(
     "We invite your institution to review this municipal innovation challenge and participate in co-developing a high-impact solution for our city."
@@ -89,6 +94,11 @@ export function ChallengeMatchingPage() {
   const [cancellingId, setCancellingId] = useState<string | null>(null);
   const [selectedInvitationForDetail, setSelectedInvitationForDetail] =
     useState<ChallengeInvitationWithDetails | null>(null);
+
+  const projectByInstitutionId = useMemo(
+    () => new Map(challengeProjects.map((p) => [p.institution_id, p])),
+    [challengeProjects]
+  );
 
   // Loading states
   const [loading, setLoading] = useState(true);
@@ -162,10 +172,17 @@ export function ChallengeMatchingPage() {
           );
         }
 
-        // 5. Fetch existing Phase 3D invitations
-        const invList = await fetchChallengeInvitations(challengeId!);
+        // 5. Fetch existing Phase 3D invitations & projects
+        const [invList, projList] = await Promise.all([
+          fetchChallengeInvitations(challengeId!),
+          fetchChallengeProjects(challengeId!).catch((err) => {
+            console.warn("Could not fetch challenge projects:", err);
+            return [] as ChallengeProjectWithDetails[];
+          }),
+        ]);
         if (isCancelled) return;
         setInvitations(invList);
+        setChallengeProjects(projList);
       } catch (err: unknown) {
         console.error("Error loading challenge matching data:", err);
         const msg = err instanceof Error ? err.message : "Failed to load matching data";
@@ -905,6 +922,7 @@ export function ChallengeMatchingPage() {
                 </thead>
                 <tbody className="divide-y divide-border/60 bg-card">
                   {invitations.map((inv) => {
+                    const matchedProject = projectByInstitutionId.get(inv.institution_id);
                     return (
                       <tr key={inv.id} className="hover:bg-surface/50 transition-colors">
                         <td className="p-3 font-medium">
@@ -955,14 +973,41 @@ export function ChallengeMatchingPage() {
                         </td>
                         <td className="p-3 max-w-xs">
                           {inv.status === "ACCEPTED" && (
-                            <div className="text-[11px] text-emerald-950 bg-emerald-50/70 p-2 rounded-lg border border-emerald-200">
-                              <span className="font-semibold block text-[10px] uppercase tracking-wider text-emerald-800">
-                                Accepted {inv.responded_at ? `on ${new Date(inv.responded_at).toLocaleDateString()}` : ""}
-                              </span>
-                              {inv.response_note ? (
-                                <p className="italic mt-0.5 line-clamp-2">&ldquo;{inv.response_note}&rdquo;</p>
+                            <div className="space-y-1.5">
+                              <div className="text-[11px] text-emerald-950 bg-emerald-50/70 p-2 rounded-lg border border-emerald-200">
+                                <span className="font-semibold block text-[10px] uppercase tracking-wider text-emerald-800">
+                                  Accepted {inv.responded_at ? `on ${new Date(inv.responded_at).toLocaleDateString()}` : ""}
+                                </span>
+                                {inv.response_note ? (
+                                  <p className="italic mt-0.5 line-clamp-2">&ldquo;{inv.response_note}&rdquo;</p>
+                                ) : (
+                                  <span className="text-emerald-700 italic">No note provided</span>
+                                )}
+                              </div>
+
+                              {matchedProject ? (
+                                <div className="text-[11px] bg-card p-2 rounded-lg border border-border/80 flex items-center justify-between gap-2 shadow-2xs">
+                                  <div>
+                                    <div className="flex items-center gap-1.5 font-bold text-foreground">
+                                      <span>Workspace:</span>
+                                      <Badge variant="emerald" size="sm">
+                                        {matchedProject.status}
+                                      </Badge>
+                                    </div>
+                                    <div className="text-[10px] text-muted-foreground mt-0.5">
+                                      Lead: {matchedProject.project_lead?.full_name || "Unassigned"} · {matchedProject.members_count || 1} members
+                                    </div>
+                                  </div>
+                                  <Link to={`/app/innovation/projects/${matchedProject.id}`}>
+                                    <Button variant="outline" size="sm" className="text-[10px] h-6 px-2 text-primary font-bold">
+                                      Workspace →
+                                    </Button>
+                                  </Link>
+                                </div>
                               ) : (
-                                <span className="text-emerald-700 italic">No note provided</span>
+                                <div className="text-[10px] text-muted-foreground italic px-1">
+                                  Workspace pending formation by university
+                                </div>
                               )}
                             </div>
                           )}

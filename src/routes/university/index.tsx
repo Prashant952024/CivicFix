@@ -32,6 +32,10 @@ import {
   fetchInstitutionInvitations,
   type InstitutionReceivedInvitation,
 } from "@/lib/outreach";
+import {
+  fetchInstitutionChallengeProjects,
+  type ChallengeProjectWithDetails,
+} from "@/lib/projects";
 import { supabase } from "@/lib/supabase";
 import type { Database, InstitutionProjectRow, InstitutionRow } from "@/types/database";
 
@@ -45,6 +49,7 @@ export function UniversityDashboardPage() {
   const [projects, setProjects] = useState<InstitutionProjectRow[]>([]);
   const [challenges, setChallenges] = useState<ChallengeRow[]>([]);
   const [invitations, setInvitations] = useState<InstitutionReceivedInvitation[]>([]);
+  const [challengeProjects, setChallengeProjects] = useState<ChallengeProjectWithDetails[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshNonce, setRefreshNonce] = useState(0);
 
@@ -82,18 +87,23 @@ export function UniversityDashboardPage() {
         }
 
         if (instId) {
-          const [instData, projData, invData] = await Promise.all([
+          const [instData, projData, invData, chalProjData] = await Promise.all([
             fetchInstitutionById(instId),
             fetchInstitutionProjects(instId),
             fetchInstitutionInvitations(instId).catch((err) => {
               console.warn("Could not fetch institution invitations:", err);
               return [] as InstitutionReceivedInvitation[];
             }),
+            fetchInstitutionChallengeProjects(instId).catch((err) => {
+              console.warn("Could not fetch institution challenge projects:", err);
+              return [] as ChallengeProjectWithDetails[];
+            }),
           ]);
           if (!cancelled) {
             setInstitution(instData);
             setProjects(projData);
             setInvitations(invData);
+            setChallengeProjects(chalProjData);
           }
         }
 
@@ -317,6 +327,97 @@ export function UniversityDashboardPage() {
             </p>
           </CardContent>
         </Card>
+      </div>
+
+      {/* Active Challenge Workspaces & Research Teams Section (Phase 3D-2) */}
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <div className="flex items-center gap-2">
+              <h3 className="text-sm font-bold text-foreground">
+                Challenge Workspaces &amp; Research Teams
+              </h3>
+              <Badge variant="emerald" size="sm">
+                Phase 3D Collaboration
+              </Badge>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Dedicated collaborative environments formed around accepted municipal innovation challenges.
+            </p>
+          </div>
+        </div>
+
+        {challengeProjects.length === 0 ? (
+          <Card className="border border-dashed border-border/80 bg-surface/50 p-6">
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-4 text-center sm:text-left">
+              <div>
+                <h4 className="text-sm font-bold text-foreground">No Project Workspaces Formed Yet</h4>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Accept an official challenge invitation to initialize your workspace and assemble your research team.
+                </p>
+              </div>
+              <Link to="/app/university/challenges?tab=invitations">
+                <Button size="sm" className="text-xs bg-teal-600 hover:bg-teal-700 text-white font-bold">
+                  View Received Invitations
+                </Button>
+              </Link>
+            </div>
+          </Card>
+        ) : (
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+            {challengeProjects.map((proj) => (
+              <Card
+                key={proj.id}
+                className="border border-border/80 bg-surface/90 hover:border-primary/40 transition-all shadow-xs flex flex-col justify-between"
+              >
+                <CardHeader className="pb-2">
+                  <div className="flex items-center justify-between gap-2">
+                    <Badge variant="outline" className="text-[10px] border-primary/20 bg-primary/5 text-primary">
+                      {proj.challenge.category.replace(/_/g, " ")}
+                    </Badge>
+                    <Badge
+                      variant={
+                        proj.status === "ACTIVE"
+                          ? "emerald"
+                          : proj.status === "FORMING_TEAM"
+                          ? "sky"
+                          : proj.status === "PAUSED"
+                          ? "amber"
+                          : "default"
+                      }
+                      size="sm"
+                    >
+                      {proj.status.replace(/_/g, " ")}
+                    </Badge>
+                  </div>
+                  <h4 className="text-sm font-bold text-foreground mt-2 line-clamp-1">
+                    {proj.project_title}
+                  </h4>
+                  <p className="text-xs text-muted-foreground line-clamp-2 mt-0.5">
+                    {proj.project_summary || proj.challenge.problem_statement}
+                  </p>
+                </CardHeader>
+                <CardContent className="space-y-3 pt-0 pb-3">
+                  <div className="flex items-center justify-between border-t border-border/60 pt-2 text-xs text-muted-foreground">
+                    <span>Lead: {proj.project_lead?.full_name || "Unassigned"}</span>
+                    <span>
+                      {proj.members_count || 1} team member{(proj.members_count || 1) > 1 ? "s" : ""}
+                    </span>
+                  </div>
+                  <Link to={`/app/university/projects/${proj.id}`} className="block">
+                    <Button
+                      size="sm"
+                      className="w-full text-xs font-bold bg-primary hover:bg-primary/90 text-primary-foreground gap-1.5"
+                    >
+                      <Rocket className="w-3.5 h-3.5" />
+                      Open Project Workspace
+                    </Button>
+                  </Link>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Official Challenge Invitations Section (Phase 3D) */}

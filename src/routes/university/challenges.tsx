@@ -17,7 +17,7 @@ import {
   X,
   XCircle,
 } from "lucide-react";
-import { useSearchParams } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 
 import { useAppSession } from "@/auth/app-session";
 import { Badge } from "@/components/ui/badge";
@@ -32,6 +32,11 @@ import {
   respondToInvitation,
   type InstitutionReceivedInvitation,
 } from "@/lib/outreach";
+import {
+  fetchInstitutionProjects,
+  createProjectWorkspace,
+  type ChallengeProjectWithDetails,
+} from "@/lib/projects";
 import { supabase } from "@/lib/supabase";
 import type { Database, InstitutionRow } from "@/types/database";
 
@@ -39,6 +44,7 @@ type ChallengeRow = Database["public"]["Tables"]["innovation_challenges"]["Row"]
 
 export function UniversityChallengesPage() {
   const { profile } = useAppSession();
+  const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
 
   const [activeTab, setActiveTab] = useState<"invitations" | "all">(
@@ -46,11 +52,20 @@ export function UniversityChallengesPage() {
   );
   const [challenges, setChallenges] = useState<ChallengeRow[]>([]);
   const [invitations, setInvitations] = useState<InstitutionReceivedInvitation[]>([]);
+  const [projects, setProjects] = useState<ChallengeProjectWithDetails[]>([]);
   const [institution, setInstitution] = useState<InstitutionRow | null>(null);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<string>("ALL");
   const [selectedChallenge, setSelectedChallenge] = useState<ChallengeRow | null>(null);
+
+  // Project Workspace creation modal states
+  const [createProjectModalOpen, setCreateProjectModalOpen] = useState(false);
+  const [invitationForProject, setInvitationForProject] =
+    useState<InstitutionReceivedInvitation | null>(null);
+  const [projectTitle, setProjectTitle] = useState("");
+  const [projectSummary, setProjectSummary] = useState("");
+  const [creatingProject, setCreatingProject] = useState(false);
 
   // Invitation Decision modal states
   const [selectedInvitation, setSelectedInvitation] =
@@ -64,6 +79,11 @@ export function UniversityChallengesPage() {
   const [actionError, setActionError] = useState<string | null>(null);
 
   const [refreshNonce, setRefreshNonce] = useState(0);
+
+  const projectsByInvitationId = useMemo(
+    () => new Map(projects.map((p) => [p.invitation_id, p])),
+    [projects]
+  );
 
   useEffect(() => {
     let cancelled = false;
@@ -91,17 +111,22 @@ export function UniversityChallengesPage() {
         }
 
         if (instId) {
-          const [inst, invs] = await Promise.all([
+          const [inst, invs, projs] = await Promise.all([
             fetchInstitutionById(instId),
             fetchInstitutionInvitations(instId).catch((err) => {
               console.warn("Could not fetch institution invitations:", err);
               return [] as InstitutionReceivedInvitation[];
+            }),
+            fetchInstitutionProjects(instId).catch((err) => {
+              console.warn("Could not fetch institution projects:", err);
+              return [] as ChallengeProjectWithDetails[];
             }),
           ]);
 
           if (!cancelled) {
             setInstitution(inst);
             setInvitations(invs);
+            setProjects(projs);
 
             // Auto-switch to invitations tab if URL specifies or if there are invitations
             const urlTab = searchParams.get("tab");
@@ -245,6 +270,36 @@ export function UniversityChallengesPage() {
       setResponding(false);
     }
   }
+
+  const handleOpenCreateProjectModal = (inv: InstitutionReceivedInvitation) => {
+    setInvitationForProject(inv);
+    setProjectTitle(`${inv.challenge.title} — Initiative`);
+    setProjectSummary("");
+    setCreateProjectModalOpen(true);
+  };
+
+  const handleCreateProject = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!invitationForProject || !institution) return;
+    setCreatingProject(true);
+    setActionError(null);
+    try {
+      const created = await createProjectWorkspace({
+        challengeId: invitationForProject.challenge.id,
+        institutionId: institution.id,
+        invitationId: invitationForProject.id,
+        projectTitle,
+        projectSummary,
+      });
+      setCreateProjectModalOpen(false);
+      void navigate(`/app/university/projects/${created.id}`);
+    } catch (err) {
+      console.error("Failed to create project workspace:", err);
+      setActionError(err instanceof Error ? err.message : "Failed to create project workspace.");
+    } finally {
+      setCreatingProject(false);
+    }
+  };
 
   const pendingInvitationsCount = invitations.filter(
     (i) => i.status === "SENT" || i.status === "PENDING"
@@ -458,7 +513,7 @@ export function UniversityChallengesPage() {
                       </CardContent>
                     </div>
 
-                    <div className="border-t border-border/80 bg-muted/20 px-4 py-2.5 flex justify-end">
+                    <div className="border-t border-border/80 bg-muted/20 px-4 py-2.5 flex items-center justify-between gap-2">
                       <Button
                         size="sm"
                         onClick={() => {
@@ -475,8 +530,34 @@ export function UniversityChallengesPage() {
                         variant={isPending ? "default" : "outline"}
                       >
                         <FileText className="h-3.5 w-3.5" />
-                        {isPending ? "Review Invitation & Decide" : "Inspect Invitation Dossier"}
+                        {isPending ? "Review & Decide" : "Dossier"}
                       </Button>
+
+                      {inv.status === "ACCEPTED" && (
+                        projectsByInvitationId.get(inv.id) ? (
+                          <Button
+                            size="sm"
+                            onClick={() => {
+                              void navigate(
+                                `/app/university/projects/${projectsByInvitationId.get(inv.id)!.id}`
+                              );
+                            }}
+                            className="text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white gap-1 shadow-xs"
+                          >
+                            <Rocket className="h-3.5 w-3.5" />
+                            Workspace
+                          </Button>
+                        ) : (
+                          <Button
+                            size="sm"
+                            onClick={() => handleOpenCreateProjectModal(inv)}
+                            className="text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white gap-1 shadow-xs"
+                          >
+                            <Rocket className="h-3.5 w-3.5" />
+                            Start Workspace
+                          </Button>
+                        )
+                      )}
                     </div>
                   </Card>
                 );
@@ -907,9 +988,39 @@ export function UniversityChallengesPage() {
                     </div>
                   ) : (
                     <p className="text-xs text-emerald-800">
-                      Your institution has agreed to participate. The municipal Innovation Manager will coordinate team formation and briefing.
+                      Your institution has agreed to participate in this innovation initiative.
                     </p>
                   )}
+
+                  <div className="pt-2">
+                    {projectsByInvitationId.get(selectedInvitation.id) ? (
+                      <Button
+                        size="sm"
+                        onClick={() => {
+                          const p = projectsByInvitationId.get(selectedInvitation.id)!;
+                          setSelectedInvitation(null);
+                          void navigate(`/app/university/projects/${p.id}`);
+                        }}
+                        className="text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white gap-1.5 shadow-xs"
+                      >
+                        <Rocket className="h-3.5 w-3.5" />
+                        Open Project Workspace ({projectsByInvitationId.get(selectedInvitation.id)?.status})
+                      </Button>
+                    ) : (
+                      <Button
+                        size="sm"
+                        onClick={() => {
+                          const targetInv = selectedInvitation;
+                          setSelectedInvitation(null);
+                          handleOpenCreateProjectModal(targetInv);
+                        }}
+                        className="text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white gap-1.5 shadow-xs"
+                      >
+                        <Rocket className="h-3.5 w-3.5" />
+                        Start Project Workspace &amp; Form Team
+                      </Button>
+                    )}
+                  </div>
                 </div>
               )}
 
@@ -1116,6 +1227,87 @@ export function UniversityChallengesPage() {
             </div>
           </div>
         )}
+      </Dialog>
+
+      {/* Create Project Workspace Dialog */}
+      <Dialog
+        open={createProjectModalOpen}
+        onClose={() => setCreateProjectModalOpen(false)}
+        title="Initialize Project Workspace"
+        description="Set up your collaborative research workspace container and institutional project team for this innovation challenge."
+      >
+        <form
+          onSubmit={(e) => {
+            void handleCreateProject(e);
+          }}
+          className="space-y-4 pt-2"
+        >
+          {invitationForProject && (
+            <div className="p-3 bg-muted/40 rounded-xl border border-border/80 text-xs">
+              <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground block">
+                Target Innovation Challenge
+              </span>
+              <p className="font-bold text-foreground mt-0.5">{invitationForProject.challenge.title}</p>
+              <p className="text-muted-foreground text-[11px] mt-0.5 line-clamp-2">
+                {invitationForProject.challenge.problem_statement}
+              </p>
+            </div>
+          )}
+
+          <div>
+            <label className="block text-xs font-semibold text-foreground mb-1">
+              Project Title *
+            </label>
+            <input
+              type="text"
+              value={projectTitle}
+              onChange={(e) => setProjectTitle(e.target.value)}
+              required
+              placeholder="e.g. AI Flood Detection & Rapid Response System"
+              className="w-full text-xs border border-border rounded-xl bg-surface px-3 py-2 text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-foreground mb-1">
+              Project Summary / Research Scope (Optional)
+            </label>
+            <textarea
+              rows={4}
+              value={projectSummary}
+              onChange={(e) => setProjectSummary(e.target.value)}
+              placeholder="Outline high-level methodology, participating departments, or key research milestones..."
+              className="w-full text-xs border border-border rounded-xl bg-surface px-3 py-2 text-foreground focus:outline-none focus:ring-1 focus:ring-primary resize-none"
+            />
+          </div>
+
+          <div className="p-3 bg-emerald-50 rounded-xl border border-emerald-200 text-xs text-emerald-800">
+            <p className="font-semibold mb-0.5">Workspace Setup Invariant:</p>
+            <p className="text-[11px] leading-relaxed">
+              Upon workspace initialization, you will be designated as the initial Project Lead and can immediately recruit faculty, researchers, and students from your institution.
+            </p>
+          </div>
+
+          <div className="flex justify-end gap-2 pt-2 border-t border-border">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setCreateProjectModalOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              size="sm"
+              disabled={creatingProject || !projectTitle.trim()}
+              className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold"
+            >
+              {creatingProject ? <Loader2 className="w-3.5 h-3.5 animate-spin mr-1" /> : null}
+              Create &amp; Enter Workspace
+            </Button>
+          </div>
+        </form>
       </Dialog>
     </div>
   );
