@@ -1522,8 +1522,51 @@ export interface Database {
         Row: {
           id: string;
           project_id: string;
-          profile_id: string;
-          role: "PROJECT_LEAD" | "FACULTY" | "RESEARCHER" | "STUDENT" | "MEMBER";
+          profile_id: string | null;
+          role:
+            | "PROJECT_LEAD"
+            | "FACULTY"
+            | "RESEARCHER"
+            | "STUDENT"
+            | "MEMBER"
+            | "TECHNICAL_MEMBER"
+            | "DOMAIN_EXPERT"
+            | "DATA_SCIENTIST"
+            | "ENGINEER"
+            | "OTHER";
+          member_name: string | null;
+          member_email: string | null;
+          member_type:
+            | "STUDENT"
+            | "FACULTY"
+            | "RESEARCHER"
+            | "PROFESSIONAL"
+            | "TECHNICAL_STAFF"
+            | "OTHER"
+            | null;
+          designation: string | null;
+          department: string | null;
+          organization: string | null;
+          institution_name: string | null;
+          academic_program: string | null;
+          academic_year: string | null;
+          academic_level: string | null;
+          specialization: string | null;
+          expected_graduation_year: string | null;
+          years_of_experience: number | null;
+          primary_expertise: string | null;
+          secondary_expertise: string | null;
+          expertise: string | null;
+          research_areas: string[];
+          research_domains: string[];
+          technical_skills: string[];
+          technologies: string[];
+          project_responsibility: string | null;
+          project_contribution: string | null;
+          professional_bio: string | null;
+          research_profile_url: string | null;
+          linkedin_url: string | null;
+          website_url: string | null;
           joined_at: string;
           added_by: string;
           is_active: boolean;
@@ -1533,10 +1576,53 @@ export interface Database {
         Insert: {
           id?: string;
           project_id: string;
-          profile_id: string;
-          role?: "PROJECT_LEAD" | "FACULTY" | "RESEARCHER" | "STUDENT" | "MEMBER";
+          profile_id?: string | null;
+          role?:
+            | "PROJECT_LEAD"
+            | "FACULTY"
+            | "RESEARCHER"
+            | "STUDENT"
+            | "MEMBER"
+            | "TECHNICAL_MEMBER"
+            | "DOMAIN_EXPERT"
+            | "DATA_SCIENTIST"
+            | "ENGINEER"
+            | "OTHER";
+          member_name?: string | null;
+          member_email?: string | null;
+          member_type?:
+            | "STUDENT"
+            | "FACULTY"
+            | "RESEARCHER"
+            | "PROFESSIONAL"
+            | "TECHNICAL_STAFF"
+            | "OTHER"
+            | null;
+          designation?: string | null;
+          department?: string | null;
+          organization?: string | null;
+          institution_name?: string | null;
+          academic_program?: string | null;
+          academic_year?: string | null;
+          academic_level?: string | null;
+          specialization?: string | null;
+          expected_graduation_year?: string | null;
+          years_of_experience?: number | null;
+          primary_expertise?: string | null;
+          secondary_expertise?: string | null;
+          expertise?: string | null;
+          research_areas?: string[];
+          research_domains?: string[];
+          technical_skills?: string[];
+          technologies?: string[];
+          project_responsibility?: string | null;
+          project_contribution?: string | null;
+          professional_bio?: string | null;
+          research_profile_url?: string | null;
+          linkedin_url?: string | null;
+          website_url?: string | null;
           joined_at?: string;
-          added_by: string;
+          added_by?: string;
           is_active?: boolean;
           created_at?: string;
           updated_at?: string;
@@ -1544,8 +1630,51 @@ export interface Database {
         Update: {
           id?: string;
           project_id?: string;
-          profile_id?: string;
-          role?: "PROJECT_LEAD" | "FACULTY" | "RESEARCHER" | "STUDENT" | "MEMBER";
+          profile_id?: string | null;
+          role?:
+            | "PROJECT_LEAD"
+            | "FACULTY"
+            | "RESEARCHER"
+            | "STUDENT"
+            | "MEMBER"
+            | "TECHNICAL_MEMBER"
+            | "DOMAIN_EXPERT"
+            | "DATA_SCIENTIST"
+            | "ENGINEER"
+            | "OTHER";
+          member_name?: string | null;
+          member_email?: string | null;
+          member_type?:
+            | "STUDENT"
+            | "FACULTY"
+            | "RESEARCHER"
+            | "PROFESSIONAL"
+            | "TECHNICAL_STAFF"
+            | "OTHER"
+            | null;
+          designation?: string | null;
+          department?: string | null;
+          organization?: string | null;
+          institution_name?: string | null;
+          academic_program?: string | null;
+          academic_year?: string | null;
+          academic_level?: string | null;
+          specialization?: string | null;
+          expected_graduation_year?: string | null;
+          years_of_experience?: number | null;
+          primary_expertise?: string | null;
+          secondary_expertise?: string | null;
+          expertise?: string | null;
+          research_areas?: string[];
+          research_domains?: string[];
+          technical_skills?: string[];
+          technologies?: string[];
+          project_responsibility?: string | null;
+          project_contribution?: string | null;
+          professional_bio?: string | null;
+          research_profile_url?: string | null;
+          linkedin_url?: string | null;
+          website_url?: string | null;
           joined_at?: string;
           added_by?: string;
           is_active?: boolean;
@@ -1585,6 +1714,7 @@ export interface Database {
             | "PROJECT_CREATED"
             | "MEMBER_ADDED"
             | "MEMBER_ROLE_CHANGED"
+            | "MEMBER_DETAILS_UPDATED"
             | "MEMBER_DEACTIVATED"
             | "MEMBER_REACTIVATED"
             | "PROJECT_LEAD_CHANGED"
@@ -1602,6 +1732,7 @@ export interface Database {
             | "PROJECT_CREATED"
             | "MEMBER_ADDED"
             | "MEMBER_ROLE_CHANGED"
+            | "MEMBER_DETAILS_UPDATED"
             | "MEMBER_DEACTIVATED"
             | "MEMBER_REACTIVATED"
             | "PROJECT_LEAD_CHANGED"
@@ -1619,6 +1750,7 @@ export interface Database {
             | "PROJECT_CREATED"
             | "MEMBER_ADDED"
             | "MEMBER_ROLE_CHANGED"
+            | "MEMBER_DETAILS_UPDATED"
             | "MEMBER_DEACTIVATED"
             | "MEMBER_REACTIVATED"
             | "PROJECT_LEAD_CHANGED"
@@ -1735,8 +1867,10 @@ export type ChallengeProjectMemberRow = Database["public"]["Tables"]["challenge_
 export type ChallengeProjectMemberInsert = Database["public"]["Tables"]["challenge_project_members"]["Insert"];
 export type ChallengeProjectMemberUpdate = Database["public"]["Tables"]["challenge_project_members"]["Update"];
 export type ProjectMemberRole = ChallengeProjectMemberRow["role"];
+export type ProjectMemberType = NonNullable<ChallengeProjectMemberRow["member_type"]>;
 
 export type ChallengeProjectActivityRow = Database["public"]["Tables"]["challenge_project_activity"]["Row"];
 export type ChallengeProjectActivityInsert = Database["public"]["Tables"]["challenge_project_activity"]["Insert"];
 export type ChallengeProjectActivityUpdate = Database["public"]["Tables"]["challenge_project_activity"]["Update"];
 export type ProjectActivityType = ChallengeProjectActivityRow["activity_type"];
+
