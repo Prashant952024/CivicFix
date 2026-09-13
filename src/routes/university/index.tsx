@@ -5,11 +5,15 @@ import {
   BookOpen,
   ExternalLink,
   GraduationCap,
+  Mail,
   MapPin,
   RefreshCw,
   Rocket,
   Sparkles,
   Wrench,
+  CheckCircle2,
+  Clock,
+  XCircle,
 } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 
@@ -24,6 +28,10 @@ import {
   fetchInstitutionProjects,
   getVerificationStatusBadge,
 } from "@/lib/institutions";
+import {
+  fetchInstitutionInvitations,
+  type InstitutionReceivedInvitation,
+} from "@/lib/outreach";
 import { supabase } from "@/lib/supabase";
 import type { Database, InstitutionProjectRow, InstitutionRow } from "@/types/database";
 
@@ -36,6 +44,7 @@ export function UniversityDashboardPage() {
   const [institution, setInstitution] = useState<InstitutionRow | null>(null);
   const [projects, setProjects] = useState<InstitutionProjectRow[]>([]);
   const [challenges, setChallenges] = useState<ChallengeRow[]>([]);
+  const [invitations, setInvitations] = useState<InstitutionReceivedInvitation[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshNonce, setRefreshNonce] = useState(0);
 
@@ -73,13 +82,18 @@ export function UniversityDashboardPage() {
         }
 
         if (instId) {
-          const [instData, projData] = await Promise.all([
+          const [instData, projData, invData] = await Promise.all([
             fetchInstitutionById(instId),
             fetchInstitutionProjects(instId),
+            fetchInstitutionInvitations(instId).catch((err) => {
+              console.warn("Could not fetch institution invitations:", err);
+              return [] as InstitutionReceivedInvitation[];
+            }),
           ]);
           if (!cancelled) {
             setInstitution(instData);
             setProjects(projData);
+            setInvitations(invData);
           }
         }
 
@@ -270,14 +284,21 @@ export function UniversityDashboardPage() {
         <Card className="border border-border/80 bg-surface/90 shadow-sm">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-              Civic Fix Challenges
+              Official Invitations
             </CardTitle>
-            <Rocket className="h-4 w-4 text-emerald-600" />
+            <Mail className="h-4 w-4 text-teal-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-foreground">{challenges.length}</div>
+            <div className="flex items-baseline gap-2">
+              <span className="text-2xl font-bold text-foreground">{invitations.length}</span>
+              {invitations.filter((i) => i.status === "SENT" || i.status === "PENDING").length > 0 && (
+                <span className="inline-flex items-center rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-bold text-amber-800 border border-amber-200">
+                  {invitations.filter((i) => i.status === "SENT" || i.status === "PENDING").length} Pending
+                </span>
+              )}
+            </div>
             <p className="mt-1 text-xs text-muted-foreground">
-              Active innovation opportunities
+              {invitations.filter((i) => i.status === "ACCEPTED").length} accepted · {invitations.filter((i) => i.status === "REJECTED").length} declined
             </p>
           </CardContent>
         </Card>
@@ -297,6 +318,121 @@ export function UniversityDashboardPage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Official Challenge Invitations Section (Phase 3D) */}
+      {invitations.length > 0 && (
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <div className="flex items-center gap-2">
+                <h3 className="text-sm font-bold text-foreground">
+                  Official Challenge Invitations
+                </h3>
+                <Badge variant="teal" size="sm">
+                  Phase 3D Outreach
+                </Badge>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Your institution has been evaluated and selected by municipal Innovation Managers for these complex civic challenges.
+              </p>
+            </div>
+            <Link
+              to="/app/university/challenges?tab=invitations"
+              className="text-xs font-semibold text-primary hover:underline flex items-center gap-1"
+            >
+              <span>Manage Invitations ({invitations.length})</span>
+              <ArrowRight className="h-3 w-3" />
+            </Link>
+          </div>
+
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+            {invitations.slice(0, 3).map((inv) => {
+              const isPending = inv.status === "SENT" || inv.status === "PENDING";
+              return (
+                <Card
+                  key={inv.id}
+                  className={`group flex flex-col justify-between border transition-all ${
+                    isPending
+                      ? "border-teal-300 bg-teal-50/20 shadow-xs hover:border-teal-400"
+                      : "border-border/80 bg-surface/90 hover:border-border"
+                  }`}
+                >
+                  <CardHeader className="pb-3">
+                    <div className="flex items-start justify-between gap-2">
+                      <Badge variant="outline" className="text-[10px] border-primary/20 bg-primary/5 text-primary">
+                        {inv.challenge.category}
+                      </Badge>
+                      <div>
+                        {isPending && (
+                          <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-bold text-amber-800 border border-amber-200">
+                            <Clock className="h-2.5 w-2.5" />
+                            Action Required
+                          </span>
+                        )}
+                        {inv.status === "ACCEPTED" && (
+                          <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-emerald-800 border border-emerald-200">
+                            <CheckCircle2 className="h-2.5 w-2.5" />
+                            Accepted
+                          </span>
+                        )}
+                        {inv.status === "REJECTED" && (
+                          <span className="inline-flex items-center gap-1 rounded-full bg-rose-50 px-2 py-0.5 text-[10px] font-bold text-rose-800 border border-rose-200">
+                            <XCircle className="h-2.5 w-2.5" />
+                            Declined
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    <h4 className="mt-2 line-clamp-2 text-sm font-bold text-foreground group-hover:text-primary transition-colors">
+                      {inv.challenge.title}
+                    </h4>
+
+                    {inv.match_evidence && (
+                      <div className="mt-1 flex items-center gap-2">
+                        <Badge variant="teal" size="sm" className="font-mono text-[10px]">
+                          Match: {inv.match_evidence.overall_score.toFixed(0)}%
+                        </Badge>
+                        {inv.match_evidence.recommended_role && (
+                          <span className="text-[11px] text-muted-foreground truncate">
+                            Role: {inv.match_evidence.recommended_role}
+                          </span>
+                        )}
+                      </div>
+                    )}
+                  </CardHeader>
+
+                  <CardContent className="space-y-3 pb-3">
+                    <p className="line-clamp-2 text-xs text-muted-foreground leading-relaxed italic bg-background/50 p-2 rounded-lg border border-border/60">
+                      &ldquo;{inv.invitation_message}&rdquo;
+                    </p>
+                    <div className="text-[11px] text-muted-foreground">
+                      Invited: {new Date(inv.invited_at).toLocaleDateString()}
+                    </div>
+                  </CardContent>
+
+                  <div className="border-t border-border/70 bg-muted/20 px-4 py-2.5 flex justify-end">
+                    <Button
+                      size="sm"
+                      asChild
+                      className={
+                        isPending
+                          ? "text-xs font-semibold bg-teal-600 hover:bg-teal-700 text-white"
+                          : "text-xs font-semibold"
+                      }
+                      variant={isPending ? "default" : "outline"}
+                    >
+                      <Link to={`/app/university/challenges?tab=invitations&invitationId=${inv.id}`}>
+                        {isPending ? "Review & Respond" : "View Dossier"}
+                      </Link>
+                    </Button>
+                  </div>
+                </Card>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* Available Innovation Challenges Section */}
       <div className="space-y-4">

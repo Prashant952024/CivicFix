@@ -19,9 +19,17 @@ import {
   TrendingUp,
   UserCheck,
   X,
+  Clock,
+  Send,
+  Mail,
+  FileText,
+  CheckCheck,
+  XCircle,
+  Ban,
 } from "lucide-react";
 import { Link, useParams } from "react-router-dom";
 
+import { useAppSession } from "@/auth/app-session";
 import { InstitutionProfileModal } from "@/components/institutions/institution-profile-modal";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -38,6 +46,12 @@ import {
   searchEligibleInstitutions,
   type MatchWithInstitution,
 } from "@/lib/matching";
+import {
+  cancelInstitutionInvitation,
+  fetchChallengeInvitations,
+  sendInstitutionInvitations,
+  type ChallengeInvitationWithDetails,
+} from "@/lib/outreach";
 import { supabase } from "@/lib/supabase";
 import type {
   Database,
@@ -58,11 +72,23 @@ interface SelectedItem {
 
 export function ChallengeMatchingPage() {
   const { challengeId } = useParams<{ challengeId: string }>();
+  const { profile } = useAppSession();
 
   const [challenge, setChallenge] = useState<ChallengeRecord | null>(null);
   const [matchRun, setMatchRun] = useState<InstitutionMatchRunRow | null>(null);
   const [matches, setMatches] = useState<MatchWithInstitution[]>([]);
   const [selectedInstitutions, setSelectedInstitutions] = useState<SelectedItem[]>([]);
+
+  // Phase 3D-1 Outreach states
+  const [invitations, setInvitations] = useState<ChallengeInvitationWithDetails[]>([]);
+  const [sendDialogOpen, setSendDialogOpen] = useState(false);
+  const [invitationMessage, setInvitationMessage] = useState(
+    "We invite your institution to review this municipal innovation challenge and participate in co-developing a high-impact solution for our city."
+  );
+  const [sendingInvitations, setSendingInvitations] = useState(false);
+  const [cancellingId, setCancellingId] = useState<string | null>(null);
+  const [selectedInvitationForDetail, setSelectedInvitationForDetail] =
+    useState<ChallengeInvitationWithDetails | null>(null);
 
   // Loading states
   const [loading, setLoading] = useState(true);
@@ -135,6 +161,11 @@ export function ChallengeMatchingPage() {
             }))
           );
         }
+
+        // 5. Fetch existing Phase 3D invitations
+        const invList = await fetchChallengeInvitations(challengeId!);
+        if (isCancelled) return;
+        setInvitations(invList);
       } catch (err: unknown) {
         console.error("Error loading challenge matching data:", err);
         const msg = err instanceof Error ? err.message : "Failed to load matching data";
@@ -307,7 +338,7 @@ export function ChallengeMatchingPage() {
       }
 
       setActionSuccess(
-        `Successfully saved ${selectedInstitutions.length} institutions for outreach! Challenge is now locked and ready for Phase 3D invitations.`
+        `Successfully saved ${selectedInstitutions.length} institutions for outreach! Selections are locked and ready for Phase 3D invitation dispatch.`
       );
     } catch (err: unknown) {
       console.error("Save selections error:", err);
@@ -315,6 +346,80 @@ export function ChallengeMatchingPage() {
       setActionError(msg);
     } finally {
       setSavingSelections(false);
+    }
+  }
+
+  // Dispatch Phase 3D-1 invitations to all confirmed selections
+  async function handleSendInvitations() {
+    if (!challengeId) return;
+    if (selectedInstitutions.length === 0) {
+      setActionError("Please select at least 1 institution before sending invitations.");
+      return;
+    }
+    if (!invitationMessage.trim()) {
+      setActionError("Please enter an invitation message.");
+      return;
+    }
+
+    setSendingInvitations(true);
+    setActionError(null);
+    setActionSuccess(null);
+
+    try {
+      // First ensure current selections are committed
+      const payload = selectedInstitutions.map((s) => ({
+        institutionId: s.institution.id,
+        matchRunId: s.matchRunId ?? matchRun?.id ?? null,
+        selectionRank: s.selectionRank ?? null,
+        isManualOverride: s.isManualOverride,
+        overrideReason: s.overrideReason ?? null,
+      }));
+      await confirmInstitutionSelections(challengeId, payload);
+
+      const res = await sendInstitutionInvitations({
+        challengeId,
+        message: invitationMessage.trim(),
+        clerkUserId: profile?.id,
+      });
+
+      const updatedInvs = await fetchChallengeInvitations(challengeId);
+      setInvitations(updatedInvs);
+
+      if (challenge) {
+        setChallenge({ ...challenge, status: "INVITATIONS_SENT" });
+      }
+
+      setSendDialogOpen(false);
+      setActionSuccess(
+        `Official invitations dispatched successfully! ${res.createdCount} institutions notified (${res.existingCount} already notified). Challenge status updated to INVITATIONS_SENT.`
+      );
+    } catch (err: unknown) {
+      console.error("Send invitations error:", err);
+      const msg = err instanceof Error ? err.message : "Failed to dispatch invitations";
+      setActionError(msg);
+    } finally {
+      setSendingInvitations(false);
+    }
+  }
+
+  // Cancel an active invitation
+  async function handleCancelInvitation(invitationId: string) {
+    if (!challengeId) return;
+    setCancellingId(invitationId);
+    setActionError(null);
+    setActionSuccess(null);
+
+    try {
+      await cancelInstitutionInvitation(invitationId);
+      const updatedInvs = await fetchChallengeInvitations(challengeId);
+      setInvitations(updatedInvs);
+      setActionSuccess("Invitation has been successfully cancelled.");
+    } catch (err: unknown) {
+      console.error("Cancel invitation error:", err);
+      const msg = err instanceof Error ? err.message : "Failed to cancel invitation";
+      setActionError(msg);
+    } finally {
+      setCancellingId(null);
     }
   }
 
@@ -350,7 +455,8 @@ export function ChallengeMatchingPage() {
 
   const isConfirmed =
     challenge.status === "INSTITUTIONS_SELECTED" ||
-    challenge.status === "READY_FOR_INVITATION";
+    challenge.status === "READY_FOR_INVITATION" ||
+    challenge.status === "INVITATIONS_SENT";
 
   return (
     <div className="space-y-6 pb-28">
@@ -430,7 +536,9 @@ export function ChallengeMatchingPage() {
           </div>
           <Badge
             variant={
-              isConfirmed
+              challenge.status === "INVITATIONS_SENT"
+                ? "teal"
+                : isConfirmed
                 ? "teal"
                 : matchRun
                 ? "info"
@@ -439,7 +547,9 @@ export function ChallengeMatchingPage() {
             size="sm"
             className="font-semibold"
           >
-            {isConfirmed
+            {challenge.status === "INVITATIONS_SENT"
+              ? "INVITATIONS SENT"
+              : isConfirmed
               ? "INSTITUTIONS SELECTED"
               : matchRun
               ? "MATCHING COMPLETED"
@@ -584,6 +694,22 @@ export function ChallengeMatchingPage() {
               )}
               {isConfirmed ? "Update Selection" : "Confirm Selection (Commit)"}
             </Button>
+
+            {selectedInstitutions.length > 0 && (
+              <Button
+                size="sm"
+                onClick={() => setSendDialogOpen(true)}
+                disabled={
+                  savingSelections ||
+                  matchingInProgress ||
+                  sendingInvitations
+                }
+                className="text-xs font-semibold gap-1.5 shadow-xs bg-teal-600 hover:bg-teal-700 text-white"
+              >
+                <Send className="h-3.5 w-3.5" />
+                {invitations.length > 0 ? "Dispatch Outreach" : "Send Invitations"}
+              </Button>
+            )}
           </div>
         </div>
 
@@ -665,6 +791,239 @@ export function ChallengeMatchingPage() {
               );
             })}
           </div>
+        </CardContent>
+      </Card>
+
+      {/* PHASE 3D-1: OUTREACH & INVITATIONS MANAGEMENT SECTION */}
+      <Card className="rounded-2xl border border-border/80 bg-card shadow-xs overflow-hidden">
+        <div className="py-3 px-5 border-b border-border/70 bg-surface/70 flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-2.5">
+            <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-teal-500/10 text-teal-700">
+              <Mail className="h-4 w-4" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h3 className="text-sm font-bold text-foreground">
+                  Phase 3D-1: Institution Outreach &amp; Invitation Tracking
+                </h3>
+                <Badge variant="teal" size="sm">
+                  Phase 3D-1
+                </Badge>
+              </div>
+              <p className="text-[11px] text-muted-foreground">
+                Formal outreach tracking and response management for selected partner institutions
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <Button
+              size="sm"
+              onClick={() => setSendDialogOpen(true)}
+              disabled={
+                selectedInstitutions.length === 0 ||
+                sendingInvitations ||
+                savingSelections
+              }
+              className="text-xs font-semibold gap-1.5 shadow-xs bg-teal-600 hover:bg-teal-700 text-white"
+            >
+              <Send className="h-3.5 w-3.5" />
+              {invitations.length > 0 ? "Dispatch Outreach" : "Send Invitations"}
+            </Button>
+          </div>
+        </div>
+
+        <CardContent className="p-5 space-y-4">
+          {/* Status Metric Pills */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <div className="rounded-xl border border-border/70 bg-surface/40 p-3 flex flex-col">
+              <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                Total Invited
+              </span>
+              <span className="text-xl font-bold text-foreground mt-0.5">
+                {invitations.length}
+              </span>
+              <span className="text-[10px] text-muted-foreground">
+                Of {selectedInstitutions.length} selected
+              </span>
+            </div>
+
+            <div className="rounded-xl border border-sky-200 bg-sky-50/50 p-3 flex flex-col">
+              <span className="text-[10px] font-semibold uppercase tracking-wider text-sky-800">
+                Awaiting Response
+              </span>
+              <span className="text-xl font-bold text-sky-900 mt-0.5">
+                {invitations.filter((i) => i.status === "SENT" || i.status === "PENDING").length}
+              </span>
+              <span className="text-[10px] text-sky-700">Pending review</span>
+            </div>
+
+            <div className="rounded-xl border border-emerald-200 bg-emerald-50/50 p-3 flex flex-col">
+              <span className="text-[10px] font-semibold uppercase tracking-wider text-emerald-800">
+                Accepted
+              </span>
+              <span className="text-xl font-bold text-emerald-900 mt-0.5">
+                {invitations.filter((i) => i.status === "ACCEPTED").length}
+              </span>
+              <span className="text-[10px] text-emerald-700">Ready for collaboration</span>
+            </div>
+
+            <div className="rounded-xl border border-amber-200 bg-amber-50/50 p-3 flex flex-col">
+              <span className="text-[10px] font-semibold uppercase tracking-wider text-amber-800">
+                Declined / Recalled
+              </span>
+              <span className="text-xl font-bold text-amber-900 mt-0.5">
+                {invitations.filter((i) => i.status === "REJECTED" || i.status === "CANCELLED").length}
+              </span>
+              <span className="text-[10px] text-amber-700">Audit logged</span>
+            </div>
+          </div>
+
+          {/* Outreach Table / Empty State */}
+          {invitations.length === 0 ? (
+            <div className="rounded-xl border border-dashed border-border/80 p-8 text-center bg-surface/30">
+              <Mail className="h-8 w-8 text-muted-foreground/60 mx-auto" />
+              <h4 className="mt-2 text-xs font-bold text-foreground">
+                No Invitations Dispatched Yet
+              </h4>
+              <p className="mt-1 text-[11px] text-muted-foreground max-w-md mx-auto">
+                Once you select up to 5 verified institutions, click &ldquo;Send Invitations&rdquo; to dispatch formal challenge dossiers to their institution portals.
+              </p>
+            </div>
+          ) : (
+            <div className="overflow-x-auto rounded-xl border border-border/70">
+              <table className="w-full text-left text-xs border-collapse">
+                <thead>
+                  <tr className="border-b border-border/70 bg-surface/80 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
+                    <th className="p-3">Institution</th>
+                    <th className="p-3">Selection Basis</th>
+                    <th className="p-3">Status</th>
+                    <th className="p-3">Dispatched</th>
+                    <th className="p-3">Response &amp; Justification</th>
+                    <th className="p-3 text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border/60 bg-card">
+                  {invitations.map((inv) => {
+                    return (
+                      <tr key={inv.id} className="hover:bg-surface/50 transition-colors">
+                        <td className="p-3 font-medium">
+                          <div className="font-bold text-foreground">{inv.institution.name}</div>
+                          <div className="text-[11px] text-muted-foreground">
+                            {inv.institution.city}, {inv.institution.state} · {inv.institution.institution_type.replace(/_/g, " ")}
+                          </div>
+                        </td>
+                        <td className="p-3">
+                          {inv.match_evidence ? (
+                            <Badge variant="teal" size="sm" className="font-mono">
+                              Match: {inv.match_evidence.overall_score.toFixed(0)}%
+                            </Badge>
+                          ) : (
+                            <Badge variant="outline" size="sm" className="text-muted-foreground">
+                              Selected
+                            </Badge>
+                          )}
+                        </td>
+                        <td className="p-3">
+                          {inv.status === "SENT" && (
+                            <span className="inline-flex items-center gap-1.5 rounded-full border border-sky-200 bg-sky-50 px-2.5 py-0.5 text-[11px] font-semibold text-sky-800">
+                              <span className="h-1.5 w-1.5 rounded-full bg-sky-500 animate-ping" />
+                              Sent
+                            </span>
+                          )}
+                          {inv.status === "ACCEPTED" && (
+                            <span className="inline-flex items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-0.5 text-[11px] font-semibold text-emerald-800">
+                              <CheckCheck className="h-3 w-3" />
+                              Accepted
+                            </span>
+                          )}
+                          {inv.status === "REJECTED" && (
+                            <span className="inline-flex items-center gap-1 rounded-full border border-rose-200 bg-rose-50 px-2.5 py-0.5 text-[11px] font-semibold text-rose-800">
+                              <XCircle className="h-3 w-3" />
+                              Declined
+                            </span>
+                          )}
+                          {inv.status === "CANCELLED" && (
+                            <span className="inline-flex items-center gap-1 rounded-full border border-gray-200 bg-gray-50 px-2.5 py-0.5 text-[11px] font-medium text-gray-600">
+                              <Ban className="h-3 w-3" />
+                              Cancelled
+                            </span>
+                          )}
+                        </td>
+                        <td className="p-3 text-[11px] text-muted-foreground font-mono">
+                          {new Date(inv.invited_at).toLocaleDateString()}
+                        </td>
+                        <td className="p-3 max-w-xs">
+                          {inv.status === "ACCEPTED" && (
+                            <div className="text-[11px] text-emerald-950 bg-emerald-50/70 p-2 rounded-lg border border-emerald-200">
+                              <span className="font-semibold block text-[10px] uppercase tracking-wider text-emerald-800">
+                                Accepted {inv.responded_at ? `on ${new Date(inv.responded_at).toLocaleDateString()}` : ""}
+                              </span>
+                              {inv.response_note ? (
+                                <p className="italic mt-0.5 line-clamp-2">&ldquo;{inv.response_note}&rdquo;</p>
+                              ) : (
+                                <span className="text-emerald-700 italic">No note provided</span>
+                              )}
+                            </div>
+                          )}
+                          {inv.status === "REJECTED" && (
+                            <div className="text-[11px] text-rose-950 bg-rose-50/70 p-2 rounded-lg border border-rose-200">
+                              <span className="font-semibold block text-[10px] uppercase tracking-wider text-rose-800">
+                                Reason for Decline {inv.responded_at ? `(${new Date(inv.responded_at).toLocaleDateString()})` : ""}
+                              </span>
+                              <p className="italic mt-0.5 font-medium line-clamp-2">
+                                &ldquo;{inv.rejection_reason}&rdquo;
+                              </p>
+                            </div>
+                          )}
+                          {(inv.status === "SENT" || inv.status === "PENDING") && (
+                            <span className="text-[11px] text-muted-foreground italic flex items-center gap-1">
+                              <Clock className="h-3 w-3 text-muted-foreground" />
+                              Awaiting response
+                            </span>
+                          )}
+                          {inv.status === "CANCELLED" && (
+                            <span className="text-[11px] text-muted-foreground italic">
+                              Invitation cancelled
+                            </span>
+                          )}
+                        </td>
+                        <td className="p-3 text-right">
+                          <div className="flex items-center justify-end gap-1.5">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => setSelectedInvitationForDetail(inv)}
+                              className="text-[11px] h-7 px-2"
+                            >
+                              <FileText className="h-3 w-3 mr-1" />
+                              Dossier
+                            </Button>
+                            {inv.status === "SENT" && (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => void handleCancelInvitation(inv.id)}
+                                disabled={cancellingId === inv.id}
+                                className="text-[11px] h-7 px-2 text-rose-700 hover:bg-rose-50 hover:border-rose-200"
+                              >
+                                {cancellingId === inv.id ? (
+                                  <Loader2 className="h-3 w-3 animate-spin" />
+                                ) : (
+                                  <Ban className="h-3 w-3 mr-1" />
+                                )}
+                                Cancel
+                              </Button>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
         </CardContent>
       </Card>
 
@@ -1287,23 +1646,39 @@ export function ChallengeMatchingPage() {
               </div>
             </div>
 
-            <Button
-              onClick={() => void handleConfirmSelections()}
-              disabled={
-                savingSelections ||
-                matchingInProgress ||
-                selectedInstitutions.length === 0 ||
-                selectedInstitutions.length > 5
-              }
-              className="text-xs font-bold gap-1.5 shadow-sm bg-primary hover:bg-primary/90 text-primary-foreground shrink-0 px-4 h-9"
-            >
-              {savingSelections ? (
-                <Loader2 className="h-3.5 w-3.5 animate-spin" />
-              ) : (
-                <Check className="h-3.5 w-3.5 stroke-[3]" />
-              )}
-              {isConfirmed ? "Update Selection" : "Commit Selections"}
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button
+                onClick={() => void handleConfirmSelections()}
+                disabled={
+                  savingSelections ||
+                  matchingInProgress ||
+                  selectedInstitutions.length === 0 ||
+                  selectedInstitutions.length > 5
+                }
+                className="text-xs font-bold gap-1.5 shadow-sm bg-primary hover:bg-primary/90 text-primary-foreground shrink-0 px-4 h-9"
+              >
+                {savingSelections ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <Check className="h-3.5 w-3.5 stroke-[3]" />
+                )}
+                {isConfirmed ? "Update Selection" : "Commit Selections"}
+              </Button>
+
+              <Button
+                onClick={() => setSendDialogOpen(true)}
+                disabled={
+                  savingSelections ||
+                  matchingInProgress ||
+                  sendingInvitations ||
+                  selectedInstitutions.length === 0
+                }
+                className="text-xs font-bold gap-1.5 shadow-sm bg-teal-600 hover:bg-teal-700 text-white shrink-0 px-4 h-9"
+              >
+                <Send className="h-3.5 w-3.5" />
+                {invitations.length > 0 ? "Dispatch Outreach" : "Send Invitations"}
+              </Button>
+            </div>
           </div>
         </div>
       )}
@@ -1424,6 +1799,218 @@ export function ChallengeMatchingPage() {
             </Button>
           </div>
         </div>
+      </Dialog>
+
+      {/* PHASE 3D-1: Send Invitations Confirmation Dialog */}
+      <Dialog
+        open={sendDialogOpen}
+        onClose={() => setSendDialogOpen(false)}
+        title="Dispatch Formal Challenge Invitations"
+        maxWidth="lg"
+      >
+        <div className="space-y-4">
+          <div className="rounded-xl border border-teal-200 bg-teal-50/70 p-3 text-xs text-teal-950">
+            <div className="font-bold flex items-center gap-1.5 text-teal-900">
+              <Sparkles className="h-3.5 w-3.5 text-teal-700" />
+              Phase 3D-1 Outreach Dispatch
+            </div>
+            <p className="mt-1 leading-relaxed text-teal-900">
+              You are dispatching official invitations to the {selectedInstitutions.length} selected verified institutions.
+              Each institution coordinator will receive an in-app notification and an invitation dossier in their University Portal.
+            </p>
+          </div>
+
+          <div className="space-y-2">
+            <span className="text-xs font-semibold text-foreground">
+              Recipient Institutions ({selectedInstitutions.length}/5):
+            </span>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-48 overflow-y-auto pr-1">
+              {selectedInstitutions.map((sel, idx) => (
+                <div
+                  key={sel.institution.id}
+                  className="rounded-lg border border-border/80 bg-surface/60 p-2.5 flex items-start justify-between gap-2"
+                >
+                  <div>
+                    <div className="font-bold text-xs text-foreground line-clamp-1">
+                      {idx + 1}. {sel.institution.name}
+                    </div>
+                    <div className="text-[11px] text-muted-foreground">
+                      {sel.institution.city}, {sel.institution.state}
+                    </div>
+                  </div>
+                  {sel.isManualOverride ? (
+                    <Badge variant="amber" size="sm">
+                      OVERRIDE
+                    </Badge>
+                  ) : (
+                    <Badge variant="teal" size="sm" className="font-mono">
+                      #{sel.selectionRank}
+                    </Badge>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="space-y-1.5">
+            <label className="text-xs font-semibold text-foreground flex items-center justify-between">
+              <span>Invitation Briefing Message</span>
+              <span className="text-[10px] text-muted-foreground font-mono">
+                {invitationMessage.trim().length} chars
+              </span>
+            </label>
+            <textarea
+              rows={4}
+              placeholder="Enter briefing message or collaboration instructions for the selected institutions..."
+              value={invitationMessage}
+              onChange={(e) => setInvitationMessage(e.target.value)}
+              className="w-full rounded-xl border border-border bg-background p-3 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+            />
+            <p className="text-[11px] text-muted-foreground">
+              This message will be prominently displayed on the institution&apos;s invitation screen alongside the complete challenge dossier.
+            </p>
+          </div>
+
+          <div className="flex items-center justify-end gap-2 pt-2 border-t border-border/70">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setSendDialogOpen(false)}
+              disabled={sendingInvitations}
+              className="text-xs"
+            >
+              Cancel
+            </Button>
+            <Button
+              size="sm"
+              onClick={() => void handleSendInvitations()}
+              disabled={sendingInvitations || selectedInstitutions.length === 0 || !invitationMessage.trim()}
+              className="text-xs font-semibold gap-1.5 bg-teal-600 hover:bg-teal-700 text-white"
+            >
+              {sendingInvitations ? (
+                <>
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  Dispatching Invitations...
+                </>
+              ) : (
+                <>
+                  <Send className="h-3.5 w-3.5" />
+                  Confirm &amp; Dispatch Invitations
+                </>
+              )}
+            </Button>
+          </div>
+        </div>
+      </Dialog>
+
+      {/* Invitation Detail / Dossier Dialog */}
+      <Dialog
+        open={Boolean(selectedInvitationForDetail)}
+        onClose={() => setSelectedInvitationForDetail(null)}
+        title="Institution Outreach Dossier"
+        maxWidth="md"
+      >
+        {selectedInvitationForDetail && (
+          <div className="space-y-4 text-xs">
+            <div className="rounded-xl border border-border/80 bg-surface/60 p-3 space-y-1.5">
+              <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                Target Institution
+              </span>
+              <h3 className="text-sm font-bold text-foreground">
+                {selectedInvitationForDetail.institution.name}
+              </h3>
+              <p className="text-xs text-muted-foreground">
+                {selectedInvitationForDetail.institution.city}, {selectedInvitationForDetail.institution.state} ·{" "}
+                {selectedInvitationForDetail.institution.institution_type.replace(/_/g, " ")}
+              </p>
+            </div>
+
+            {selectedInvitationForDetail.match_evidence && (
+              <div className="rounded-xl border border-teal-200 bg-teal-50/50 p-3 space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="font-bold text-teal-950">Capability Match Evidence</span>
+                  <Badge variant="teal" size="sm" className="font-mono font-bold">
+                    {selectedInvitationForDetail.match_evidence.overall_score.toFixed(0)}% Match
+                  </Badge>
+                </div>
+                {selectedInvitationForDetail.match_evidence.recommended_role && (
+                  <div className="text-[11px] text-teal-900">
+                    <span className="font-semibold">Recommended Role:</span>{" "}
+                    {selectedInvitationForDetail.match_evidence.recommended_role}
+                  </div>
+                )}
+                {selectedInvitationForDetail.match_evidence.strengths.length > 0 && (
+                  <div className="space-y-1">
+                    <span className="text-[10px] font-semibold uppercase tracking-wider text-teal-800">
+                      Demonstrated Strengths
+                    </span>
+                    <ul className="list-disc list-inside space-y-0.5 text-[11px] text-teal-900">
+                      {selectedInvitationForDetail.match_evidence.strengths.map((st, i) => (
+                        <li key={i}>{st}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </div>
+            )}
+
+            <div className="space-y-1">
+              <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                Invitation Message Sent
+              </span>
+              <p className="rounded-lg border border-border/70 bg-background p-3 text-foreground leading-relaxed italic">
+                &ldquo;{selectedInvitationForDetail.invitation_message}&rdquo;
+              </p>
+            </div>
+
+            <div className="grid grid-cols-2 gap-2 text-[11px]">
+              <div className="rounded-lg border border-border/60 bg-surface/40 p-2.5">
+                <span className="text-muted-foreground block text-[10px] uppercase">Dispatched At</span>
+                <span className="font-semibold text-foreground">
+                  {new Date(selectedInvitationForDetail.invited_at).toLocaleString()}
+                </span>
+              </div>
+              <div className="rounded-lg border border-border/60 bg-surface/40 p-2.5">
+                <span className="text-muted-foreground block text-[10px] uppercase">Status</span>
+                <span className="font-bold text-foreground">
+                  {selectedInvitationForDetail.status}
+                </span>
+              </div>
+            </div>
+
+            {selectedInvitationForDetail.status === "ACCEPTED" && (
+              <div className="rounded-xl border border-emerald-200 bg-emerald-50/60 p-3 space-y-1">
+                <span className="text-[10px] font-semibold uppercase tracking-wider text-emerald-800">
+                  Institution Acceptance Note ({selectedInvitationForDetail.responded_at ? new Date(selectedInvitationForDetail.responded_at).toLocaleString() : ""})
+                </span>
+                <p className="text-emerald-950 font-medium italic">
+                  {selectedInvitationForDetail.response_note ? `“${selectedInvitationForDetail.response_note}”` : "No special notes provided."}
+                </p>
+              </div>
+            )}
+
+            {selectedInvitationForDetail.status === "REJECTED" && (
+              <div className="rounded-xl border border-rose-200 bg-rose-50/60 p-3 space-y-1">
+                <span className="text-[10px] font-semibold uppercase tracking-wider text-rose-800">
+                  Institution Rejection Justification ({selectedInvitationForDetail.responded_at ? new Date(selectedInvitationForDetail.responded_at).toLocaleString() : ""})
+                </span>
+                <p className="text-rose-950 font-medium italic">
+                  &ldquo;{selectedInvitationForDetail.rejection_reason}&rdquo;
+                </p>
+              </div>
+            )}
+
+            <div className="flex justify-end pt-2 border-t border-border">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setSelectedInvitationForDetail(null)}
+              >
+                Close
+              </Button>
+            </div>
+          </div>
+        )}
       </Dialog>
     </div>
   );

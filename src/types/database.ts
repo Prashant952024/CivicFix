@@ -801,7 +801,7 @@ export interface Database {
           potential_technology_areas: string[];
           research_requirements: string | null;
           success_criteria: string[];
-          status: "DRAFT" | "APPROVED" | "READY_FOR_MATCHING" | "MATCHING_IN_PROGRESS" | "MATCHING_COMPLETED" | "INSTITUTIONS_SELECTED" | "READY_FOR_INVITATION" | "OPEN_FOR_PROPOSALS" | "PILOT_ACTIVE" | "SOLVED" | "ARCHIVED";
+          status: "DRAFT" | "APPROVED" | "READY_FOR_MATCHING" | "MATCHING_IN_PROGRESS" | "MATCHING_COMPLETED" | "INSTITUTIONS_SELECTED" | "READY_FOR_INVITATION" | "INVITATIONS_SENT" | "OPEN_FOR_PROPOSALS" | "PILOT_ACTIVE" | "SOLVED" | "ARCHIVED";
           created_by: string;
           approved_by: string | null;
           created_at: string;
@@ -831,7 +831,7 @@ export interface Database {
           potential_technology_areas?: string[];
           research_requirements?: string | null;
           success_criteria?: string[];
-          status?: "DRAFT" | "APPROVED" | "READY_FOR_MATCHING" | "MATCHING_IN_PROGRESS" | "MATCHING_COMPLETED" | "INSTITUTIONS_SELECTED" | "READY_FOR_INVITATION" | "OPEN_FOR_PROPOSALS" | "PILOT_ACTIVE" | "SOLVED" | "ARCHIVED";
+          status?: "DRAFT" | "APPROVED" | "READY_FOR_MATCHING" | "MATCHING_IN_PROGRESS" | "MATCHING_COMPLETED" | "INSTITUTIONS_SELECTED" | "READY_FOR_INVITATION" | "INVITATIONS_SENT" | "OPEN_FOR_PROPOSALS" | "PILOT_ACTIVE" | "SOLVED" | "ARCHIVED";
           created_by: string;
           approved_by?: string | null;
           created_at?: string;
@@ -861,7 +861,7 @@ export interface Database {
           potential_technology_areas?: string[];
           research_requirements?: string | null;
           success_criteria?: string[];
-          status?: "DRAFT" | "APPROVED" | "READY_FOR_MATCHING" | "MATCHING_IN_PROGRESS" | "MATCHING_COMPLETED" | "INSTITUTIONS_SELECTED" | "READY_FOR_INVITATION" | "OPEN_FOR_PROPOSALS" | "PILOT_ACTIVE" | "SOLVED" | "ARCHIVED";
+          status?: "DRAFT" | "APPROVED" | "READY_FOR_MATCHING" | "MATCHING_IN_PROGRESS" | "MATCHING_COMPLETED" | "INSTITUTIONS_SELECTED" | "READY_FOR_INVITATION" | "INVITATIONS_SENT" | "OPEN_FOR_PROPOSALS" | "PILOT_ACTIVE" | "SOLVED" | "ARCHIVED";
           created_by?: string;
           approved_by?: string | null;
           created_at?: string;
@@ -1353,6 +1353,93 @@ export interface Database {
           },
         ];
       };
+      institution_invitations: {
+        Row: {
+          id: string;
+          challenge_id: string;
+          institution_id: string;
+          selection_id: string | null;
+          status: "PENDING" | "SENT" | "ACCEPTED" | "REJECTED" | "CANCELLED";
+          invited_by: string;
+          invited_at: string;
+          invitation_message: string;
+          responded_by: string | null;
+          responded_at: string | null;
+          response_note: string | null;
+          rejection_reason: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          challenge_id: string;
+          institution_id: string;
+          selection_id?: string | null;
+          status?: "PENDING" | "SENT" | "ACCEPTED" | "REJECTED" | "CANCELLED";
+          invited_by: string;
+          invited_at?: string;
+          invitation_message: string;
+          responded_by?: string | null;
+          responded_at?: string | null;
+          response_note?: string | null;
+          rejection_reason?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          challenge_id?: string;
+          institution_id?: string;
+          selection_id?: string | null;
+          status?: "PENDING" | "SENT" | "ACCEPTED" | "REJECTED" | "CANCELLED";
+          invited_by?: string;
+          invited_at?: string;
+          invitation_message?: string;
+          responded_by?: string | null;
+          responded_at?: string | null;
+          response_note?: string | null;
+          rejection_reason?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "institution_invitations_challenge_id_fkey";
+            columns: ["challenge_id"];
+            isOneToOne: false;
+            referencedRelation: "innovation_challenges";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "institution_invitations_institution_id_fkey";
+            columns: ["institution_id"];
+            isOneToOne: false;
+            referencedRelation: "institutions";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "institution_invitations_selection_id_fkey";
+            columns: ["selection_id"];
+            isOneToOne: false;
+            referencedRelation: "challenge_institution_selections";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "institution_invitations_invited_by_fkey";
+            columns: ["invited_by"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "institution_invitations_responded_by_fkey";
+            columns: ["responded_by"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
     };
     Views: Record<string, never>;
     Functions: Record<string, never>;
@@ -1414,6 +1501,11 @@ export type ChallengeInstitutionSelectionRow = Database["public"]["Tables"]["cha
 export type ChallengeInstitutionSelectionInsert = Database["public"]["Tables"]["challenge_institution_selections"]["Insert"];
 export type ChallengeInstitutionSelectionUpdate = Database["public"]["Tables"]["challenge_institution_selections"]["Update"];
 
+export type InstitutionInvitationRow = Database["public"]["Tables"]["institution_invitations"]["Row"];
+export type InstitutionInvitationInsert = Database["public"]["Tables"]["institution_invitations"]["Insert"];
+export type InstitutionInvitationUpdate = Database["public"]["Tables"]["institution_invitations"]["Update"];
+export type InvitationStatus = InstitutionInvitationRow["status"];
+
 export interface MatchDimensionScores {
   research_domains: number;
   technical_expertise: number;
@@ -1428,4 +1520,5 @@ export interface MatchDimensionScores {
 }
 
 export type MatchConfidence = "HIGH" | "MEDIUM" | "LOW";
+
 
