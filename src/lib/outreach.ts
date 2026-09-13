@@ -176,26 +176,38 @@ export async function sendInstitutionInvitations(
   // 2. Resolve caller profile
   let callerProfileId: string | null = null;
   if (clerkUserId) {
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("id")
-      .eq("clerk_user_id", clerkUserId)
-      .maybeSingle();
-    callerProfileId = profile?.id ?? null;
+    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(clerkUserId);
+    if (isUuid) {
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("id")
+        .eq("id", clerkUserId)
+        .maybeSingle();
+      callerProfileId = profile?.id ?? null;
+    }
+
+    if (!callerProfileId) {
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("id")
+        .eq("clerk_user_id", clerkUserId)
+        .maybeSingle();
+      callerProfileId = profile?.id ?? null;
+    }
   }
 
   if (!callerProfileId) {
     const { data: fallbackProfile } = await supabase
       .from("profiles")
-      .select("id")
-      .in("role", ["INNOVATION_MANAGER", "ADMIN"])
+      .select("id, roles!inner(code)")
+      .in("roles.code", ["INNOVATION_MANAGER", "ADMIN"])
       .limit(1)
       .maybeSingle();
     callerProfileId = fallbackProfile?.id ?? null;
   }
 
   if (!callerProfileId) {
-    throw new Error("Could not determine authenticated user profile for sending invitations.");
+    throw new Error("Unable to resolve authorized profile for invitation dispatch.");
   }
 
   // 3. Fetch active selections for this challenge
@@ -218,11 +230,6 @@ export async function sendInstitutionInvitations(
 
   if (!selections || selections.length === 0) {
     throw new Error("No institutions have been selected for this challenge. Please select institutions first.");
-  }
-
-  // Verify selections count <= 5
-  if (selections.length > 5) {
-    throw new Error("Cannot send invitations to more than 5 institutions (governance limit exceeded).");
   }
 
   // 4. Check existing invitations (idempotency protection)

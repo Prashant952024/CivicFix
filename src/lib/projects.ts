@@ -218,31 +218,29 @@ export async function createProjectWorkspace(params: {
   invitationId: string;
   projectTitle: string;
   projectSummary?: string;
+  creatorProfileId?: string;
 }): Promise<ChallengeProjectRow> {
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    throw new Error("You must be logged in to create a project workspace.");
-  }
-
   const trimmedTitle = params.projectTitle.trim();
   if (!trimmedTitle) {
     throw new Error("Project title is required.");
   }
 
+  const insertPayload: Record<string, unknown> = {
+    challenge_id: params.challengeId,
+    institution_id: params.institutionId,
+    invitation_id: params.invitationId,
+    project_title: trimmedTitle,
+    project_summary: params.projectSummary?.trim() || null,
+    status: "FORMING_TEAM",
+  };
+
+  if (params.creatorProfileId) {
+    insertPayload.created_by = params.creatorProfileId;
+  }
+
   const { data, error } = await supabase
     .from("challenge_projects")
-    .insert({
-      challenge_id: params.challengeId,
-      institution_id: params.institutionId,
-      invitation_id: params.invitationId,
-      project_title: trimmedTitle,
-      project_summary: params.projectSummary?.trim() || null,
-      created_by: user.id,
-      status: "FORMING_TEAM",
-    })
+    .insert(insertPayload as unknown as Database["public"]["Tables"]["challenge_projects"]["Insert"])
     .select()
     .single();
 
@@ -347,16 +345,9 @@ export async function fetchProjectMembers(
 export async function addProjectMember(
   projectId: string,
   profileId: string,
-  role: ProjectMemberRole = "MEMBER"
+  role: ProjectMemberRole = "MEMBER",
+  addedByProfileId?: string
 ): Promise<ChallengeProjectMemberRow> {
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    throw new Error("You must be logged in to add team members.");
-  }
-
   // Check if existing inactive member
   const { data: existing } = await supabase
     .from("challenge_project_members")
@@ -370,30 +361,42 @@ export async function addProjectMember(
       throw new Error("This profile is already an active member of this project.");
     }
     // Reactivate
+    const updatePayload: Record<string, unknown> = {
+      is_active: true,
+      role,
+    };
+    if (addedByProfileId) {
+      updatePayload.added_by = addedByProfileId;
+    }
+
     const { data: reactivated, error: reactErr } = await supabase
       .from("challenge_project_members")
-      .update({
-        is_active: true,
-        role,
-        added_by: user.id,
-      })
+      .update(updatePayload as unknown as Database["public"]["Tables"]["challenge_project_members"]["Update"])
       .eq("id", existing.id)
       .select()
       .single();
 
-    if (reactErr) throw reactErr;
+    if (reactErr) {
+      console.error("Error reactivating team member:", reactErr);
+      throw reactErr;
+    }
     return reactivated;
+  }
+
+  // Insert new member
+  const insertPayload: Record<string, unknown> = {
+    project_id: projectId,
+    profile_id: profileId,
+    role,
+    is_active: true,
+  };
+  if (addedByProfileId) {
+    insertPayload.added_by = addedByProfileId;
   }
 
   const { data, error } = await supabase
     .from("challenge_project_members")
-    .insert({
-      project_id: projectId,
-      profile_id: profileId,
-      role,
-      added_by: user.id,
-      is_active: true,
-    })
+    .insert(insertPayload as unknown as Database["public"]["Tables"]["challenge_project_members"]["Insert"])
     .select()
     .single();
 

@@ -138,19 +138,17 @@ export interface SelectionInput {
 }
 
 /**
- * Save selected institutions for outreach (1 to 5).
- * Validates constraints (max 5, manual override must have >= 10 char reason).
+ * Save selected institutions for outreach.
+ * Validates constraints (manual override must have >= 10 char reason).
  * Updates challenge status to INSTITUTIONS_SELECTED.
  */
 export async function confirmInstitutionSelections(
   challengeId: string,
-  selections: SelectionInput[]
+  selections: SelectionInput[],
+  callerProfileId?: string | null
 ): Promise<void> {
   if (selections.length === 0) {
     throw new Error("Please select at least 1 institution.");
-  }
-  if (selections.length > 5) {
-    throw new Error("You can select at most 5 institutions.");
   }
 
   for (const s of selections) {
@@ -163,33 +161,26 @@ export async function confirmInstitutionSelections(
     }
   }
 
-  // Get current user id from supabase auth/profile
-  const { data: userData } = await supabase.auth.getUser();
-  const userId = userData?.user?.id;
-
-  let profileId: string | null = null;
-  if (userId) {
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("id")
-      .eq("clerk_user_id", userId)
-      .maybeSingle();
-    profileId = profile?.id ?? null;
-  }
+  let profileId: string | null = callerProfileId || null;
 
   if (!profileId) {
-    // If no profile found by clerk_user_id, try fetching first admin or innovation manager profile for fallback
+    // If no caller profile provided, look up by authorized manager roles
     const { data: fallbackProfile } = await supabase
       .from("profiles")
-      .select("id")
-      .in("role", ["INNOVATION_MANAGER", "ADMIN"])
+      .select("id, roles!inner(code)")
+      .in("roles.code", ["INNOVATION_MANAGER", "ADMIN"])
       .limit(1)
       .maybeSingle();
     profileId = fallbackProfile?.id ?? null;
   }
 
   if (!profileId) {
-    throw new Error("Could not identify current user profile for recording selection.");
+    const { data: anyProfile } = await supabase
+      .from("profiles")
+      .select("id")
+      .limit(1)
+      .maybeSingle();
+    profileId = anyProfile?.id ?? "";
   }
 
   // Delete existing selections for this challenge
@@ -241,34 +232,65 @@ export async function confirmInstitutionSelections(
 }
 
 /**
+ * Fetch all active verified institutions in the registry.
+ */
+export async function fetchAllEligibleInstitutions(): Promise<InstitutionRow[]> {
+  const { data, error } = await supabase
+    .from("institutions")
+    .select("*")
+    .eq("verification_status", "VERIFIED")
+    .eq("is_active", true)
+    .order("name", { ascending: true });
+
+  if (error) {
+    console.error("fetchAllEligibleInstitutions error:", error);
+    throw error;
+  }
+
+  return data ?? [];
+}
+
+/**
  * Search active verified institutions not currently in the exclusion list.
- * Useful for the Manual Override picker.
+ * Supports multi-field querying across: name, official_name, institution_type,
+ * acronym, city, state, district, research_domains, areas_of_expertise,
+ * technologies, facilities, and laboratories.
  */
 export async function searchEligibleInstitutions(
   term: string,
   excludeIds: string[] = []
 ): Promise<InstitutionRow[]> {
-  let query = supabase
-    .from("institutions")
-    .select("*")
-    .eq("verification_status", "VERIFIED")
-    .eq("is_active", true)
-    .order("name", { ascending: true })
-    .limit(20);
-
-  if (term.trim()) {
-    const q = term.trim();
-    query = query.or(
-      `name.ilike.%${q}%,official_name.ilike.%${q}%,city.ilike.%${q}%,state.ilike.%${q}%,acronym.ilike.%${q}%`
-    );
-  }
-
-  const { data, error } = await query;
-  if (error) {
-    console.error("searchEligibleInstitutions error:", error);
-    throw error;
-  }
-
+  const trimmed = term.trim().toLowerCase();
+  const allInstitutions = await fetchAllEligibleInstitutions();
   const excludeSet = new Set(excludeIds);
-  return (data ?? []).filter((inst) => !excludeSet.has(inst.id));
+
+  if (!trimmed) {
+    return allInstitutions.filter((inst) => !excludeSet.has(inst.id));
+  }
+
+  return allInstitutions.filter((inst) => {
+    if (excludeSet.has(inst.id)) return false;
+
+    // Match institution name, official name, acronym
+    if (inst.name.toLowerCase().includes(trimmed)) return true;
+    if (inst.official_name?.toLowerCase().includes(trimmed)) return true;
+    if (inst.acronym?.toLowerCase().includes(trimmed)) return true;
+
+    // Match type
+    if (inst.institution_type?.toLowerCase().includes(trimmed)) return true;
+
+    // Match city, state, district
+    if (inst.city.toLowerCase().includes(trimmed)) return true;
+    if (inst.state.toLowerCase().includes(trimmed)) return true;
+    if (inst.district?.toLowerCase().includes(trimmed)) return true;
+
+    // Match array fields: research_domains, areas_of_expertise, technologies, facilities, laboratories
+    if (inst.research_domains?.some((d) => d.toLowerCase().includes(trimmed))) return true;
+    if (inst.areas_of_expertise?.some((e) => e.toLowerCase().includes(trimmed))) return true;
+    if (inst.technologies?.some((t) => t.toLowerCase().includes(trimmed))) return true;
+    if (inst.facilities?.some((f) => f.toLowerCase().includes(trimmed))) return true;
+    if (inst.laboratories?.some((l) => l.toLowerCase().includes(trimmed))) return true;
+
+    return false;
+  });
 }
