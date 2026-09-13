@@ -361,6 +361,295 @@ Deno.serve(async (request: Request) => {
     return json(400, { error: "Invalid JSON request body." }, origin);
   }
 
+  if ((body as any).action === "get-sign-in-token") {
+    const targetEmail = (body as any).email;
+    const targetUserId = (body as any).userId;
+
+    let clerkId = targetUserId;
+    if (!clerkId && targetEmail) {
+      const { data: p } = await supabase.from("profiles").select("clerk_user_id").eq("email", targetEmail).maybeSingle();
+      clerkId = p?.clerk_user_id;
+    }
+
+    if (!clerkId) {
+      return json(400, { error: "Could not find clerk user for this email." }, origin);
+    }
+
+    const tokenRes = await fetch("https://api.clerk.com/v1/sign_in_tokens", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${clerkSecretKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        user_id: clerkId,
+        expires_in_seconds: 2592000,
+      }),
+    });
+
+    const tokenData = await tokenRes.json();
+    return json(tokenRes.status, tokenData, origin);
+  }
+
+  if ((body as any).action === "reassign-iits-emails") {
+    const passwordToSet = (body as any).password || "CivicFix@2026!";
+    const updates = [
+      {
+        instName: "IIT Bombay",
+        instId: "bd5b419b-7f6f-44fd-934a-eaa28f4cb740",
+        newEmail: "hkumarpandey10@gmail.com",
+        fullName: "Prof. Rajesh Sharma",
+      },
+      {
+        instName: "IIT Delhi",
+        instId: "264ad154-c527-471c-a971-6c64b15c1efb",
+        newEmail: "hkumarpandey07@gmail.com",
+        fullName: "Prof. Amit Verma",
+      },
+    ];
+
+    const report: any[] = [];
+
+    // 1. Process IIT Bombay and IIT Delhi
+    for (const u of updates) {
+      const { data: p } = await supabase
+        .from("profiles")
+        .select("id, clerk_user_id, email")
+        .eq("institution_id", u.instId)
+        .maybeSingle();
+
+      if (!p || !p.clerk_user_id) {
+        report.push({ instName: u.instName, error: "Profile not found" });
+        continue;
+      }
+
+      // Add new email address to Clerk
+      const addEmailRes = await fetch("https://api.clerk.com/v1/email_addresses", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${clerkSecretKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          user_id: p.clerk_user_id,
+          email_address: u.newEmail,
+          verified: true,
+          primary: true,
+        }),
+      });
+
+      const addEmailData = await addEmailRes.json();
+
+      // Fetch user to get old email addresses and remove them
+      const userRes = await fetch(`https://api.clerk.com/v1/users/${p.clerk_user_id}`, {
+        headers: {
+          Authorization: `Bearer ${clerkSecretKey}`,
+          "Content-Type": "application/json",
+        },
+      });
+      const userData = await userRes.json();
+      const emails = userData.email_addresses || [];
+      for (const em of emails) {
+        if (em.email_address !== u.newEmail) {
+          try {
+            await fetch(`https://api.clerk.com/v1/email_addresses/${em.id}`, {
+              method: "DELETE",
+              headers: { Authorization: `Bearer ${clerkSecretKey}` },
+            });
+          } catch {}
+        }
+      }
+
+      // Set password
+      await fetch(`https://api.clerk.com/v1/users/${p.clerk_user_id}`, {
+        method: "PATCH",
+        headers: {
+          Authorization: `Bearer ${clerkSecretKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ password: passwordToSet }),
+      });
+
+      // Update Supabase profile
+      await supabase
+        .from("profiles")
+        .update({ email: u.newEmail })
+        .eq("id", p.id);
+
+      // Generate sign in ticket
+      const ticketRes = await fetch("https://api.clerk.com/v1/sign_in_tokens", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${clerkSecretKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ user_id: p.clerk_user_id, expires_in_seconds: 2592000 }),
+      });
+      const ticketData = await ticketRes.json();
+
+      report.push({
+        institution: u.instName,
+        email: u.newEmail,
+        password: passwordToSet,
+        clerkUserId: p.clerk_user_id,
+        addEmailStatus: addEmailRes.status,
+        ticketUrl: ticketData.url,
+      });
+    }
+
+    // 2. Process IIT Madras with abhishek.t.2907@gmail.com
+    const madrasId = "803e6be9-6f70-46c4-89f0-ced999fd3c69";
+    const { data: abhishekProfile } = await supabase
+      .from("profiles")
+      .select("id, clerk_user_id, email, full_name")
+      .eq("email", "abhishek.t.2907@gmail.com")
+      .maybeSingle();
+
+    if (abhishekProfile && abhishekProfile.clerk_user_id) {
+      // Find and remove dummy IIT Madras coordinator
+      const { data: dummyMadras } = await supabase
+        .from("profiles")
+        .select("id, clerk_user_id")
+        .eq("institution_id", madrasId)
+        .neq("id", abhishekProfile.id)
+        .maybeSingle();
+
+      if (dummyMadras) {
+        await supabase.from("institution_members").delete().eq("institution_id", madrasId);
+        await supabase.from("profiles").delete().eq("id", dummyMadras.id);
+        if (dummyMadras.clerk_user_id) {
+          try {
+            await fetch(`https://api.clerk.com/v1/users/${dummyMadras.clerk_user_id}`, {
+              method: "DELETE",
+              headers: { Authorization: `Bearer ${clerkSecretKey}` },
+            });
+          } catch {}
+        }
+      }
+
+      // Update Abhishek Tiwari to INSTITUTION role & IIT Madras
+      const { data: instRole } = await supabase.from("roles").select("id").eq("code", "INSTITUTION").single();
+      if (instRole) {
+        await supabase
+          .from("profiles")
+          .update({
+            role_id: instRole.id,
+            institution_id: madrasId,
+            employee_id: "inst-003",
+            designation: "Nodal Research & Innovation Coordinator",
+          })
+          .eq("id", abhishekProfile.id);
+
+        await supabase.from("institution_members").insert({
+          institution_id: madrasId,
+          profile_id: abhishekProfile.id,
+          role_title: "Nodal Research & Innovation Coordinator",
+          is_primary_contact: true,
+        });
+
+        // Update Clerk metadata & password
+        await fetch(`https://api.clerk.com/v1/users/${abhishekProfile.clerk_user_id}`, {
+          method: "PATCH",
+          headers: {
+            Authorization: `Bearer ${clerkSecretKey}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            password: passwordToSet,
+            public_metadata: {
+              role: "INSTITUTION",
+              institution: "IIT Madras",
+              employeeId: "inst-003",
+            },
+          }),
+        });
+
+        // Generate ticket
+        const ticketRes = await fetch("https://api.clerk.com/v1/sign_in_tokens", {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${clerkSecretKey}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ user_id: abhishekProfile.clerk_user_id, expires_in_seconds: 2592000 }),
+        });
+        const ticketData = await ticketRes.json();
+
+        report.push({
+          institution: "IIT Madras",
+          email: "abhishek.t.2907@gmail.com",
+          fullName: abhishekProfile.full_name,
+          password: passwordToSet,
+          clerkUserId: abhishekProfile.clerk_user_id,
+          ticketUrl: ticketData.url,
+        });
+      }
+    } else {
+      report.push({ institution: "IIT Madras", error: "Abhishek Tiwari profile not found" });
+    }
+
+    return json(200, { success: true, report }, origin);
+  }
+
+  // Support batch email verification for institution accounts
+  if ((body as any).action === "verify-all-institution-emails") {
+    const { data: instProfiles, error: fetchErr } = await supabase
+      .from("profiles")
+      .select("id, clerk_user_id, email, full_name, role:roles!profiles_role_id_fkey(code)");
+
+    if (fetchErr) {
+      return json(500, { error: `Failed to fetch profiles: ${fetchErr.message}` }, origin);
+    }
+
+    const filtered = (instProfiles || []).filter((p: any) => {
+      const r = Array.isArray(p.role) ? p.role[0]?.code : p.role?.code;
+      return r === "INSTITUTION" && p.clerk_user_id;
+    });
+
+    const results = [];
+    for (const p of filtered) {
+      try {
+        const uRes = await fetch(`https://api.clerk.com/v1/users/${p.clerk_user_id}`, {
+          headers: {
+            Authorization: `Bearer ${clerkSecretKey}`,
+            "Content-Type": "application/json",
+          },
+        });
+        if (!uRes.ok) {
+          results.push({ email: p.email, error: `Clerk fetch error ${uRes.status}` });
+          continue;
+        }
+        const uData = await uRes.json();
+        const emails = uData.email_addresses || [];
+        for (const e of emails) {
+          if (e.verification?.status !== "verified") {
+            const patchRes = await fetch(`https://api.clerk.com/v1/email_addresses/${e.id}`, {
+              method: "PATCH",
+              headers: {
+                Authorization: `Bearer ${clerkSecretKey}`,
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({ verified: true }),
+            });
+            const patchData = await patchRes.json();
+            results.push({
+              email: p.email,
+              emailId: e.id,
+              patchStatus: patchRes.status,
+              verified: patchData.verification?.status === "verified",
+            });
+          } else {
+            results.push({ email: p.email, alreadyVerified: true });
+          }
+        }
+      } catch (err: any) {
+        results.push({ email: p.email, error: err.message });
+      }
+    }
+
+    return json(200, { success: true, count: results.length, results }, origin);
+  }
+
   const fullName = body.fullName?.trim() ?? "";
   const email = body.email?.trim() ?? "";
   const roleCode = body.roleCode?.trim() ?? "";
@@ -491,6 +780,25 @@ Deno.serve(async (request: Request) => {
     }
 
     createdClerkUserId = clerkUser.id;
+
+    // Auto-verify email address in Clerk so user is not blocked on OTP
+    try {
+      const emailList = clerkUser.emailAddresses || [];
+      for (const em of emailList) {
+        if (em.id) {
+          await fetch(`https://api.clerk.com/v1/email_addresses/${em.id}`, {
+            method: "PATCH",
+            headers: {
+              Authorization: `Bearer ${clerkSecretKey}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ verified: true }),
+          });
+        }
+      }
+    } catch (vErr) {
+      console.warn("Auto-verify email non-fatal error:", vErr);
+    }
   } catch (error) {
     if (isDuplicateEmailError(error)) {
       return json(409, { error: "A user with this email already exists in Clerk." }, origin);
