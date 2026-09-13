@@ -15,6 +15,7 @@ import {
   User,
   UsersRound,
   X,
+  FileText,
 } from "lucide-react";
 import { NavLink } from "react-router-dom";
 
@@ -42,6 +43,7 @@ type NavIconKey =
   | "classification"
   | "challenges"
   | "institutions"
+  | "proposals"
   | "profile";
 
 const navIcons: Record<NavIconKey, ComponentType<{ className?: string; "aria-hidden"?: boolean }>> = {
@@ -58,11 +60,13 @@ const navIcons: Record<NavIconKey, ComponentType<{ className?: string; "aria-hid
   classification: ShieldCheck,
   challenges: Rocket,
   institutions: GraduationCap,
+  proposals: FileText,
   profile: User,
 };
 
 function getNavIcon(item: CivicFixRoleNavItem) {
   const lowered = item.path.toLowerCase();
+  if (lowered.includes("proposal")) return navIcons.proposals;
   if (lowered.includes("institution") || lowered.includes("university")) {
     if (lowered.endsWith("/profile")) return navIcons.profile;
     if (lowered.endsWith("/challenges")) return navIcons.challenges;

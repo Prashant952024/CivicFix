@@ -121,6 +121,7 @@ export const civicFixNavItems: Record<CivicFixRoleCode, CivicFixRoleNavItem[]> =
     { label: "Dashboard", path: "/app/innovation", description: "Innovation command center & metrics." },
     { label: "Complex Issues", path: "/app/innovation/issues", description: "Review Admin-approved complex problems." },
     { label: "Challenges", path: "/app/innovation/challenges", description: "Track innovation challenge formulations." },
+    { label: "Research Proposals", path: "/app/innovation/proposals", description: "Review and govern institutional research proposals." },
     { label: "Notifications", path: "/app/innovation/notifications", description: "Alerts on newly routed challenges." },
   ],
   INSTITUTION: [

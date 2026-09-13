@@ -1719,7 +1719,14 @@ export interface Database {
             | "MEMBER_REACTIVATED"
             | "PROJECT_LEAD_CHANGED"
             | "PROJECT_STATUS_CHANGED"
-            | "PROJECT_DETAILS_UPDATED";
+            | "PROJECT_DETAILS_UPDATED"
+            | "PROPOSAL_CREATED"
+            | "PROPOSAL_UPDATED"
+            | "PROPOSAL_SUBMITTED"
+            | "PROPOSAL_REVIEW_STARTED"
+            | "PROPOSAL_REVISION_REQUESTED"
+            | "PROPOSAL_RESUBMITTED"
+            | "PROPOSAL_APPROVED";
           description: string;
           metadata: Json;
           created_at: string;
@@ -1737,7 +1744,14 @@ export interface Database {
             | "MEMBER_REACTIVATED"
             | "PROJECT_LEAD_CHANGED"
             | "PROJECT_STATUS_CHANGED"
-            | "PROJECT_DETAILS_UPDATED";
+            | "PROJECT_DETAILS_UPDATED"
+            | "PROPOSAL_CREATED"
+            | "PROPOSAL_UPDATED"
+            | "PROPOSAL_SUBMITTED"
+            | "PROPOSAL_REVIEW_STARTED"
+            | "PROPOSAL_REVISION_REQUESTED"
+            | "PROPOSAL_RESUBMITTED"
+            | "PROPOSAL_APPROVED";
           description: string;
           metadata?: Json;
           created_at?: string;
@@ -1755,7 +1769,14 @@ export interface Database {
             | "MEMBER_REACTIVATED"
             | "PROJECT_LEAD_CHANGED"
             | "PROJECT_STATUS_CHANGED"
-            | "PROJECT_DETAILS_UPDATED";
+            | "PROJECT_DETAILS_UPDATED"
+            | "PROPOSAL_CREATED"
+            | "PROPOSAL_UPDATED"
+            | "PROPOSAL_SUBMITTED"
+            | "PROPOSAL_REVIEW_STARTED"
+            | "PROPOSAL_REVISION_REQUESTED"
+            | "PROPOSAL_RESUBMITTED"
+            | "PROPOSAL_APPROVED";
           description?: string;
           metadata?: Json;
           created_at?: string;
@@ -1771,6 +1792,142 @@ export interface Database {
           {
             foreignKeyName: "challenge_project_activity_actor_profile_id_fkey";
             columns: ["actor_profile_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      research_proposals: {
+        Row: {
+          id: string;
+          project_id: string;
+          challenge_id: string;
+          institution_id: string;
+          version_number: number;
+          status: "DRAFT" | "SUBMITTED" | "UNDER_REVIEW" | "REQUESTED_REVISION" | "RESUBMITTED" | "APPROVED";
+          is_current: boolean;
+          project_objective: string;
+          research_questions: Json;
+          proposed_methodology: string;
+          technical_approach: string;
+          team_capability_summary: string | null;
+          required_resources: Json;
+          expected_prototype: string;
+          milestones: Json;
+          deliverables: Json;
+          risks_and_mitigation: Json;
+          success_metrics: Json;
+          submitted_by: string | null;
+          submitted_at: string | null;
+          reviewed_by: string | null;
+          reviewed_at: string | null;
+          review_feedback: string | null;
+          revision_requested_at: string | null;
+          approved_by: string | null;
+          approved_at: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          project_id: string;
+          challenge_id: string;
+          institution_id: string;
+          version_number?: number;
+          status?: "DRAFT" | "SUBMITTED" | "UNDER_REVIEW" | "REQUESTED_REVISION" | "RESUBMITTED" | "APPROVED";
+          is_current?: boolean;
+          project_objective?: string;
+          research_questions?: Json;
+          proposed_methodology?: string;
+          technical_approach?: string;
+          team_capability_summary?: string | null;
+          required_resources?: Json;
+          expected_prototype?: string;
+          milestones?: Json;
+          deliverables?: Json;
+          risks_and_mitigation?: Json;
+          success_metrics?: Json;
+          submitted_by?: string | null;
+          submitted_at?: string | null;
+          reviewed_by?: string | null;
+          reviewed_at?: string | null;
+          review_feedback?: string | null;
+          revision_requested_at?: string | null;
+          approved_by?: string | null;
+          approved_at?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          project_id?: string;
+          challenge_id?: string;
+          institution_id?: string;
+          version_number?: number;
+          status?: "DRAFT" | "SUBMITTED" | "UNDER_REVIEW" | "REQUESTED_REVISION" | "RESUBMITTED" | "APPROVED";
+          is_current?: boolean;
+          project_objective?: string;
+          research_questions?: Json;
+          proposed_methodology?: string;
+          technical_approach?: string;
+          team_capability_summary?: string | null;
+          required_resources?: Json;
+          expected_prototype?: string;
+          milestones?: Json;
+          deliverables?: Json;
+          risks_and_mitigation?: Json;
+          success_metrics?: Json;
+          submitted_by?: string | null;
+          submitted_at?: string | null;
+          reviewed_by?: string | null;
+          reviewed_at?: string | null;
+          review_feedback?: string | null;
+          revision_requested_at?: string | null;
+          approved_by?: string | null;
+          approved_at?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "research_proposals_project_id_fkey";
+            columns: ["project_id"];
+            isOneToOne: false;
+            referencedRelation: "challenge_projects";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "research_proposals_challenge_id_fkey";
+            columns: ["challenge_id"];
+            isOneToOne: false;
+            referencedRelation: "innovation_challenges";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "research_proposals_institution_id_fkey";
+            columns: ["institution_id"];
+            isOneToOne: false;
+            referencedRelation: "institutions";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "research_proposals_submitted_by_fkey";
+            columns: ["submitted_by"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "research_proposals_reviewed_by_fkey";
+            columns: ["reviewed_by"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "research_proposals_approved_by_fkey";
+            columns: ["approved_by"];
             isOneToOne: false;
             referencedRelation: "profiles";
             referencedColumns: ["id"];
@@ -1873,4 +2030,50 @@ export type ChallengeProjectActivityRow = Database["public"]["Tables"]["challeng
 export type ChallengeProjectActivityInsert = Database["public"]["Tables"]["challenge_project_activity"]["Insert"];
 export type ChallengeProjectActivityUpdate = Database["public"]["Tables"]["challenge_project_activity"]["Update"];
 export type ProjectActivityType = ChallengeProjectActivityRow["activity_type"];
+
+export type ResearchProposalRow = Database["public"]["Tables"]["research_proposals"]["Row"];
+export type ResearchProposalInsert = Database["public"]["Tables"]["research_proposals"]["Insert"];
+export type ResearchProposalUpdate = Database["public"]["Tables"]["research_proposals"]["Update"];
+export type ProposalStatus = ResearchProposalRow["status"];
+
+export interface ProposalMilestone {
+  id: string;
+  name: string;
+  description: string;
+  expected_completion: string;
+  deliverables: string;
+  [key: string]: Json | undefined;
+}
+
+export interface ProposalDeliverable {
+  id: string;
+  title: string;
+  description: string;
+  format: string;
+  [key: string]: Json | undefined;
+}
+
+export interface ProposalRisk {
+  id: string;
+  risk: string;
+  impact: "LOW" | "MEDIUM" | "HIGH";
+  mitigation: string;
+  [key: string]: Json | undefined;
+}
+
+export interface ProposalMetric {
+  id: string;
+  metric: string;
+  target: string;
+  measurement_method: string;
+  [key: string]: Json | undefined;
+}
+
+export interface ProposalResource {
+  id: string;
+  category: string;
+  description: string;
+  critical: boolean;
+  [key: string]: Json | undefined;
+}
 

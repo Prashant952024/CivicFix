@@ -23,6 +23,7 @@ import {
   Sparkles,
   RotateCcw,
   Plus,
+  FileText,
 } from "lucide-react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 
@@ -50,6 +51,10 @@ import {
   type ChallengeProjectActivityWithActor,
   type ResearchMemberInput,
 } from "@/lib/projects";
+import {
+  fetchProjectProposals,
+  type ResearchProposalWithDetails,
+} from "@/lib/proposals";
 import type { ProjectMemberRole, ProjectMemberType, ProjectWorkspaceStatus } from "@/types/database";
 
 export function UniversityProjectDetailPage() {
@@ -60,8 +65,9 @@ export function UniversityProjectDetailPage() {
   const [project, setProject] = useState<ChallengeProjectWithDetails | null>(null);
   const [members, setMembers] = useState<ChallengeProjectMemberWithProfile[]>([]);
   const [activity, setActivity] = useState<ChallengeProjectActivityWithActor[]>([]);
+  const [currentProposal, setCurrentProposal] = useState<ResearchProposalWithDetails | null>(null);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<"team" | "challenge" | "activity">("team");
+  const [activeTab, setActiveTab] = useState<"team" | "challenge" | "activity" | "proposal">("team");
 
   // Notifications
   const [actionSuccess, setActionSuccess] = useState<string | null>(null);
@@ -144,14 +150,20 @@ export function UniversityProjectDetailPage() {
         setEditTitle(projData.project_title);
         setEditSummary(projData.project_summary || "");
 
-        const [membersData, activityData] = await Promise.all([
+        const [membersData, activityData, proposalsData] = await Promise.all([
           fetchProjectMembers(projectId),
           fetchProjectActivity(projectId),
+          fetchProjectProposals(projectId),
         ]);
 
         if (cancelled) return;
         setMembers(membersData);
         setActivity(activityData);
+        if (proposalsData.length > 0) {
+          setCurrentProposal(proposalsData[0]);
+        } else {
+          setCurrentProposal(null);
+        }
 
         if (profile?.id && projData.institution_id) {
           const hasCoordRole = await checkUserIsInstitutionCoordinator(
@@ -890,6 +902,17 @@ export function UniversityProjectDetailPage() {
           <History className="w-3.5 h-3.5" />
           Activity Log ({activity.length})
         </button>
+        <button
+          onClick={() => setActiveTab("proposal")}
+          className={`pb-2.5 flex items-center gap-1.5 transition-colors border-b-2 ${
+            activeTab === "proposal"
+              ? "border-primary text-primary"
+              : "border-transparent text-muted-foreground hover:text-foreground"
+          }`}
+        >
+          <FileText className="w-3.5 h-3.5" />
+          Research Proposal {currentProposal ? `(v${currentProposal.version_number})` : ""}
+        </button>
       </div>
 
       {/* Tab 1: Research Team */}
@@ -1409,6 +1432,140 @@ export function UniversityProjectDetailPage() {
                 </div>
               ))}
             </div>
+          )}
+        </div>
+      )}
+
+      {/* Tab 4: Research Proposal */}
+      {activeTab === "proposal" && (
+        <div className="space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div>
+              <h3 className="text-base font-bold text-foreground">Formal Research Proposal</h3>
+              <p className="text-xs text-muted-foreground">
+                Structured research methodology, technical specifications, resource requests, milestones, and deliverables.
+              </p>
+            </div>
+            <Button
+              onClick={() => { void navigate(`/app/university/projects/${project.id}/proposal`); }}
+              className="gap-1.5 text-xs"
+            >
+              <FileText className="w-3.5 h-3.5" />
+              {currentProposal ? "Open Proposal Workspace" : "Create Research Proposal"}
+            </Button>
+          </div>
+
+          {!currentProposal ? (
+            <Card className="border-border/80 shadow-sm">
+              <CardContent className="py-12 text-center space-y-3">
+                <div className="w-12 h-12 rounded-full bg-primary/10 text-primary flex items-center justify-center mx-auto">
+                  <FileText className="w-6 h-6" />
+                </div>
+                <h4 className="text-sm font-bold text-foreground">No Research Proposal Initialized Yet</h4>
+                <p className="text-xs text-muted-foreground max-w-md mx-auto">
+                  Once your research team roster is formed, initialize your formal research proposal to submit your research plan to the Innovation Manager.
+                </p>
+                {isCoordinatorOrLead && (
+                  <Button
+                    onClick={() => { void navigate(`/app/university/projects/${project.id}/proposal`); }}
+                    className="gap-1.5 text-xs"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    Initialize Proposal Draft
+                  </Button>
+                )}
+              </CardContent>
+            </Card>
+          ) : (
+            <Card className="border-border/80 shadow-sm">
+              <CardContent className="p-5 space-y-4">
+                <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border pb-3">
+                  <div className="flex items-center gap-2">
+                    <Badge variant="outline" className="text-xs font-semibold">
+                      Version {currentProposal.version_number}
+                    </Badge>
+                    {currentProposal.status === "DRAFT" && (
+                      <Badge className="bg-amber-100 text-amber-800 border-amber-300">Draft</Badge>
+                    )}
+                    {currentProposal.status === "SUBMITTED" && (
+                      <Badge className="bg-sky-100 text-sky-800 border-sky-300">Submitted • Awaiting Review</Badge>
+                    )}
+                    {currentProposal.status === "UNDER_REVIEW" && (
+                      <Badge className="bg-purple-100 text-purple-800 border-purple-300">Under Review</Badge>
+                    )}
+                    {currentProposal.status === "REQUESTED_REVISION" && (
+                      <Badge className="bg-orange-100 text-orange-800 border-orange-300">Revision Requested</Badge>
+                    )}
+                    {currentProposal.status === "RESUBMITTED" && (
+                      <Badge className="bg-indigo-100 text-indigo-800 border-indigo-300">Resubmitted</Badge>
+                    )}
+                    {currentProposal.status === "APPROVED" && (
+                      <Badge className="bg-emerald-100 text-emerald-800 border-emerald-300">Approved ✓</Badge>
+                    )}
+                  </div>
+                  <span className="text-xs text-muted-foreground">
+                    Last updated: {new Date(currentProposal.updated_at).toLocaleDateString()}
+                  </span>
+                </div>
+
+                {/* Manager Feedback Alert if Revision Requested */}
+                {currentProposal.status === "REQUESTED_REVISION" && currentProposal.review_feedback && (
+                  <div className="p-3.5 bg-orange-50 dark:bg-orange-950/40 border border-orange-200 dark:border-orange-800 rounded-xl text-xs text-orange-900 dark:text-orange-200 space-y-1">
+                    <span className="font-bold block text-orange-950 dark:text-orange-100">
+                      Innovation Manager Feedback:
+                    </span>
+                    <p className="whitespace-pre-wrap">{currentProposal.review_feedback}</p>
+                  </div>
+                )}
+
+                {/* Objective excerpt */}
+                <div className="space-y-1">
+                  <span className="text-xs font-bold text-foreground block">Project Objective:</span>
+                  <p className="text-xs text-foreground/80 leading-relaxed line-clamp-3">
+                    {currentProposal.project_objective || <em className="text-muted-foreground">No objective statement drafted yet.</em>}
+                  </p>
+                </div>
+
+                {/* Summary Metrics */}
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 py-2 border-t border-border text-center text-xs">
+                  <div className="p-2 bg-muted/40 rounded-lg">
+                    <span className="text-muted-foreground text-[10px] uppercase font-bold block">Questions</span>
+                    <span className="font-bold text-foreground">
+                      {Array.isArray(currentProposal.research_questions) ? currentProposal.research_questions.length : 0}
+                    </span>
+                  </div>
+                  <div className="p-2 bg-muted/40 rounded-lg">
+                    <span className="text-muted-foreground text-[10px] uppercase font-bold block">Resources</span>
+                    <span className="font-bold text-foreground">
+                      {Array.isArray(currentProposal.required_resources) ? currentProposal.required_resources.length : 0}
+                    </span>
+                  </div>
+                  <div className="p-2 bg-muted/40 rounded-lg">
+                    <span className="text-muted-foreground text-[10px] uppercase font-bold block">Milestones</span>
+                    <span className="font-bold text-foreground">
+                      {Array.isArray(currentProposal.milestones) ? currentProposal.milestones.length : 0}
+                    </span>
+                  </div>
+                  <div className="p-2 bg-muted/40 rounded-lg">
+                    <span className="text-muted-foreground text-[10px] uppercase font-bold block">Deliverables</span>
+                    <span className="font-bold text-foreground">
+                      {Array.isArray(currentProposal.deliverables) ? currentProposal.deliverables.length : 0}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="pt-2 flex justify-end">
+                  <Button
+                    size="sm"
+                    onClick={() => { void navigate(`/app/university/projects/${project.id}/proposal`); }}
+                    className="gap-1.5 text-xs"
+                  >
+                    <span>Open Detailed Proposal Workspace</span>
+                    <ArrowLeft className="w-3.5 h-3.5 rotate-180" />
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
           )}
         </div>
       )}

@@ -62,7 +62,11 @@ const UniversityDashboardPage = lazy(() => import("@/routes/university/index").t
 const UniversityProfilePage = lazy(() => import("@/routes/university/profile").then((module) => ({ default: module.UniversityProfilePage })));
 const UniversityChallengesPage = lazy(() => import("@/routes/university/challenges").then((module) => ({ default: module.UniversityChallengesPage })));
 const UniversityProjectDetailPage = lazy(() => import("@/routes/university/projects/detail").then((module) => ({ default: module.UniversityProjectDetailPage })));
+const UniversityProposalWorkspacePage = lazy(() => import("@/routes/university/projects/proposal").then((module) => ({ default: module.UniversityProposalWorkspacePage })));
 const UniversityNotificationsPage = lazy(() => import("@/routes/university/notifications").then((module) => ({ default: module.UniversityNotificationsPage })));
+
+const InnovationProposalsPage = lazy(() => import("@/routes/innovation/proposals").then((module) => ({ default: module.InnovationProposalsPage })));
+const InnovationProposalReviewPage = lazy(() => import("@/routes/innovation/proposal-review").then((module) => ({ default: module.InnovationProposalReviewPage })));
 
 const SignupPage = lazy(() => import("@/routes/signup").then((module) => ({ default: module.SignupPage })));
 const UnauthorizedPage = lazy(() => import("@/routes/unauthorized").then((module) => ({ default: module.UnauthorizedPage })));
@@ -311,7 +315,10 @@ export function AppRoutes() {
             <Route path="challenges" element={<InnovationChallengesPage />} />
             <Route path="challenges/:challengeId" element={<InnovationChallengeDetailsPage />} />
             <Route path="challenges/:challengeId/matching" element={<ChallengeMatchingPage />} />
+            <Route path="proposals" element={<InnovationProposalsPage />} />
+            <Route path="proposals/:proposalId" element={<InnovationProposalReviewPage />} />
             <Route path="projects/:projectId" element={<UniversityProjectDetailPage />} />
+            <Route path="projects/:projectId/proposal" element={<UniversityProposalWorkspacePage />} />
             <Route path="notifications" element={<InnovationNotificationsPage />} />
           </Route>
 
@@ -328,6 +335,7 @@ export function AppRoutes() {
             <Route path="profile" element={<UniversityProfilePage />} />
             <Route path="challenges" element={<UniversityChallengesPage />} />
             <Route path="projects/:projectId" element={<UniversityProjectDetailPage />} />
+            <Route path="projects/:projectId/proposal" element={<UniversityProposalWorkspacePage />} />
             <Route path="notifications" element={<UniversityNotificationsPage />} />
           </Route>
 
