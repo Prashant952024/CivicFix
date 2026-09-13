@@ -127,6 +127,7 @@ declare
   v_caller_profile uuid;
   v_prev_status text;
   v_max_version integer;
+  v_audit_actor uuid;
 begin
   -- A. Verify project existence and foreign key consistency
   select challenge_id, institution_id 
@@ -204,24 +205,32 @@ begin
   new.created_at := now();
   new.updated_at := now();
 
+  -- Determine audit actor
+  select coalesce(v_caller_profile, new.submitted_by, cp.project_lead_profile_id, cp.created_by)
+  into v_audit_actor
+  from public.challenge_projects cp
+  where cp.id = new.project_id;
+
   -- D. Audit Log
-  insert into public.challenge_project_activity (
-    project_id,
-    actor_profile_id,
-    activity_type,
-    description,
-    metadata
-  ) values (
-    new.project_id,
-    coalesce(v_caller_profile, new.submitted_by),
-    'PROPOSAL_CREATED',
-    format('Research proposal version %s created.', new.version_number),
-    jsonb_build_object(
-      'proposal_id', new.id,
-      'version_number', new.version_number,
-      'status', new.status
-    )
-  );
+  if v_audit_actor is not null then
+    insert into public.challenge_project_activity (
+      project_id,
+      actor_profile_id,
+      activity_type,
+      description,
+      metadata
+    ) values (
+      new.project_id,
+      v_audit_actor,
+      'PROPOSAL_CREATED',
+      format('Research proposal version %s created.', new.version_number),
+      jsonb_build_object(
+        'proposal_id', new.id,
+        'version_number', new.version_number,
+        'status', new.status
+      )
+    );
+  end if;
 
   return new;
 end;

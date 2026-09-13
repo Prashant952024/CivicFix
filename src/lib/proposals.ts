@@ -50,6 +50,8 @@ export interface ResearchProposalWithDetails extends ResearchProposalRow {
   submitter?: Pick<ProfileRow, "id" | "full_name" | "email"> | null;
   reviewer?: Pick<ProfileRow, "id" | "full_name" | "email"> | null;
   approver?: Pick<ProfileRow, "id" | "full_name" | "email"> | null;
+  project_lead?: Pick<ProfileRow, "id" | "full_name" | "email"> | null;
+  team_members_count?: number;
 }
 
 export interface ResearchProposalInput {
@@ -624,7 +626,10 @@ export async function approveProposal(
  */
 export async function fetchAllProposals(options?: {
   status?: ProposalStatus | "ALL";
+  challengeId?: string;
+  institutionId?: string;
   search?: string;
+  isCurrentOnly?: boolean;
 }): Promise<ResearchProposalWithDetails[]> {
   let query = supabase
     .from("research_proposals")
@@ -645,8 +650,20 @@ export async function fetchAllProposals(options?: {
     `)
     .order("created_at", { ascending: false });
 
+  if (options?.isCurrentOnly !== false) {
+    query = query.eq("is_current", true);
+  }
+
   if (options?.status && options.status !== "ALL") {
     query = query.eq("status", options.status);
+  }
+
+  if (options?.challengeId) {
+    query = query.eq("challenge_id", options.challengeId);
+  }
+
+  if (options?.institutionId) {
+    query = query.eq("institution_id", options.institutionId);
   }
 
   const { data, error } = await query;
@@ -657,6 +674,47 @@ export async function fetchAllProposals(options?: {
 
   let results = (data ?? []) as unknown as ResearchProposalWithDetails[];
 
+  // Attach member counts and project leads
+  const projectIds = Array.from(new Set(results.map((p) => p.project_id).filter(Boolean)));
+  const projectLeadIds = Array.from(
+    new Set(results.map((p) => p.project?.project_lead_profile_id).filter(Boolean) as string[])
+  );
+
+  const [membersRes, leadsRes] = await Promise.all([
+    projectIds.length > 0
+      ? supabase
+          .from("challenge_project_members")
+          .select("project_id")
+          .in("project_id", projectIds)
+          .eq("is_active", true)
+      : Promise.resolve({ data: [] }),
+    projectLeadIds.length > 0
+      ? supabase
+          .from("profiles")
+          .select("id, full_name, email")
+          .in("id", projectLeadIds)
+      : Promise.resolve({ data: [] }),
+  ]);
+
+  const memberCounts = new Map<string, number>();
+  (membersRes.data || []).forEach((m) => {
+    memberCounts.set(m.project_id, (memberCounts.get(m.project_id) || 0) + 1);
+  });
+
+  const leadMap = new Map<string, { id: string; full_name: string; email: string | null }>();
+  (leadsRes.data || []).forEach((l) => {
+    leadMap.set(l.id, l);
+  });
+
+  results = results.map((p) => {
+    const leadId = p.project?.project_lead_profile_id;
+    return {
+      ...p,
+      team_members_count: memberCounts.get(p.project_id) || 0,
+      project_lead: leadId ? leadMap.get(leadId) ?? null : null,
+    };
+  });
+
   if (options?.search && options.search.trim().length > 0) {
     const term = options.search.trim().toLowerCase();
     results = results.filter((p) => {
@@ -665,12 +723,14 @@ export async function fetchAllProposals(options?: {
       const instName = p.institution?.name?.toLowerCase() ?? "";
       const instAcronym = p.institution?.acronym?.toLowerCase() ?? "";
       const submitter = p.submitter?.full_name?.toLowerCase() ?? "";
+      const leadName = p.project_lead?.full_name?.toLowerCase() ?? "";
       return (
         projTitle.includes(term) ||
         chalTitle.includes(term) ||
         instName.includes(term) ||
         instAcronym.includes(term) ||
-        submitter.includes(term)
+        submitter.includes(term) ||
+        leadName.includes(term)
       );
     });
   }

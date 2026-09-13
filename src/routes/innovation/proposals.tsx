@@ -4,11 +4,10 @@ import {
   RotateCcw,
   AlertCircle,
   ArrowRight,
-  GraduationCap,
-  Layers,
-  Lock,
+  Clock,
+  Users,
 } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams, Link } from "react-router-dom";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -19,22 +18,40 @@ import {
   fetchAllProposals,
   type ResearchProposalWithDetails,
 } from "@/lib/proposals";
+import { formatElapsedWaitingTime } from "@/lib/innovation";
 import type { ProposalStatus } from "@/types/database";
 
 type FilterStatus = ProposalStatus | "ALL";
 
 export function InnovationProposalsPage() {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
 
-  const [proposals, setProposals] = useState<ResearchProposalWithDetails[]>([]);
+  // URL state synchronization
+  const statusFilter = (searchParams.get("status") as FilterStatus) || "ALL";
+  const challengeParam = searchParams.get("challenge") || "";
+  const institutionParam = searchParams.get("institution") || "";
+  const searchParam = searchParams.get("search") || "";
+
+  const [allProposals, setAllProposals] = useState<ResearchProposalWithDetails[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Filters
-  const [statusFilter, setStatusFilter] = useState<FilterStatus>("ALL");
-  const [searchQuery, setSearchQuery] = useState("");
-  const [sortBy, setSortBy] = useState<"newest" | "oldest" | "status">("newest");
+  // Active filters
+  const [searchQuery, setSearchQuery] = useState(searchParam);
+  const [sortBy, setSortBy] = useState<"newest" | "oldest" | "status" | "waiting">("newest");
 
+  const setStatusFilter = (newStatus: FilterStatus) => {
+    const newParams = new URLSearchParams(searchParams);
+    if (newStatus === "ALL") {
+      newParams.delete("status");
+    } else {
+      newParams.set("status", newStatus);
+    }
+    setSearchParams(newParams);
+  };
+
+  // Load all proposals (unfiltered at DB query level so counts are always 100% accurate!)
   useEffect(() => {
     let cancelled = false;
 
@@ -44,12 +61,13 @@ export function InnovationProposalsPage() {
 
       try {
         const data = await fetchAllProposals({
-          status: statusFilter,
-          search: searchQuery,
+          status: "ALL",
+          challengeId: challengeParam || undefined,
+          institutionId: institutionParam || undefined,
         });
 
         if (cancelled) return;
-        setProposals(data);
+        setAllProposals(data);
       } catch (err: unknown) {
         if (!cancelled) {
           setError(err instanceof Error ? err.message : "Failed to load research proposals.");
@@ -66,51 +84,121 @@ export function InnovationProposalsPage() {
     return () => {
       cancelled = true;
     };
-  }, [statusFilter, searchQuery]);
+  }, [challengeParam, institutionParam]);
 
-  // Sort proposals
-  const sortedProposals = useMemo(() => {
-    return [...proposals].sort((a, b) => {
+  // Handle status tab change with URL update
+  function handleStatusChange(newStatus: FilterStatus) {
+    setStatusFilter(newStatus);
+    const newParams = new URLSearchParams(searchParams);
+    if (newStatus === "ALL") {
+      newParams.delete("status");
+    } else {
+      newParams.set("status", newStatus);
+    }
+    setSearchParams(newParams);
+  }
+
+  // Handle search query change
+  function handleSearchChange(query: string) {
+    setSearchQuery(query);
+    const newParams = new URLSearchParams(searchParams);
+    if (!query.trim()) {
+      newParams.delete("search");
+    } else {
+      newParams.set("search", query.trim());
+    }
+    setSearchParams(newParams);
+  }
+
+  // Global counts across all statuses
+  const counts = useMemo(() => {
+    const map: Record<string, number> = {
+      ALL: allProposals.length,
+      SUBMITTED: 0,
+      RESUBMITTED: 0,
+      UNDER_REVIEW: 0,
+      REQUESTED_REVISION: 0,
+      APPROVED: 0,
+      DRAFT: 0,
+      AWAITING_REVIEW: 0,
+    };
+    allProposals.forEach((p) => {
+      if (map[p.status] !== undefined) {
+        map[p.status]++;
+      }
+      if (p.status === "SUBMITTED" || p.status === "RESUBMITTED") {
+        map.AWAITING_REVIEW++;
+      }
+    });
+    return map;
+  }, [allProposals]);
+
+  // Urgent action queue (SUBMITTED & RESUBMITTED)
+  const urgentProposals = useMemo(() => {
+    return allProposals.filter(
+      (p) => p.status === "SUBMITTED" || p.status === "RESUBMITTED"
+    );
+  }, [allProposals]);
+
+  // Filtered & sorted proposals for the main list
+  const filteredProposals = useMemo(() => {
+    let list = allProposals;
+
+    // 1. Status filter
+    if (statusFilter !== "ALL") {
+      list = list.filter((p) => p.status === statusFilter);
+    }
+
+    // 2. Search query filter
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase();
+      list = list.filter((p) => {
+        const projTitle = p.project?.project_title?.toLowerCase() ?? "";
+        const chalTitle = p.challenge?.title?.toLowerCase() ?? "";
+        const instName = p.institution?.name?.toLowerCase() ?? "";
+        const instAcronym = p.institution?.acronym?.toLowerCase() ?? "";
+        const leadName = p.project_lead?.full_name?.toLowerCase() ?? "";
+        const obj = p.project_objective?.toLowerCase() ?? "";
+        return (
+          projTitle.includes(q) ||
+          chalTitle.includes(q) ||
+          instName.includes(q) ||
+          instAcronym.includes(q) ||
+          leadName.includes(q) ||
+          obj.includes(q)
+        );
+      });
+    }
+
+    // 3. Sort
+    return [...list].sort((a, b) => {
       if (sortBy === "newest") {
         return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
       }
       if (sortBy === "oldest") {
         return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
       }
+      if (sortBy === "waiting") {
+        const dateA = new Date(a.submitted_at || a.created_at).getTime();
+        const dateB = new Date(b.submitted_at || b.created_at).getTime();
+        return dateA - dateB; // Oldest waiting first
+      }
       return a.status.localeCompare(b.status);
     });
-  }, [proposals, sortBy]);
-
-  // Counts by status
-  const counts = useMemo(() => {
-    const map: Record<string, number> = {
-      ALL: proposals.length,
-      SUBMITTED: 0,
-      UNDER_REVIEW: 0,
-      REQUESTED_REVISION: 0,
-      RESUBMITTED: 0,
-      APPROVED: 0,
-    };
-    proposals.forEach((p) => {
-      if (map[p.status] !== undefined) {
-        map[p.status]++;
-      }
-    });
-    return map;
-  }, [proposals]);
+  }, [allProposals, statusFilter, searchQuery, sortBy]);
 
   function getStatusBadge(status: ProposalStatus) {
     switch (status) {
       case "DRAFT":
-        return <Badge className="bg-amber-100 text-amber-800 border-amber-300">Draft</Badge>;
+        return <Badge className="bg-amber-100 text-amber-800 border-amber-300">Draft (In Progress)</Badge>;
       case "SUBMITTED":
-        return <Badge className="bg-sky-100 text-sky-800 border-sky-300">Submitted • Needs Review</Badge>;
+        return <Badge className="bg-sky-100 text-sky-800 border-sky-300">Awaiting Review</Badge>;
       case "UNDER_REVIEW":
         return <Badge className="bg-purple-100 text-purple-800 border-purple-300">Under Review</Badge>;
       case "REQUESTED_REVISION":
-        return <Badge className="bg-orange-100 text-orange-800 border-orange-300">Revision Requested</Badge>;
+        return <Badge className="bg-orange-100 text-orange-800 border-orange-300">Waiting for Institution</Badge>;
       case "RESUBMITTED":
-        return <Badge className="bg-indigo-100 text-indigo-800 border-indigo-300">Resubmitted</Badge>;
+        return <Badge className="bg-indigo-100 text-indigo-800 border-indigo-300">Review Again (Resubmitted)</Badge>;
       case "APPROVED":
         return <Badge className="bg-emerald-100 text-emerald-800 border-emerald-300">Approved ✓</Badge>;
     }
@@ -120,9 +208,181 @@ export function InnovationProposalsPage() {
     <div className="p-4 sm:p-6 max-w-7xl mx-auto space-y-6">
       {/* Page Header */}
       <PageHeader
-        title="Research Proposals &amp; Governance"
+        title="Research Proposals & Governance"
         description="Review, evaluate, request revisions, and officially approve institutional research proposals submitted by accredited partner institutions."
+        backHref="/app/innovation"
       />
+
+      {/* KPI Overview Strip */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+        <button
+          type="button"
+          onClick={() => handleStatusChange("ALL")}
+          className={`p-3.5 rounded-2xl border text-left transition-all ${
+            statusFilter === "ALL"
+              ? "border-teal-500 bg-teal-50/70 shadow-sm ring-1 ring-teal-500"
+              : "border-border bg-card hover:bg-muted/40"
+          }`}
+        >
+          <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">All Proposals</p>
+          <p className="text-2xl font-bold text-foreground mt-1">{counts.ALL}</p>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => handleStatusChange("SUBMITTED")}
+          className={`p-3.5 rounded-2xl border text-left transition-all ${
+            statusFilter === "SUBMITTED"
+              ? "border-sky-500 bg-sky-50/70 shadow-sm ring-1 ring-sky-500"
+              : "border-sky-200/80 bg-sky-50/30 hover:bg-sky-50/50"
+          }`}
+        >
+          <div className="flex items-center justify-between">
+            <p className="text-[11px] font-bold text-sky-900 uppercase tracking-wider">Awaiting Review</p>
+            {counts.SUBMITTED > 0 && <span className="h-2 w-2 rounded-full bg-sky-500 animate-pulse" />}
+          </div>
+          <p className="text-2xl font-extrabold text-sky-700 mt-1">{counts.SUBMITTED}</p>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => handleStatusChange("RESUBMITTED")}
+          className={`p-3.5 rounded-2xl border text-left transition-all ${
+            statusFilter === "RESUBMITTED"
+              ? "border-indigo-500 bg-indigo-50/70 shadow-sm ring-1 ring-indigo-500"
+              : "border-indigo-200/80 bg-indigo-50/30 hover:bg-indigo-50/50"
+          }`}
+        >
+          <div className="flex items-center justify-between">
+            <p className="text-[11px] font-bold text-indigo-900 uppercase tracking-wider">Resubmitted</p>
+            {counts.RESUBMITTED > 0 && <span className="h-2 w-2 rounded-full bg-indigo-500 animate-pulse" />}
+          </div>
+          <p className="text-2xl font-extrabold text-indigo-700 mt-1">{counts.RESUBMITTED}</p>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => handleStatusChange("UNDER_REVIEW")}
+          className={`p-3.5 rounded-2xl border text-left transition-all ${
+            statusFilter === "UNDER_REVIEW"
+              ? "border-purple-500 bg-purple-50/70 shadow-sm ring-1 ring-purple-500"
+              : "border-purple-200/80 bg-purple-50/30 hover:bg-purple-50/50"
+          }`}
+        >
+          <p className="text-[11px] font-semibold text-purple-900 uppercase tracking-wider">Under Review</p>
+          <p className="text-2xl font-bold text-purple-700 mt-1">{counts.UNDER_REVIEW}</p>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => handleStatusChange("REQUESTED_REVISION")}
+          className={`p-3.5 rounded-2xl border text-left transition-all ${
+            statusFilter === "REQUESTED_REVISION"
+              ? "border-orange-500 bg-orange-50/70 shadow-sm ring-1 ring-orange-500"
+              : "border-orange-200/80 bg-orange-50/30 hover:bg-orange-50/50"
+          }`}
+        >
+          <p className="text-[11px] font-semibold text-orange-900 uppercase tracking-wider">In Revision</p>
+          <p className="text-2xl font-bold text-orange-700 mt-1">{counts.REQUESTED_REVISION}</p>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => handleStatusChange("APPROVED")}
+          className={`p-3.5 rounded-2xl border text-left transition-all ${
+            statusFilter === "APPROVED"
+              ? "border-emerald-500 bg-emerald-50/70 shadow-sm ring-1 ring-emerald-500"
+              : "border-emerald-200/80 bg-emerald-50/30 hover:bg-emerald-50/50"
+          }`}
+        >
+          <p className="text-[11px] font-semibold text-emerald-900 uppercase tracking-wider">Approved</p>
+          <p className="text-2xl font-bold text-emerald-700 mt-1">{counts.APPROVED}</p>
+        </button>
+      </div>
+
+      {/* SECTION: Needs Your Attention (Actionable Queue Pinned at Top) */}
+      {statusFilter === "ALL" && urgentProposals.length > 0 && !searchQuery && (
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <span className="flex h-3 w-3 relative">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75" />
+                <span className="relative inline-flex rounded-full h-3 w-3 bg-rose-500" />
+              </span>
+              <h2 className="text-sm font-bold text-foreground uppercase tracking-wider">
+                Needs Your Attention ({urgentProposals.length})
+              </h2>
+            </div>
+            <span className="text-xs text-muted-foreground">Actionable institutional submissions</span>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {urgentProposals.map((proposal) => {
+              const elapsed = formatElapsedWaitingTime(proposal.submitted_at || proposal.created_at);
+              return (
+                <Card
+                  key={`urgent-${proposal.id}`}
+                  className="border-sky-300/80 bg-gradient-to-br from-sky-50/60 via-background to-indigo-50/30 shadow-md hover:shadow-lg transition-all"
+                >
+                  <CardContent className="p-5 space-y-3">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        {getStatusBadge(proposal.status)}
+                        <Badge variant="outline" className="text-[10px] font-bold">
+                          v{proposal.version_number}
+                        </Badge>
+                      </div>
+                      <span className="text-xs font-semibold text-sky-800 bg-sky-100 px-2 py-0.5 rounded-full flex items-center gap-1">
+                        <Clock className="w-3 h-3" />
+                        {elapsed}
+                      </span>
+                    </div>
+
+                    <div>
+                      <h3 className="text-base font-bold text-foreground leading-snug">
+                        {proposal.project?.project_title || "Research Proposal"}
+                      </h3>
+                      <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">
+                        Challenge: {proposal.challenge?.title || "Innovation Challenge"}
+                      </p>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2 text-xs py-2 border-y border-border/60">
+                      <div>
+                        <span className="text-muted-foreground block text-[10px] uppercase font-semibold">Institution</span>
+                        <span className="font-semibold text-foreground truncate block">
+                          {proposal.institution?.name || "Institution"}
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-muted-foreground block text-[10px] uppercase font-semibold">Project Lead</span>
+                        <span className="font-semibold text-foreground truncate block">
+                          {proposal.project_lead?.full_name || "Assigned Lead"}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center justify-between gap-2 pt-1">
+                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                        <Users className="w-3.5 h-3.5" />
+                        <span>{proposal.team_members_count || 0} team members</span>
+                      </div>
+                      <Button
+                        size="sm"
+                        onClick={() => { void navigate(`/app/innovation/proposals/${proposal.id}`); }}
+                        className="bg-primary text-primary-foreground text-xs gap-1.5 shadow-xs"
+                      >
+                        <span>Review Proposal</span>
+                        <ArrowRight className="w-3.5 h-3.5" />
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* Filter Tabs & Search Bar */}
       <Card className="border-border/80 shadow-sm">
@@ -130,16 +390,17 @@ export function InnovationProposalsPage() {
           {/* Status Filter Pills */}
           <div className="flex flex-wrap items-center gap-1.5 border-b border-border pb-3">
             {[
-              { id: "ALL", label: "All Proposals" },
-              { id: "SUBMITTED", label: "Awaiting Review" },
-              { id: "UNDER_REVIEW", label: "Under Review" },
-              { id: "REQUESTED_REVISION", label: "Revision Requested" },
-              { id: "RESUBMITTED", label: "Resubmitted" },
-              { id: "APPROVED", label: "Approved" },
+              { id: "ALL", label: "All Proposals", count: counts.ALL },
+              { id: "SUBMITTED", label: "Awaiting Review", count: counts.SUBMITTED },
+              { id: "RESUBMITTED", label: "Resubmitted", count: counts.RESUBMITTED },
+              { id: "UNDER_REVIEW", label: "Under Review", count: counts.UNDER_REVIEW },
+              { id: "REQUESTED_REVISION", label: "Revision Requested", count: counts.REQUESTED_REVISION },
+              { id: "APPROVED", label: "Approved", count: counts.APPROVED },
+              { id: "DRAFT", label: "Drafts (In Progress)", count: counts.DRAFT },
             ].map((tab) => (
               <button
                 key={tab.id}
-                onClick={() => setStatusFilter(tab.id as FilterStatus)}
+                onClick={() => handleStatusChange(tab.id as FilterStatus)}
                 type="button"
                 className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors flex items-center gap-1.5 ${
                   statusFilter === tab.id
@@ -148,17 +409,15 @@ export function InnovationProposalsPage() {
                 }`}
               >
                 <span>{tab.label}</span>
-                {counts[tab.id] !== undefined && counts[tab.id] > 0 && (
-                  <span
-                    className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${
-                      statusFilter === tab.id
-                        ? "bg-primary-foreground/20 text-primary-foreground"
-                        : "bg-background text-muted-foreground"
-                    }`}
-                  >
-                    {counts[tab.id]}
-                  </span>
-                )}
+                <span
+                  className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${
+                    statusFilter === tab.id
+                      ? "bg-primary-foreground/20 text-primary-foreground"
+                      : "bg-background text-muted-foreground"
+                  }`}
+                >
+                  {tab.count}
+                </span>
               </button>
             ))}
           </div>
@@ -171,7 +430,7 @@ export function InnovationProposalsPage() {
                 type="text"
                 placeholder="Search by project, challenge, institution, lead..."
                 value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
+                onChange={(e) => handleSearchChange(e.target.value)}
                 className="w-full pl-9 pr-4 py-2 text-xs sm:text-sm rounded-xl border border-input bg-background text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary"
               />
             </div>
@@ -180,11 +439,12 @@ export function InnovationProposalsPage() {
               <span className="text-xs text-muted-foreground font-medium">Sort:</span>
               <select
                 value={sortBy}
-                onChange={(e) => setSortBy(e.target.value as "newest" | "oldest" | "status")}
+                onChange={(e) => setSortBy(e.target.value as "newest" | "oldest" | "status" | "waiting")}
                 className="text-xs font-semibold px-3 py-1.5 rounded-lg border border-input bg-background text-foreground"
               >
                 <option value="newest">Newest First</option>
-                <option value="oldest">Oldest First</option>
+                <option value="waiting">Oldest Waiting First</option>
+                <option value="oldest">Oldest Created</option>
                 <option value="status">Status</option>
               </select>
             </div>
@@ -209,15 +469,36 @@ export function InnovationProposalsPage() {
       )}
 
       {/* Empty state */}
-      {!loading && !error && sortedProposals.length === 0 && (
+      {!loading && !error && filteredProposals.length === 0 && (
         <Card className="border-border/80 shadow-sm">
           <CardContent className="py-12">
             <EmptyState
-              title="No Research Proposals Found"
+              title={
+                statusFilter === "SUBMITTED" || statusFilter === "RESUBMITTED"
+                  ? "No Proposals Awaiting Review"
+                  : "No Research Proposals Found"
+              }
               description={
-                searchQuery
-                  ? "No proposals matched your search query. Try clearing the filter."
-                  : "No proposals have been submitted for this status filter."
+                statusFilter === "SUBMITTED" || statusFilter === "RESUBMITTED"
+                  ? "You're all caught up! New institutional research proposals will appear here when submitted."
+                  : searchQuery
+                  ? "No proposals matched your search query. Try clearing filters."
+                  : "No proposals currently exist for this status filter."
+              }
+              action={
+                statusFilter !== "ALL" || searchQuery ? (
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      setStatusFilter("ALL");
+                      setSearchQuery("");
+                      setSearchParams({});
+                    }}
+                    className="text-xs"
+                  >
+                    View All Proposals
+                  </Button>
+                ) : undefined
               }
             />
           </CardContent>
@@ -225,21 +506,19 @@ export function InnovationProposalsPage() {
       )}
 
       {/* Proposals Grid */}
-      {!loading && !error && sortedProposals.length > 0 && (
+      {!loading && !error && filteredProposals.length > 0 && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {sortedProposals.map((proposal) => {
+          {filteredProposals.map((proposal) => {
             const isApproved = proposal.status === "APPROVED";
-            const questions = Array.isArray(proposal.research_questions) ? proposal.research_questions : [];
-            const milestones = Array.isArray(proposal.milestones) ? proposal.milestones : [];
-            const deliverables = Array.isArray(proposal.deliverables) ? proposal.deliverables : [];
+            const elapsed = formatElapsedWaitingTime(proposal.submitted_at || proposal.created_at);
 
             return (
               <Card
                 key={proposal.id}
-                className="border-border/80 shadow-sm hover:shadow-md transition-all flex flex-col justify-between"
+                className="border-border/80 shadow-sm hover:shadow-md transition-all flex flex-col justify-between bg-card"
               >
                 <CardContent className="p-5 space-y-4">
-                  {/* Top Badges & Version */}
+                  {/* Top Badges & Waiting Time */}
                   <div className="flex items-start justify-between gap-2">
                     <div className="flex items-center gap-2 flex-wrap">
                       {getStatusBadge(proposal.status)}
@@ -249,90 +528,91 @@ export function InnovationProposalsPage() {
                       </Badge>
                     </div>
 
-                    <span className="text-[11px] text-muted-foreground shrink-0">
-                      {new Date(proposal.created_at).toLocaleDateString()}
+                    <span className="text-[11px] text-muted-foreground shrink-0 flex items-center gap-1 font-medium">
+                      <Clock className="w-3 h-3" />
+                      {elapsed}
                     </span>
                   </div>
 
                   {/* Project & Challenge Titles */}
                   <div className="space-y-1">
                     <h3 className="text-base font-bold text-foreground leading-snug line-clamp-1">
-                      {proposal.project?.project_title || "Untitled Project"}
+                      {proposal.project?.project_title || "Untitled Project Workspace"}
                     </h3>
-                    <p className="text-xs text-muted-foreground flex items-center gap-1 line-clamp-1">
-                      <Layers className="w-3.5 h-3.5 shrink-0 text-primary" />
-                      <span>{proposal.challenge?.title || "Innovation Challenge"}</span>
+                    <p className="text-xs text-muted-foreground line-clamp-1">
+                      Challenge: {proposal.challenge?.title || "Innovation Challenge"}
                     </p>
                   </div>
 
-                  {/* Institution Details */}
-                  <div className="p-3 bg-muted/40 rounded-xl border border-border flex items-center gap-2.5">
-                    <div className="w-8 h-8 rounded-lg bg-primary/10 text-primary font-bold text-xs flex items-center justify-center shrink-0">
-                      <GraduationCap className="w-4 h-4" />
-                    </div>
-                    <div className="min-w-0 flex-1 text-xs">
-                      <p className="font-bold text-foreground truncate">
-                        {proposal.institution?.official_name || proposal.institution?.name}
-                      </p>
-                      <p className="text-[11px] text-muted-foreground truncate">
-                        {proposal.institution?.city}, {proposal.institution?.state} • {proposal.institution?.institution_type}
-                      </p>
-                    </div>
-                  </div>
-
-                  {/* Proposal Summary Metrics */}
-                  <div className="grid grid-cols-3 gap-2 py-1 text-center border-y border-border/70 text-xs">
-                    <div>
-                      <span className="text-muted-foreground text-[10px] uppercase font-bold block">Questions</span>
-                      <span className="font-bold text-foreground">{questions.length}</span>
-                    </div>
-                    <div>
-                      <span className="text-muted-foreground text-[10px] uppercase font-bold block">Milestones</span>
-                      <span className="font-bold text-foreground">{milestones.length}</span>
-                    </div>
-                    <div>
-                      <span className="text-muted-foreground text-[10px] uppercase font-bold block">Deliverables</span>
-                      <span className="font-bold text-foreground">{deliverables.length}</span>
-                    </div>
-                  </div>
-
-                  {/* Review Feedback snippet if revision was requested */}
-                  {proposal.status === "REQUESTED_REVISION" && proposal.review_feedback && (
-                    <div className="p-2.5 bg-orange-50 dark:bg-orange-950/40 border border-orange-200 dark:border-orange-800 rounded-lg text-xs text-orange-900 dark:text-orange-200 space-y-0.5">
-                      <span className="font-bold text-[11px] block text-orange-950 dark:text-orange-100">
-                        Revision Feedback:
+                  {/* Institution & Team Details */}
+                  <div className="grid grid-cols-2 gap-2 text-xs py-2.5 px-3 bg-muted/20 rounded-xl border border-border/50">
+                    <div className="space-y-0.5">
+                      <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground block">
+                        Institution
                       </span>
-                      <p className="text-[11px] line-clamp-2 italic">"{proposal.review_feedback}"</p>
+                      <span className="font-semibold text-foreground truncate block">
+                        {proposal.institution?.name || "Institution"}
+                      </span>
                     </div>
+                    <div className="space-y-0.5">
+                      <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground block">
+                        Project Lead
+                      </span>
+                      <span className="font-semibold text-foreground truncate block">
+                        {proposal.project_lead?.full_name || "Lead Assigned"}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Objective Excerpt */}
+                  {proposal.project_objective && (
+                    <p className="text-xs text-muted-foreground line-clamp-2 italic leading-relaxed">
+                      &ldquo;{proposal.project_objective}&rdquo;
+                    </p>
                   )}
 
-                  {/* Submitter Info */}
-                  <div className="text-[11px] text-muted-foreground flex items-center justify-between pt-1">
-                    <span>
-                      Submitted by:{" "}
-                      <strong className="text-foreground">
-                        {proposal.submitter?.full_name || "Project Lead"}
-                      </strong>
-                    </span>
-                    {isApproved && (
-                      <span className="text-emerald-600 font-semibold flex items-center gap-1">
-                        <Lock className="w-3 h-3" /> Approved
+                  {/* Footer & Cross-Navigation Links */}
+                  <div className="pt-2 border-t border-border flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                    <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                      <span className="flex items-center gap-1">
+                        <Users className="w-3.5 h-3.5" />
+                        {proposal.team_members_count || 0} members
                       </span>
-                    )}
+                      {proposal.challenge?.id && (
+                        <Link
+                          to={`/app/innovation/challenges/${proposal.challenge.id}`}
+                          className="hover:text-primary underline-offset-2 hover:underline text-[11px]"
+                        >
+                          View Challenge
+                        </Link>
+                      )}
+                    </div>
+
+                    <Button
+                      size="sm"
+                      onClick={() => { void navigate(`/app/innovation/proposals/${proposal.id}`); }}
+                      className={
+                        proposal.status === "SUBMITTED" || proposal.status === "RESUBMITTED"
+                          ? "bg-primary text-primary-foreground text-xs gap-1 shadow-xs"
+                          : "text-xs gap-1"
+                      }
+                      variant={
+                        proposal.status === "SUBMITTED" || proposal.status === "RESUBMITTED"
+                          ? "default"
+                          : "outline"
+                      }
+                    >
+                      <span>
+                        {proposal.status === "SUBMITTED" || proposal.status === "RESUBMITTED"
+                          ? "Review Proposal"
+                          : isApproved
+                          ? "View Approval Dossier"
+                          : "Inspect Proposal"}
+                      </span>
+                      <ArrowRight className="w-3.5 h-3.5" />
+                    </Button>
                   </div>
                 </CardContent>
-
-                {/* Card Action Footer */}
-                <div className="p-3 bg-muted/20 border-t border-border flex items-center justify-end">
-                  <Button
-                    size="sm"
-                    onClick={() => { void navigate(`/app/innovation/proposals/${proposal.id}`); }}
-                    className="gap-1.5 text-xs w-full sm:w-auto"
-                  >
-                    <span>{isApproved ? "View Approved Proposal" : "Review Proposal"}</span>
-                    <ArrowRight className="w-3.5 h-3.5" />
-                  </Button>
-                </div>
               </Card>
             );
           })}

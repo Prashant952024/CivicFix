@@ -87,6 +87,15 @@ export function InnovationChallengeDetailsPage() {
   const [error, setError] = useState<string | null>(null);
   const [previewImage, setPreviewImage] = useState<string | null>(null);
   const [refreshNonce, setRefreshNonce] = useState(0);
+  const [researchProgress, setResearchProgress] = useState({
+    selected: 0,
+    sent: 0,
+    accepted: 0,
+    projects: 0,
+    teams: 0,
+    proposalsSubmitted: 0,
+    proposalsApproved: 0,
+  });
 
   // Layout & Navigation State
   const [showSourceDossier, setShowSourceDossier] = useState(true);
@@ -181,6 +190,52 @@ export function InnovationChallengeDetailsPage() {
         setPotentialTech(rec.potential_technology_areas || []);
         setResearchRequirements(rec.research_requirements || "");
         setSuccessCriteria(rec.success_criteria || []);
+
+        // Load research progress metrics
+        const [invsRes, projsRes, propsRes] = await Promise.all([
+          supabase
+            .from("institution_invitations")
+            .select("id, status")
+            .eq("challenge_id", currentId),
+          supabase
+            .from("challenge_projects")
+            .select("id")
+            .eq("challenge_id", currentId),
+          supabase
+            .from("research_proposals")
+            .select("id, status, is_current")
+            .eq("challenge_id", currentId)
+            .eq("is_current", true),
+        ]);
+
+        const chalProjects = projsRes.data || [];
+        const projectIds = chalProjects.map((p) => p.id);
+        let teamsCount = 0;
+        if (projectIds.length > 0) {
+          const { data: members } = await supabase
+            .from("challenge_project_members")
+            .select("project_id")
+            .in("project_id", projectIds)
+            .eq("is_active", true);
+          const memberCounts = new Map<string, number>();
+          (members || []).forEach((m) => {
+            memberCounts.set(m.project_id, (memberCounts.get(m.project_id) || 0) + 1);
+          });
+          teamsCount = chalProjects.filter((p) => (memberCounts.get(p.id) || 0) >= 2).length;
+        }
+
+        const invs = invsRes.data || [];
+        const props = propsRes.data || [];
+
+        setResearchProgress({
+          selected: invs.length,
+          sent: invs.length,
+          accepted: invs.filter((i) => i.status === "ACCEPTED").length,
+          projects: chalProjects.length,
+          teams: teamsCount,
+          proposalsSubmitted: props.filter((p) => p.status === "SUBMITTED" || p.status === "RESUBMITTED").length,
+          proposalsApproved: props.filter((p) => p.status === "APPROVED").length,
+        });
       } catch (err: unknown) {
         if (cancelled) return;
         if (import.meta.env.DEV) console.error("Challenge fetch exception:", err);
@@ -1377,43 +1432,104 @@ export function InnovationChallengeDetailsPage() {
 
       {/* Status & Governance Principle Banner */}
       {isApproved ? (
-        <Card className="rounded-2xl border-2 border-teal-500/40 bg-gradient-to-r from-teal-50/80 via-emerald-50/40 to-background p-4 shadow-sm">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <div className="flex items-start gap-3">
-              <div className="p-2 rounded-xl bg-teal-100 text-teal-800 shrink-0">
-                <ShieldCheck className="h-5 w-5" />
+        <>
+          <Card className="rounded-2xl border-2 border-teal-500/40 bg-gradient-to-r from-teal-50/80 via-emerald-50/40 to-background p-4 shadow-sm">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div className="flex items-start gap-3">
+                <div className="p-2 rounded-xl bg-teal-100 text-teal-800 shrink-0">
+                  <ShieldCheck className="h-5 w-5" />
+                </div>
+                <div>
+                  <span className="font-bold text-sm text-teal-950 block">
+                    Authoritative Civic Innovation Challenge
+                  </span>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    Approved by{" "}
+                    <strong className="text-foreground">
+                      {challenge.approver_profile?.full_name || "Authorized Innovation Manager"}
+                    </strong>{" "}
+                    on {formatCitizenIssueDateTime(challenge.approved_at || challenge.updated_at)}. This record is locked for Phase 3C institution matching.
+                  </p>
+                </div>
               </div>
-              <div>
-                <span className="font-bold text-sm text-teal-950 block">
-                  Authoritative Civic Innovation Challenge
-                </span>
-                <p className="text-xs text-muted-foreground mt-0.5">
-                  Approved by{" "}
-                  <strong className="text-foreground">
-                    {challenge.approver_profile?.full_name || "Authorized Innovation Manager"}
-                  </strong>{" "}
-                  on {formatCitizenIssueDateTime(challenge.approved_at || challenge.updated_at)}. This record is locked for Phase 3C institution matching.
-                </p>
+              <div className="flex items-center gap-2 shrink-0 self-start sm:self-auto">
+                <Button
+                  asChild
+                  size="sm"
+                  className="gap-1.5 text-xs bg-blue-600 hover:bg-blue-700 text-white font-semibold"
+                >
+                  <Link to={`/app/innovation/challenges/${challenge.id}/matching`}>
+                    <Sparkles className="h-3.5 w-3.5" />
+                    {isInstitutionsSelected
+                      ? "Manage Selected Institutions"
+                      : isMatchingCompleted
+                      ? "View AI Matches"
+                      : "Run Institution Matching"}
+                  </Link>
+                </Button>
               </div>
             </div>
-            <div className="flex items-center gap-2 shrink-0 self-start sm:self-auto">
-              <Button
-                asChild
-                size="sm"
-                className="gap-1.5 text-xs bg-blue-600 hover:bg-blue-700 text-white font-semibold"
-              >
-                <Link to={`/app/innovation/challenges/${challenge.id}/matching`}>
-                  <Sparkles className="h-3.5 w-3.5" />
-                  {isInstitutionsSelected
-                    ? "Manage Selected Institutions"
-                    : isMatchingCompleted
-                    ? "View AI Matches"
-                    : "Run Institution Matching"}
+          </Card>
+
+          {/* Research Progress Panel (Requirement 40) */}
+          <Card className="rounded-2xl border border-sky-200/90 bg-gradient-to-br from-sky-50/50 via-background to-teal-50/30 p-5 shadow-xs">
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Target className="w-4 h-4 text-primary" />
+                  <h3 className="text-sm font-bold uppercase tracking-wider text-foreground">
+                    Challenge Research &amp; Proposal Progress
+                  </h3>
+                </div>
+                <Link
+                  to={`/app/innovation/proposals?challenge=${challenge.id}`}
+                  className="text-xs font-semibold text-primary hover:underline flex items-center gap-1"
+                >
+                  <span>View All Proposals for this Challenge</span>
+                  <ArrowRight className="w-3 h-3" />
                 </Link>
-              </Button>
+              </div>
+
+              <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2.5">
+                <div className="p-3 rounded-xl border border-border bg-card text-center">
+                  <span className="text-[10px] uppercase font-semibold text-muted-foreground block">Institutions Selected</span>
+                  <span className="text-lg font-bold text-foreground">{researchProgress.selected}</span>
+                </div>
+                <div className="p-3 rounded-xl border border-border bg-card text-center">
+                  <span className="text-[10px] uppercase font-semibold text-muted-foreground block">Invitations Sent</span>
+                  <span className="text-lg font-bold text-foreground">{researchProgress.sent}</span>
+                </div>
+                <div className="p-3 rounded-xl border border-border bg-card text-center">
+                  <span className="text-[10px] uppercase font-semibold text-muted-foreground block">Accepted</span>
+                  <span className="text-lg font-bold text-emerald-700">{researchProgress.accepted}</span>
+                </div>
+                <div className="p-3 rounded-xl border border-border bg-card text-center">
+                  <span className="text-[10px] uppercase font-semibold text-muted-foreground block">Projects Created</span>
+                  <span className="text-lg font-bold text-foreground">{researchProgress.projects}</span>
+                </div>
+                <div className="p-3 rounded-xl border border-border bg-card text-center">
+                  <span className="text-[10px] uppercase font-semibold text-muted-foreground block">Teams Formed</span>
+                  <span className="text-lg font-bold text-indigo-700">{researchProgress.teams}</span>
+                </div>
+                <Link
+                  to={`/app/innovation/proposals?challenge=${challenge.id}&status=SUBMITTED`}
+                  className="p-3 rounded-xl border-2 border-sky-300 bg-sky-50/80 hover:bg-sky-100/80 transition text-center cursor-pointer group"
+                  title="Click to view submitted proposals awaiting review"
+                >
+                  <span className="text-[10px] uppercase font-bold text-sky-950 block">Proposals Submitted</span>
+                  <span className="text-lg font-black text-sky-800 group-hover:scale-105 transition-transform block">
+                    {researchProgress.proposalsSubmitted}
+                  </span>
+                  <span className="text-[9px] text-sky-700 font-bold block mt-0.5">Review →</span>
+                </Link>
+                <div className="p-3 rounded-xl border border-emerald-300 bg-emerald-50/60 text-center">
+                  <span className="text-[10px] uppercase font-bold text-emerald-950 block">Proposals Approved</span>
+                  <span className="text-lg font-black text-emerald-800">{researchProgress.proposalsApproved}</span>
+                </div>
+              </div>
             </div>
-          </div>
-        </Card>
+          </Card>
+        </>
       ) : (
         <div className="rounded-2xl border border-amber-300 bg-amber-50/80 p-4 text-xs text-amber-950 flex items-start gap-3 shadow-xs">
           <AlertTriangle className="h-5 w-5 text-amber-700 shrink-0 mt-0.5" />

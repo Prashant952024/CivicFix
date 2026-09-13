@@ -293,14 +293,32 @@ export function InnovationNotificationsPage() {
                         </div>
                       </div>
 
-                      {item.related_issue_id && (
-                        <Button asChild size="sm" variant="ghost" className="shrink-0 text-xs gap-1">
-                          <Link to={`/app/innovation/issues/${item.related_issue_id}`}>
-                            View Issue
-                            <ExternalLink className="h-3.5 w-3.5" />
-                          </Link>
-                        </Button>
-                      )}
+                      <div className="flex items-center gap-2 shrink-0">
+                        {item.related_issue_id && (
+                          <Button asChild size="sm" variant="ghost" className="text-xs gap-1">
+                            <Link to={`/app/innovation/issues/${item.related_issue_id}`}>
+                              View Issue
+                              <ExternalLink className="h-3.5 w-3.5" />
+                            </Link>
+                          </Button>
+                        )}
+                        {/proposal/i.test(item.title + " " + item.message) && (
+                          <Button asChild size="sm" variant="outline" className="text-xs gap-1 border-amber-300 text-amber-800 bg-amber-50 hover:bg-amber-100">
+                            <Link to="/app/innovation/proposals?status=SUBMITTED">
+                              Review Proposals
+                              <ExternalLink className="h-3.5 w-3.5" />
+                            </Link>
+                          </Button>
+                        )}
+                        {/(outreach|invitation|accepted|collaboration|challenge)/i.test(item.title + " " + item.message) && !item.related_issue_id && !/proposal/i.test(item.title) && (
+                          <Button asChild size="sm" variant="outline" className="text-xs gap-1">
+                            <Link to="/app/innovation/challenges">
+                              View Challenges
+                              <ExternalLink className="h-3.5 w-3.5" />
+                            </Link>
+                          </Button>
+                        )}
+                      </div>
                     </div>
                   </Card>
                 ))}

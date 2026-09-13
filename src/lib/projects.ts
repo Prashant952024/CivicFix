@@ -837,3 +837,55 @@ export async function checkUserIsInstitutionCoordinator(
     title.includes("dean")
   );
 }
+
+/**
+ * Fetch all challenge projects across institutions for Innovation Manager
+ */
+export async function fetchAllProjects(): Promise<ChallengeProjectWithDetails[]> {
+  const { data, error } = await supabase
+    .from("challenge_projects")
+    .select(`
+      *,
+      challenge:innovation_challenges!challenge_projects_challenge_id_fkey(
+        id, title, problem_statement, category, status, geographic_scope, required_domains, objectives, expected_outcomes
+      ),
+      institution:institutions!challenge_projects_institution_id_fkey(
+        id, name, official_name, institution_type, city, state, acronym
+      ),
+      project_lead:profiles!challenge_projects_project_lead_profile_id_fkey(
+        id, full_name, email
+      ),
+      creator:profiles!challenge_projects_created_by_fkey(
+        id, full_name, email
+      )
+    `)
+    .order("created_at", { ascending: false });
+
+  if (error) {
+    console.error("Error fetching all projects:", error);
+    throw error;
+  }
+
+  if (!data) return [];
+
+  const projectIds = data.map((p) => p.id);
+  const countMap = new Map<string, number>();
+
+  if (projectIds.length > 0) {
+    const { data: members } = await supabase
+      .from("challenge_project_members")
+      .select("project_id")
+      .in("project_id", projectIds)
+      .eq("is_active", true);
+
+    (members || []).forEach((m) => {
+      countMap.set(m.project_id, (countMap.get(m.project_id) || 0) + 1);
+    });
+  }
+
+  return data.map((p) => ({
+    ...p,
+    members_count: countMap.get(p.id) || 0,
+  }));
+}
+

@@ -1,4 +1,4 @@
-import { useEffect, type ComponentType } from "react";
+import { useEffect, useState, type ComponentType } from "react";
 import {
   Activity,
   Bell,
@@ -19,9 +19,11 @@ import {
 } from "lucide-react";
 import { NavLink } from "react-router-dom";
 
+import { useAppSession } from "@/auth/app-session";
 import { Button } from "@/components/ui/button";
 import { BrandMark } from "@/components/layout/brand-mark";
 import { civicFixNavItems, civicFixRoleConfigs, type CivicFixRoleCode, type CivicFixRoleNavItem } from "@/lib/civicfix";
+import { supabase } from "@/lib/supabase";
 
 type AppSidebarProps = {
   roleCode: CivicFixRoleCode;
@@ -98,8 +100,56 @@ function getNavIcon(item: CivicFixRoleNavItem) {
 }
 
 export function AppSidebar({ roleCode, mobileOpen, onClose }: AppSidebarProps) {
+  const { profile } = useAppSession();
   const role = civicFixRoleConfigs[roleCode];
   const navItems = civicFixNavItems[roleCode];
+
+  const [proposalsNeedingReview, setProposalsNeedingReview] = useState<number>(0);
+  const [unreadNotifications, setUnreadNotifications] = useState<number>(0);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadSidebarBadges() {
+      if (roleCode === "INNOVATION_MANAGER") {
+        try {
+          const { count: propCount } = await supabase
+            .from("research_proposals")
+            .select("id", { count: "exact", head: true })
+            .in("status", ["SUBMITTED", "RESUBMITTED"])
+            .eq("is_current", true);
+
+          if (!cancelled && typeof propCount === "number") {
+            setProposalsNeedingReview(propCount);
+          }
+        } catch {
+          // ignore error
+        }
+      }
+
+      if (profile?.id) {
+        try {
+          const { count: notifCount } = await supabase
+            .from("notifications")
+            .select("id", { count: "exact", head: true })
+            .eq("recipient_profile_id", profile.id)
+            .eq("is_read", false);
+
+          if (!cancelled && typeof notifCount === "number") {
+            setUnreadNotifications(notifCount);
+          }
+        } catch {
+          // ignore error
+        }
+      }
+    }
+
+    void loadSidebarBadges();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [roleCode, profile?.id]);
 
   // Close on Escape key press when mobile drawer is open
   useEffect(() => {
@@ -168,6 +218,17 @@ export function AppSidebar({ roleCode, mobileOpen, onClose }: AppSidebarProps) {
           {navItems.map((item) => {
             const Icon = getNavIcon(item);
 
+            let badgeCount = 0;
+            let badgeClass = "bg-teal-600 text-white";
+
+            if (item.path.includes("/proposals") && proposalsNeedingReview > 0) {
+              badgeCount = proposalsNeedingReview;
+              badgeClass = "bg-amber-500 text-amber-950 font-bold animate-pulse";
+            } else if (item.path.includes("/notifications") && unreadNotifications > 0) {
+              badgeCount = unreadNotifications;
+              badgeClass = "bg-teal-600 text-white font-semibold";
+            }
+
             return (
               <NavLink
                 key={item.path}
@@ -185,6 +246,13 @@ export function AppSidebar({ roleCode, mobileOpen, onClose }: AppSidebarProps) {
               >
                 <Icon className="h-4.5 w-4.5 shrink-0" aria-hidden={true} />
                 <span className="flex-1 truncate">{item.label}</span>
+                {badgeCount > 0 && (
+                  <span
+                    className={`ml-auto inline-flex items-center justify-center rounded-full px-2 py-0.5 text-[10px] shadow-xs ${badgeClass}`}
+                  >
+                    {badgeCount}
+                  </span>
+                )}
               </NavLink>
             );
           })}

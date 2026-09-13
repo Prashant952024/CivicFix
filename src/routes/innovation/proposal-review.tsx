@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import {
-  ArrowLeft,
+  ArrowRight,
   CheckCircle2,
   AlertCircle,
   RotateCcw,
@@ -21,6 +21,25 @@ import { Link, useParams, useNavigate } from "react-router-dom";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+
+function getStatusBadge(status: string) {
+  switch (status) {
+    case "SUBMITTED":
+      return <Badge className="bg-sky-100 text-sky-800 border-sky-300">Awaiting Initial Review</Badge>;
+    case "RESUBMITTED":
+      return <Badge className="bg-indigo-100 text-indigo-800 border-indigo-300">Resubmitted Revision</Badge>;
+    case "UNDER_REVIEW":
+      return <Badge className="bg-purple-100 text-purple-800 border-purple-300">Under Review</Badge>;
+    case "REQUESTED_REVISION":
+      return <Badge className="bg-orange-100 text-orange-800 border-orange-300">Revision Requested</Badge>;
+    case "APPROVED":
+      return <Badge className="bg-emerald-100 text-emerald-800 border-emerald-300">Approved &amp; Locked</Badge>;
+    case "DRAFT":
+      return <Badge className="bg-slate-100 text-slate-700 border-slate-300">Draft</Badge>;
+    default:
+      return <Badge variant="outline">{status}</Badge>;
+  }
+}
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog } from "@/components/ui/dialog";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -227,41 +246,165 @@ export function InnovationProposalReviewPage() {
 
   return (
     <div className="p-4 sm:p-6 max-w-7xl mx-auto space-y-6">
-      {/* Breadcrumbs & Switcher */}
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-2 text-xs text-muted-foreground">
-          <Link
-            to="/app/innovation/proposals"
-            className="hover:text-foreground flex items-center gap-1 font-medium transition-colors"
-          >
-            <ArrowLeft className="w-3.5 h-3.5" />
-            Back to Proposals Review Hub
-          </Link>
-          <span>/</span>
-          <span className="text-foreground font-semibold">Evaluation Dossier</span>
-        </div>
+      {/* Clickable Hierarchical Breadcrumbs */}
+      <nav aria-label="Breadcrumb navigation" className="flex items-center gap-1.5 text-xs text-muted-foreground flex-wrap">
+        <Link to="/app/innovation" className="hover:text-primary transition-colors font-medium">
+          Innovation
+        </Link>
+        <span>/</span>
+        <Link to="/app/innovation/challenges" className="hover:text-primary transition-colors font-medium">
+          Challenges
+        </Link>
+        <span>/</span>
+        {proposal.challenge && (
+          <>
+            <Link
+              to={`/app/innovation/challenges/${proposal.challenge_id}`}
+              className="hover:text-primary transition-colors font-medium max-w-[200px] truncate"
+              title={proposal.challenge.title}
+            >
+              {proposal.challenge.title}
+            </Link>
+            <span>/</span>
+          </>
+        )}
+        {proposal.institution && (
+          <>
+            <Link
+              to={`/app/admin/institutions/${proposal.institution_id}`}
+              className="hover:text-primary transition-colors font-medium max-w-[150px] truncate"
+              title={proposal.institution.name}
+            >
+              {proposal.institution.name}
+            </Link>
+            <span>/</span>
+          </>
+        )}
+        {proposal.project && (
+          <>
+            <Link
+              to={`/app/innovation/projects/${proposal.project_id}`}
+              className="hover:text-primary transition-colors font-medium max-w-[180px] truncate"
+              title={proposal.project.project_title}
+            >
+              {proposal.project.project_title}
+            </Link>
+            <span>/</span>
+          </>
+        )}
+        <span className="text-foreground font-bold">Research Proposal v{proposal.version_number}</span>
+      </nav>
 
-        {/* Version Switcher if multiple versions */}
-        {allVersions.length > 1 && (
-          <div className="flex items-center gap-2">
-            <span className="text-xs text-muted-foreground font-medium">Version:</span>
-            <div className="flex items-center gap-1">
-              {allVersions.map((v) => (
+      {/* CONTEXT HEADER BANNER */}
+      <Card className="border-border/90 bg-card shadow-sm">
+        <CardContent className="p-5 sm:p-6 space-y-4">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div className="space-y-1">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                  Research Proposal Evaluation
+                </span>
+                <Badge variant="outline" className="text-xs font-bold">
+                  Version {proposal.version_number}
+                </Badge>
+                {getStatusBadge(proposal.status)}
+              </div>
+              <h1 className="text-xl sm:text-2xl font-black text-foreground tracking-tight">
+                {proposal.project?.project_title || "Research Proposal"}
+              </h1>
+            </div>
+
+            {/* Version Switcher if multiple versions */}
+            <div className="flex items-center gap-2 flex-wrap">
+              {allVersions.length > 1 && (
+                <div className="flex items-center gap-1 mr-2">
+                  <span className="text-xs text-muted-foreground font-medium">Versions:</span>
+                  {allVersions.map((v) => (
+                    <Button
+                      key={v.id}
+                      size="sm"
+                      variant={v.id === proposal.id ? "default" : "outline"}
+                      onClick={() => { void navigate(`/app/innovation/proposals/${v.id}`); }}
+                      className="h-7 text-xs font-semibold px-2"
+                    >
+                      v{v.version_number}
+                      {v.is_current && <span className="ml-1 text-[9px] opacity-80">(Active)</span>}
+                    </Button>
+                  ))}
+                </div>
+              )}
+
+              {/* Action Buttons */}
+              {isSubmittedOrResubmitted && (
                 <Button
-                  key={v.id}
-                  size="sm"
-                  variant={v.id === proposal.id ? "default" : "outline"}
-                  onClick={() => { void navigate(`/app/innovation/proposals/${v.id}`); }}
-                  className="h-7 text-xs font-semibold px-2.5"
+                  onClick={() => void handleStartReview()}
+                  disabled={actionLoading}
+                  className="bg-primary text-primary-foreground text-xs font-bold gap-1.5 shadow-sm h-8"
                 >
-                  v{v.version_number}
-                  {v.is_current && <span className="ml-1 text-[10px] opacity-80">(Active)</span>}
+                  <Sparkles className="w-3.5 h-3.5" />
+                  <span>Start Review</span>
                 </Button>
-              ))}
+              )}
+
+              {isUnderReview && (
+                <>
+                  <Button
+                    variant="outline"
+                    onClick={() => setRevisionDialogOpen(true)}
+                    disabled={actionLoading}
+                    className="border-orange-300 text-orange-800 hover:bg-orange-50 text-xs font-bold gap-1.5 h-8"
+                  >
+                    <ShieldAlert className="w-3.5 h-3.5 text-orange-600" />
+                    <span>Request Revision</span>
+                  </Button>
+                  <Button
+                    onClick={() => setApproveDialogOpen(true)}
+                    disabled={actionLoading}
+                    className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold gap-1.5 shadow-sm h-8"
+                  >
+                    <CheckCircle2 className="w-3.5 h-3.5" />
+                    <span>Approve Proposal</span>
+                  </Button>
+                </>
+              )}
+
+              {isApproved && (
+                <Badge className="bg-emerald-100 text-emerald-900 border-emerald-300 font-bold px-3 py-1 text-xs flex items-center gap-1.5">
+                  <Check className="w-3.5 h-3.5 text-emerald-700" />
+                  <span>Approved by Innovation Manager</span>
+                </Badge>
+              )}
             </div>
           </div>
-        )}
-      </div>
+
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-3 border-t border-border/70 text-xs">
+            <div>
+              <span className="text-[10px] uppercase font-bold text-muted-foreground block">Institution</span>
+              <span className="font-semibold text-foreground truncate block">
+                {proposal.institution?.name || "Institution"}
+              </span>
+            </div>
+            <div>
+              <span className="text-[10px] uppercase font-bold text-muted-foreground block">Originating Challenge</span>
+              <span className="font-semibold text-foreground truncate block">
+                {proposal.challenge?.title || "Challenge"}
+              </span>
+            </div>
+            <div>
+              <span className="text-[10px] uppercase font-bold text-muted-foreground block">Project Lead</span>
+              <span className="font-semibold text-foreground truncate block">
+                {proposal.submitter?.full_name || "Assigned Lead"}
+              </span>
+            </div>
+            <div>
+              <span className="text-[10px] uppercase font-bold text-muted-foreground block">Submitted At</span>
+              <span className="font-semibold text-foreground truncate block">
+                {proposal.submitted_at ? new Date(proposal.submitted_at).toLocaleString() : "Not submitted"}
+              </span>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Notifications */}
       {actionSuccess && (
@@ -683,6 +826,61 @@ export function InnovationProposalReviewPage() {
                     Date: {new Date(proposal.submitted_at).toLocaleString()}
                   </p>
                 )}
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Related Information Panel */}
+          <Card className="border-border/80 shadow-sm bg-muted/20">
+            <CardHeader className="pb-2 border-b border-border/70">
+              <CardTitle className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+                <Layers className="w-4 h-4 text-primary" />
+                Related Information &amp; Cross-Navigation
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-3.5 space-y-2.5 text-xs">
+              <div className="space-y-1">
+                <span className="text-[10px] uppercase font-bold text-muted-foreground block">Source Challenge</span>
+                <Link
+                  to={`/app/innovation/challenges/${proposal.challenge_id}`}
+                  className="font-semibold text-primary hover:underline flex items-center gap-1 truncate"
+                >
+                  <span className="truncate">{proposal.challenge?.title}</span>
+                  <ExternalLink className="w-3 h-3 shrink-0" />
+                </Link>
+              </div>
+
+              <div className="pt-2 border-t border-border/70 space-y-1">
+                <span className="text-[10px] uppercase font-bold text-muted-foreground block">Partner Institution</span>
+                <Link
+                  to={`/app/admin/institutions/${proposal.institution_id}`}
+                  className="font-semibold text-primary hover:underline flex items-center gap-1 truncate"
+                >
+                  <span className="truncate">{proposal.institution?.name}</span>
+                  <ExternalLink className="w-3 h-3 shrink-0" />
+                </Link>
+              </div>
+
+              <div className="pt-2 border-t border-border/70 space-y-1">
+                <span className="text-[10px] uppercase font-bold text-muted-foreground block">Project Workspace</span>
+                <Link
+                  to={`/app/innovation/projects/${proposal.project_id}`}
+                  className="font-semibold text-primary hover:underline flex items-center gap-1 truncate"
+                >
+                  <span className="truncate">{proposal.project?.project_title}</span>
+                  <ExternalLink className="w-3 h-3 shrink-0" />
+                </Link>
+              </div>
+
+              <div className="pt-2 border-t border-border/70 space-y-1">
+                <span className="text-[10px] uppercase font-bold text-muted-foreground block">Filtered Proposals</span>
+                <Link
+                  to={`/app/innovation/proposals?challenge=${proposal.challenge_id}`}
+                  className="text-muted-foreground hover:text-foreground hover:underline flex items-center gap-1 text-[11px]"
+                >
+                  <span>View all proposals for this challenge</span>
+                  <ArrowRight className="w-3 h-3 shrink-0" />
+                </Link>
               </div>
             </CardContent>
           </Card>
