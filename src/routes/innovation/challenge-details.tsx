@@ -24,6 +24,7 @@ import {
   Scale,
   Search,
   ShieldCheck,
+  Sparkles,
   Target,
   Trash2,
   X,
@@ -470,7 +471,11 @@ export function InnovationChallengeDetailsPage() {
   }
 
   const sourceIssue = challenge.source_issue;
-  const isApproved = challenge.status === "APPROVED";
+  const isApproved = challenge.status !== "DRAFT";
+  const isMatchingCompleted = challenge.status === "MATCHING_COMPLETED";
+  const isInstitutionsSelected =
+    challenge.status === "INSTITUTIONS_SELECTED" ||
+    challenge.status === "READY_FOR_INVITATION";
   const latestAi = sourceIssue?.issue_ai_analysis?.[0];
   const rawAiDraft = challenge.ai_generated_draft as unknown as AiGeneratedDraftSnapshot | null;
 
@@ -1308,10 +1313,26 @@ export function InnovationChallengeDetailsPage() {
                 </Button>
               </>
             ) : (
-              <Badge variant="teal" size="default" className="gap-1.5 font-bold px-3 py-1">
-                <ShieldCheck className="h-4 w-4" />
-                APPROVED • READY FOR MATCHING
-              </Badge>
+              <div className="flex items-center gap-2">
+                <Button
+                  asChild
+                  size="sm"
+                  className="gap-1.5 text-xs bg-blue-600 hover:bg-blue-700 text-white font-semibold shadow-sm"
+                >
+                  <Link to={`/app/innovation/challenges/${challenge.id}/matching`}>
+                    <Sparkles className="h-3.5 w-3.5" />
+                    {isInstitutionsSelected
+                      ? "View Selected Institutions"
+                      : isMatchingCompleted
+                      ? "View AI Matches"
+                      : "Match Institutions (AI)"}
+                  </Link>
+                </Button>
+                <Badge variant="teal" size="default" className="gap-1.5 font-bold px-3 py-1">
+                  <ShieldCheck className="h-4 w-4" />
+                  {challenge.status.replace(/_/g, " ")}
+                </Badge>
+              </div>
             )}
           </div>
         }
@@ -1375,9 +1396,22 @@ export function InnovationChallengeDetailsPage() {
                 </p>
               </div>
             </div>
-            <Badge variant="teal" size="sm" className="font-bold shrink-0 self-start sm:self-auto">
-              Ready for Phase 3C
-            </Badge>
+            <div className="flex items-center gap-2 shrink-0 self-start sm:self-auto">
+              <Button
+                asChild
+                size="sm"
+                className="gap-1.5 text-xs bg-blue-600 hover:bg-blue-700 text-white font-semibold"
+              >
+                <Link to={`/app/innovation/challenges/${challenge.id}/matching`}>
+                  <Sparkles className="h-3.5 w-3.5" />
+                  {isInstitutionsSelected
+                    ? "Manage Selected Institutions"
+                    : isMatchingCompleted
+                    ? "View AI Matches"
+                    : "Run Institution Matching"}
+                </Link>
+              </Button>
+            </div>
           </div>
         </Card>
       ) : (

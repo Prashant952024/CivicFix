@@ -7,6 +7,7 @@ import {
   RefreshCw,
   Rocket,
   Search,
+  Sparkles,
   UsersRound,
 } from "lucide-react";
 import { Link } from "react-router-dom";
@@ -290,9 +291,18 @@ export function InnovationChallengesPage() {
                         </Button>
                       ) : null}
 
+                      {!isDraft && (
+                        <Button size="sm" asChild variant="default" className="h-7 text-xs gap-1 bg-blue-600 hover:bg-blue-700 text-white font-semibold">
+                          <Link to={`/app/innovation/challenges/${c.id}/matching`}>
+                            <Sparkles className="h-3 w-3" />
+                            Matching
+                          </Link>
+                        </Button>
+                      )}
+
                       <Button size="sm" asChild variant={isDraft ? "default" : "outline"} className="h-7 text-xs gap-1 font-semibold">
                         <Link to={`/app/innovation/challenges/${c.id}`}>
-                          {isDraft ? "Review & Approve" : "Open Workspace"}
+                          {isDraft ? "Review & Approve" : "Workspace"}
                           <ArrowRight className="h-3 w-3" />
                         </Link>
                       </Button>

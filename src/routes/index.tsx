@@ -55,6 +55,7 @@ const InnovationIssuesPage = lazy(() => import("@/routes/innovation/issues").the
 const InnovationIssueDetailsPage = lazy(() => import("@/routes/innovation/issue-details").then((module) => ({ default: module.InnovationIssueDetailsPage })));
 const InnovationChallengesPage = lazy(() => import("@/routes/innovation/challenges").then((module) => ({ default: module.InnovationChallengesPage })));
 const InnovationChallengeDetailsPage = lazy(() => import("@/routes/innovation/challenge-details").then((module) => ({ default: module.InnovationChallengeDetailsPage })));
+const ChallengeMatchingPage = lazy(() => import("@/routes/innovation/challenge-matching").then((module) => ({ default: module.ChallengeMatchingPage })));
 const InnovationNotificationsPage = lazy(() => import("@/routes/innovation/notifications").then((module) => ({ default: module.InnovationNotificationsPage })));
 
 const UniversityDashboardPage = lazy(() => import("@/routes/university/index").then((module) => ({ default: module.UniversityDashboardPage })));
@@ -298,7 +299,7 @@ export function AppRoutes() {
           <Route
             path="innovation"
             element={
-              <RequireRole allowedRoles={["INNOVATION_MANAGER"]}>
+              <RequireRole allowedRoles={["INNOVATION_MANAGER", "ADMIN"]}>
                 <AppLayout />
               </RequireRole>
             }
@@ -308,6 +309,7 @@ export function AppRoutes() {
             <Route path="issues/:issueId" element={<InnovationIssueDetailsPage />} />
             <Route path="challenges" element={<InnovationChallengesPage />} />
             <Route path="challenges/:challengeId" element={<InnovationChallengeDetailsPage />} />
+            <Route path="challenges/:challengeId/matching" element={<ChallengeMatchingPage />} />
             <Route path="notifications" element={<InnovationNotificationsPage />} />
           </Route>
 

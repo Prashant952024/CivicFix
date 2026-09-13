@@ -21,7 +21,7 @@ set
   updated_at = now();
 
 -- 2. Institution Verification Status Enum
-do 6828
+do $$
 begin
   if not exists (select 1 from pg_type where typname = 'institution_verification_status') then
     create type public.institution_verification_status as enum (
@@ -33,7 +33,7 @@ begin
     );
   end if;
 end;
-6828;
+$$;
 
 -- 3. public.institutions table
 create table if not exists public.institutions (
@@ -140,12 +140,12 @@ language sql
 stable
 security definer
 set search_path = public
-as 6828
+as $$
   select p.institution_id
   from public.profiles p
   where p.id = public.current_profile_id()
   limit 1;
-6828;
+$$;
 
 -- 7. RLS Policies
 alter table public.institutions enable row level security;

@@ -801,7 +801,7 @@ export interface Database {
           potential_technology_areas: string[];
           research_requirements: string | null;
           success_criteria: string[];
-          status: "DRAFT" | "APPROVED" | "READY_FOR_MATCHING" | "OPEN_FOR_PROPOSALS" | "PILOT_ACTIVE" | "SOLVED" | "ARCHIVED";
+          status: "DRAFT" | "APPROVED" | "READY_FOR_MATCHING" | "MATCHING_IN_PROGRESS" | "MATCHING_COMPLETED" | "INSTITUTIONS_SELECTED" | "READY_FOR_INVITATION" | "OPEN_FOR_PROPOSALS" | "PILOT_ACTIVE" | "SOLVED" | "ARCHIVED";
           created_by: string;
           approved_by: string | null;
           created_at: string;
@@ -831,7 +831,7 @@ export interface Database {
           potential_technology_areas?: string[];
           research_requirements?: string | null;
           success_criteria?: string[];
-          status?: "DRAFT" | "APPROVED" | "READY_FOR_MATCHING" | "OPEN_FOR_PROPOSALS" | "PILOT_ACTIVE" | "SOLVED" | "ARCHIVED";
+          status?: "DRAFT" | "APPROVED" | "READY_FOR_MATCHING" | "MATCHING_IN_PROGRESS" | "MATCHING_COMPLETED" | "INSTITUTIONS_SELECTED" | "READY_FOR_INVITATION" | "OPEN_FOR_PROPOSALS" | "PILOT_ACTIVE" | "SOLVED" | "ARCHIVED";
           created_by: string;
           approved_by?: string | null;
           created_at?: string;
@@ -861,7 +861,7 @@ export interface Database {
           potential_technology_areas?: string[];
           research_requirements?: string | null;
           success_criteria?: string[];
-          status?: "DRAFT" | "APPROVED" | "READY_FOR_MATCHING" | "OPEN_FOR_PROPOSALS" | "PILOT_ACTIVE" | "SOLVED" | "ARCHIVED";
+          status?: "DRAFT" | "APPROVED" | "READY_FOR_MATCHING" | "MATCHING_IN_PROGRESS" | "MATCHING_COMPLETED" | "INSTITUTIONS_SELECTED" | "READY_FOR_INVITATION" | "OPEN_FOR_PROPOSALS" | "PILOT_ACTIVE" | "SOLVED" | "ARCHIVED";
           created_by?: string;
           approved_by?: string | null;
           created_at?: string;
@@ -1125,6 +1125,234 @@ export interface Database {
           },
         ];
       };
+      institution_match_runs: {
+        Row: {
+          id: string;
+          challenge_id: string;
+          created_by: string | null;
+          status: "IN_PROGRESS" | "COMPLETED" | "FAILED";
+          algorithm_version: string;
+          ai_model_version: string;
+          eligible_candidates_count: number;
+          top_10_institution_ids: string[];
+          summary: Json;
+          error_message: string | null;
+          created_at: string;
+          completed_at: string | null;
+        };
+        Insert: {
+          id?: string;
+          challenge_id: string;
+          created_by?: string | null;
+          status?: "IN_PROGRESS" | "COMPLETED" | "FAILED";
+          algorithm_version?: string;
+          ai_model_version?: string;
+          eligible_candidates_count?: number;
+          top_10_institution_ids?: string[];
+          summary?: Json;
+          error_message?: string | null;
+          created_at?: string;
+          completed_at?: string | null;
+        };
+        Update: {
+          id?: string;
+          challenge_id?: string;
+          created_by?: string | null;
+          status?: "IN_PROGRESS" | "COMPLETED" | "FAILED";
+          algorithm_version?: string;
+          ai_model_version?: string;
+          eligible_candidates_count?: number;
+          top_10_institution_ids?: string[];
+          summary?: Json;
+          error_message?: string | null;
+          created_at?: string;
+          completed_at?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "institution_match_runs_challenge_id_fkey";
+            columns: ["challenge_id"];
+            isOneToOne: false;
+            referencedRelation: "innovation_challenges";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "institution_match_runs_created_by_fkey";
+            columns: ["created_by"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      institution_matches: {
+        Row: {
+          id: string;
+          match_run_id: string;
+          challenge_id: string;
+          institution_id: string;
+          rank: number;
+          is_top_10: boolean;
+          overall_score: number;
+          structured_score: number;
+          ai_score: number | null;
+          confidence: "HIGH" | "MEDIUM" | "LOW";
+          dimension_scores: Json;
+          matched_capabilities: string[];
+          partial_matches: string[];
+          missing_capabilities: string[];
+          unknown_capabilities: string[];
+          strengths: string[];
+          concerns: string[];
+          recommended_role: string | null;
+          match_explanation: string | null;
+          ai_reasoning: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          match_run_id: string;
+          challenge_id: string;
+          institution_id: string;
+          rank: number;
+          is_top_10?: boolean;
+          overall_score: number;
+          structured_score: number;
+          ai_score?: number | null;
+          confidence?: "HIGH" | "MEDIUM" | "LOW";
+          dimension_scores?: Json;
+          matched_capabilities?: string[];
+          partial_matches?: string[];
+          missing_capabilities?: string[];
+          unknown_capabilities?: string[];
+          strengths?: string[];
+          concerns?: string[];
+          recommended_role?: string | null;
+          match_explanation?: string | null;
+          ai_reasoning?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          match_run_id?: string;
+          challenge_id?: string;
+          institution_id?: string;
+          rank?: number;
+          is_top_10?: boolean;
+          overall_score?: number;
+          structured_score?: number;
+          ai_score?: number | null;
+          confidence?: "HIGH" | "MEDIUM" | "LOW";
+          dimension_scores?: Json;
+          matched_capabilities?: string[];
+          partial_matches?: string[];
+          missing_capabilities?: string[];
+          unknown_capabilities?: string[];
+          strengths?: string[];
+          concerns?: string[];
+          recommended_role?: string | null;
+          match_explanation?: string | null;
+          ai_reasoning?: string | null;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "institution_matches_match_run_id_fkey";
+            columns: ["match_run_id"];
+            isOneToOne: false;
+            referencedRelation: "institution_match_runs";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "institution_matches_challenge_id_fkey";
+            columns: ["challenge_id"];
+            isOneToOne: false;
+            referencedRelation: "innovation_challenges";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "institution_matches_institution_id_fkey";
+            columns: ["institution_id"];
+            isOneToOne: false;
+            referencedRelation: "institutions";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      challenge_institution_selections: {
+        Row: {
+          id: string;
+          challenge_id: string;
+          institution_id: string;
+          match_run_id: string | null;
+          selected_by: string;
+          selection_rank: number | null;
+          is_manual_override: boolean;
+          override_reason: string | null;
+          status: "SELECTED_FOR_OUTREACH" | "CANCELLED";
+          selected_at: string;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          challenge_id: string;
+          institution_id: string;
+          match_run_id?: string | null;
+          selected_by: string;
+          selection_rank?: number | null;
+          is_manual_override?: boolean;
+          override_reason?: string | null;
+          status?: "SELECTED_FOR_OUTREACH" | "CANCELLED";
+          selected_at?: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          challenge_id?: string;
+          institution_id?: string;
+          match_run_id?: string | null;
+          selected_by?: string;
+          selection_rank?: number | null;
+          is_manual_override?: boolean;
+          override_reason?: string | null;
+          status?: "SELECTED_FOR_OUTREACH" | "CANCELLED";
+          selected_at?: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "challenge_institution_selections_challenge_id_fkey";
+            columns: ["challenge_id"];
+            isOneToOne: false;
+            referencedRelation: "innovation_challenges";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "challenge_institution_selections_institution_id_fkey";
+            columns: ["institution_id"];
+            isOneToOne: false;
+            referencedRelation: "institutions";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "challenge_institution_selections_match_run_id_fkey";
+            columns: ["match_run_id"];
+            isOneToOne: false;
+            referencedRelation: "institution_match_runs";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "challenge_institution_selections_selected_by_fkey";
+            columns: ["selected_by"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
     };
     Views: Record<string, never>;
     Functions: Record<string, never>;
@@ -1173,3 +1401,31 @@ export type InstitutionProjectUpdate = Database["public"]["Tables"]["institution
 export type InstitutionMemberRow = Database["public"]["Tables"]["institution_members"]["Row"];
 export type InstitutionMemberInsert = Database["public"]["Tables"]["institution_members"]["Insert"];
 export type InstitutionMemberUpdate = Database["public"]["Tables"]["institution_members"]["Update"];
+
+export type InstitutionMatchRunRow = Database["public"]["Tables"]["institution_match_runs"]["Row"];
+export type InstitutionMatchRunInsert = Database["public"]["Tables"]["institution_match_runs"]["Insert"];
+export type InstitutionMatchRunUpdate = Database["public"]["Tables"]["institution_match_runs"]["Update"];
+
+export type InstitutionMatchRow = Database["public"]["Tables"]["institution_matches"]["Row"];
+export type InstitutionMatchInsert = Database["public"]["Tables"]["institution_matches"]["Insert"];
+export type InstitutionMatchUpdate = Database["public"]["Tables"]["institution_matches"]["Update"];
+
+export type ChallengeInstitutionSelectionRow = Database["public"]["Tables"]["challenge_institution_selections"]["Row"];
+export type ChallengeInstitutionSelectionInsert = Database["public"]["Tables"]["challenge_institution_selections"]["Insert"];
+export type ChallengeInstitutionSelectionUpdate = Database["public"]["Tables"]["challenge_institution_selections"]["Update"];
+
+export interface MatchDimensionScores {
+  research_domains: number;
+  technical_expertise: number;
+  technologies: number;
+  facilities_and_labs: number;
+  previous_projects: number;
+  research_requirements: number;
+  field_capabilities: number;
+  multidisciplinary_fit: number;
+  geographic_scope: number;
+  collaboration_readiness: number;
+}
+
+export type MatchConfidence = "HIGH" | "MEDIUM" | "LOW";
+
