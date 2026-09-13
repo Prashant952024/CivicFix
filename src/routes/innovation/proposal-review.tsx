@@ -24,6 +24,9 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog } from "@/components/ui/dialog";
 import { EmptyState } from "@/components/ui/empty-state";
+import { cn } from "@/lib/utils";
+import { TeamMemberProfileDialog } from "@/components/projects/team-member-profile-dialog";
+import { getRoleBadgeColor } from "@/components/projects/team-member-utils";
 import {
   fetchProposalById,
   fetchProjectProposals,
@@ -58,6 +61,8 @@ export function InnovationProposalReviewPage() {
   const [revisionDialogOpen, setRevisionDialogOpen] = useState(false);
   const [revisionFeedback, setRevisionFeedback] = useState("");
   const [approveDialogOpen, setApproveDialogOpen] = useState(false);
+  const [viewingProfileMember, setViewingProfileMember] =
+    useState<ChallengeProjectMemberWithProfile | null>(null);
 
   useEffect(() => {
     if (!proposalId) return;
@@ -690,30 +695,66 @@ export function InnovationProposalReviewPage() {
                 Active Research Team ({members.filter((m) => m.is_active).length})
               </CardTitle>
             </CardHeader>
-            <CardContent className="p-3 space-y-2 text-xs">
+            <CardContent className="p-3 space-y-2.5 text-xs">
               {members
                 .filter((m) => m.is_active)
                 .map((member) => (
-                  <div key={member.id} className="p-2.5 bg-muted/30 rounded-lg border border-border space-y-1">
-                    <div className="flex items-center justify-between">
-                      <span className="font-bold text-foreground">
-                        {member.member_name || member.profile?.full_name || "Member"}
-                      </span>
-                      <Badge variant="outline" className="text-[10px]">
-                        {member.role}
-                      </Badge>
+                  <div
+                    key={member.id}
+                    className="p-3 bg-muted/20 hover:bg-muted/40 rounded-xl border border-border/80 space-y-2 transition-colors"
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex items-center gap-2 min-w-0 flex-1">
+                        <div
+                          className={cn(
+                            "w-8 h-8 rounded-lg font-bold text-xs flex items-center justify-center shrink-0 shadow-2xs",
+                            getRoleBadgeColor(member.role)
+                          )}
+                        >
+                          {(member.member_name || member.profile?.full_name || "M").charAt(0).toUpperCase()}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <span className="font-bold text-foreground text-xs truncate">
+                              {member.member_name || member.profile?.full_name || "Member"}
+                            </span>
+                            <span
+                              className={cn(
+                                "px-1.5 py-0.2 rounded text-[10px] font-semibold border",
+                                getRoleBadgeColor(member.role)
+                              )}
+                            >
+                              {member.role}
+                            </span>
+                          </div>
+                          <p className="text-[11px] text-muted-foreground truncate">
+                            {member.designation || member.academic_program || member.member_type}
+                            {member.department ? ` • ${member.department}` : ""}
+                          </p>
+                        </div>
+                      </div>
+
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setViewingProfileMember(member)}
+                        className="h-6 px-2 text-[10px] shrink-0 font-medium hover:border-primary/50"
+                      >
+                        Profile
+                      </Button>
                     </div>
-                    <p className="text-[11px] text-muted-foreground truncate">
-                      {member.designation || member.academic_program} • {member.department || "Academic Dept"}
-                    </p>
+
                     {member.primary_expertise && (
-                      <span className="text-[10px] text-primary font-semibold block">
-                        Expertise: {member.primary_expertise}
-                      </span>
+                      <div className="text-[11px] text-primary font-medium bg-primary/5 rounded px-2 py-0.5 border border-primary/10 truncate">
+                        ⚡ {member.primary_expertise}
+                      </div>
                     )}
+
                     {member.project_responsibility && (
-                      <p className="text-[11px] text-foreground/80 line-clamp-2 pt-0.5">
-                        <strong className="text-foreground">Role:</strong> {member.project_responsibility}
+                      <p className="text-[11px] text-muted-foreground line-clamp-2 leading-relaxed">
+                        <strong className="text-foreground font-medium">Responsibility:</strong>{" "}
+                        {member.project_responsibility}
                       </p>
                     )}
                   </div>
@@ -820,6 +861,13 @@ export function InnovationProposalReviewPage() {
           </div>
         </Dialog>
       )}
+
+      {/* Team Member Full Profile Dialog for Innovation Review */}
+      <TeamMemberProfileDialog
+        member={viewingProfileMember}
+        open={!!viewingProfileMember}
+        onClose={() => setViewingProfileMember(null)}
+      />
     </div>
   );
 }

@@ -11,19 +11,17 @@ import {
   PauseCircle,
   PlayCircle,
   ShieldCheck,
-  Trash2,
   Users,
   X,
   GraduationCap,
   Briefcase,
   BookOpen,
-  Globe,
-  Mail,
   Search,
   Sparkles,
-  RotateCcw,
   Plus,
   FileText,
+  LayoutGrid,
+  List,
 } from "lucide-react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 
@@ -33,6 +31,9 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog } from "@/components/ui/dialog";
 import { EmptyState } from "@/components/ui/empty-state";
+import { TeamMemberCard } from "@/components/projects/team-member-card";
+import { TeamMemberTable } from "@/components/projects/team-member-table";
+import { TeamMemberProfileDialog } from "@/components/projects/team-member-profile-dialog";
 import {
   fetchProjectById,
   fetchProjectMembers,
@@ -110,6 +111,9 @@ export function UniversityProjectDetailPage() {
   // Roster Filter & Search
   const [teamSearchQuery, setTeamSearchQuery] = useState("");
   const [rosterTab, setRosterTab] = useState<"ACTIVE" | "FORMER" | "ALL">("ACTIVE");
+  const [roleCategoryFilter, setRoleCategoryFilter] = useState<string>("ALL");
+  const [viewMode, setViewMode] = useState<"GRID" | "TABLE">("GRID");
+  const [viewingProfileMember, setViewingProfileMember] = useState<ChallengeProjectMemberWithProfile | null>(null);
 
   // Edit Workspace Modal
   const [editOpen, setEditOpen] = useState(false);
@@ -197,11 +201,23 @@ export function UniversityProjectDetailPage() {
   const activeMembersList = useMemo(() => members.filter((m) => m.is_active), [members]);
   const inactiveMembersList = useMemo(() => members.filter((m) => !m.is_active), [members]);
 
-  // Filtered members based on search and tab
+  // Filtered members based on search, status tab, and role filter
   const displayedMembers = useMemo(() => {
     let baseList = members;
     if (rosterTab === "ACTIVE") baseList = activeMembersList;
     else if (rosterTab === "FORMER") baseList = inactiveMembersList;
+
+    if (roleCategoryFilter !== "ALL") {
+      baseList = baseList.filter((m) => {
+        if (roleCategoryFilter === "FACULTY") return m.member_type === "FACULTY" || m.role === "FACULTY";
+        if (roleCategoryFilter === "RESEARCHER") return m.member_type === "RESEARCHER" || m.role === "RESEARCHER";
+        if (roleCategoryFilter === "STUDENT") return m.member_type === "STUDENT" || m.role === "STUDENT";
+        if (roleCategoryFilter === "TECHNICAL") return ["ENGINEER", "TECHNICAL_MEMBER", "DATA_SCIENTIST"].includes(m.role);
+        if (roleCategoryFilter === "DATA_SCIENTIST") return m.role === "DATA_SCIENTIST";
+        if (roleCategoryFilter === "DOMAIN_EXPERT") return m.role === "DOMAIN_EXPERT";
+        return true;
+      });
+    }
 
     const q = teamSearchQuery.trim().toLowerCase();
     if (!q) return baseList;
@@ -229,7 +245,7 @@ export function UniversityProjectDetailPage() {
         skills.includes(q)
       );
     });
-  }, [members, rosterTab, activeMembersList, inactiveMembersList, teamSearchQuery]);
+  }, [members, rosterTab, roleCategoryFilter, activeMembersList, inactiveMembersList, teamSearchQuery]);
 
   // Team Overview Statistics
   const teamStats = useMemo(() => {
@@ -620,25 +636,6 @@ export function UniversityProjectDetailPage() {
     }
   };
 
-  const getRoleBadgeVariant = (role: ProjectMemberRole) => {
-    switch (role) {
-      case "PROJECT_LEAD":
-        return "emerald";
-      case "FACULTY":
-        return "sky";
-      case "RESEARCHER":
-        return "violet";
-      case "STUDENT":
-        return "amber";
-      case "TECHNICAL_MEMBER":
-      case "ENGINEER":
-      case "DATA_SCIENTIST":
-        return "teal";
-      default:
-        return "outline";
-    }
-  };
-
   if (loading) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[50vh] space-y-4">
@@ -964,27 +961,27 @@ export function UniversityProjectDetailPage() {
               </div>
               <div className="flex flex-wrap gap-1.5 mt-2">
                 {teamStats.leadCount > 0 && (
-                  <Badge variant="emerald" size="sm">
+                  <Badge variant="amber" size="sm">
                     {teamStats.leadCount} Lead
                   </Badge>
                 )}
                 {teamStats.facultyCount > 0 && (
-                  <Badge variant="sky" size="sm">
+                  <Badge variant="violet" size="sm">
                     {teamStats.facultyCount} Faculty
                   </Badge>
                 )}
                 {teamStats.researcherCount > 0 && (
-                  <Badge variant="violet" size="sm">
+                  <Badge variant="sky" size="sm">
                     {teamStats.researcherCount} Researcher
                   </Badge>
                 )}
                 {teamStats.studentCount > 0 && (
-                  <Badge variant="amber" size="sm">
+                  <Badge variant="teal" size="sm">
                     {teamStats.studentCount} Student
                   </Badge>
                 )}
                 {teamStats.staffCount > 0 && (
-                  <Badge variant="teal" size="sm">
+                  <Badge variant="info" size="sm">
                     {teamStats.staffCount} Staff/Engg
                   </Badge>
                 )}
@@ -1023,74 +1020,153 @@ export function UniversityProjectDetailPage() {
             </div>
           </div>
 
-          {/* Roster Controls: Search & Tabs */}
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-1">
-            <div className="flex items-center gap-1 bg-muted/30 p-1 rounded-xl border border-border/70 text-xs w-fit">
-              <button
-                onClick={() => setRosterTab("ACTIVE")}
-                className={`px-3 py-1 rounded-lg font-semibold transition-colors ${
-                  rosterTab === "ACTIVE"
-                    ? "bg-card text-foreground shadow-2xs"
-                    : "text-muted-foreground hover:text-foreground"
-                }`}
-              >
-                Active Roster ({activeMembersList.length})
-              </button>
-              <button
-                onClick={() => setRosterTab("FORMER")}
-                className={`px-3 py-1 rounded-lg font-semibold transition-colors ${
-                  rosterTab === "FORMER"
-                    ? "bg-card text-foreground shadow-2xs"
-                    : "text-muted-foreground hover:text-foreground"
-                }`}
-              >
-                Former Members ({inactiveMembersList.length})
-              </button>
-              <button
-                onClick={() => setRosterTab("ALL")}
-                className={`px-3 py-1 rounded-lg font-semibold transition-colors ${
-                  rosterTab === "ALL"
-                    ? "bg-card text-foreground shadow-2xs"
-                    : "text-muted-foreground hover:text-foreground"
-                }`}
-              >
-                All Records ({members.length})
-              </button>
+          {/* Roster Controls: Search, Tabs, Role Filters & View Mode */}
+          <div className="space-y-3 pt-1">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              {/* Status Tabs */}
+              <div className="flex items-center gap-1 bg-muted/40 p-1 rounded-xl border border-border/80 text-xs w-fit">
+                <button
+                  onClick={() => setRosterTab("ACTIVE")}
+                  className={`px-3 py-1.5 rounded-lg text-xs transition-all ${
+                    rosterTab === "ACTIVE"
+                      ? "bg-card text-foreground font-bold shadow-xs border border-border/80"
+                      : "text-muted-foreground hover:text-foreground font-medium"
+                  }`}
+                >
+                  Active Roster ({activeMembersList.length})
+                </button>
+                <button
+                  onClick={() => setRosterTab("FORMER")}
+                  className={`px-3 py-1.5 rounded-lg text-xs transition-all ${
+                    rosterTab === "FORMER"
+                      ? "bg-card text-foreground font-bold shadow-xs border border-border/80"
+                      : "text-muted-foreground hover:text-foreground font-medium"
+                  }`}
+                >
+                  Former Members ({inactiveMembersList.length})
+                </button>
+                <button
+                  onClick={() => setRosterTab("ALL")}
+                  className={`px-3 py-1.5 rounded-lg text-xs transition-all ${
+                    rosterTab === "ALL"
+                      ? "bg-card text-foreground font-bold shadow-xs border border-border/80"
+                      : "text-muted-foreground hover:text-foreground font-medium"
+                  }`}
+                >
+                  All Records ({members.length})
+                </button>
+              </div>
+
+              <div className="flex items-center gap-2">
+                {/* Search Bar */}
+                <div className="relative w-full sm:w-64">
+                  <label htmlFor="team-search-query" className="sr-only">
+                    Search team members, skills, department
+                  </label>
+                  <Search className="w-3.5 h-3.5 absolute left-3 top-2.5 text-muted-foreground pointer-events-none" />
+                  <input
+                    id="team-search-query"
+                    name="teamSearchQuery"
+                    type="text"
+                    value={teamSearchQuery}
+                    onChange={(e) => setTeamSearchQuery(e.target.value)}
+                    placeholder="Search members, skills, dept..."
+                    aria-label="Search members, skills, dept..."
+                    className="w-full pl-8 pr-8 py-1.5 text-xs rounded-xl border border-border bg-card text-foreground focus:outline-none focus:ring-1 focus:ring-primary shadow-2xs"
+                  />
+                  {teamSearchQuery && (
+                    <button
+                      onClick={() => setTeamSearchQuery("")}
+                      className="absolute right-2.5 top-2 text-muted-foreground hover:text-foreground"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  )}
+                </div>
+
+                {/* View Switcher (Grid vs Table) */}
+                <div className="flex items-center bg-muted/40 p-0.5 rounded-xl border border-border/80 shrink-0">
+                  <button
+                    onClick={() => setViewMode("GRID")}
+                    className={`p-1.5 rounded-lg transition-all ${
+                      viewMode === "GRID"
+                        ? "bg-card text-primary font-bold shadow-xs border border-border/70"
+                        : "text-muted-foreground hover:text-foreground"
+                    }`}
+                    title="Card / Grid View"
+                  >
+                    <LayoutGrid className="w-3.5 h-3.5" />
+                  </button>
+                  <button
+                    onClick={() => setViewMode("TABLE")}
+                    className={`p-1.5 rounded-lg transition-all ${
+                      viewMode === "TABLE"
+                        ? "bg-card text-primary font-bold shadow-xs border border-border/70"
+                        : "text-muted-foreground hover:text-foreground"
+                    }`}
+                    title="Directory / Table View"
+                  >
+                    <List className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              </div>
             </div>
 
-            <div className="relative w-full sm:w-72">
-              <Search className="w-3.5 h-3.5 absolute left-3 top-3 text-muted-foreground pointer-events-none" />
-              <input
-                type="text"
-                value={teamSearchQuery}
-                onChange={(e) => setTeamSearchQuery(e.target.value)}
-                placeholder="Search team members..."
-                className="w-full pl-9 pr-8 py-1.5 text-xs rounded-xl border border-border bg-card text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
-              />
-              {teamSearchQuery && (
+            {/* Role Category Filter Chips */}
+            <div className="flex items-center gap-1.5 overflow-x-auto pb-1 text-xs no-scrollbar">
+              <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mr-1 shrink-0">
+                Filter:
+              </span>
+              {[
+                { id: "ALL", label: "All Roles" },
+                { id: "FACULTY", label: "Faculty" },
+                { id: "RESEARCHER", label: "Researchers" },
+                { id: "STUDENT", label: "Students" },
+                { id: "TECHNICAL", label: "Engineers & Tech" },
+                { id: "DATA_SCIENTIST", label: "Data Scientists" },
+                { id: "DOMAIN_EXPERT", label: "Domain Experts" },
+              ].map((cat) => (
                 <button
-                  onClick={() => setTeamSearchQuery("")}
-                  className="absolute right-2.5 top-2 text-muted-foreground hover:text-foreground"
+                  key={cat.id}
+                  onClick={() => setRoleCategoryFilter(cat.id)}
+                  className={`px-3 py-1 rounded-full font-medium transition-all shrink-0 text-[11px] border ${
+                    roleCategoryFilter === cat.id
+                      ? "bg-primary text-primary-foreground border-primary font-bold shadow-xs"
+                      : "bg-card text-muted-foreground hover:text-foreground border-border/80 hover:bg-muted/40"
+                  }`}
                 >
-                  <X className="w-3.5 h-3.5" />
+                  {cat.label}
+                </button>
+              ))}
+              {(teamSearchQuery || roleCategoryFilter !== "ALL") && (
+                <button
+                  onClick={() => {
+                    setTeamSearchQuery("");
+                    setRoleCategoryFilter("ALL");
+                  }}
+                  className="text-[11px] text-primary hover:underline ml-1 shrink-0 font-semibold"
+                >
+                  Reset filters
                 </button>
               )}
             </div>
           </div>
 
-          {/* Member Directory Grid */}
+          {/* Member Directory Content */}
           {displayedMembers.length === 0 ? (
             <div className="p-10 text-center border border-dashed rounded-2xl bg-card/40 space-y-2">
               <Users className="w-8 h-8 text-muted-foreground/50 mx-auto" />
               <h4 className="text-sm font-bold text-foreground">
-                {teamSearchQuery ? "No matching team members found" : "No team members recorded"}
+                {teamSearchQuery || roleCategoryFilter !== "ALL"
+                  ? "No matching team members found"
+                  : "No team members recorded"}
               </h4>
               <p className="text-xs text-muted-foreground max-w-md mx-auto">
-                {teamSearchQuery
-                  ? "Try adjusting your search terms or filter to find research members."
+                {teamSearchQuery || roleCategoryFilter !== "ALL"
+                  ? "Try resetting your search filters to see all registered researchers."
                   : "Add professors, researchers, or student innovators to form your project team."}
               </p>
-              {isCoordinatorOrLead && !teamSearchQuery && (
+              {isCoordinatorOrLead && !teamSearchQuery && roleCategoryFilter === "ALL" && (
                 <Button
                   size="sm"
                   onClick={() => {
@@ -1103,245 +1179,45 @@ export function UniversityProjectDetailPage() {
                 </Button>
               )}
             </div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {displayedMembers.map((member) => {
-                const isLead = member.role === "PROJECT_LEAD";
-                const isProcessing = processingMemberId === member.id;
-                const memberName = member.member_name || member.profile?.full_name || "Team Member";
-                const memberEmail = member.member_email || member.profile?.email;
-                const initials = memberName
-                  .split(" ")
-                  .map((n) => n[0])
-                  .join("")
-                  .toUpperCase()
-                  .slice(0, 2);
-
-                return (
-                  <Card
-                    key={member.id}
-                    className={`border transition-shadow hover:shadow-md ${
-                      !member.is_active ? "opacity-70 bg-muted/20 border-dashed" : "bg-card border-border/80"
-                    }`}
-                  >
-                    <CardContent className="p-4 space-y-3.5">
-                      {/* Top Row: Identity & Badges */}
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="flex items-start gap-3">
-                          <div className="w-10 h-10 rounded-xl bg-primary/10 text-primary border border-primary/20 flex items-center justify-center font-bold text-sm shrink-0">
-                            {initials}
-                          </div>
-                          <div>
-                            <div className="flex flex-wrap items-center gap-2">
-                              <h4 className="text-sm font-bold text-foreground">{memberName}</h4>
-                              <Badge variant={getRoleBadgeVariant(member.role)} size="sm">
-                                {member.role.replace(/_/g, " ")}
-                              </Badge>
-                              {member.member_type && member.member_type !== member.role && (
-                                <Badge variant="outline" size="sm" className="text-muted-foreground">
-                                  {member.member_type}
-                                </Badge>
-                              )}
-                            </div>
-                            <div className="text-xs text-muted-foreground mt-0.5 flex flex-wrap items-center gap-x-2">
-                              {member.designation && <span>{member.designation}</span>}
-                              {member.department && (
-                                <span>{member.designation ? `· ${member.department}` : member.department}</span>
-                              )}
-                              {member.member_type === "STUDENT" && member.academic_program && (
-                                <span>
-                                  {member.academic_program} {member.academic_year ? `(${member.academic_year})` : ""}
-                                </span>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-
-                        {/* Status Indicator */}
-                        {member.is_active ? (
-                          <span className="inline-flex items-center gap-1 text-emerald-700 text-[11px] font-bold shrink-0">
-                            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" /> Active
-                          </span>
-                        ) : (
-                          <span className="inline-flex items-center gap-1 text-muted-foreground text-[11px] font-semibold shrink-0">
-                            Former Member
-                          </span>
-                        )}
-                      </div>
-
-                      {/* Academic / Professional Subline */}
-                      {member.specialization && (
-                        <div className="text-xs text-foreground/80 flex items-center gap-1.5 font-medium">
-                          <GraduationCap className="w-3.5 h-3.5 text-primary shrink-0" />
-                          <span>Specialization: {member.specialization}</span>
-                        </div>
-                      )}
-
-                      {/* Project Responsibility Box */}
-                      {member.project_responsibility && (
-                        <div className="p-2.5 rounded-xl bg-surface/90 border border-border/70 text-xs space-y-1">
-                          <span className="font-bold text-foreground text-[11px] uppercase tracking-wider block">
-                            Project Responsibility
-                          </span>
-                          <p className="text-muted-foreground leading-relaxed">
-                            {member.project_responsibility}
-                          </p>
-                        </div>
-                      )}
-
-                      {/* Project Contribution */}
-                      {member.project_contribution && (
-                        <div className="text-xs text-muted-foreground">
-                          <span className="font-semibold text-foreground">Contribution: </span>
-                          <span>{member.project_contribution}</span>
-                        </div>
-                      )}
-
-                      {/* Structured Expertise & Skills */}
-                      {(member.primary_expertise ||
-                        member.secondary_expertise ||
-                        (member.technical_skills && member.technical_skills.length > 0)) && (
-                        <div className="space-y-1.5 pt-0.5">
-                          <div className="flex flex-wrap items-center gap-1.5 text-xs">
-                            {member.primary_expertise && (
-                              <span className="bg-primary/10 text-primary border border-primary/20 px-2 py-0.5 rounded-lg font-semibold text-[11px]">
-                                ★ {member.primary_expertise}
-                              </span>
-                            )}
-                            {member.secondary_expertise && (
-                              <span className="bg-muted text-foreground/80 border border-border px-2 py-0.5 rounded-lg text-[11px] font-medium">
-                                {member.secondary_expertise}
-                              </span>
-                            )}
-                            {(member.technical_skills || []).map((skill, idx) => (
-                              <span
-                                key={idx}
-                                className="bg-muted/60 text-muted-foreground border border-border/70 px-2 py-0.5 rounded-lg text-[11px]"
-                              >
-                                {skill}
-                              </span>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-
-                      {/* Bio snippet */}
-                      {member.professional_bio && (
-                        <p className="text-xs text-muted-foreground italic line-clamp-2">
-                          &ldquo;{member.professional_bio}&rdquo;
-                        </p>
-                      )}
-
-                      {/* Contact & Links Bar */}
-                      <div className="pt-2 border-t border-border/70 flex flex-wrap items-center justify-between gap-2 text-xs">
-                        <div className="flex flex-wrap items-center gap-3">
-                          {memberEmail && (
-                            <a
-                              href={`mailto:${memberEmail}`}
-                              className="inline-flex items-center gap-1 text-muted-foreground hover:text-primary transition-colors"
-                              title={memberEmail}
-                            >
-                              <Mail className="w-3.5 h-3.5" />
-                              <span className="line-clamp-1 max-w-[150px]">{memberEmail}</span>
-                            </a>
-                          )}
-                          {member.research_profile_url && (
-                            <a
-                              href={member.research_profile_url}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="inline-flex items-center gap-1 text-primary hover:underline font-semibold"
-                            >
-                              <BookOpen className="w-3.5 h-3.5" /> Research Profile
-                            </a>
-                          )}
-                          {member.linkedin_url && (
-                            <a
-                              href={member.linkedin_url}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="inline-flex items-center gap-1 text-sky-600 hover:underline"
-                            >
-                              <svg className="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24">
-                                <path d="M19 3a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h14m-.5 15.5v-5.3a3.26 3.26 0 0 0-3.26-3.26c-.85 0-1.84.52-2.28 1.3v-1.11h-2.79v8.37h2.79v-4.93c0-.77.62-1.4 1.39-1.4a1.4 1.4 0 0 1 1.4 1.4v4.93h2.75M6.46 8.76a1.6 1.6 0 1 0-.01-3.2 1.6 1.6 0 0 0 .01 3.2m1.39 9.74v-8.37H5.07v8.37h2.78Z" />
-                              </svg>
-                              <span>LinkedIn</span>
-                            </a>
-                          )}
-                          {member.website_url && (
-                            <a
-                              href={member.website_url}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="inline-flex items-center gap-1 text-muted-foreground hover:text-foreground"
-                            >
-                              <Globe className="w-3.5 h-3.5" /> Web
-                            </a>
-                          )}
-                        </div>
-
-                        {/* Member Actions */}
-                        {isCoordinatorOrLead && (
-                          <div className="flex items-center gap-1.5 ml-auto">
-                            {member.is_active ? (
-                              <>
-                                <button
-                                  onClick={() => openEditMemberModal(member)}
-                                  className="p-1 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
-                                  title="Edit Member Profile"
-                                >
-                                  <Edit3 className="w-3.5 h-3.5" />
-                                </button>
-                                {!isLead && (
-                                  <>
-                                    <select
-                                      disabled={isProcessing}
-                                      value={member.role}
-                                      onChange={(e) => {
-                                        void handleUpdateRole(member.id, e.target.value as ProjectMemberRole);
-                                      }}
-                                      aria-label={`Update role for ${memberName}`}
-                                      className="text-[11px] border border-border rounded-lg bg-surface px-1.5 py-0.5 text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
-                                    >
-                                      <option value="FACULTY">Faculty</option>
-                                      <option value="RESEARCHER">Researcher</option>
-                                      <option value="STUDENT">Student</option>
-                                      <option value="TECHNICAL_MEMBER">Technical Member</option>
-                                      <option value="DOMAIN_EXPERT">Domain Expert</option>
-                                      <option value="DATA_SCIENTIST">Data Scientist</option>
-                                      <option value="ENGINEER">Engineer</option>
-                                      <option value="MEMBER">Member</option>
-                                    </select>
-                                    <button
-                                      disabled={isProcessing}
-                                      onClick={() => void handleDeactivateMember(member)}
-                                      className="p-1 rounded-lg hover:bg-rose-50 text-rose-600 transition-colors"
-                                      title="Remove / Deactivate Member"
-                                    >
-                                      <Trash2 className="w-3.5 h-3.5" />
-                                    </button>
-                                  </>
-                                )}
-                              </>
-                            ) : (
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                disabled={isProcessing}
-                                onClick={() => void handleReactivateMember(member)}
-                                className="text-[11px] h-7 gap-1 text-teal-700 border-teal-300 hover:bg-teal-50"
-                              >
-                                <RotateCcw className="w-3 h-3" /> Reactivate
-                              </Button>
-                            )}
-                          </div>
-                        )}
-                      </div>
-                    </CardContent>
-                  </Card>
-                );
-              })}
+          ) : viewMode === "GRID" ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {displayedMembers.map((member) => (
+                <TeamMemberCard
+                  key={member.id}
+                  member={member}
+                  onViewProfile={(m) => setViewingProfileMember(m)}
+                  onEdit={openEditMemberModal}
+                  onUpdateRole={(id, r) => {
+                    void handleUpdateRole(id, r);
+                  }}
+                  onDeactivate={(m) => {
+                    void handleDeactivateMember(m);
+                  }}
+                  onReactivate={(m) => {
+                    void handleReactivateMember(m);
+                  }}
+                  isCoordinatorOrLead={isCoordinatorOrLead}
+                  isProcessing={processingMemberId === member.id}
+                />
+              ))}
             </div>
+          ) : (
+            <TeamMemberTable
+              members={displayedMembers}
+              onViewProfile={(m) => setViewingProfileMember(m)}
+              onEdit={openEditMemberModal}
+              onUpdateRole={(id, r) => {
+                void handleUpdateRole(id, r);
+              }}
+              onDeactivate={(m) => {
+                void handleDeactivateMember(m);
+              }}
+              onReactivate={(m) => {
+                void handleReactivateMember(m);
+              }}
+              isCoordinatorOrLead={isCoordinatorOrLead}
+              processingMemberId={processingMemberId}
+            />
           )}
         </div>
       )}
@@ -1587,10 +1463,12 @@ export function UniversityProjectDetailPage() {
           {/* Section 1: Core Identity */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs font-semibold text-foreground mb-1">
+              <label htmlFor="add-member-name" className="block text-xs font-semibold text-foreground mb-1">
                 Full Name *
               </label>
               <input
+                id="add-member-name"
+                name="memberName"
                 type="text"
                 required
                 value={formName}
@@ -1601,10 +1479,12 @@ export function UniversityProjectDetailPage() {
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-foreground mb-1">
+              <label htmlFor="add-member-email" className="block text-xs font-semibold text-foreground mb-1">
                 Institutional Email *
               </label>
               <input
+                id="add-member-email"
+                name="memberEmail"
                 type="email"
                 required
                 value={formEmail}
@@ -1615,10 +1495,12 @@ export function UniversityProjectDetailPage() {
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-foreground mb-1">
+              <label htmlFor="add-member-type" className="block text-xs font-semibold text-foreground mb-1">
                 Member Type *
               </label>
               <select
+                id="add-member-type"
+                name="memberType"
                 value={formMemberType}
                 onChange={(e) => {
                   const t = e.target.value as ProjectMemberType;
@@ -1640,10 +1522,12 @@ export function UniversityProjectDetailPage() {
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-foreground mb-1">
+              <label htmlFor="add-member-role" className="block text-xs font-semibold text-foreground mb-1">
                 Project Role *
               </label>
               <select
+                id="add-member-role"
+                name="memberRole"
                 value={formRole}
                 onChange={(e) => setFormRole(e.target.value as ProjectMemberRole)}
                 className="w-full text-xs border border-border rounded-xl bg-surface px-3 py-2 text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
@@ -1678,10 +1562,12 @@ export function UniversityProjectDetailPage() {
             {formMemberType === "STUDENT" && (
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div>
-                  <label className="block text-[11px] font-semibold text-foreground mb-1">
+                  <label htmlFor="add-student-degree" className="block text-[11px] font-semibold text-foreground mb-1">
                     Degree / Program
                   </label>
                   <select
+                    id="add-student-degree"
+                    name="academicProgram"
                     value={formAcademicProgram}
                     onChange={(e) => setFormAcademicProgram(e.target.value)}
                     className="w-full text-xs border border-border rounded-lg bg-card px-2.5 py-1.5 text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
@@ -1698,10 +1584,12 @@ export function UniversityProjectDetailPage() {
                 </div>
 
                 <div>
-                  <label className="block text-[11px] font-semibold text-foreground mb-1">
+                  <label htmlFor="add-student-department" className="block text-[11px] font-semibold text-foreground mb-1">
                     Department
                   </label>
                   <input
+                    id="add-student-department"
+                    name="department"
                     type="text"
                     value={formDepartment}
                     onChange={(e) => setFormDepartment(e.target.value)}
@@ -1711,10 +1599,12 @@ export function UniversityProjectDetailPage() {
                 </div>
 
                 <div>
-                  <label className="block text-[11px] font-semibold text-foreground mb-1">
+                  <label htmlFor="add-student-year" className="block text-[11px] font-semibold text-foreground mb-1">
                     Current Year
                   </label>
                   <select
+                    id="add-student-year"
+                    name="academicYear"
                     value={formAcademicYear}
                     onChange={(e) => setFormAcademicYear(e.target.value)}
                     className="w-full text-xs border border-border rounded-lg bg-card px-2.5 py-1.5 text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
@@ -1730,10 +1620,12 @@ export function UniversityProjectDetailPage() {
                 </div>
 
                 <div>
-                  <label className="block text-[11px] font-semibold text-foreground mb-1">
+                  <label htmlFor="add-student-level" className="block text-[11px] font-semibold text-foreground mb-1">
                     Academic Level
                   </label>
                   <select
+                    id="add-student-level"
+                    name="academicLevel"
                     value={formAcademicLevel}
                     onChange={(e) => setFormAcademicLevel(e.target.value)}
                     className="w-full text-xs border border-border rounded-lg bg-card px-2.5 py-1.5 text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
@@ -1747,10 +1639,12 @@ export function UniversityProjectDetailPage() {
                 </div>
 
                 <div>
-                  <label className="block text-[11px] font-semibold text-foreground mb-1">
+                  <label htmlFor="add-student-specialization" className="block text-[11px] font-semibold text-foreground mb-1">
                     Specialization
                   </label>
                   <input
+                    id="add-student-specialization"
+                    name="specialization"
                     type="text"
                     value={formSpecialization}
                     onChange={(e) => setFormSpecialization(e.target.value)}
@@ -1760,10 +1654,12 @@ export function UniversityProjectDetailPage() {
                 </div>
 
                 <div>
-                  <label className="block text-[11px] font-semibold text-foreground mb-1">
+                  <label htmlFor="add-student-graduation" className="block text-[11px] font-semibold text-foreground mb-1">
                     Expected Graduation
                   </label>
                   <input
+                    id="add-student-graduation"
+                    name="expectedGraduation"
                     type="text"
                     value={formExpectedGraduation}
                     onChange={(e) => setFormExpectedGraduation(e.target.value)}
@@ -1778,10 +1674,12 @@ export function UniversityProjectDetailPage() {
             {formMemberType === "FACULTY" && (
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div>
-                  <label className="block text-[11px] font-semibold text-foreground mb-1">
+                  <label htmlFor="add-faculty-designation" className="block text-[11px] font-semibold text-foreground mb-1">
                     Designation
                   </label>
                   <select
+                    id="add-faculty-designation"
+                    name="designation"
                     value={formDesignation}
                     onChange={(e) => setFormDesignation(e.target.value)}
                     className="w-full text-xs border border-border rounded-lg bg-card px-2.5 py-1.5 text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
@@ -1799,10 +1697,12 @@ export function UniversityProjectDetailPage() {
                 </div>
 
                 <div>
-                  <label className="block text-[11px] font-semibold text-foreground mb-1">
+                  <label htmlFor="add-faculty-department" className="block text-[11px] font-semibold text-foreground mb-1">
                     Department
                   </label>
                   <input
+                    id="add-faculty-department"
+                    name="department"
                     type="text"
                     value={formDepartment}
                     onChange={(e) => setFormDepartment(e.target.value)}
@@ -1812,10 +1712,12 @@ export function UniversityProjectDetailPage() {
                 </div>
 
                 <div>
-                  <label className="block text-[11px] font-semibold text-foreground mb-1">
+                  <label htmlFor="add-faculty-experience" className="block text-[11px] font-semibold text-foreground mb-1">
                     Years of Experience
                   </label>
                   <input
+                    id="add-faculty-experience"
+                    name="experienceYears"
                     type="number"
                     min="0"
                     max="60"
@@ -1827,10 +1729,12 @@ export function UniversityProjectDetailPage() {
                 </div>
 
                 <div className="sm:col-span-2">
-                  <label className="block text-[11px] font-semibold text-foreground mb-1">
+                  <label htmlFor="add-faculty-research-areas" className="block text-[11px] font-semibold text-foreground mb-1">
                     Research Areas (comma separated)
                   </label>
                   <input
+                    id="add-faculty-research-areas"
+                    name="researchAreas"
                     type="text"
                     value={formResearchAreas}
                     onChange={(e) => setFormResearchAreas(e.target.value)}
@@ -1840,10 +1744,12 @@ export function UniversityProjectDetailPage() {
                 </div>
 
                 <div>
-                  <label className="block text-[11px] font-semibold text-foreground mb-1">
+                  <label htmlFor="add-faculty-research-url" className="block text-[11px] font-semibold text-foreground mb-1">
                     Research Profile URL
                   </label>
                   <input
+                    id="add-faculty-research-url"
+                    name="researchProfileUrl"
                     type="url"
                     value={formResearchProfileUrl}
                     onChange={(e) => setFormResearchProfileUrl(e.target.value)}
@@ -1858,10 +1764,12 @@ export function UniversityProjectDetailPage() {
             {formMemberType === "RESEARCHER" && (
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div>
-                  <label className="block text-[11px] font-semibold text-foreground mb-1">
+                  <label htmlFor="add-researcher-designation" className="block text-[11px] font-semibold text-foreground mb-1">
                     Designation
                   </label>
                   <select
+                    id="add-researcher-designation"
+                    name="designation"
                     value={formDesignation}
                     onChange={(e) => setFormDesignation(e.target.value)}
                     className="w-full text-xs border border-border rounded-lg bg-card px-2.5 py-1.5 text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
@@ -1878,10 +1786,12 @@ export function UniversityProjectDetailPage() {
                 </div>
 
                 <div>
-                  <label className="block text-[11px] font-semibold text-foreground mb-1">
+                  <label htmlFor="add-researcher-department" className="block text-[11px] font-semibold text-foreground mb-1">
                     Department / Research Center
                   </label>
                   <input
+                    id="add-researcher-department"
+                    name="department"
                     type="text"
                     value={formDepartment}
                     onChange={(e) => setFormDepartment(e.target.value)}
@@ -1891,10 +1801,12 @@ export function UniversityProjectDetailPage() {
                 </div>
 
                 <div>
-                  <label className="block text-[11px] font-semibold text-foreground mb-1">
+                  <label htmlFor="add-researcher-experience" className="block text-[11px] font-semibold text-foreground mb-1">
                     Years of Research Experience
                   </label>
                   <input
+                    id="add-researcher-experience"
+                    name="experienceYears"
                     type="number"
                     min="0"
                     max="50"
@@ -1906,10 +1818,12 @@ export function UniversityProjectDetailPage() {
                 </div>
 
                 <div className="sm:col-span-2">
-                  <label className="block text-[11px] font-semibold text-foreground mb-1">
+                  <label htmlFor="add-researcher-specialization" className="block text-[11px] font-semibold text-foreground mb-1">
                     Specialization &amp; Research Focus
                   </label>
                   <input
+                    id="add-researcher-specialization"
+                    name="specialization"
                     type="text"
                     value={formSpecialization}
                     onChange={(e) => setFormSpecialization(e.target.value)}
@@ -1919,10 +1833,12 @@ export function UniversityProjectDetailPage() {
                 </div>
 
                 <div>
-                  <label className="block text-[11px] font-semibold text-foreground mb-1">
+                  <label htmlFor="add-researcher-research-url" className="block text-[11px] font-semibold text-foreground mb-1">
                     Research Profile URL
                   </label>
                   <input
+                    id="add-researcher-research-url"
+                    name="researchProfileUrl"
                     type="url"
                     value={formResearchProfileUrl}
                     onChange={(e) => setFormResearchProfileUrl(e.target.value)}
@@ -1937,10 +1853,12 @@ export function UniversityProjectDetailPage() {
             {(formMemberType === "PROFESSIONAL" || formMemberType === "TECHNICAL_STAFF") && (
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div>
-                  <label className="block text-[11px] font-semibold text-foreground mb-1">
+                  <label htmlFor="add-professional-designation" className="block text-[11px] font-semibold text-foreground mb-1">
                     Designation
                   </label>
                   <input
+                    id="add-professional-designation"
+                    name="designation"
                     type="text"
                     value={formDesignation}
                     onChange={(e) => setFormDesignation(e.target.value)}
@@ -1950,10 +1868,12 @@ export function UniversityProjectDetailPage() {
                 </div>
 
                 <div>
-                  <label className="block text-[11px] font-semibold text-foreground mb-1">
+                  <label htmlFor="add-professional-organization" className="block text-[11px] font-semibold text-foreground mb-1">
                     Organization / Company
                   </label>
                   <input
+                    id="add-professional-organization"
+                    name="organization"
                     type="text"
                     value={formOrganization}
                     onChange={(e) => setFormOrganization(e.target.value)}
@@ -1963,10 +1883,12 @@ export function UniversityProjectDetailPage() {
                 </div>
 
                 <div>
-                  <label className="block text-[11px] font-semibold text-foreground mb-1">
+                  <label htmlFor="add-professional-experience" className="block text-[11px] font-semibold text-foreground mb-1">
                     Years of Experience
                   </label>
                   <input
+                    id="add-professional-experience"
+                    name="experienceYears"
                     type="number"
                     min="0"
                     max="50"
@@ -1988,10 +1910,12 @@ export function UniversityProjectDetailPage() {
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
-                <label className="block text-[11px] font-semibold text-foreground mb-1">
+                <label htmlFor="add-member-primary-expertise" className="block text-[11px] font-semibold text-foreground mb-1">
                   Primary Expertise *
                 </label>
                 <input
+                  id="add-member-primary-expertise"
+                  name="primaryExpertise"
                   type="text"
                   required
                   value={formPrimaryExpertise}
@@ -2002,10 +1926,12 @@ export function UniversityProjectDetailPage() {
               </div>
 
               <div>
-                <label className="block text-[11px] font-semibold text-foreground mb-1">
+                <label htmlFor="add-member-secondary-expertise" className="block text-[11px] font-semibold text-foreground mb-1">
                   Secondary Expertise
                 </label>
                 <input
+                  id="add-member-secondary-expertise"
+                  name="secondaryExpertise"
                   type="text"
                   value={formSecondaryExpertise}
                   onChange={(e) => setFormSecondaryExpertise(e.target.value)}
@@ -2015,10 +1941,12 @@ export function UniversityProjectDetailPage() {
               </div>
 
               <div>
-                <label className="block text-[11px] font-semibold text-foreground mb-1">
+                <label htmlFor="add-member-technical-skills" className="block text-[11px] font-semibold text-foreground mb-1">
                   Technical Skills (comma separated)
                 </label>
                 <input
+                  id="add-member-technical-skills"
+                  name="technicalSkills"
                   type="text"
                   value={formTechnicalSkills}
                   onChange={(e) => setFormTechnicalSkills(e.target.value)}
@@ -2028,10 +1956,12 @@ export function UniversityProjectDetailPage() {
               </div>
 
               <div>
-                <label className="block text-[11px] font-semibold text-foreground mb-1">
+                <label htmlFor="add-member-technologies" className="block text-[11px] font-semibold text-foreground mb-1">
                   Technologies / Tools (comma separated)
                 </label>
                 <input
+                  id="add-member-technologies"
+                  name="technologies"
                   type="text"
                   value={formTechnologies}
                   onChange={(e) => setFormTechnologies(e.target.value)}
@@ -2049,10 +1979,12 @@ export function UniversityProjectDetailPage() {
             </h5>
 
             <div>
-              <label className="block text-[11px] font-semibold text-foreground mb-1">
+              <label htmlFor="add-member-project-responsibility" className="block text-[11px] font-semibold text-foreground mb-1">
                 Project Responsibility * (What will this person do?)
               </label>
               <textarea
+                id="add-member-project-responsibility"
+                name="projectResponsibility"
                 required
                 rows={2}
                 value={formProjectResponsibility}
@@ -2063,10 +1995,12 @@ export function UniversityProjectDetailPage() {
             </div>
 
             <div>
-              <label className="block text-[11px] font-semibold text-foreground mb-1">
+              <label htmlFor="add-member-project-contribution" className="block text-[11px] font-semibold text-foreground mb-1">
                 Project Contribution / Deliverables (optional)
               </label>
               <input
+                id="add-member-project-contribution"
+                name="projectContribution"
                 type="text"
                 value={formProjectContribution}
                 onChange={(e) => setFormProjectContribution(e.target.value)}
@@ -2076,10 +2010,12 @@ export function UniversityProjectDetailPage() {
             </div>
 
             <div>
-              <label className="block text-[11px] font-semibold text-foreground mb-1">
+              <label htmlFor="add-member-bio" className="block text-[11px] font-semibold text-foreground mb-1">
                 Short Academic / Professional Bio (optional)
               </label>
               <textarea
+                id="add-member-bio"
+                name="bio"
                 rows={2}
                 value={formBio}
                 onChange={(e) => setFormBio(e.target.value)}
@@ -2090,10 +2026,12 @@ export function UniversityProjectDetailPage() {
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
-                <label className="block text-[11px] font-semibold text-foreground mb-1">
+                <label htmlFor="add-member-linkedin" className="block text-[11px] font-semibold text-foreground mb-1">
                   LinkedIn URL (optional)
                 </label>
                 <input
+                  id="add-member-linkedin"
+                  name="linkedinUrl"
                   type="url"
                   value={formLinkedinUrl}
                   onChange={(e) => setFormLinkedinUrl(e.target.value)}
@@ -2103,10 +2041,12 @@ export function UniversityProjectDetailPage() {
               </div>
 
               <div>
-                <label className="block text-[11px] font-semibold text-foreground mb-1">
+                <label htmlFor="add-member-website" className="block text-[11px] font-semibold text-foreground mb-1">
                   Website / Portfolio URL (optional)
                 </label>
                 <input
+                  id="add-member-website"
+                  name="websiteUrl"
                   type="url"
                   value={formWebsiteUrl}
                   onChange={(e) => setFormWebsiteUrl(e.target.value)}
@@ -2156,10 +2096,12 @@ export function UniversityProjectDetailPage() {
           {/* Identity */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs font-semibold text-foreground mb-1">
+              <label htmlFor="edit-member-name" className="block text-xs font-semibold text-foreground mb-1">
                 Full Name *
               </label>
               <input
+                id="edit-member-name"
+                name="editMemberName"
                 type="text"
                 required
                 value={formName}
@@ -2169,10 +2111,12 @@ export function UniversityProjectDetailPage() {
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-foreground mb-1">
+              <label htmlFor="edit-member-email" className="block text-xs font-semibold text-foreground mb-1">
                 Institutional Email *
               </label>
               <input
+                id="edit-member-email"
+                name="editMemberEmail"
                 type="email"
                 required
                 value={formEmail}
@@ -2182,10 +2126,12 @@ export function UniversityProjectDetailPage() {
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-foreground mb-1">
+              <label htmlFor="edit-member-type" className="block text-xs font-semibold text-foreground mb-1">
                 Member Type *
               </label>
               <select
+                id="edit-member-type"
+                name="editMemberType"
                 value={formMemberType}
                 onChange={(e) => setFormMemberType(e.target.value as ProjectMemberType)}
                 className="w-full text-xs border border-border rounded-xl bg-surface px-3 py-2 text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
@@ -2200,10 +2146,12 @@ export function UniversityProjectDetailPage() {
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-foreground mb-1">
+              <label htmlFor="edit-member-role" className="block text-xs font-semibold text-foreground mb-1">
                 Project Role *
               </label>
               <select
+                id="edit-member-role"
+                name="editMemberRole"
                 value={formRole}
                 disabled={editingMember?.role === "PROJECT_LEAD"}
                 onChange={(e) => setFormRole(e.target.value as ProjectMemberRole)}
@@ -2233,10 +2181,12 @@ export function UniversityProjectDetailPage() {
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <div>
-                <label className="block text-[11px] font-semibold text-foreground mb-1">
+                <label htmlFor="edit-member-designation" className="block text-[11px] font-semibold text-foreground mb-1">
                   Designation / Role
                 </label>
                 <input
+                  id="edit-member-designation"
+                  name="editMemberDesignation"
                   type="text"
                   value={formDesignation}
                   onChange={(e) => setFormDesignation(e.target.value)}
@@ -2246,10 +2196,12 @@ export function UniversityProjectDetailPage() {
               </div>
 
               <div>
-                <label className="block text-[11px] font-semibold text-foreground mb-1">
+                <label htmlFor="edit-member-department" className="block text-[11px] font-semibold text-foreground mb-1">
                   Department
                 </label>
                 <input
+                  id="edit-member-department"
+                  name="editMemberDepartment"
                   type="text"
                   value={formDepartment}
                   onChange={(e) => setFormDepartment(e.target.value)}
@@ -2258,10 +2210,12 @@ export function UniversityProjectDetailPage() {
               </div>
 
               <div>
-                <label className="block text-[11px] font-semibold text-foreground mb-1">
+                <label htmlFor="edit-member-experience" className="block text-[11px] font-semibold text-foreground mb-1">
                   Years of Experience
                 </label>
                 <input
+                  id="edit-member-experience"
+                  name="editMemberExperience"
                   type="number"
                   min="0"
                   max="60"
@@ -2274,10 +2228,12 @@ export function UniversityProjectDetailPage() {
               {formMemberType === "STUDENT" && (
                 <>
                   <div>
-                    <label className="block text-[11px] font-semibold text-foreground mb-1">
+                    <label htmlFor="edit-member-academic-program" className="block text-[11px] font-semibold text-foreground mb-1">
                       Academic Program
                     </label>
                     <input
+                      id="edit-member-academic-program"
+                      name="editMemberAcademicProgram"
                       type="text"
                       value={formAcademicProgram}
                       onChange={(e) => setFormAcademicProgram(e.target.value)}
@@ -2285,10 +2241,12 @@ export function UniversityProjectDetailPage() {
                     />
                   </div>
                   <div>
-                    <label className="block text-[11px] font-semibold text-foreground mb-1">
+                    <label htmlFor="edit-member-academic-year" className="block text-[11px] font-semibold text-foreground mb-1">
                       Academic Year
                     </label>
                     <input
+                      id="edit-member-academic-year"
+                      name="editMemberAcademicYear"
                       type="text"
                       value={formAcademicYear}
                       onChange={(e) => setFormAcademicYear(e.target.value)}
@@ -2299,10 +2257,12 @@ export function UniversityProjectDetailPage() {
               )}
 
               <div className="sm:col-span-2">
-                <label className="block text-[11px] font-semibold text-foreground mb-1">
+                <label htmlFor="edit-member-specialization" className="block text-[11px] font-semibold text-foreground mb-1">
                   Specialization
                 </label>
                 <input
+                  id="edit-member-specialization"
+                  name="editMemberSpecialization"
                   type="text"
                   value={formSpecialization}
                   onChange={(e) => setFormSpecialization(e.target.value)}
@@ -2320,10 +2280,12 @@ export function UniversityProjectDetailPage() {
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
-                <label className="block text-[11px] font-semibold text-foreground mb-1">
+                <label htmlFor="edit-member-primary-expertise" className="block text-[11px] font-semibold text-foreground mb-1">
                   Primary Expertise *
                 </label>
                 <input
+                  id="edit-member-primary-expertise"
+                  name="editMemberPrimaryExpertise"
                   type="text"
                   required
                   value={formPrimaryExpertise}
@@ -2333,10 +2295,12 @@ export function UniversityProjectDetailPage() {
               </div>
 
               <div>
-                <label className="block text-[11px] font-semibold text-foreground mb-1">
+                <label htmlFor="edit-member-secondary-expertise" className="block text-[11px] font-semibold text-foreground mb-1">
                   Secondary Expertise
                 </label>
                 <input
+                  id="edit-member-secondary-expertise"
+                  name="editMemberSecondaryExpertise"
                   type="text"
                   value={formSecondaryExpertise}
                   onChange={(e) => setFormSecondaryExpertise(e.target.value)}
@@ -2345,10 +2309,12 @@ export function UniversityProjectDetailPage() {
               </div>
 
               <div className="sm:col-span-2">
-                <label className="block text-[11px] font-semibold text-foreground mb-1">
+                <label htmlFor="edit-member-skills" className="block text-[11px] font-semibold text-foreground mb-1">
                   Technical Skills (comma separated)
                 </label>
                 <input
+                  id="edit-member-skills"
+                  name="editMemberSkills"
                   type="text"
                   value={formTechnicalSkills}
                   onChange={(e) => setFormTechnicalSkills(e.target.value)}
@@ -2365,10 +2331,12 @@ export function UniversityProjectDetailPage() {
             </h5>
 
             <div>
-              <label className="block text-[11px] font-semibold text-foreground mb-1">
+              <label htmlFor="edit-member-responsibility" className="block text-[11px] font-semibold text-foreground mb-1">
                 Project Responsibility *
               </label>
               <textarea
+                id="edit-member-responsibility"
+                name="editMemberResponsibility"
                 required
                 rows={2}
                 value={formProjectResponsibility}
@@ -2378,10 +2346,12 @@ export function UniversityProjectDetailPage() {
             </div>
 
             <div>
-              <label className="block text-[11px] font-semibold text-foreground mb-1">
+              <label htmlFor="edit-member-bio" className="block text-[11px] font-semibold text-foreground mb-1">
                 Short Bio
               </label>
               <textarea
+                id="edit-member-bio"
+                name="editMemberBio"
                 rows={2}
                 value={formBio}
                 onChange={(e) => setFormBio(e.target.value)}
@@ -2391,10 +2361,12 @@ export function UniversityProjectDetailPage() {
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
-                <label className="block text-[11px] font-semibold text-foreground mb-1">
+                <label htmlFor="edit-member-research-url" className="block text-[11px] font-semibold text-foreground mb-1">
                   Research Profile URL
                 </label>
                 <input
+                  id="edit-member-research-url"
+                  name="editMemberResearchUrl"
                   type="url"
                   value={formResearchProfileUrl}
                   onChange={(e) => setFormResearchProfileUrl(e.target.value)}
@@ -2403,10 +2375,12 @@ export function UniversityProjectDetailPage() {
               </div>
 
               <div>
-                <label className="block text-[11px] font-semibold text-foreground mb-1">
+                <label htmlFor="edit-member-linkedin" className="block text-[11px] font-semibold text-foreground mb-1">
                   LinkedIn URL
                 </label>
                 <input
+                  id="edit-member-linkedin"
+                  name="editMemberLinkedinUrl"
                   type="url"
                   value={formLinkedinUrl}
                   onChange={(e) => setFormLinkedinUrl(e.target.value)}
@@ -2452,10 +2426,12 @@ export function UniversityProjectDetailPage() {
           className="space-y-4 pt-2"
         >
           <div>
-            <label className="block text-xs font-semibold text-foreground mb-1">
+            <label htmlFor="edit-workspace-title" className="block text-xs font-semibold text-foreground mb-1">
               Project Title *
             </label>
             <input
+              id="edit-workspace-title"
+              name="workspaceTitle"
               type="text"
               required
               value={editTitle}
@@ -2465,10 +2441,12 @@ export function UniversityProjectDetailPage() {
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-foreground mb-1">
+            <label htmlFor="edit-workspace-summary" className="block text-xs font-semibold text-foreground mb-1">
               Research Abstract / Scope Summary
             </label>
             <textarea
+              id="edit-workspace-summary"
+              name="workspaceSummary"
               rows={4}
               value={editSummary}
               onChange={(e) => setEditSummary(e.target.value)}
@@ -2512,10 +2490,12 @@ export function UniversityProjectDetailPage() {
           className="space-y-4 pt-2"
         >
           <div>
-            <label className="block text-xs font-semibold text-foreground mb-1">
+            <label htmlFor="reassign-lead-select" className="block text-xs font-semibold text-foreground mb-1">
               New Project Lead
             </label>
             <select
+              id="reassign-lead-select"
+              name="reassignLeadSelect"
               value={selectedNewLead}
               onChange={(e) => setSelectedNewLead(e.target.value)}
               required
@@ -2607,6 +2587,15 @@ export function UniversityProjectDetailPage() {
           </div>
         </div>
       </Dialog>
+
+      {/* Team Member Full Profile Dialog */}
+      <TeamMemberProfileDialog
+        open={Boolean(viewingProfileMember)}
+        member={viewingProfileMember}
+        onClose={() => setViewingProfileMember(null)}
+        onEdit={openEditMemberModal}
+        canEdit={isCoordinatorOrLead}
+      />
     </div>
   );
 }

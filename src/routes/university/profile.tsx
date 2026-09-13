@@ -356,11 +356,13 @@ export function UniversityProfilePage() {
           <CardContent className="space-y-4">
             {/* Academic Departments */}
             <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-foreground">
+              <label htmlFor="profile-dept-input" className="text-xs font-semibold text-foreground">
                 Academic Departments & Centers
               </label>
               <div className="flex gap-2">
                 <input
+                  id="profile-dept-input"
+                  name="deptInput"
                   type="text"
                   placeholder="e.g. Civil Engineering, Computer Science, Environmental Studies..."
                   value={deptInput}
@@ -398,11 +400,13 @@ export function UniversityProfilePage() {
 
             {/* Research Domains */}
             <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-foreground">
+              <label htmlFor="profile-domain-input" className="text-xs font-semibold text-foreground">
                 Research Domains
               </label>
               <div className="flex gap-2">
                 <input
+                  id="profile-domain-input"
+                  name="domainInput"
                   type="text"
                   placeholder="e.g. Smart Urban Water, Air Pollution Control, Structural Health Monitoring..."
                   value={domainInput}
@@ -440,11 +444,13 @@ export function UniversityProfilePage() {
 
             {/* Areas of Expertise */}
             <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-foreground">
+              <label htmlFor="profile-expertise-input" className="text-xs font-semibold text-foreground">
                 Areas of Specialized Expertise
               </label>
               <div className="flex gap-2">
                 <input
+                  id="profile-expertise-input"
+                  name="expertiseInput"
                   type="text"
                   placeholder="e.g. Pothole Classification, Flood Runoff Simulation, Solid Waste Segregation..."
                   value={expertiseInput}
@@ -482,11 +488,13 @@ export function UniversityProfilePage() {
 
             {/* Technologies */}
             <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-foreground">
+              <label htmlFor="profile-tech-input" className="text-xs font-semibold text-foreground">
                 Key Technologies & Tools
               </label>
               <div className="flex gap-2">
                 <input
+                  id="profile-tech-input"
+                  name="techInput"
                   type="text"
                   placeholder="e.g. IoT Edge Computing, Computer Vision, Geospatial GIS, Satellite Telemetry..."
                   value={techInput}
@@ -534,11 +542,13 @@ export function UniversityProfilePage() {
           <CardContent className="space-y-4">
             {/* Laboratories */}
             <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-foreground">
+              <label htmlFor="profile-lab-input" className="text-xs font-semibold text-foreground">
                 Research Laboratories & Centers of Excellence
               </label>
               <div className="flex gap-2">
                 <input
+                  id="profile-lab-input"
+                  name="labInput"
                   type="text"
                   placeholder="e.g. Environmental Engineering Lab, Urban Data Science Center..."
                   value={labInput}
@@ -576,11 +586,13 @@ export function UniversityProfilePage() {
 
             {/* Equipment */}
             <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-foreground">
+              <label htmlFor="profile-equip-input" className="text-xs font-semibold text-foreground">
                 Specialized Equipment & Instruments
               </label>
               <div className="flex gap-2">
                 <input
+                  id="profile-equip-input"
+                  name="equipInput"
                   type="text"
                   placeholder="e.g. Mass Spectrometer, Ground Penetrating Radar, Drone LIDAR..."
                   value={equipInput}
@@ -618,11 +630,13 @@ export function UniversityProfilePage() {
 
             {/* Field Capabilities */}
             <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-foreground">
+              <label htmlFor="profile-fieldcap-input" className="text-xs font-semibold text-foreground">
                 Field Deployment & Pilot Readiness
               </label>
               <div className="flex gap-2">
                 <input
+                  id="profile-fieldcap-input"
+                  name="fieldCapInput"
                   type="text"
                   placeholder="e.g. Mobile Water Testing Van, Road Surface Roughness Surveying..."
                   value={fieldCapInput}
@@ -660,11 +674,13 @@ export function UniversityProfilePage() {
 
             {/* Collaboration Capabilities */}
             <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-foreground">
+              <label htmlFor="profile-collab-input" className="text-xs font-semibold text-foreground">
                 Collaboration & Joint Engagement Modes
               </label>
               <div className="flex gap-2">
                 <input
+                  id="profile-collab-input"
+                  name="collabInput"
                   type="text"
                   placeholder="e.g. Joint Pilot Implementation, Advisory Services, Student Internships..."
                   value={collabInput}
@@ -711,8 +727,10 @@ export function UniversityProfilePage() {
           </CardHeader>
           <CardContent className="space-y-4">
             <div>
-              <label className="text-xs font-semibold text-foreground">Description & Overview</label>
+              <label htmlFor="profile-desc" className="text-xs font-semibold text-foreground">Description & Overview</label>
               <textarea
+                id="profile-desc"
+                name="institutionDescription"
                 rows={3}
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
@@ -722,8 +740,10 @@ export function UniversityProfilePage() {
 
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div>
-                <label className="text-xs font-semibold text-foreground">Official Website</label>
+                <label htmlFor="profile-website" className="text-xs font-semibold text-foreground">Official Website</label>
                 <input
+                  id="profile-website"
+                  name="website"
                   type="url"
                   value={website}
                   onChange={(e) => setWebsite(e.target.value)}
@@ -732,8 +752,10 @@ export function UniversityProfilePage() {
               </div>
 
               <div>
-                <label className="text-xs font-semibold text-foreground">Contact Email</label>
+                <label htmlFor="profile-email" className="text-xs font-semibold text-foreground">Contact Email</label>
                 <input
+                  id="profile-email"
+                  name="officialEmail"
                   type="email"
                   value={officialEmail}
                   onChange={(e) => setOfficialEmail(e.target.value)}
@@ -742,8 +764,10 @@ export function UniversityProfilePage() {
               </div>
 
               <div>
-                <label className="text-xs font-semibold text-foreground">Contact Phone</label>
+                <label htmlFor="profile-phone" className="text-xs font-semibold text-foreground">Contact Phone</label>
                 <input
+                  id="profile-phone"
+                  name="phone"
                   type="tel"
                   value={phone}
                   onChange={(e) => setPhone(e.target.value)}
@@ -752,8 +776,10 @@ export function UniversityProfilePage() {
               </div>
 
               <div>
-                <label className="text-xs font-semibold text-foreground">Campus Address</label>
+                <label htmlFor="profile-address" className="text-xs font-semibold text-foreground">Campus Address</label>
                 <input
+                  id="profile-address"
+                  name="address"
                   type="text"
                   value={address}
                   onChange={(e) => setAddress(e.target.value)}
@@ -843,10 +869,12 @@ export function UniversityProfilePage() {
       >
         <form onSubmit={(e) => { void handleAddProject(e); }} className="space-y-4 pt-2">
           <div>
-            <label className="text-xs font-semibold text-foreground">
+            <label htmlFor="profile-project-title" className="text-xs font-semibold text-foreground">
               Project Title <span className="text-red-500">*</span>
             </label>
             <input
+              id="profile-project-title"
+              name="projectTitle"
               type="text"
               required
               placeholder="e.g. Low-Cost IoT Flood Warning Sensor Grid"
@@ -857,8 +885,10 @@ export function UniversityProfilePage() {
           </div>
 
           <div>
-            <label className="text-xs font-semibold text-foreground">Domain</label>
+            <label htmlFor="profile-project-domain" className="text-xs font-semibold text-foreground">Domain</label>
             <input
+              id="profile-project-domain"
+              name="projectDomain"
               type="text"
               placeholder="e.g. Flood Resilience & Stormwater"
               value={projectDomain}
@@ -868,8 +898,10 @@ export function UniversityProfilePage() {
           </div>
 
           <div>
-            <label className="text-xs font-semibold text-foreground">Summary & Outcomes</label>
+            <label htmlFor="profile-project-desc" className="text-xs font-semibold text-foreground">Summary & Outcomes</label>
             <textarea
+              id="profile-project-desc"
+              name="projectDesc"
               rows={3}
               placeholder="Describe what was developed, testing results, and municipal impact..."
               value={projectDesc}
@@ -880,8 +912,10 @@ export function UniversityProfilePage() {
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="text-xs font-semibold text-foreground">Start Year</label>
+              <label htmlFor="profile-project-start-year" className="text-xs font-semibold text-foreground">Start Year</label>
               <input
+                id="profile-project-start-year"
+                name="projectStartYear"
                 type="number"
                 value={projectStartYear}
                 onChange={(e) => setProjectStartYear(e.target.value ? parseInt(e.target.value, 10) : "")}
@@ -889,8 +923,10 @@ export function UniversityProfilePage() {
               />
             </div>
             <div>
-              <label className="text-xs font-semibold text-foreground">End Year</label>
+              <label htmlFor="profile-project-end-year" className="text-xs font-semibold text-foreground">End Year</label>
               <input
+                id="profile-project-end-year"
+                name="projectEndYear"
                 type="number"
                 value={projectEndYear}
                 onChange={(e) => setProjectEndYear(e.target.value ? parseInt(e.target.value, 10) : "")}

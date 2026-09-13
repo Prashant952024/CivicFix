@@ -575,10 +575,16 @@ export function UniversityChallengesPage() {
             <CardContent className="p-4">
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <div className="relative flex-1">
-                  <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                  <label htmlFor="challenges-search-input" className="sr-only">
+                    Search challenges
+                  </label>
+                  <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground pointer-events-none" />
                   <input
+                    id="challenges-search-input"
+                    name="challengesSearch"
                     type="text"
                     placeholder="Search challenges by title, domain, or technology..."
+                    aria-label="Search challenges by title, domain, or technology"
                     value={search}
                     onChange={(e) => setSearch(e.target.value)}
                     className="w-full rounded-lg border border-border bg-background py-2 pl-9 pr-4 text-xs text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none"
@@ -595,8 +601,10 @@ export function UniversityChallengesPage() {
                 </div>
 
                 <div className="flex items-center gap-2">
-                  <span className="text-xs text-muted-foreground">Category:</span>
+                  <label htmlFor="challenges-category-select" className="text-xs text-muted-foreground">Category:</label>
                   <select
+                    id="challenges-category-select"
+                    name="challengesCategory"
                     value={selectedCategory}
                     onChange={(e) => setSelectedCategory(e.target.value)}
                     className="rounded-lg border border-border bg-background px-2.5 py-1.5 text-xs text-foreground focus:border-primary focus:outline-none"
@@ -1102,10 +1110,12 @@ export function UniversityChallengesPage() {
                       </p>
 
                       <div className="space-y-1">
-                        <label className="text-[11px] font-semibold text-emerald-950">
+                        <label htmlFor="challenges-acceptance-note" className="text-[11px] font-semibold text-emerald-950">
                           Optional Collaboration / Partnership Note
                         </label>
                         <textarea
+                          id="challenges-acceptance-note"
+                          name="acceptanceNote"
                           rows={3}
                           placeholder="e.g. Our Department of Environmental Engineering and Water Technology Lab will lead this initiative..."
                           value={acceptanceNote}
@@ -1157,13 +1167,15 @@ export function UniversityChallengesPage() {
                       </div>
 
                       <div className="space-y-1">
-                        <div className="flex items-center justify-between text-[11px] font-semibold text-rose-950">
+                        <label htmlFor="challenges-rejection-reason" className="flex items-center justify-between text-[11px] font-semibold text-rose-950">
                           <span>Reason for Declining (Min 10 chars)</span>
                           <span className="font-mono text-muted-foreground">
                             {rejectionReason.trim().length} / 10 chars
                           </span>
-                        </div>
+                        </label>
                         <textarea
+                          id="challenges-rejection-reason"
+                          name="rejectionReason"
                           rows={3}
                           placeholder="e.g. Existing laboratory capacity is currently allocated to national flood monitoring pilots..."
                           value={rejectionReason}
@@ -1255,10 +1267,12 @@ export function UniversityChallengesPage() {
           )}
 
           <div>
-            <label className="block text-xs font-semibold text-foreground mb-1">
+            <label htmlFor="workspace-project-title" className="block text-xs font-semibold text-foreground mb-1">
               Project Title *
             </label>
             <input
+              id="workspace-project-title"
+              name="workspaceProjectTitle"
               type="text"
               value={projectTitle}
               onChange={(e) => setProjectTitle(e.target.value)}
@@ -1269,10 +1283,12 @@ export function UniversityChallengesPage() {
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-foreground mb-1">
+            <label htmlFor="workspace-project-summary" className="block text-xs font-semibold text-foreground mb-1">
               Project Summary / Research Scope (Optional)
             </label>
             <textarea
+              id="workspace-project-summary"
+              name="workspaceProjectSummary"
               rows={4}
               value={projectSummary}
               onChange={(e) => setProjectSummary(e.target.value)}

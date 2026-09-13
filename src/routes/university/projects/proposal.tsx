@@ -19,6 +19,7 @@ import {
   Wrench,
   Lock,
   ChevronRight,
+  HelpCircle,
 } from "lucide-react";
 import { Link, useParams, useNavigate } from "react-router-dom";
 
@@ -28,6 +29,9 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog } from "@/components/ui/dialog";
 import { EmptyState } from "@/components/ui/empty-state";
+import { cn } from "@/lib/utils";
+import { TeamMemberProfileDialog } from "@/components/projects/team-member-profile-dialog";
+import { getRoleBadgeColor } from "@/components/projects/team-member-utils";
 import {
   fetchProjectById,
   fetchProjectMembers,
@@ -97,6 +101,8 @@ export function UniversityProposalWorkspacePage() {
   const [actionSuccess, setActionSuccess] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [submitConfirmOpen, setSubmitConfirmOpen] = useState(false);
+  const [viewingProfileMember, setViewingProfileMember] =
+    useState<ChallengeProjectMemberWithProfile | null>(null);
 
   // Load project & proposals data
   useEffect(() => {
@@ -764,10 +770,12 @@ export function UniversityProposalWorkspacePage() {
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-foreground">
+                  <label htmlFor="proposal-objective" className="text-xs font-semibold text-foreground">
                     Primary Objective Statement <span className="text-rose-500">*</span>
                   </label>
                   <textarea
+                    id="proposal-objective"
+                    name="proposalObjective"
                     rows={6}
                     disabled={isReadOnly}
                     value={objective}
@@ -797,11 +805,11 @@ export function UniversityProposalWorkspacePage() {
               <CardHeader className="flex flex-row items-center justify-between gap-2">
                 <div>
                   <CardTitle className="text-lg font-bold text-foreground flex items-center gap-2">
-                    <FileText className="w-5 h-5 text-primary" />
-                    2. Research Questions
+                    <HelpCircle className="w-5 h-5 text-primary" />
+                    2. Specific Research Questions
                   </CardTitle>
                   <p className="text-xs text-muted-foreground">
-                    Define the specific scientific, engineering, or empirical hypotheses to investigate.
+                    Formulate 2–5 scientific, technological, or civic questions that this study directly investigates.
                   </p>
                 </div>
                 {!isReadOnly && (
@@ -828,6 +836,8 @@ export function UniversityProposalWorkspacePage() {
                         Q{idx + 1}
                       </span>
                       <input
+                        id={`proposal-question-${idx}`}
+                        name={`proposalQuestion_${idx}`}
                         type="text"
                         disabled={isReadOnly}
                         value={q}
@@ -866,10 +876,12 @@ export function UniversityProposalWorkspacePage() {
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-foreground">
+                  <label htmlFor="proposal-methodology" className="text-xs font-semibold text-foreground">
                     Methodological Framework <span className="text-rose-500">*</span>
                   </label>
                   <textarea
+                    id="proposal-methodology"
+                    name="proposalMethodology"
                     rows={8}
                     disabled={isReadOnly}
                     value={methodology}
@@ -902,10 +914,12 @@ export function UniversityProposalWorkspacePage() {
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-foreground">
+                  <label htmlFor="proposal-technical-approach" className="text-xs font-semibold text-foreground">
                     Technical Specifications &amp; Architecture <span className="text-rose-500">*</span>
                   </label>
                   <textarea
+                    id="proposal-technical-approach"
+                    name="proposalTechnicalApproach"
                     rows={8}
                     disabled={isReadOnly}
                     value={technicalApproach}
@@ -938,49 +952,82 @@ export function UniversityProposalWorkspacePage() {
               </CardHeader>
               <CardContent className="space-y-4">
                 {/* Active Members Roster Preview */}
-                <div className="space-y-2">
-                  <span className="text-xs font-semibold text-foreground">
-                    Registered Project Research Roster ({members.filter((m) => m.is_active).length} members)
-                  </span>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                <div className="space-y-2.5">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-semibold text-foreground">
+                      Registered Project Research Roster ({members.filter((m) => m.is_active).length} members)
+                    </span>
+                    <span className="text-[11px] text-muted-foreground">
+                      Auto-synced from team workspace
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     {members
                       .filter((m) => m.is_active)
                       .map((member) => (
                         <div
                           key={member.id}
-                          className="p-2.5 rounded-xl border border-border bg-card flex items-start gap-2.5"
+                          className="p-3 rounded-xl border border-border/80 bg-card hover:border-primary/40 transition-colors flex items-start justify-between gap-3 shadow-2xs"
                         >
-                          <div className="w-8 h-8 rounded-lg bg-primary/10 text-primary font-bold text-xs flex items-center justify-center shrink-0">
-                            {(member.member_name || member.profile?.full_name || "M").charAt(0).toUpperCase()}
-                          </div>
-                          <div className="min-w-0 flex-1 text-xs">
-                            <div className="flex items-center gap-1.5 flex-wrap">
-                              <span className="font-bold text-foreground truncate">
-                                {member.member_name || member.profile?.full_name || "Team Member"}
-                              </span>
-                              <Badge variant="outline" className="text-[10px] px-1.5 py-0">
-                                {member.role}
-                              </Badge>
+                          <div className="flex items-start gap-2.5 min-w-0 flex-1">
+                            <div
+                              className={cn(
+                                "w-9 h-9 rounded-xl font-bold text-xs flex items-center justify-center shrink-0 shadow-2xs",
+                                getRoleBadgeColor(member.role)
+                              )}
+                            >
+                              {(member.member_name || member.profile?.full_name || "M").charAt(0).toUpperCase()}
                             </div>
-                            <p className="text-[11px] text-muted-foreground truncate">
-                              {member.designation || member.academic_program || member.member_type} • {member.department || "Academic Dept"}
-                            </p>
-                            {member.primary_expertise && (
-                              <p className="text-[11px] text-primary font-medium truncate mt-0.5">
-                                {member.primary_expertise}
+                            <div className="min-w-0 flex-1 text-xs space-y-1">
+                              <div className="flex items-center gap-1.5 flex-wrap">
+                                <span className="font-bold text-foreground truncate">
+                                  {member.member_name || member.profile?.full_name || "Team Member"}
+                                </span>
+                                <span
+                                  className={cn(
+                                    "px-1.5 py-0.5 rounded text-[10px] font-semibold border",
+                                    getRoleBadgeColor(member.role)
+                                  )}
+                                >
+                                  {member.role}
+                                </span>
+                                {member.member_type && (
+                                  <span className="text-[10px] px-1.5 py-0.5 bg-muted text-muted-foreground rounded font-medium">
+                                    {member.member_type}
+                                  </span>
+                                )}
+                              </div>
+                              <p className="text-[11px] text-muted-foreground truncate">
+                                {member.designation || member.academic_program || "Researcher"} • {member.department || "Academic Dept"}
                               </p>
-                            )}
+                              {member.primary_expertise && (
+                                <p className="text-[11px] text-primary font-medium truncate">
+                                  ⚡ {member.primary_expertise}
+                                </p>
+                              )}
+                            </div>
                           </div>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setViewingProfileMember(member)}
+                            className="h-7 px-2 text-[11px] shrink-0 font-medium hover:border-primary/50"
+                          >
+                            Profile
+                          </Button>
                         </div>
                       ))}
                   </div>
                 </div>
 
                 <div className="space-y-1.5 pt-2 border-t border-border">
-                  <label className="text-xs font-semibold text-foreground">
+                  <label htmlFor="proposal-team-summary" className="text-xs font-semibold text-foreground">
                     Team Justification Narrative (Optional)
                   </label>
                   <textarea
+                    id="proposal-team-summary"
+                    name="proposalTeamSummary"
                     rows={4}
                     disabled={isReadOnly}
                     value={teamSummary}
@@ -1029,6 +1076,8 @@ export function UniversityProposalWorkspacePage() {
                       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
                         <div className="flex items-center gap-2 flex-1 w-full">
                           <select
+                            id={`proposal-resource-category-${idx}`}
+                            name={`proposalResourceCategory_${idx}`}
                             disabled={isReadOnly}
                             value={res.category}
                             onChange={(e) => updateResource(idx, "category", e.target.value)}
@@ -1042,8 +1091,10 @@ export function UniversityProposalWorkspacePage() {
                             <option value="Specialist Domain Expertise">Specialist Domain Expertise</option>
                             <option value="Other Resource">Other Resource</option>
                           </select>
-                          <label className="flex items-center gap-1.5 text-xs text-muted-foreground cursor-pointer">
+                          <label htmlFor={`proposal-resource-critical-${idx}`} className="flex items-center gap-1.5 text-xs text-muted-foreground cursor-pointer">
                             <input
+                              id={`proposal-resource-critical-${idx}`}
+                              name={`proposalResourceCritical_${idx}`}
                               type="checkbox"
                               disabled={isReadOnly}
                               checked={res.critical}
@@ -1065,6 +1116,8 @@ export function UniversityProposalWorkspacePage() {
                         )}
                       </div>
                       <input
+                        id={`proposal-resource-desc-${idx}`}
+                        name={`proposalResourceDesc_${idx}`}
                         type="text"
                         disabled={isReadOnly}
                         value={res.description}
@@ -1093,10 +1146,12 @@ export function UniversityProposalWorkspacePage() {
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-foreground">
+                  <label htmlFor="proposal-prototype" className="text-xs font-semibold text-foreground">
                     Prototype Specification <span className="text-rose-500">*</span>
                   </label>
                   <textarea
+                    id="proposal-prototype"
+                    name="proposalPrototype"
                     rows={6}
                     disabled={isReadOnly}
                     value={prototype}
@@ -1150,6 +1205,8 @@ export function UniversityProposalWorkspacePage() {
                     <div key={m.id || idx} className="p-3 bg-muted/20 rounded-xl border border-border space-y-2">
                       <div className="flex items-center justify-between gap-2">
                         <input
+                          id={`proposal-milestone-name-${idx}`}
+                          name={`proposalMilestoneName_${idx}`}
                           type="text"
                           disabled={isReadOnly}
                           value={m.name}
@@ -1158,6 +1215,8 @@ export function UniversityProposalWorkspacePage() {
                           className="flex-1 font-bold text-xs sm:text-sm px-2 py-1 rounded-md border border-input bg-background text-foreground disabled:opacity-80"
                         />
                         <input
+                          id={`proposal-milestone-completion-${idx}`}
+                          name={`proposalMilestoneCompletion_${idx}`}
                           type="text"
                           disabled={isReadOnly}
                           value={m.expected_completion}
@@ -1177,6 +1236,8 @@ export function UniversityProposalWorkspacePage() {
                         )}
                       </div>
                       <input
+                        id={`proposal-milestone-desc-${idx}`}
+                        name={`proposalMilestoneDesc_${idx}`}
                         type="text"
                         disabled={isReadOnly}
                         value={m.description}
@@ -1185,6 +1246,8 @@ export function UniversityProposalWorkspacePage() {
                         className="w-full text-xs px-2.5 py-1 rounded-md border border-input bg-background text-foreground disabled:opacity-80"
                       />
                       <input
+                        id={`proposal-milestone-deliverables-${idx}`}
+                        name={`proposalMilestoneDeliverables_${idx}`}
                         type="text"
                         disabled={isReadOnly}
                         value={m.deliverables}
@@ -1234,6 +1297,8 @@ export function UniversityProposalWorkspacePage() {
                     <div key={d.id || idx} className="p-3 bg-muted/20 rounded-xl border border-border space-y-2">
                       <div className="flex items-center justify-between gap-2">
                         <input
+                          id={`proposal-deliverable-title-${idx}`}
+                          name={`proposalDeliverableTitle_${idx}`}
                           type="text"
                           disabled={isReadOnly}
                           value={d.title}
@@ -1242,6 +1307,8 @@ export function UniversityProposalWorkspacePage() {
                           className="flex-1 font-bold text-xs sm:text-sm px-2 py-1 rounded-md border border-input bg-background text-foreground disabled:opacity-80"
                         />
                         <select
+                          id={`proposal-deliverable-format-${idx}`}
+                          name={`proposalDeliverableFormat_${idx}`}
                           disabled={isReadOnly}
                           value={d.format}
                           onChange={(e) => updateDeliverable(idx, "format", e.target.value)}
@@ -1267,6 +1334,8 @@ export function UniversityProposalWorkspacePage() {
                         )}
                       </div>
                       <input
+                        id={`proposal-deliverable-desc-${idx}`}
+                        name={`proposalDeliverableDesc_${idx}`}
                         type="text"
                         disabled={isReadOnly}
                         value={d.description}
@@ -1316,6 +1385,8 @@ export function UniversityProposalWorkspacePage() {
                     <div key={r.id || idx} className="p-3 bg-muted/20 rounded-xl border border-border space-y-2">
                       <div className="flex items-center justify-between gap-2">
                         <input
+                          id={`proposal-risk-desc-${idx}`}
+                          name={`proposalRiskDesc_${idx}`}
                           type="text"
                           disabled={isReadOnly}
                           value={r.risk}
@@ -1324,6 +1395,8 @@ export function UniversityProposalWorkspacePage() {
                           className="flex-1 font-bold text-xs sm:text-sm px-2 py-1 rounded-md border border-input bg-background text-foreground disabled:opacity-80"
                         />
                         <select
+                          id={`proposal-risk-impact-${idx}`}
+                          name={`proposalRiskImpact_${idx}`}
                           disabled={isReadOnly}
                           value={r.impact}
                           onChange={(e) => updateRisk(idx, "impact", e.target.value as "LOW" | "MEDIUM" | "HIGH")}
@@ -1345,6 +1418,8 @@ export function UniversityProposalWorkspacePage() {
                         )}
                       </div>
                       <input
+                        id={`proposal-risk-mitigation-${idx}`}
+                        name={`proposalRiskMitigation_${idx}`}
                         type="text"
                         disabled={isReadOnly}
                         value={r.mitigation}
@@ -1394,6 +1469,8 @@ export function UniversityProposalWorkspacePage() {
                     <div key={m.id || idx} className="p-3 bg-muted/20 rounded-xl border border-border space-y-2">
                       <div className="flex items-center justify-between gap-2">
                         <input
+                          id={`proposal-metric-name-${idx}`}
+                          name={`proposalMetricName_${idx}`}
                           type="text"
                           disabled={isReadOnly}
                           value={m.metric}
@@ -1402,6 +1479,8 @@ export function UniversityProposalWorkspacePage() {
                           className="flex-1 font-bold text-xs sm:text-sm px-2 py-1 rounded-md border border-input bg-background text-foreground disabled:opacity-80"
                         />
                         <input
+                          id={`proposal-metric-target-${idx}`}
+                          name={`proposalMetricTarget_${idx}`}
                           type="text"
                           disabled={isReadOnly}
                           value={m.target}
@@ -1421,6 +1500,8 @@ export function UniversityProposalWorkspacePage() {
                         )}
                       </div>
                       <input
+                        id={`proposal-metric-method-${idx}`}
+                        name={`proposalMetricMethod_${idx}`}
                         type="text"
                         disabled={isReadOnly}
                         value={m.measurement_method}
@@ -1529,6 +1610,13 @@ export function UniversityProposalWorkspacePage() {
           </div>
         </Dialog>
       )}
+
+      {/* Team Member Full Profile Dialog */}
+      <TeamMemberProfileDialog
+        member={viewingProfileMember}
+        open={!!viewingProfileMember}
+        onClose={() => setViewingProfileMember(null)}
+      />
     </div>
   );
 }

@@ -14,6 +14,8 @@ import {
   CheckCircle2,
   Clock,
   XCircle,
+  Users,
+  Crown,
 } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 
@@ -398,10 +400,16 @@ export function UniversityDashboardPage() {
                   </p>
                 </CardHeader>
                 <CardContent className="space-y-3 pt-0 pb-3">
-                  <div className="flex items-center justify-between border-t border-border/60 pt-2 text-xs text-muted-foreground">
-                    <span>Lead: {proj.project_lead?.full_name || "Unassigned"}</span>
-                    <span>
-                      {proj.members_count || 1} team member{(proj.members_count || 1) > 1 ? "s" : ""}
+                  <div className="flex items-center justify-between border-t border-border/60 pt-2.5 text-xs">
+                    <div className="flex items-center gap-1.5 min-w-0 text-foreground/90 font-medium">
+                      <Crown className="w-3.5 h-3.5 text-amber-500 fill-amber-500/20 shrink-0" />
+                      <span className="truncate">
+                        {proj.project_lead?.full_name || "Lead Unassigned"}
+                      </span>
+                    </div>
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-teal-50 dark:bg-teal-950/60 border border-teal-200/80 dark:border-teal-800/80 text-teal-800 dark:text-teal-300 font-semibold text-[11px] shrink-0">
+                      <Users className="w-3 h-3 text-teal-600 dark:text-teal-400" />
+                      <span>{proj.members_count || 1}</span>
                     </span>
                   </div>
                   <Link to={`/app/university/projects/${proj.id}`} className="block">
