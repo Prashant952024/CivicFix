@@ -303,16 +303,199 @@ export async function provisionInstitutionCoordinator(
 export function getVerificationStatusBadge(status: InstitutionVerificationStatus) {
   switch (status) {
     case "VERIFIED":
-      return { label: "Verified", tone: "success" as const, bg: "bg-emerald-50 text-emerald-700 border-emerald-200" };
+      return { label: "Verified", tone: "success" as const, bg: "bg-emerald-100 text-emerald-950 border-emerald-300 font-bold" };
     case "PENDING_VERIFICATION":
-      return { label: "Pending Verification", tone: "warning" as const, bg: "bg-amber-50 text-amber-700 border-amber-200" };
+      return { label: "Pending Verification", tone: "warning" as const, bg: "bg-amber-100 text-amber-950 border-amber-300 font-bold" };
     case "DRAFT":
-      return { label: "Draft", tone: "info" as const, bg: "bg-slate-50 text-slate-700 border-slate-200" };
+      return { label: "Draft", tone: "info" as const, bg: "bg-slate-100 text-slate-800 border-slate-300 font-bold" };
     case "SUSPENDED":
-      return { label: "Suspended", tone: "danger" as const, bg: "bg-red-50 text-red-700 border-red-200" };
+      return { label: "Suspended", tone: "danger" as const, bg: "bg-rose-100 text-rose-950 border-rose-300 font-bold" };
     case "ARCHIVED":
-      return { label: "Archived", tone: "default" as const, bg: "bg-zinc-100 text-zinc-600 border-zinc-200" };
+      return { label: "Archived", tone: "default" as const, bg: "bg-zinc-200 text-zinc-800 border-zinc-300 font-bold" };
     default:
-      return { label: status, tone: "default" as const, bg: "bg-zinc-100 text-zinc-600 border-zinc-200" };
+      return { label: status, tone: "default" as const, bg: "bg-zinc-200 text-zinc-800 border-zinc-300 font-bold" };
   }
 }
+
+export interface InstitutionCivicFixEngagement {
+  challengeId: string;
+  challengeTitle: string;
+  issueId?: string;
+  selectionSource?: string;
+  invitationStatus?: string;
+  invitationSentAt?: string;
+  hasProject: boolean;
+  projectId?: string;
+  projectTitle?: string;
+  projectStatus?: string;
+  proposalsCount: number;
+  latestProposalStatus?: string;
+  latestProposalVersion?: number;
+}
+
+export interface InstitutionWithEngagement extends InstitutionRow {
+  selectedChallengesCount: number;
+  invitationsCount: number;
+  activeProjectsCount: number;
+  proposalsCount: number;
+  approvedProposalsCount: number;
+  engagements?: InstitutionCivicFixEngagement[];
+}
+
+export async function fetchInstitutionsWithEngagements(
+  filters?: InstitutionFilterParams & { engagedOnly?: boolean }
+): Promise<InstitutionWithEngagement[]> {
+  const [institutions, selectionsRes, invitationsRes, projectsRes, proposalsRes] = await Promise.all([
+    fetchInstitutions(filters),
+    supabase.from("challenge_institution_selections").select("institution_id, challenge_id, is_manual_override, status"),
+    supabase.from("institution_invitations").select("institution_id, challenge_id, status, invited_at"),
+    supabase.from("challenge_projects").select("institution_id, challenge_id, id, status, project_title"),
+    supabase.from("research_proposals").select("institution_id, challenge_id, id, status, version_number, is_current"),
+  ]);
+
+  const selections = selectionsRes.data ?? [];
+  const invitations = invitationsRes.data ?? [];
+  const projects = projectsRes.data ?? [];
+  const proposals = proposalsRes.data ?? [];
+
+  // Group by institution_id
+  const selectionsByInst = new Map<string, number>();
+  selections.forEach((s) => {
+    selectionsByInst.set(s.institution_id, (selectionsByInst.get(s.institution_id) || 0) + 1);
+  });
+
+  const invitationsByInst = new Map<string, number>();
+  invitations.forEach((inv) => {
+    invitationsByInst.set(inv.institution_id, (invitationsByInst.get(inv.institution_id) || 0) + 1);
+  });
+
+  const projectsByInst = new Map<string, number>();
+  projects.forEach((p) => {
+    if (p.status !== "ARCHIVED") {
+      projectsByInst.set(p.institution_id, (projectsByInst.get(p.institution_id) || 0) + 1);
+    }
+  });
+
+  const proposalsByInst = new Map<string, { total: number; approved: number }>();
+  proposals.forEach((prop) => {
+    const prev = proposalsByInst.get(prop.institution_id) || { total: 0, approved: 0 };
+    prev.total += 1;
+    if (prop.status === "APPROVED") {
+      prev.approved += 1;
+    }
+    proposalsByInst.set(prop.institution_id, prev);
+  });
+
+  let enriched: InstitutionWithEngagement[] = institutions.map((inst) => {
+    const propStats = proposalsByInst.get(inst.id) || { total: 0, approved: 0 };
+    return {
+      ...inst,
+      selectedChallengesCount: selectionsByInst.get(inst.id) || 0,
+      invitationsCount: invitationsByInst.get(inst.id) || 0,
+      activeProjectsCount: projectsByInst.get(inst.id) || 0,
+      proposalsCount: propStats.total,
+      approvedProposalsCount: propStats.approved,
+    };
+  });
+
+  if (filters?.engagedOnly) {
+    enriched = enriched.filter(
+      (i) => i.selectedChallengesCount > 0 || i.invitationsCount > 0 || i.activeProjectsCount > 0 || i.proposalsCount > 0
+    );
+  }
+
+  return enriched;
+}
+
+export interface InstitutionFullProfileData {
+  institution: InstitutionRow | null;
+  projects: InstitutionProjectRow[];
+  members: InstitutionMemberWithProfile[];
+  engagements: InstitutionCivicFixEngagement[];
+}
+
+export async function fetchInstitutionFullProfile(institutionId: string): Promise<InstitutionFullProfileData> {
+  const [
+    institution,
+    projects,
+    members,
+    selectionsRes,
+    invitationsRes,
+    challengeProjectsRes,
+    proposalsRes,
+    challengesRes,
+  ] = await Promise.all([
+    fetchInstitutionById(institutionId),
+    fetchInstitutionProjects(institutionId),
+    fetchInstitutionMembers(institutionId),
+    supabase
+      .from("challenge_institution_selections")
+      .select("challenge_id, is_manual_override, status")
+      .eq("institution_id", institutionId),
+    supabase
+      .from("institution_invitations")
+      .select("challenge_id, status, invited_at")
+      .eq("institution_id", institutionId),
+    supabase
+      .from("challenge_projects")
+      .select("id, challenge_id, project_title, status")
+      .eq("institution_id", institutionId),
+    supabase
+      .from("research_proposals")
+      .select("id, challenge_id, project_id, status, version_number, is_current")
+      .eq("institution_id", institutionId),
+    supabase
+      .from("innovation_challenges")
+      .select("id, title, source_issue_id"),
+  ]);
+
+  const challengesMap = new Map<string, { title: string; issueId?: string }>();
+  (challengesRes.data ?? []).forEach((c) => {
+    challengesMap.set(c.id, { title: c.title, issueId: c.source_issue_id ?? undefined });
+  });
+
+  // Combine engagements by challenge_id
+  const challengeIds = new Set<string>();
+  (selectionsRes.data ?? []).forEach((s) => challengeIds.add(s.challenge_id));
+  (invitationsRes.data ?? []).forEach((inv) => challengeIds.add(inv.challenge_id));
+  (challengeProjectsRes.data ?? []).forEach((p) => challengeIds.add(p.challenge_id));
+  (proposalsRes.data ?? []).forEach((pr) => challengeIds.add(pr.challenge_id));
+
+  const selectionsMap = new Map(
+    (selectionsRes.data ?? []).map((s) => [s.challenge_id, s.is_manual_override ? "Manual Selection" : "Automated Matching"])
+  );
+  const invitationsMap = new Map((invitationsRes.data ?? []).map((inv) => [inv.challenge_id, inv]));
+  const projectMap = new Map((challengeProjectsRes.data ?? []).map((p) => [p.challenge_id, p]));
+
+  const engagements: InstitutionCivicFixEngagement[] = Array.from(challengeIds).map((cId) => {
+    const challengeInfo = challengesMap.get(cId);
+    const inv = invitationsMap.get(cId);
+    const proj = projectMap.get(cId);
+    const propsForChallenge = (proposalsRes.data ?? []).filter((p) => p.challenge_id === cId);
+    const latestProp = propsForChallenge.sort((a, b) => (b.version_number || 1) - (a.version_number || 1))[0];
+
+    return {
+      challengeId: cId,
+      challengeTitle: challengeInfo?.title || "Civic Innovation Challenge",
+      issueId: challengeInfo?.issueId,
+      selectionSource: selectionsMap.get(cId) || undefined,
+      invitationStatus: inv?.status,
+      invitationSentAt: inv?.invited_at || undefined,
+      hasProject: Boolean(proj),
+      projectId: proj?.id,
+      projectTitle: proj?.project_title,
+      projectStatus: proj?.status,
+      proposalsCount: propsForChallenge.length,
+      latestProposalStatus: latestProp?.status,
+      latestProposalVersion: latestProp?.version_number,
+    };
+  });
+
+  return {
+    institution,
+    projects,
+    members,
+    engagements,
+  };
+}
+

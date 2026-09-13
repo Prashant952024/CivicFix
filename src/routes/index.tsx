@@ -51,12 +51,15 @@ const AdminActivityPage = lazy(() => import("@/routes/admin/activity").then((mod
 const AdminNotificationsPage = lazy(() => import("@/routes/admin/notifications").then((module) => ({ default: module.AdminNotificationsPage })));
 
 const InnovationDashboardPage = lazy(() => import("@/routes/innovation/dashboard").then((module) => ({ default: module.InnovationDashboardPage })));
-const InnovationIssuesPage = lazy(() => import("@/routes/innovation/issues").then((module) => ({ default: module.InnovationIssuesPage })));
+const InnovationProblemsPage = lazy(() => import("@/routes/innovation/problems").then((module) => ({ default: module.InnovationProblemsPage })));
+const InnovationProblemControlCenterPage = lazy(() => import("@/routes/innovation/problem-control-center").then((module) => ({ default: module.InnovationProblemControlCenterPage })));
 const InnovationIssueDetailsPage = lazy(() => import("@/routes/innovation/issue-details").then((module) => ({ default: module.InnovationIssueDetailsPage })));
 const InnovationChallengesPage = lazy(() => import("@/routes/innovation/challenges").then((module) => ({ default: module.InnovationChallengesPage })));
 const InnovationChallengeDetailsPage = lazy(() => import("@/routes/innovation/challenge-details").then((module) => ({ default: module.InnovationChallengeDetailsPage })));
 const ChallengeMatchingPage = lazy(() => import("@/routes/innovation/challenge-matching").then((module) => ({ default: module.ChallengeMatchingPage })));
 const InnovationNotificationsPage = lazy(() => import("@/routes/innovation/notifications").then((module) => ({ default: module.InnovationNotificationsPage })));
+const InnovationInstitutionsPage = lazy(() => import("@/routes/innovation/institutions").then((module) => ({ default: module.InnovationInstitutionsPage })));
+const InnovationUniversityWorkspacePage = lazy(() => import("@/routes/innovation/university-workspace").then((module) => ({ default: module.InnovationUniversityWorkspacePage })));
 
 const UniversityDashboardPage = lazy(() => import("@/routes/university/index").then((module) => ({ default: module.UniversityDashboardPage })));
 const UniversityProfilePage = lazy(() => import("@/routes/university/profile").then((module) => ({ default: module.UniversityProfilePage })));
@@ -305,16 +308,21 @@ export function AppRoutes() {
             path="innovation"
             element={
               <RequireRole allowedRoles={["INNOVATION_MANAGER", "ADMIN"]}>
-                <AppLayout />
+                <AppLayout roleCode="INNOVATION_MANAGER" />
               </RequireRole>
             }
           >
             <Route index element={<InnovationDashboardPage />} />
-            <Route path="issues" element={<InnovationIssuesPage />} />
+            <Route path="problems" element={<InnovationProblemsPage />} />
+            <Route path="problems/:problemId" element={<InnovationProblemControlCenterPage />} />
+            <Route path="problems/:problemId/universities/:institutionId" element={<InnovationUniversityWorkspacePage />} />
+            <Route path="issues" element={<InnovationProblemsPage />} />
             <Route path="issues/:issueId" element={<InnovationIssueDetailsPage />} />
             <Route path="challenges" element={<InnovationChallengesPage />} />
             <Route path="challenges/:challengeId" element={<InnovationChallengeDetailsPage />} />
             <Route path="challenges/:challengeId/matching" element={<ChallengeMatchingPage />} />
+            <Route path="institutions" element={<InnovationInstitutionsPage />} />
+            <Route path="institutions/:institutionId" element={<InnovationInstitutionsPage />} />
             <Route path="proposals" element={<InnovationProposalsPage />} />
             <Route path="proposals/:proposalId" element={<InnovationProposalReviewPage />} />
             <Route path="projects/:projectId" element={<UniversityProjectDetailPage />} />

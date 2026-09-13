@@ -247,7 +247,7 @@ export function InnovationDashboardPage() {
                             onClick={() => {
                               setSearchQuery("");
                               setSearchResults(null);
-                              goTo(`/app/innovation/challenges/${c.id}`);
+                              goTo(`/app/innovation/problems/${c.id}`);
                             }}
                             className="p-2.5 rounded-xl border border-border bg-muted/20 hover:bg-muted/50 cursor-pointer transition flex items-center justify-between gap-2"
                           >
@@ -303,7 +303,7 @@ export function InnovationDashboardPage() {
                             onClick={() => {
                               setSearchQuery("");
                               setSearchResults(null);
-                              goTo(`/app/admin/institutions/${i.id}`);
+                              goTo(`/app/innovation/institutions?selected=${i.id}`);
                             }}
                             className="p-2.5 rounded-xl border border-border bg-muted/20 hover:bg-muted/50 cursor-pointer transition flex items-center justify-between gap-2"
                           >
@@ -391,7 +391,7 @@ export function InnovationDashboardPage() {
 
           {/* 2. Complex Civic Problems Needing Formulation */}
           <div
-            onClick={() => goTo("/app/innovation/issues")}
+            onClick={() => goTo("/app/innovation/problems?stage=UNFORMULATED")}
             className="p-5 rounded-2xl border border-amber-200/90 bg-gradient-to-br from-amber-50/70 via-background to-background shadow-xs hover:shadow-md transition-all cursor-pointer group flex flex-col justify-between"
           >
             <div>
@@ -642,7 +642,10 @@ export function InnovationDashboardPage() {
                     <h3 className="text-base font-bold text-foreground leading-snug">
                       {item.projectTitle}
                     </h3>
-                    <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">
+                    <p
+                      onClick={() => goTo(`/app/innovation/problems/${item.challengeId}`)}
+                      className="text-xs text-muted-foreground hover:text-primary mt-0.5 line-clamp-1 cursor-pointer transition-colors"
+                    >
                       Challenge: {item.challengeTitle}
                     </p>
                   </div>
@@ -666,20 +669,31 @@ export function InnovationDashboardPage() {
                     </div>
                   </div>
 
-                  <div className="flex items-center justify-between gap-2 pt-2 border-t border-border">
+                  <div className="flex items-center justify-between gap-2 pt-2 border-t border-border flex-wrap">
                     <div className="flex items-center gap-2 text-xs text-muted-foreground">
                       <Users className="w-3.5 h-3.5" />
                       <span>{item.teamSize} team members</span>
                     </div>
 
-                    <Button
-                      size="sm"
-                      onClick={() => goTo(`/app/innovation/proposals/${item.id}`)}
-                      className="bg-primary text-primary-foreground text-xs gap-1.5 shadow-xs"
-                    >
-                      <span>Review Proposal</span>
-                      <ArrowRight className="w-3.5 h-3.5" />
-                    </Button>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => goTo(`/app/innovation/problems/${item.challengeId}`)}
+                        className="text-xs h-8 px-2.5"
+                      >
+                        <span>Problem Control Center</span>
+                      </Button>
+
+                      <Button
+                        size="sm"
+                        onClick={() => goTo(`/app/innovation/proposals/${item.id}`)}
+                        className="bg-primary text-primary-foreground text-xs gap-1.5 shadow-xs h-8 px-3 font-semibold"
+                      >
+                        <span>Review Proposal</span>
+                        <ArrowRight className="w-3.5 h-3.5" />
+                      </Button>
+                    </div>
                   </div>
                 </CardContent>
               </Card>
@@ -703,13 +717,13 @@ export function InnovationDashboardPage() {
 
         <div className="p-4 sm:p-5 rounded-2xl border border-border bg-card shadow-xs space-y-4 overflow-x-auto">
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-9 gap-2 min-w-[760px] lg:min-w-0">
-            {/* Step 1: Complex Issues */}
+            {/* Step 1: Complex Problems */}
             <div
-              onClick={() => goTo("/app/innovation/issues")}
+              onClick={() => goTo("/app/innovation/problems")}
               className="p-3 rounded-xl border border-border bg-muted/20 hover:bg-muted/50 cursor-pointer transition flex flex-col justify-between"
             >
               <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
-                1. Complex Issues
+                1. Complex Problems
               </span>
               <p className="text-2xl font-black text-foreground mt-2">
                 {loading ? "..." : data?.pipeline.complexIssuesCount ?? 0}
@@ -846,10 +860,10 @@ export function InnovationDashboardPage() {
           <Button
             size="sm"
             variant="outline"
-            onClick={() => goTo("/app/innovation/challenges")}
+            onClick={() => goTo("/app/innovation/problems")}
             className="text-xs"
           >
-            Manage All Challenges
+            View Complex Problems Catalog
           </Button>
         </div>
 
@@ -925,23 +939,12 @@ export function InnovationDashboardPage() {
                       Scope: {c.geographicScope}
                     </span>
                     <div className="flex items-center gap-2">
-                      {c.proposalsCount > 0 && (
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={() => goTo(`/app/innovation/proposals?challenge=${c.id}`)}
-                          className="text-xs text-primary h-8"
-                        >
-                          View Proposals ({c.proposalsCount})
-                        </Button>
-                      )}
                       <Button
                         size="sm"
-                        variant="outline"
-                        onClick={() => goTo(`/app/innovation/challenges/${c.id}`)}
-                        className="text-xs gap-1 h-8"
+                        onClick={() => goTo(`/app/innovation/problems/${c.sourceIssueId || c.id}`)}
+                        className="bg-primary text-primary-foreground text-xs gap-1 h-8 shadow-xs"
                       >
-                        <span>Open Challenge</span>
+                        <span>Open Problem</span>
                         <ArrowRight className="w-3.5 h-3.5" />
                       </Button>
                     </div>
@@ -1075,7 +1078,7 @@ export function InnovationDashboardPage() {
               Institutional Collaborations
             </h2>
             <Link
-              to="/app/admin/institutions"
+              to="/app/innovation/institutions"
               className="text-xs font-semibold text-primary hover:underline"
             >
               All Accredited Institutions →
@@ -1090,41 +1093,55 @@ export function InnovationDashboardPage() {
                 No active institutional research collaborations found.
               </div>
             ) : (
-              data.institutions.slice(0, 4).map((inst) => (
-                <div
-                  key={inst.id}
-                  className="p-3.5 rounded-xl border border-border bg-card shadow-xs flex items-center justify-between gap-3"
-                >
-                  <div className="min-w-0">
-                    <p className="text-xs font-bold text-foreground truncate">
-                      {inst.name} {inst.acronym ? `(${inst.acronym})` : ""}
-                    </p>
-                    <p className="text-[11px] text-muted-foreground truncate">
-                      {inst.city}, {inst.state} · {inst.activeProjectsCount} active projects
-                    </p>
-                  </div>
+              data.institutions.slice(0, 4).map((inst) => {
+                const initials = inst.acronym || inst.name.slice(0, 2).toUpperCase();
+                return (
+                  <div
+                    key={inst.id}
+                    className="p-3.5 rounded-2xl border border-slate-200 bg-card hover:border-primary/50 hover:shadow-md transition-all flex items-center justify-between gap-3 group"
+                  >
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className="w-10 h-10 rounded-xl bg-teal-700 text-white flex items-center justify-center font-black text-xs shrink-0 shadow-2xs group-hover:scale-105 transition-transform">
+                        {initials}
+                      </div>
 
-                  <div className="flex items-center gap-2 shrink-0">
-                    {inst.proposalsAwaitingReviewCount > 0 ? (
-                      <Badge className="bg-sky-100 text-sky-900 border-sky-300 text-[10px] font-bold">
-                        {inst.proposalsAwaitingReviewCount} awaiting review
-                      </Badge>
-                    ) : (
-                      <Badge variant="outline" className="text-[10px]">
-                        {inst.proposalsCount} proposals
-                      </Badge>
-                    )}
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      onClick={() => goTo(`/app/admin/institutions/${inst.id}`)}
-                      className="text-xs h-7 px-2"
-                    >
-                      View
-                    </Button>
+                      <div className="min-w-0">
+                        <p className="text-xs font-bold text-slate-900 group-hover:text-primary transition-colors truncate">
+                          {inst.name} {inst.acronym ? `(${inst.acronym})` : ""}
+                        </p>
+                        <p className="text-[11px] text-slate-600 font-medium truncate flex items-center gap-1.5 mt-0.5">
+                          <span>{inst.city}, {inst.state}</span>
+                          <span className="text-slate-300">·</span>
+                          <span className="font-bold text-slate-900">
+                            {inst.activeProjectsCount} active {inst.activeProjectsCount === 1 ? "project" : "projects"}
+                          </span>
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2 shrink-0">
+                      {inst.proposalsAwaitingReviewCount > 0 ? (
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold bg-amber-100 text-amber-950 border border-amber-300">
+                          <span className="w-1.5 h-1.5 rounded-full bg-amber-600 animate-pulse" />
+                          {inst.proposalsAwaitingReviewCount} awaiting review
+                        </span>
+                      ) : (
+                        <span className="text-[10px] font-bold text-slate-700 px-2.5 py-0.5 rounded-md bg-slate-100 border border-slate-300">
+                          {inst.proposalsCount} proposals
+                        </span>
+                      )}
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => goTo(`/app/innovation/institutions?selected=${inst.id}`)}
+                        className="text-xs font-bold h-8 border-primary/40 text-primary hover:bg-primary hover:text-white rounded-xl transition"
+                      >
+                        Profile →
+                      </Button>
+                    </div>
                   </div>
-                </div>
-              ))
+                );
+              })
             )}
           </div>
         </div>

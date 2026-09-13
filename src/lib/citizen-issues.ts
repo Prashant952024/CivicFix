@@ -187,7 +187,9 @@ export function formatCitizenIssueCoordinates(latitude: string | null, longitude
   return `${latitude}, ${longitude}`;
 }
 
-export function formatCitizenIssueImageUrl(image: CitizenIssueImageRow | null | undefined) {
+export function formatCitizenIssueImageUrl(
+  image: { storage_bucket?: string | null; storage_path?: string | null } | null | undefined
+) {
   if (!image?.storage_bucket || !image?.storage_path) {
     return null;
   }

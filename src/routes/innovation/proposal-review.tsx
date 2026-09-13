@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import {
+  ArrowLeft,
   ArrowRight,
   CheckCircle2,
   AlertCircle,
@@ -246,54 +247,73 @@ export function InnovationProposalReviewPage() {
 
   return (
     <div className="p-4 sm:p-6 max-w-7xl mx-auto space-y-6">
-      {/* Clickable Hierarchical Breadcrumbs */}
-      <nav aria-label="Breadcrumb navigation" className="flex items-center gap-1.5 text-xs text-muted-foreground flex-wrap">
-        <Link to="/app/innovation" className="hover:text-primary transition-colors font-medium">
-          Innovation
-        </Link>
-        <span>/</span>
-        <Link to="/app/innovation/challenges" className="hover:text-primary transition-colors font-medium">
-          Challenges
-        </Link>
-        <span>/</span>
-        {proposal.challenge && (
-          <>
-            <Link
-              to={`/app/innovation/challenges/${proposal.challenge_id}`}
-              className="hover:text-primary transition-colors font-medium max-w-[200px] truncate"
-              title={proposal.challenge.title}
-            >
-              {proposal.challenge.title}
-            </Link>
-            <span>/</span>
-          </>
-        )}
-        {proposal.institution && (
-          <>
-            <Link
-              to={`/app/admin/institutions/${proposal.institution_id}`}
-              className="hover:text-primary transition-colors font-medium max-w-[150px] truncate"
-              title={proposal.institution.name}
-            >
-              {proposal.institution.name}
-            </Link>
-            <span>/</span>
-          </>
-        )}
-        {proposal.project && (
-          <>
-            <Link
-              to={`/app/innovation/projects/${proposal.project_id}`}
-              className="hover:text-primary transition-colors font-medium max-w-[180px] truncate"
-              title={proposal.project.project_title}
-            >
-              {proposal.project.project_title}
-            </Link>
-            <span>/</span>
-          </>
-        )}
-        <span className="text-foreground font-bold">Research Proposal v{proposal.version_number}</span>
-      </nav>
+      {/* Clickable Hierarchical Breadcrumbs & Back Nav */}
+      <div className="flex items-center justify-between gap-3 flex-wrap">
+        <nav aria-label="Breadcrumb navigation" className="flex items-center gap-1.5 text-xs text-muted-foreground flex-wrap">
+          <Link to="/app/innovation" className="hover:text-primary transition-colors font-medium">
+            Innovation
+          </Link>
+          <span>/</span>
+          <Link to="/app/innovation/problems" className="hover:text-primary transition-colors font-medium">
+            Complex Problems
+          </Link>
+          <span>/</span>
+          {proposal.challenge && (
+            <>
+              <Link
+                to={`/app/innovation/problems/${proposal.challenge.source_issue_id || proposal.challenge_id}`}
+                className="hover:text-primary transition-colors font-medium max-w-[200px] truncate"
+                title={proposal.challenge.title}
+              >
+                {proposal.challenge.title}
+              </Link>
+              <span>/</span>
+            </>
+          )}
+          {proposal.institution && (
+            <>
+              <Link
+                to={`/app/innovation/institutions?selected=${proposal.institution_id}`}
+                className="hover:text-primary transition-colors font-medium max-w-[150px] truncate"
+                title={proposal.institution.name}
+              >
+                {proposal.institution.name}
+              </Link>
+              <span>/</span>
+            </>
+          )}
+          {proposal.project && (
+            <>
+              <Link
+                to={`/app/innovation/projects/${proposal.project_id}`}
+                className="hover:text-primary transition-colors font-medium max-w-[180px] truncate"
+                title={proposal.project.project_title}
+              >
+                {proposal.project.project_title}
+              </Link>
+              <span>/</span>
+            </>
+          )}
+          <span className="text-foreground font-bold">Research Proposal v{proposal.version_number}</span>
+        </nav>
+
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={() => {
+            const target = proposal.challenge?.source_issue_id || proposal.challenge_id;
+            if (target) {
+              void navigate(`/app/innovation/problems/${target}`);
+            } else {
+              void navigate("/app/innovation/problems");
+            }
+          }}
+          className="text-xs h-8 gap-1 text-muted-foreground hover:text-foreground"
+        >
+          <ArrowLeft className="w-3.5 h-3.5" />
+          <span>Back to Problem Control Center</span>
+        </Button>
+      </div>
 
       {/* CONTEXT HEADER BANNER */}
       <Card className="border-border/90 bg-card shadow-sm">
@@ -853,7 +873,7 @@ export function InnovationProposalReviewPage() {
               <div className="pt-2 border-t border-border/70 space-y-1">
                 <span className="text-[10px] uppercase font-bold text-muted-foreground block">Partner Institution</span>
                 <Link
-                  to={`/app/admin/institutions/${proposal.institution_id}`}
+                  to={`/app/innovation/institutions?selected=${proposal.institution_id}`}
                   className="font-semibold text-primary hover:underline flex items-center gap-1 truncate"
                 >
                   <span className="truncate">{proposal.institution?.name}</span>

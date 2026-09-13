@@ -30,6 +30,7 @@ export interface ResearchProposalWithDetails extends ResearchProposalRow {
   challenge?: Pick<
     ChallengeRow,
     | "id"
+    | "source_issue_id"
     | "title"
     | "problem_statement"
     | "category"
@@ -180,7 +181,7 @@ export async function fetchProjectProposals(
     .select(`
       *,
       challenge:innovation_challenges!research_proposals_challenge_id_fkey(
-        id, title, problem_statement, category, status, geographic_scope, required_domains, objectives, expected_outcomes
+        id, source_issue_id, title, problem_statement, category, status, geographic_scope, required_domains, objectives, expected_outcomes
       ),
       institution:institutions!research_proposals_institution_id_fkey(
         id, name, official_name, institution_type, city, state, acronym
@@ -213,7 +214,7 @@ export async function fetchCurrentProposal(
     .select(`
       *,
       challenge:innovation_challenges!research_proposals_challenge_id_fkey(
-        id, title, problem_statement, category, status, geographic_scope, required_domains, objectives, expected_outcomes
+        id, source_issue_id, title, problem_statement, category, status, geographic_scope, required_domains, objectives, expected_outcomes
       ),
       institution:institutions!research_proposals_institution_id_fkey(
         id, name, official_name, institution_type, city, state, acronym
@@ -247,7 +248,7 @@ export async function fetchProposalById(
     .select(`
       *,
       challenge:innovation_challenges!research_proposals_challenge_id_fkey(
-        id, title, problem_statement, category, status, geographic_scope, required_domains, objectives, expected_outcomes
+        id, source_issue_id, title, problem_statement, category, status, geographic_scope, required_domains, objectives, expected_outcomes
       ),
       institution:institutions!research_proposals_institution_id_fkey(
         id, name, official_name, institution_type, city, state, acronym

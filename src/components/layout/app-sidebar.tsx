@@ -16,6 +16,7 @@ import {
   UsersRound,
   X,
   FileText,
+  BrainCircuit,
 } from "lucide-react";
 import { NavLink } from "react-router-dom";
 
@@ -46,11 +47,13 @@ type NavIconKey =
   | "challenges"
   | "institutions"
   | "proposals"
+  | "problems"
   | "profile";
 
 const navIcons: Record<NavIconKey, ComponentType<{ className?: string; "aria-hidden"?: boolean }>> = {
   dashboard: LayoutDashboard,
   issues: ClipboardList,
+  problems: BrainCircuit,
   report: SquarePen,
   assigned: ClipboardCheck,
   notifications: Bell,
@@ -68,6 +71,7 @@ const navIcons: Record<NavIconKey, ComponentType<{ className?: string; "aria-hid
 
 function getNavIcon(item: CivicFixRoleNavItem) {
   const lowered = item.path.toLowerCase();
+  if (lowered.includes("problem")) return navIcons.problems;
   if (lowered.includes("proposal")) return navIcons.proposals;
   if (lowered.includes("institution") || lowered.includes("university")) {
     if (lowered.endsWith("/profile")) return navIcons.profile;
