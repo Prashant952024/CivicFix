@@ -27,7 +27,7 @@ type ChallengeRow = Database["public"]["Tables"]["innovation_challenges"]["Row"]
 type ProfileRow = Database["public"]["Tables"]["profiles"]["Row"];
 
 export interface ResearchProposalWithDetails extends ResearchProposalRow {
-  challenge?: Pick<
+  challenge?: (Pick<
     ChallengeRow,
     | "id"
     | "source_issue_id"
@@ -39,7 +39,9 @@ export interface ResearchProposalWithDetails extends ResearchProposalRow {
     | "required_domains"
     | "objectives"
     | "expected_outcomes"
-  > | null;
+  > & {
+    source_issue?: { id: string; title: string } | null;
+  }) | null;
   institution?: Pick<
     InstitutionRow,
     "id" | "name" | "official_name" | "institution_type" | "city" | "state" | "acronym"
@@ -637,7 +639,8 @@ export async function fetchAllProposals(options?: {
     .select(`
       *,
       challenge:innovation_challenges!research_proposals_challenge_id_fkey(
-        id, title, problem_statement, category, status, geographic_scope, required_domains, objectives, expected_outcomes
+        id, source_issue_id, title, problem_statement, category, status, geographic_scope, required_domains, objectives, expected_outcomes,
+        source_issue:issues(id, title)
       ),
       institution:institutions!research_proposals_institution_id_fkey(
         id, name, official_name, institution_type, city, state, acronym
@@ -721,17 +724,23 @@ export async function fetchAllProposals(options?: {
     results = results.filter((p) => {
       const projTitle = p.project?.project_title?.toLowerCase() ?? "";
       const chalTitle = p.challenge?.title?.toLowerCase() ?? "";
+      const issueTitle = p.challenge?.source_issue?.title?.toLowerCase() ?? "";
       const instName = p.institution?.name?.toLowerCase() ?? "";
+      const instCity = p.institution?.city?.toLowerCase() ?? "";
       const instAcronym = p.institution?.acronym?.toLowerCase() ?? "";
       const submitter = p.submitter?.full_name?.toLowerCase() ?? "";
       const leadName = p.project_lead?.full_name?.toLowerCase() ?? "";
+      const objective = p.project_objective?.toLowerCase() ?? "";
       return (
         projTitle.includes(term) ||
         chalTitle.includes(term) ||
+        issueTitle.includes(term) ||
         instName.includes(term) ||
+        instCity.includes(term) ||
         instAcronym.includes(term) ||
         submitter.includes(term) ||
-        leadName.includes(term)
+        leadName.includes(term) ||
+        objective.includes(term)
       );
     });
   }

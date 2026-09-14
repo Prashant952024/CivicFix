@@ -30,7 +30,8 @@ export function InnovationProblemsPage() {
 
   // Search and filter state
   const [searchQuery, setSearchQuery] = useState(searchParams.get("q") || "");
-  const [stageFilter, setStageFilter] = useState(searchParams.get("stage") || "ALL");
+  const [userStageFilter, setUserStageFilter] = useState<string | null>(null);
+  const stageFilter = userStageFilter ?? (searchParams.get("stage") || "ALL");
   const [categoryFilter, setCategoryFilter] = useState(searchParams.get("category") || "ALL");
   const [actionOnly, setActionOnly] = useState(searchParams.get("action") === "true");
   const [sortBy, setSortBy] = useState(searchParams.get("sort") || "ACTION_REQUIRED");
@@ -99,7 +100,23 @@ export function InnovationProblemsPage() {
         if (actionOnly && !p.needsAction) return false;
 
         // Stage filter
-        if (stageFilter !== "ALL" && p.stage !== stageFilter) return false;
+        if (stageFilter !== "ALL") {
+          if (stageFilter === "UNCLASSIFIED") {
+            if (p.stage !== "UNFORMULATED") return false;
+          } else if (stageFilter === "FORMULATION") {
+            if (p.stage !== "CHALLENGE_FORMULATED" && p.stage !== "UNFORMULATED") return false;
+          } else if (stageFilter === "MATCHING") {
+            if (p.stage !== "MATCHING_ACTIVE") return false;
+          } else if (stageFilter === "INVITATIONS") {
+            if (p.stage !== "OUTREACH") return false;
+          } else if (stageFilter === "RESEARCH") {
+            if (!["PROJECT_ACTIVE", "TEAM_FORMED", "PROPOSALS_UNDERWAY"].includes(p.stage)) return false;
+          } else if (stageFilter === "COMPLETED") {
+            if (p.stage !== "APPROVED_SOLUTIONS") return false;
+          } else if (p.stage !== stageFilter) {
+            return false;
+          }
+        }
 
         // Category filter
         if (categoryFilter !== "ALL" && p.category !== categoryFilter) return false;
@@ -279,7 +296,7 @@ export function InnovationProblemsPage() {
             <div className="flex items-center gap-2 flex-wrap">
               <select
                 value={stageFilter}
-                onChange={(e) => setStageFilter(e.target.value)}
+                onChange={(e) => setUserStageFilter(e.target.value)}
                 className="rounded-xl border border-input bg-background px-3 py-2 text-xs ring-offset-background focus:outline-none focus:ring-1 focus:ring-primary"
               >
                 <option value="ALL">All Stages</option>
@@ -363,7 +380,7 @@ export function InnovationProblemsPage() {
                 size="sm"
                 onClick={() => {
                   setSearchQuery("");
-                  setStageFilter("ALL");
+                  setUserStageFilter("ALL");
                   setCategoryFilter("ALL");
                   setActionOnly(false);
                 }}

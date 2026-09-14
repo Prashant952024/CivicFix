@@ -226,6 +226,18 @@ export async function createProjectWorkspace(params: {
     throw new Error("Project title is required.");
   }
 
+  // Check if project workspace already exists for this challenge & institution
+  const { data: existing } = await supabase
+    .from("challenge_projects")
+    .select("*")
+    .eq("challenge_id", params.challengeId)
+    .eq("institution_id", params.institutionId)
+    .maybeSingle();
+
+  if (existing) {
+    return existing;
+  }
+
   const insertPayload: Record<string, unknown> = {
     challenge_id: params.challengeId,
     institution_id: params.institutionId,
@@ -246,6 +258,16 @@ export async function createProjectWorkspace(params: {
     .single();
 
   if (error) {
+    // Graceful recovery if concurrent insert occurred
+    if ((error as { code?: string }).code === "23505") {
+      const { data: fallback } = await supabase
+        .from("challenge_projects")
+        .select("*")
+        .eq("challenge_id", params.challengeId)
+        .eq("institution_id", params.institutionId)
+        .maybeSingle();
+      if (fallback) return fallback;
+    }
     console.error("Error creating project workspace:", error);
     throw error;
   }

@@ -1798,6 +1798,50 @@ export interface Database {
           },
         ];
       };
+      challenge_project_messages: {
+        Row: {
+          id: string;
+          project_id: string;
+          sender_profile_id: string;
+          sender_name: string;
+          sender_role: string;
+          topic: string;
+          message_body: string;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          project_id: string;
+          sender_profile_id?: string | null;
+          sender_name: string;
+          sender_role?: string;
+          topic?: string;
+          message_body: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          project_id?: string;
+          sender_profile_id?: string;
+          sender_name?: string;
+          sender_role?: string;
+          topic?: string;
+          message_body?: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "challenge_project_messages_project_id_fkey";
+            columns: ["project_id"];
+            isOneToOne: false;
+            referencedRelation: "challenge_projects";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       research_proposals: {
         Row: {
           id: string;

@@ -3,12 +3,14 @@ import {
   ArrowLeft,
   ArrowRight,
   Bell,
+  CheckCircle2,
   Clock,
   FileText,
   GraduationCap,
   HelpCircle,
-  Layers,
   LayoutDashboard,
+  MessageSquare,
+  TrendingUp,
   Users,
 } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
@@ -17,9 +19,10 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { UniversityActivity } from "@/components/innovation/problem-control-center/workspace/university-activity";
+import { UniversityCommunication } from "@/components/innovation/problem-control-center/workspace/university-communication";
 import { UniversityHelpRequests } from "@/components/innovation/problem-control-center/workspace/university-help-requests";
 import { UniversityOverview } from "@/components/innovation/problem-control-center/workspace/university-overview";
-import { UniversityProject } from "@/components/innovation/problem-control-center/workspace/university-project";
+import { UniversityProgress } from "@/components/innovation/problem-control-center/workspace/university-progress";
 import { UniversityProposal } from "@/components/innovation/problem-control-center/workspace/university-proposal";
 import { UniversityTeam } from "@/components/innovation/problem-control-center/workspace/university-team";
 import { UniversityUpdates } from "@/components/innovation/problem-control-center/workspace/university-updates";
@@ -27,11 +30,12 @@ import type { InstitutionLifecycleTrack, ProblemControlCenterData } from "@/lib/
 
 export type UniversityWorkspaceTab =
   | "overview"
-  | "updates"
+  | "progress"
   | "team"
   | "proposal"
+  | "communication"
+  | "updates"
   | "help"
-  | "project"
   | "activity";
 
 interface UniversityWorkspaceProps {
@@ -40,6 +44,8 @@ interface UniversityWorkspaceProps {
   institution: InstitutionLifecycleTrack;
   initialTab?: UniversityWorkspaceTab;
   onBackToProblem?: () => void;
+  onTabChange?: (tab: UniversityWorkspaceTab) => void;
+  embedded?: boolean;
 }
 
 export function UniversityWorkspace({
@@ -47,9 +53,22 @@ export function UniversityWorkspace({
   institution,
   initialTab = "overview",
   onBackToProblem,
+  onTabChange,
+  embedded = false,
 }: UniversityWorkspaceProps) {
   const navigate = useNavigate();
+  const [prevInitialTab, setPrevInitialTab] = useState(initialTab);
   const [activeTab, setActiveTab] = useState<UniversityWorkspaceTab>(initialTab);
+
+  if (prevInitialTab !== initialTab) {
+    setPrevInitialTab(initialTab);
+    setActiveTab(initialTab);
+  }
+
+  const handleTabChange = (tab: UniversityWorkspaceTab) => {
+    setActiveTab(tab);
+    onTabChange?.(tab);
+  };
 
   const isAccepted = institution.invitationStatus === "ACCEPTED";
   const isApproved = institution.proposalStatus === "APPROVED";
@@ -66,39 +85,50 @@ export function UniversityWorkspace({
   };
 
   return (
-    <div className="space-y-6 pb-20">
-      {/* 1. BREADCRUMB & BACK BUTTON */}
-      <div className="flex items-center justify-between gap-3 text-xs text-muted-foreground flex-wrap">
-        <div className="flex items-center gap-2 flex-wrap">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={handleBack}
-            className="h-8 px-2.5 text-xs text-primary font-bold hover:bg-primary/10 gap-1.5"
-          >
-            <ArrowLeft className="w-3.5 h-3.5" />
-            <span>← Back to {problem.title}</span>
-          </Button>
-          <span className="text-border">|</span>
-          <nav aria-label="Breadcrumb navigation" className="flex items-center gap-1.5">
-            <Link to="/app/innovation" className="hover:text-primary font-medium transition-colors">
-              Innovation
-            </Link>
-            <span>/</span>
-            <Link to="/app/innovation/problems" className="hover:text-primary font-medium transition-colors">
-              Complex Problems
-            </Link>
-            <span>/</span>
-            <Link to={`/app/innovation/problems/${problem.id}`} className="hover:text-primary font-medium transition-colors truncate max-w-[180px]">
-              {problem.title}
-            </Link>
-            <span>/</span>
-            <span className="text-foreground font-bold truncate max-w-[200px]">
-              {institution.institutionName}
-            </span>
-          </nav>
+    <div className="space-y-6">
+      {/* 1. BREADCRUMB NAVIGATION (IF NOT EMBEDDED) */}
+      {!embedded && (
+        <div className="flex items-center justify-between gap-3 text-xs text-muted-foreground flex-wrap">
+          <div className="flex items-center gap-2 flex-wrap">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleBack}
+              className="h-8 px-2.5 text-xs text-primary font-bold hover:bg-primary/10 gap-1.5"
+            >
+              <ArrowLeft className="w-3.5 h-3.5" />
+              <span>← Back to {problem.title}</span>
+            </Button>
+            <span className="text-border">|</span>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => void navigate("/app/innovation/collaborations")}
+              className="h-8 px-2 text-xs text-slate-600 font-semibold hover:bg-slate-100 hover:text-slate-900"
+            >
+              All Collaborations
+            </Button>
+            <span className="text-border">|</span>
+            <nav aria-label="Breadcrumb navigation" className="flex items-center gap-1.5">
+              <Link to="/app/innovation" className="hover:text-primary font-medium transition-colors">
+                Innovation
+              </Link>
+              <span>/</span>
+              <Link to="/app/innovation/problems" className="hover:text-primary font-medium transition-colors">
+                Complex Problems
+              </Link>
+              <span>/</span>
+              <Link to={`/app/innovation/problems/${problem.id}`} className="hover:text-primary font-medium transition-colors truncate max-w-[180px]">
+                {problem.title}
+              </Link>
+              <span>/</span>
+              <span className="text-foreground font-bold truncate max-w-[200px]">
+                {institution.institutionName}
+              </span>
+            </nav>
+          </div>
         </div>
-      </div>
+      )}
 
       {/* 2. DEDICATED UNIVERSITY WORKSPACE HERO HEADER */}
       <Card className="border-border/90 bg-card shadow-sm overflow-hidden">
@@ -131,15 +161,27 @@ export function UniversityWorkspace({
                 </Badge>
               </div>
 
-              {/* University Title */}
-              <h1 className="text-xl sm:text-2xl lg:text-3xl font-black text-foreground tracking-tight leading-snug">
-                {institution.institutionName}
-              </h1>
+              {/* Exact Contextual Cross Title: [Problem Title] × [University Name] */}
+              <div className="space-y-1">
+                <div className="flex items-center gap-2 text-xs font-bold text-primary flex-wrap">
+                  <span className="truncate max-w-md">{problem.title}</span>
+                  <span className="text-muted-foreground font-light">×</span>
+                  <span className="text-foreground">
+                    {institution.institutionName}
+                    {institution.city ? ` (${institution.city})` : ""} Collaboration
+                  </span>
+                </div>
 
-              {/* Scoped Problem Subtitle */}
-              <p className="text-xs sm:text-sm font-semibold text-primary flex items-center gap-1.5">
+                <h1 className="text-xl sm:text-2xl lg:text-3xl font-black text-foreground tracking-tight leading-snug">
+                  {institution.institutionName}
+                  {institution.city ? ` (${institution.city})` : ""}
+                </h1>
+              </div>
+
+              {/* Scoped Subtitle */}
+              <p className="text-xs font-semibold text-muted-foreground flex items-center gap-1.5">
                 <GraduationCap className="w-4 h-4 text-primary shrink-0" />
-                <span>University Collaboration Workspace · Participating in "{problem.title}"</span>
+                <span>Dedicated Research Collaboration Workspace</span>
               </p>
             </div>
 
@@ -198,26 +240,50 @@ export function UniversityWorkspace({
 
           <Button
             size="sm"
-            onClick={() => {
-              void navigate(`/app/innovation/proposals/${institution.proposalId}`);
-            }}
+            onClick={() => handleTabChange("proposal")}
             className="bg-primary hover:bg-primary/90 text-primary-foreground text-xs font-bold gap-1.5 shadow-xs shrink-0 h-8 px-4"
           >
-            <span>Review Proposal Now</span>
+            <span>Review Proposal in Workspace</span>
             <ArrowRight className="w-3.5 h-3.5" />
           </Button>
         </div>
       )}
 
-      {/* 4. UNIVERSITY WORKSPACE TAB NAVIGATION */}
-      <div className="sticky top-0 z-10 -mx-4 px-4 sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8 py-2.5 bg-background/90 backdrop-blur-md border-b border-border/80">
+      {/* 3b. APPROVED PROPOSAL SUCCESS BANNER */}
+      {isApproved && institution.proposalId && (
+        <div className="p-4 rounded-2xl border-2 border-emerald-400 bg-gradient-to-r from-emerald-50 via-teal-50/40 to-background shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="flex items-center gap-2.5">
+            <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />
+            <div className="space-y-0.5">
+              <span className="text-xs font-black uppercase tracking-wider text-emerald-950 block">
+                Approved Solution Blueprint for {institution.institutionName}
+              </span>
+              <p className="text-xs text-emerald-900">
+                Research Proposal v{institution.proposalVersion || 1} has been reviewed, approved, and authorized for municipal co-development.
+              </p>
+            </div>
+          </div>
+
+          <Button
+            size="sm"
+            onClick={() => handleTabChange("proposal")}
+            className="bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold gap-1.5 shadow-xs shrink-0 h-8 px-4"
+          >
+            <span>View Approved Proposal &amp; Specs</span>
+            <ArrowRight className="w-3.5 h-3.5" />
+          </Button>
+        </div>
+      )}
+
+      {/* 4. UNIVERSITY WORKSPACE 8-TAB NAVIGATION */}
+      <div className="sticky top-0 z-10 -mx-4 px-4 sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8 py-2.5 bg-background/95 backdrop-blur-md border-b border-border/80">
         <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar">
           {/* TAB 1: OVERVIEW */}
           <Button
             size="sm"
             variant={activeTab === "overview" ? "default" : "ghost"}
-            onClick={() => setActiveTab("overview")}
-            className={`text-xs font-semibold gap-1.5 h-8.5 px-3 rounded-xl transition ${
+            onClick={() => handleTabChange("overview")}
+            className={`text-xs font-semibold gap-1.5 h-8.5 px-3 rounded-xl transition shrink-0 ${
               activeTab === "overview" ? "shadow-xs font-bold" : "text-muted-foreground hover:text-foreground"
             }`}
           >
@@ -225,36 +291,25 @@ export function UniversityWorkspace({
             <span>Overview</span>
           </Button>
 
-          {/* TAB 2: UPDATES */}
+          {/* TAB 2: PROGRESS */}
           <Button
             size="sm"
-            variant={activeTab === "updates" ? "default" : "ghost"}
-            onClick={() => setActiveTab("updates")}
-            className={`text-xs font-semibold gap-1.5 h-8.5 px-3 rounded-xl transition ${
-              activeTab === "updates" ? "shadow-xs font-bold" : "text-muted-foreground hover:text-foreground"
+            variant={activeTab === "progress" ? "default" : "ghost"}
+            onClick={() => handleTabChange("progress")}
+            className={`text-xs font-semibold gap-1.5 h-8.5 px-3 rounded-xl transition shrink-0 ${
+              activeTab === "progress" ? "shadow-xs font-bold" : "text-muted-foreground hover:text-foreground"
             }`}
           >
-            <Bell className="w-3.5 h-3.5" />
-            <span>Updates</span>
-            {institution.scopedUpdates && institution.scopedUpdates.length > 0 && (
-              <Badge
-                className={`text-[9px] ml-0.5 px-1.5 py-0 ${
-                  activeTab === "updates"
-                    ? "bg-white/20 text-primary-foreground border-transparent"
-                    : "bg-muted text-muted-foreground"
-                }`}
-              >
-                {institution.scopedUpdates.length}
-              </Badge>
-            )}
+            <TrendingUp className="w-3.5 h-3.5" />
+            <span>Progress</span>
           </Button>
 
           {/* TAB 3: RESEARCH TEAM */}
           <Button
             size="sm"
             variant={activeTab === "team" ? "default" : "ghost"}
-            onClick={() => setActiveTab("team")}
-            className={`text-xs font-semibold gap-1.5 h-8.5 px-3 rounded-xl transition ${
+            onClick={() => handleTabChange("team")}
+            className={`text-xs font-semibold gap-1.5 h-8.5 px-3 rounded-xl transition shrink-0 ${
               activeTab === "team" ? "shadow-xs font-bold" : "text-muted-foreground hover:text-foreground"
             }`}
           >
@@ -275,8 +330,8 @@ export function UniversityWorkspace({
           <Button
             size="sm"
             variant={activeTab === "proposal" ? "default" : "ghost"}
-            onClick={() => setActiveTab("proposal")}
-            className={`text-xs font-semibold gap-1.5 h-8.5 px-3 rounded-xl transition ${
+            onClick={() => handleTabChange("proposal")}
+            className={`text-xs font-semibold gap-1.5 h-8.5 px-3 rounded-xl transition shrink-0 ${
               activeTab === "proposal" ? "shadow-xs font-bold" : "text-muted-foreground hover:text-foreground"
             }`}
           >
@@ -297,38 +352,51 @@ export function UniversityWorkspace({
             )}
           </Button>
 
-          {/* TAB 5: HELP REQUESTS */}
+          {/* TAB 5: COMMUNICATION */}
+          <Button
+            size="sm"
+            variant={activeTab === "communication" ? "default" : "ghost"}
+            onClick={() => handleTabChange("communication")}
+            className={`text-xs font-semibold gap-1.5 h-8.5 px-3 rounded-xl transition shrink-0 ${
+              activeTab === "communication" ? "shadow-xs font-bold" : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            <MessageSquare className="w-3.5 h-3.5" />
+            <span>Communication</span>
+          </Button>
+
+          {/* TAB 6: UPDATES */}
+          <Button
+            size="sm"
+            variant={activeTab === "updates" ? "default" : "ghost"}
+            onClick={() => handleTabChange("updates")}
+            className={`text-xs font-semibold gap-1.5 h-8.5 px-3 rounded-xl transition shrink-0 ${
+              activeTab === "updates" ? "shadow-xs font-bold" : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            <Bell className="w-3.5 h-3.5" />
+            <span>Updates</span>
+          </Button>
+
+          {/* TAB 7: SUPPORT / HELP */}
           <Button
             size="sm"
             variant={activeTab === "help" ? "default" : "ghost"}
-            onClick={() => setActiveTab("help")}
-            className={`text-xs font-semibold gap-1.5 h-8.5 px-3 rounded-xl transition ${
+            onClick={() => handleTabChange("help")}
+            className={`text-xs font-semibold gap-1.5 h-8.5 px-3 rounded-xl transition shrink-0 ${
               activeTab === "help" ? "shadow-xs font-bold" : "text-muted-foreground hover:text-foreground"
             }`}
           >
             <HelpCircle className="w-3.5 h-3.5" />
-            <span>Help Requests</span>
+            <span>Support / Help</span>
           </Button>
 
-          {/* TAB 6: PROJECT */}
-          <Button
-            size="sm"
-            variant={activeTab === "project" ? "default" : "ghost"}
-            onClick={() => setActiveTab("project")}
-            className={`text-xs font-semibold gap-1.5 h-8.5 px-3 rounded-xl transition ${
-              activeTab === "project" ? "shadow-xs font-bold" : "text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            <Layers className="w-3.5 h-3.5" />
-            <span>Project</span>
-          </Button>
-
-          {/* TAB 7: ACTIVITY */}
+          {/* TAB 8: ACTIVITY */}
           <Button
             size="sm"
             variant={activeTab === "activity" ? "default" : "ghost"}
-            onClick={() => setActiveTab("activity")}
-            className={`text-xs font-semibold gap-1.5 h-8.5 px-3 rounded-xl transition ${
+            onClick={() => handleTabChange("activity")}
+            className={`text-xs font-semibold gap-1.5 h-8.5 px-3 rounded-xl transition shrink-0 ${
               activeTab === "activity" ? "shadow-xs font-bold" : "text-muted-foreground hover:text-foreground"
             }`}
           >
@@ -355,11 +423,15 @@ export function UniversityWorkspace({
           <UniversityOverview
             institution={institution}
             problemTitle={problem.title}
+            onNavigateToTab={handleTabChange}
           />
         )}
 
-        {activeTab === "updates" && (
-          <UniversityUpdates institution={institution} />
+        {activeTab === "progress" && (
+          <UniversityProgress
+            institution={institution}
+            problem={problem}
+          />
         )}
 
         {activeTab === "team" && (
@@ -370,12 +442,19 @@ export function UniversityWorkspace({
           <UniversityProposal institution={institution} />
         )}
 
-        {activeTab === "help" && (
-          <UniversityHelpRequests institution={institution} />
+        {activeTab === "communication" && (
+          <UniversityCommunication
+            institution={institution}
+            problem={problem}
+          />
         )}
 
-        {activeTab === "project" && (
-          <UniversityProject institution={institution} />
+        {activeTab === "updates" && (
+          <UniversityUpdates institution={institution} />
+        )}
+
+        {activeTab === "help" && (
+          <UniversityHelpRequests institution={institution} />
         )}
 
         {activeTab === "activity" && (

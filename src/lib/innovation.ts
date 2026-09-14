@@ -714,6 +714,13 @@ export interface InstitutionLifecycleTrack {
     proposedMethodology?: string | null;
     technicalApproach?: string | null;
     expectedPrototype?: string | null;
+    researchQuestions?: string[] | null;
+    teamCapabilitySummary?: string | null;
+    requiredResources?: { resource_type?: string; description?: string; quantity?: string | number }[] | null;
+    milestones?: { name?: string; title?: string; timeline?: string; description?: string; deliverable?: string; status?: string }[] | null;
+    deliverables?: { name?: string; title?: string; description?: string; format?: string }[] | null;
+    risksAndMitigation?: { risk?: string; mitigation?: string; severity?: string }[] | null;
+    successMetrics?: { metric?: string; target?: string; measurement_method?: string }[] | null;
     submittedAt: string | null;
     reviewedAt: string | null;
     reviewFeedback: string | null;
@@ -846,6 +853,11 @@ export interface ProblemControlCenterData {
     expectedOutcomes: string[];
     constraints: string[];
     successCriteria: string[];
+    rootCause?: string | null;
+    affectedPopulation?: string | null;
+    currentLimitations?: string | null;
+    potentialTechnologies?: string[];
+    researchRequirements?: string | null;
     status: string;
     approvedAt: string | null;
     approverName: string | null;
@@ -897,6 +909,7 @@ export interface ProblemControlCenterData {
     proposalsAwaitingReviewCount: number;
     proposalsAwaitingReviewList: {
       id: string;
+      institutionId: string;
       institutionName: string;
       projectTitle: string;
       versionNumber: number;
@@ -1380,7 +1393,8 @@ export async function fetchProblemControlCenterData(
       .select(`
         id, title, problem_statement, category, problem_category, geographic_scope,
         complexity_score, required_domains, required_expertise, objectives,
-        expected_outcomes, constraints, success_criteria, status, approved_at,
+        expected_outcomes, constraints, success_criteria, root_cause, affected_population,
+        current_limitations, potential_technology_areas, research_requirements, status, approved_at,
         created_at,
         approver_profile:profiles!innovation_challenges_approved_by_fkey(full_name)
       `)
@@ -1456,6 +1470,13 @@ interface ControlCenterProposal {
   proposed_methodology?: string | null;
   technical_approach?: string | null;
   expected_prototype?: string | null;
+  research_questions?: string[] | null;
+  team_capability_summary?: string | null;
+  required_resources?: { resource_type?: string; description?: string; quantity?: string | number }[] | null;
+  milestones?: { name?: string; title?: string; timeline?: string; description?: string; deliverable?: string; status?: string }[] | null;
+  deliverables?: { name?: string; title?: string; description?: string; format?: string }[] | null;
+  risks_and_mitigation?: { risk?: string; mitigation?: string; severity?: string }[] | null;
+  success_metrics?: { metric?: string; target?: string; measurement_method?: string }[] | null;
   submitted_at: string | null;
   reviewed_at: string | null;
   review_feedback: string | null;
@@ -1539,6 +1560,8 @@ interface ControlCenterActivity {
         .select(`
           id, challenge_id, project_id, institution_id, version_number, status, is_current,
           project_objective, proposed_methodology, technical_approach, expected_prototype,
+          research_questions, team_capability_summary, required_resources, milestones, deliverables,
+          risks_and_mitigation, success_metrics,
           submitted_at, reviewed_at, review_feedback, approved_at, created_at, updated_at
         `)
         .eq("challenge_id", challengeId)
@@ -1861,6 +1884,13 @@ interface ControlCenterActivity {
           proposedMethodology: pr.proposed_methodology ?? null,
           technicalApproach: pr.technical_approach ?? null,
           expectedPrototype: pr.expected_prototype ?? null,
+          researchQuestions: Array.isArray(pr.research_questions) ? pr.research_questions : [],
+          teamCapabilitySummary: pr.team_capability_summary ?? null,
+          requiredResources: Array.isArray(pr.required_resources) ? pr.required_resources : [],
+          milestones: Array.isArray(pr.milestones) ? pr.milestones : [],
+          deliverables: Array.isArray(pr.deliverables) ? pr.deliverables : [],
+          risksAndMitigation: Array.isArray(pr.risks_and_mitigation) ? pr.risks_and_mitigation : [],
+          successMetrics: Array.isArray(pr.success_metrics) ? pr.success_metrics : [],
           submittedAt: pr.submitted_at ?? null,
           reviewedAt: pr.reviewed_at ?? null,
           reviewFeedback: pr.review_feedback ?? null,
@@ -2112,6 +2142,7 @@ interface ControlCenterActivity {
       const proj = projects.find((p) => p.id === pr.project_id);
       return {
         id: pr.id,
+        institutionId: pr.institution_id,
         institutionName: inst?.name || "Institution",
         projectTitle: proj?.project_title || "Research Project",
         versionNumber: pr.version_number,
@@ -2207,6 +2238,13 @@ interface ControlCenterActivity {
           successCriteria: Array.isArray(challengeRecord.success_criteria)
             ? challengeRecord.success_criteria
             : [],
+          rootCause: (challengeRecord as { root_cause?: string | null }).root_cause ?? null,
+          affectedPopulation: (challengeRecord as { affected_population?: string | null }).affected_population ?? null,
+          currentLimitations: (challengeRecord as { current_limitations?: string | null }).current_limitations ?? null,
+          potentialTechnologies: Array.isArray((challengeRecord as { potential_technology_areas?: string[] }).potential_technology_areas)
+            ? (challengeRecord as { potential_technology_areas?: string[] }).potential_technology_areas
+            : [],
+          researchRequirements: (challengeRecord as { research_requirements?: string | null }).research_requirements ?? null,
           status: challengeRecord.status,
           approvedAt: challengeRecord.approved_at ?? null,
           approverName:
@@ -2284,3 +2322,162 @@ export async function fetchUniversityWorkspaceData(
     allInstitutionsCount: controlCenterData.institutions.length,
   };
 }
+
+export interface UniversityCollaborationItem {
+  id: string;
+  projectId: string | null;
+  invitationId: string | null;
+  challengeId: string;
+  challengeTitle: string;
+  challengeCategory: string;
+  institutionId: string;
+  institutionName: string;
+  institutionOfficialName: string | null;
+  institutionType: string;
+  city: string | null;
+  state: string | null;
+  invitationStatus: string;
+  collaborationStatus: "INVITED" | "ACCEPTED" | "FORMING_TEAM" | "ACTIVE" | "PROPOSAL_PENDING" | "PROPOSAL_APPROVED" | "COMPLETED";
+  projectLeadName: string | null;
+  projectLeadEmail: string | null;
+  teamSize: number;
+  proposalStatus: ProposalStatus | null;
+  proposalId: string | null;
+  proposalVersion: number | null;
+  lastActivityAt: string;
+}
+
+export async function fetchUniversityCollaborationsList(): Promise<UniversityCollaborationItem[]> {
+  // 1. Fetch all invitations
+  const { data: invitations, error: invErr } = await supabase
+    .from("institution_invitations")
+    .select(`
+      id, challenge_id, institution_id, status, created_at, updated_at,
+      challenge:innovation_challenges(id, title, category, status),
+      institution:institutions(id, name, official_name, institution_type, city, state)
+    `)
+    .order("updated_at", { ascending: false });
+
+  if (invErr) {
+    console.error("Error fetching invitations for collaborations list:", invErr);
+    throw invErr;
+  }
+
+  // 2. Fetch all projects
+  const { data: projects, error: projErr } = await supabase
+    .from("challenge_projects")
+    .select(`
+      id, challenge_id, institution_id, invitation_id, project_title, project_summary, status, created_at, updated_at, project_lead_profile_id,
+      lead:profiles!challenge_projects_project_lead_profile_id_fkey(id, full_name, email)
+    `);
+
+  if (projErr) {
+    console.error("Error fetching projects for collaborations list:", projErr);
+    throw projErr;
+  }
+
+  // 3. Fetch proposals (current)
+  const { data: proposals, error: propErr } = await supabase
+    .from("research_proposals")
+    .select("id, project_id, challenge_id, institution_id, version_number, status, is_current, submitted_at, updated_at")
+    .eq("is_current", true);
+
+  if (propErr) {
+    console.error("Error fetching proposals for collaborations list:", propErr);
+  }
+
+  // 4. Fetch member counts for projects
+  const projectIds = (projects || []).map((p) => p.id);
+  const memberCounts = new Map<string, number>();
+
+  if (projectIds.length > 0) {
+    const { data: members } = await supabase
+      .from("challenge_project_members")
+      .select("project_id")
+      .in("project_id", projectIds)
+      .eq("is_active", true);
+
+    (members || []).forEach((m) => {
+      memberCounts.set(m.project_id, (memberCounts.get(m.project_id) || 0) + 1);
+    });
+  }
+
+  type ProjectItem = NonNullable<typeof projects>[number];
+  type ProposalItem = NonNullable<typeof proposals>[number];
+  const projectByChallengeInst = new Map<string, ProjectItem>();
+  (projects || []).forEach((p) => {
+    projectByChallengeInst.set(`${p.challenge_id}:${p.institution_id}`, p);
+  });
+
+  const proposalByProject = new Map<string, ProposalItem>();
+  (proposals || []).forEach((pr) => {
+    proposalByProject.set(pr.project_id, pr);
+  });
+
+  const items: UniversityCollaborationItem[] = [];
+
+  // Build items primarily from invitations
+  for (const inv of invitations || []) {
+    const chal = inv.challenge as { id: string; title: string; category: string; status: string } | null;
+    const inst = inv.institution as { id: string; name: string; official_name: string | null; institution_type: string; city: string | null; state: string | null } | null;
+    if (!chal || !inst) continue;
+
+    const proj = projectByChallengeInst.get(`${inv.challenge_id}:${inv.institution_id}`);
+    const prop = proj ? proposalByProject.get(proj.id) : null;
+    const lead = proj?.lead as { id: string; full_name: string; email: string } | null;
+
+    let collabStatus: UniversityCollaborationItem["collaborationStatus"] = "INVITED";
+    if (inv.status === "ACCEPTED") {
+      collabStatus = "ACCEPTED";
+      if (proj) {
+        if (proj.status === "FORMING_TEAM") {
+          collabStatus = "FORMING_TEAM";
+        } else if (proj.status === "COMPLETED") {
+          collabStatus = "COMPLETED";
+        } else {
+          collabStatus = "ACTIVE";
+        }
+
+        if (prop) {
+          if (prop.status === "APPROVED") {
+            collabStatus = "PROPOSAL_APPROVED";
+          } else if (["SUBMITTED", "UNDER_REVIEW", "REQUESTED_REVISION", "RESUBMITTED"].includes(prop.status)) {
+            collabStatus = "PROPOSAL_PENDING";
+          }
+        }
+      }
+    }
+
+    const lastActivity = proj?.updated_at || inv.updated_at || inv.created_at;
+
+    items.push({
+      id: proj ? proj.id : inv.id,
+      projectId: proj ? proj.id : null,
+      invitationId: inv.id,
+      challengeId: chal.id,
+      challengeTitle: chal.title,
+      challengeCategory: chal.category || "Municipal Innovation",
+      institutionId: inst.id,
+      institutionName: inst.name,
+      institutionOfficialName: inst.official_name ?? null,
+      institutionType: inst.institution_type,
+      city: inst.city ?? null,
+      state: inst.state ?? null,
+      invitationStatus: inv.status,
+      collaborationStatus: collabStatus,
+      projectLeadName: lead?.full_name ?? null,
+      projectLeadEmail: lead?.email ?? null,
+      teamSize: proj ? (memberCounts.get(proj.id) || 0) : 0,
+      proposalStatus: (prop?.status as ProposalStatus) ?? null,
+      proposalId: prop?.id ?? null,
+      proposalVersion: prop?.version_number ?? null,
+      lastActivityAt: lastActivity,
+    });
+  }
+
+  // Sort by latest activity descending
+  items.sort((a, b) => new Date(b.lastActivityAt).getTime() - new Date(a.lastActivityAt).getTime());
+
+  return items;
+}
+

@@ -13,10 +13,11 @@ import {
   formatElapsedWaitingTime,
   type InstitutionLifecycleTrack,
 } from "@/lib/innovation";
+import type { UniversityWorkspaceTab } from "@/components/innovation/problem-control-center/workspace/university-workspace";
 
 interface UniversityCardProps {
   track: InstitutionLifecycleTrack;
-  onOpenWorkspace: (institutionId: string) => void;
+  onOpenWorkspace: (institutionId: string, tab?: UniversityWorkspaceTab) => void;
   onInspectProfile?: (track: InstitutionLifecycleTrack) => void;
 }
 
@@ -55,6 +56,7 @@ export function UniversityCard({
                 className="text-base font-bold text-foreground hover:text-primary cursor-pointer transition truncate"
               >
                 {track.institutionName}
+                {track.city ? ` (${track.city})` : ""}
               </h3>
               {track.institutionAcronym && (
                 <Badge variant="outline" className="text-[10px] font-semibold">
@@ -218,7 +220,7 @@ export function UniversityCard({
             </Button>
           )}
 
-          <div className="flex items-center gap-2 ml-auto">
+          <div className="flex items-center gap-2 ml-auto flex-wrap">
             {needsReview && track.proposalId && (
               <Button
                 size="sm"
@@ -228,6 +230,18 @@ export function UniversityCard({
                 className="bg-sky-600 hover:bg-sky-700 text-white text-xs font-bold gap-1 h-8 px-3 shadow-xs"
               >
                 <span>Review Proposal</span>
+                <ArrowRight className="w-3 h-3" />
+              </Button>
+            )}
+
+            {isApproved && track.proposalId && (
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => onOpenWorkspace(track.institutionId, "proposal")}
+                className="text-emerald-800 border-emerald-300 hover:bg-emerald-100/60 text-xs font-bold gap-1 h-8 px-3 shadow-xs"
+              >
+                <span>Approved Proposal</span>
                 <ArrowRight className="w-3 h-3" />
               </Button>
             )}

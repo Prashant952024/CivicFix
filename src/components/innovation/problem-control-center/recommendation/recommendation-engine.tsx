@@ -28,6 +28,7 @@ interface RecommendationEngineProps {
   matching: ProblemControlCenterData["matching"];
   onInspectInstitutionById: (institutionId: string) => void;
   onRefresh: () => void;
+  onNavigateToCollaborations?: () => void;
 }
 
 export function RecommendationEngine({
@@ -36,6 +37,7 @@ export function RecommendationEngine({
   matching,
   onInspectInstitutionById,
   onRefresh,
+  onNavigateToCollaborations,
 }: RecommendationEngineProps) {
   const navigate = useNavigate();
   const { profile } = useAppSession();
@@ -76,6 +78,11 @@ export function RecommendationEngine({
 
   const handleSelectAll = () => {
     setSelectedIds(new Set(matching.topMatches.map((m) => m.institutionId)));
+  };
+
+  const handleSelectTop5 = () => {
+    const top5 = matching.topMatches.slice(0, 5).map((m) => m.institutionId);
+    setSelectedIds(new Set(top5));
   };
 
   const handleDeselectAll = () => {
@@ -136,6 +143,9 @@ export function RecommendationEngine({
         setInvitationDialogOpen(false);
         setInvitationSuccess(null);
         onRefresh();
+        if (onNavigateToCollaborations) {
+          onNavigateToCollaborations();
+        }
       }, 1200);
     } catch (err: unknown) {
       setInvitationError(
@@ -161,6 +171,18 @@ export function RecommendationEngine({
         </div>
 
         <div className="flex items-center gap-2 flex-wrap">
+          {onNavigateToCollaborations && (
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={onNavigateToCollaborations}
+              className="text-xs font-semibold gap-1.5 h-8.5"
+            >
+              <Building2 className="w-3.5 h-3.5 text-primary" />
+              <span>University Collaborations &rarr;</span>
+            </Button>
+          )}
+
           {challenge && (
             <Button
               size="sm"
@@ -276,14 +298,23 @@ export function RecommendationEngine({
           {/* Top Selection Ribbon */}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-card p-3.5 rounded-xl border border-border shadow-xs text-xs">
             <div className="flex items-center gap-3">
-              <div className="flex items-center gap-1.5">
+              <div className="flex items-center gap-1.5 flex-wrap">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={handleSelectTop5}
+                  className="h-7 px-2.5 text-xs text-teal-800 border-teal-300 bg-teal-50/60 hover:bg-teal-100 font-semibold gap-1"
+                >
+                  <Sparkles className="w-3.5 h-3.5 text-teal-700" />
+                  <span>Select Top 5</span>
+                </Button>
                 <Button
                   size="sm"
                   variant="ghost"
                   onClick={handleSelectAll}
                   className="h-7 px-2 text-xs text-muted-foreground hover:text-foreground gap-1"
                 >
-                  <CheckSquare className="w-3.5 h-3.5 text-primary" />
+                  <CheckSquare className="w-3.5 h-3.5 text-teal-700" />
                   <span>Select All ({matching.topMatches.length})</span>
                 </Button>
                 <Button
@@ -300,7 +331,7 @@ export function RecommendationEngine({
               <span className="text-border">|</span>
 
               <span className="font-semibold text-foreground">
-                Selected: <span className="font-bold text-primary">{selectedIds.size}</span> institution(s)
+                Selected: <span className="font-bold text-teal-700">{selectedIds.size}</span> institution(s)
               </span>
             </div>
 
@@ -317,53 +348,88 @@ export function RecommendationEngine({
             )}
           </div>
 
+          {/* Top 5 Recommended Spotlight Header */}
+          <div className="pt-2 pb-1 flex flex-col sm:flex-row sm:items-center justify-between gap-1">
+            <div className="flex items-center gap-2">
+              <Sparkles className="w-4 h-4 text-teal-700" />
+              <h3 className="font-bold text-slate-900 text-sm">
+                Top 5 Recommended Institutions
+              </h3>
+              <Badge className="bg-teal-100 text-teal-900 border-teal-300 text-[10px] font-bold">
+                AI Multi-Vector Rank #1–#5
+              </Badge>
+            </div>
+            <span className="text-[11px] text-slate-500">
+              Evaluated across 10-dimensional domain and capability criteria
+            </span>
+          </div>
+
           {/* Cards List */}
           <div className="space-y-3">
-            {matching.topMatches.map((m) => {
+            {matching.topMatches.map((m, idx) => {
               const isChecked = selectedIds.has(m.institutionId);
+              const isTop5 = idx < 5;
 
               return (
-                <Card
-                  key={m.institutionId}
-                  className={`border transition-all duration-150 ${
-                    isChecked
-                      ? "border-teal-400 bg-teal-50/20 shadow-xs"
-                      : "border-border/80 bg-card hover:bg-muted/10"
-                  }`}
-                >
-                  <CardContent className="p-4 sm:p-5 space-y-3 text-xs">
-                    <div className="flex flex-col md:flex-row md:items-start justify-between gap-3">
-                      {/* Left: Checkbox, Rank, Name, Badges */}
-                      <div className="flex items-start gap-3 flex-1 min-w-0">
-                        <button
-                          type="button"
-                          onClick={() => toggleSelect(m.institutionId)}
-                          className="mt-0.5 text-muted-foreground hover:text-primary transition shrink-0"
-                          title={isChecked ? "Deselect" : "Select"}
-                        >
-                          {isChecked ? (
-                            <CheckSquare className="w-5 h-5 text-teal-700" />
-                          ) : (
-                            <Square className="w-5 h-5" />
-                          )}
-                        </button>
+                <div key={m.institutionId} className="space-y-3">
+                  {idx === 5 && (
+                    <div className="pt-4 pb-1 border-t border-slate-200 flex items-center justify-between">
+                      <h4 className="font-bold text-slate-700 text-xs uppercase tracking-wider">
+                        Additional Qualified Candidates ({matching.topMatches.length - 5})
+                      </h4>
+                      <span className="text-[11px] text-slate-500">
+                        Eligible for selection and invitation
+                      </span>
+                    </div>
+                  )}
 
-                        <div className="space-y-1 min-w-0 flex-1">
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <span className="font-mono font-bold text-muted-foreground text-xs">
-                              #{m.rank}
-                            </span>
-                            <span
-                              onClick={() => onInspectInstitutionById(m.institutionId)}
-                              className="font-bold text-foreground text-sm hover:text-primary cursor-pointer transition truncate"
-                            >
-                              {m.institutionName}
-                            </span>
-                            {m.institutionAcronym && (
-                              <Badge variant="outline" className="text-[10px] font-semibold">
-                                {m.institutionAcronym}
-                              </Badge>
+                  <Card
+                    className={`border transition-all duration-150 ${
+                      isChecked
+                        ? "border-teal-400 bg-teal-50/20 shadow-xs"
+                        : isTop5
+                        ? "border-teal-200/90 bg-white hover:border-teal-300 shadow-2xs"
+                        : "border-border/80 bg-card hover:bg-muted/10"
+                    }`}
+                  >
+                    <CardContent className="p-4 sm:p-5 space-y-3 text-xs">
+                      <div className="flex flex-col md:flex-row md:items-start justify-between gap-3">
+                        {/* Left: Checkbox, Rank, Name, Badges */}
+                        <div className="flex items-start gap-3 flex-1 min-w-0">
+                          <button
+                            type="button"
+                            onClick={() => toggleSelect(m.institutionId)}
+                            className="mt-0.5 text-muted-foreground hover:text-primary transition shrink-0"
+                            title={isChecked ? "Deselect" : "Select"}
+                          >
+                            {isChecked ? (
+                              <CheckSquare className="w-5 h-5 text-teal-700" />
+                            ) : (
+                              <Square className="w-5 h-5" />
                             )}
+                          </button>
+
+                          <div className="space-y-1 min-w-0 flex-1">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className="font-mono font-bold text-muted-foreground text-xs">
+                                #{m.rank}
+                              </span>
+                              <span
+                                onClick={() => onInspectInstitutionById(m.institutionId)}
+                                className="font-bold text-foreground text-sm hover:text-primary cursor-pointer transition truncate"
+                              >
+                                {m.institutionName}
+                              </span>
+                              {isTop5 && (
+                                <Badge className="bg-gradient-to-r from-teal-700 to-teal-800 text-white text-[10px] font-bold px-2 py-0.5 shadow-2xs">
+                                  Top 5 Spotlight
+                                </Badge>
+                              )}
+                              {m.institutionAcronym && (
+                                <Badge variant="outline" className="text-[10px] font-semibold">
+                                  {m.institutionAcronym}
+                                </Badge>
+                              )}
                             {m.recommendedRole && (
                               <Badge variant="info" className="text-[10px]">
                                 {m.recommendedRole}
@@ -451,9 +517,10 @@ export function RecommendationEngine({
                     </div>
                   </CardContent>
                 </Card>
-              );
-            })}
-          </div>
+              </div>
+            );
+          })}
+        </div>
         </div>
       )}
 

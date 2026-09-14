@@ -17,8 +17,9 @@ import {
   X,
   FileText,
   BrainCircuit,
+  Handshake,
 } from "lucide-react";
-import { NavLink } from "react-router-dom";
+import { NavLink, useLocation } from "react-router-dom";
 
 import { useAppSession } from "@/auth/app-session";
 import { Button } from "@/components/ui/button";
@@ -48,12 +49,14 @@ type NavIconKey =
   | "institutions"
   | "proposals"
   | "problems"
+  | "collaborations"
   | "profile";
 
 const navIcons: Record<NavIconKey, ComponentType<{ className?: string; "aria-hidden"?: boolean }>> = {
   dashboard: LayoutDashboard,
   issues: ClipboardList,
   problems: BrainCircuit,
+  collaborations: Handshake,
   report: SquarePen,
   assigned: ClipboardCheck,
   notifications: Bell,
@@ -71,6 +74,7 @@ const navIcons: Record<NavIconKey, ComponentType<{ className?: string; "aria-hid
 
 function getNavIcon(item: CivicFixRoleNavItem) {
   const lowered = item.path.toLowerCase();
+  if (lowered.includes("collaboration")) return navIcons.collaborations;
   if (lowered.includes("problem")) return navIcons.problems;
   if (lowered.includes("proposal")) return navIcons.proposals;
   if (lowered.includes("institution") || lowered.includes("university")) {
@@ -104,6 +108,7 @@ function getNavIcon(item: CivicFixRoleNavItem) {
 }
 
 export function AppSidebar({ roleCode, mobileOpen, onClose }: AppSidebarProps) {
+  const location = useLocation();
   const { profile } = useAppSession();
   const role = civicFixRoleConfigs[roleCode];
   const navItems = civicFixNavItems[roleCode];
@@ -174,6 +179,16 @@ export function AppSidebar({ roleCode, mobileOpen, onClose }: AppSidebarProps) {
     };
   }, [mobileOpen, onClose]);
 
+  const problemStages = [
+    { label: "All Complex Problems", stage: "" },
+    { label: "New / Unclassified", stage: "UNCLASSIFIED" },
+    { label: "Problem Formulation", stage: "FORMULATION" },
+    { label: "Matching", stage: "MATCHING" },
+    { label: "Invitations", stage: "INVITATIONS" },
+    { label: "Active Research", stage: "RESEARCH" },
+    { label: "Completed", stage: "COMPLETED" },
+  ];
+
   return (
     <>
       {mobileOpen ? (
@@ -225,7 +240,7 @@ export function AppSidebar({ roleCode, mobileOpen, onClose }: AppSidebarProps) {
             let badgeCount = 0;
             let badgeClass = "bg-teal-600 text-white";
 
-            if (item.path.includes("/proposals") && proposalsNeedingReview > 0) {
+            if ((item.path.includes("/proposals") || item.path.includes("/collaborations")) && proposalsNeedingReview > 0) {
               badgeCount = proposalsNeedingReview;
               badgeClass = "bg-amber-500 text-amber-950 font-bold animate-pulse";
             } else if (item.path.includes("/notifications") && unreadNotifications > 0) {
@@ -233,31 +248,63 @@ export function AppSidebar({ roleCode, mobileOpen, onClose }: AppSidebarProps) {
               badgeClass = "bg-teal-600 text-white font-semibold";
             }
 
+            const isProblemsItem = item.path === "/app/innovation/problems";
+            const isProblemsActive = location.pathname.startsWith("/app/innovation/problems");
+
             return (
-              <NavLink
-                key={item.path}
-                className={({ isActive }) =>
-                  [
-                    "flex items-center gap-3 rounded-xl px-3.5 py-3 text-sm font-medium transition-all duration-200 min-h-[44px]",
-                    isActive
-                      ? "border border-teal-200/90 bg-gradient-to-r from-[#0f766e]/12 via-[#0284c7]/10 to-[#059669]/10 text-[#0f5f59] shadow-sm shadow-teal-950/5 font-semibold"
-                      : "text-muted-foreground hover:bg-teal-50/70 hover:text-foreground",
-                  ].join(" ")
-                }
-                onClick={onClose}
-                to={item.path}
-                end={item.path.split("/").length <= 3}
-              >
-                <Icon className="h-4.5 w-4.5 shrink-0" aria-hidden={true} />
-                <span className="flex-1 truncate">{item.label}</span>
-                {badgeCount > 0 && (
-                  <span
-                    className={`ml-auto inline-flex items-center justify-center rounded-full px-2 py-0.5 text-[10px] shadow-xs ${badgeClass}`}
-                  >
-                    {badgeCount}
-                  </span>
+              <div key={item.path} className="space-y-1">
+                <NavLink
+                  className={({ isActive }) =>
+                    [
+                      "flex items-center gap-3 rounded-xl px-3.5 py-3 text-sm font-medium transition-all duration-200 min-h-[44px]",
+                      isActive || (isProblemsItem && isProblemsActive)
+                        ? "border border-teal-200/90 bg-gradient-to-r from-[#0f766e]/12 via-[#0284c7]/10 to-[#059669]/10 text-[#0f5f59] shadow-sm shadow-teal-950/5 font-semibold"
+                        : "text-muted-foreground hover:bg-teal-50/70 hover:text-foreground",
+                    ].join(" ")
+                  }
+                  onClick={onClose}
+                  to={item.path}
+                  end={item.path.split("/").length <= 3}
+                >
+                  <Icon className="h-4.5 w-4.5 shrink-0" aria-hidden={true} />
+                  <span className="flex-1 truncate">{item.label}</span>
+                  {badgeCount > 0 && (
+                    <span
+                      className={`ml-auto inline-flex items-center justify-center rounded-full px-2 py-0.5 text-[10px] shadow-xs ${badgeClass}`}
+                    >
+                      {badgeCount}
+                    </span>
+                  )}
+                </NavLink>
+
+                {isProblemsItem && roleCode === "INNOVATION_MANAGER" && isProblemsActive && (
+                  <div className="ml-7 my-1 space-y-0.5 border-l-2 border-teal-200/60 pl-2.5 py-1">
+                    {problemStages.map((ps) => {
+                      const stageUrl = ps.stage ? `/app/innovation/problems?stage=${ps.stage}` : "/app/innovation/problems";
+                      const isStageActive = location.pathname === "/app/innovation/problems" && (
+                        ps.stage
+                          ? location.search.includes(`stage=${ps.stage}`)
+                          : (!location.search.includes("stage=") || location.search === "")
+                      );
+                      return (
+                        <NavLink
+                          key={ps.stage || "all"}
+                          to={stageUrl}
+                          onClick={onClose}
+                          className={[
+                            "block rounded-lg px-2.5 py-1 text-[11px] font-medium transition-colors",
+                            isStageActive
+                              ? "bg-teal-600/15 text-teal-900 font-semibold"
+                              : "text-muted-foreground hover:bg-teal-50/80 hover:text-foreground",
+                          ].join(" ")}
+                        >
+                          {ps.label}
+                        </NavLink>
+                      );
+                    })}
+                  </div>
                 )}
-              </NavLink>
+              </div>
             );
           })}
         </nav>

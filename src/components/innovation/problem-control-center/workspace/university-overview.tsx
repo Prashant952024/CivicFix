@@ -1,26 +1,37 @@
 import {
+  ArrowRight,
   Building2,
   ExternalLink,
+  FileText,
   Layers,
   Sparkles,
+  Target,
 } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import type { InstitutionLifecycleTrack } from "@/lib/innovation";
+import type { UniversityWorkspaceTab } from "@/components/innovation/problem-control-center/workspace/university-workspace";
 
 interface UniversityOverviewProps {
   institution: InstitutionLifecycleTrack;
   problemTitle: string;
+  onNavigateToTab?: (tab: UniversityWorkspaceTab) => void;
 }
 
 export function UniversityOverview({
   institution,
   problemTitle,
+  onNavigateToTab,
 }: UniversityOverviewProps) {
   const isAccepted = institution.invitationStatus === "ACCEPTED";
   const isApproved = institution.proposalStatus === "APPROVED";
-  const hasProposal = Boolean(institution.proposalId);
+  const currentProposal =
+    institution.proposals?.find((p) => p.isCurrent) ||
+    institution.proposals?.[0] ||
+    null;
+  const hasProposal = Boolean(institution.proposalId || currentProposal);
 
   return (
     <div className="space-y-6 text-xs">
@@ -70,10 +81,32 @@ export function UniversityOverview({
           </span>
         </div>
 
-        <div className="p-3.5 rounded-2xl border border-border bg-card shadow-xs">
-          <span className="text-[10px] font-bold text-muted-foreground uppercase block">
-            Proposal
-          </span>
+        <div
+          onClick={() => {
+            if (hasProposal && onNavigateToTab) {
+              onNavigateToTab("proposal");
+            }
+          }}
+          className={`p-3.5 rounded-2xl border bg-card shadow-xs transition ${
+            hasProposal && onNavigateToTab
+              ? "cursor-pointer hover:border-primary/60 hover:bg-primary/5 group"
+              : "border-border"
+          } ${
+            isApproved
+              ? "border-emerald-300/80 bg-emerald-50/20"
+              : institution.proposalStatus === "SUBMITTED"
+              ? "border-sky-300/80 bg-sky-50/20"
+              : "border-border"
+          }`}
+        >
+          <div className="flex items-center justify-between">
+            <span className="text-[10px] font-bold text-muted-foreground uppercase block">
+              Proposal
+            </span>
+            {hasProposal && onNavigateToTab && (
+              <ArrowRight className="w-3 h-3 text-muted-foreground group-hover:text-primary transition-transform group-hover:translate-x-0.5" />
+            )}
+          </div>
           <p
             className={`text-base font-black mt-1 ${
               isApproved
@@ -86,7 +119,7 @@ export function UniversityOverview({
             {institution.proposalStatus ? `v${institution.proposalVersion} (${institution.proposalStatus})` : "Not Submitted"}
           </p>
           <span className="text-[10px] text-muted-foreground block">
-            {isApproved ? "Approved Solution" : hasProposal ? "In Governance" : "Awaiting Submission"}
+            {isApproved ? "Approved Solution ✓" : hasProposal ? "In Governance (View)" : "Awaiting Submission"}
           </span>
         </div>
 
@@ -102,6 +135,141 @@ export function UniversityOverview({
           </span>
         </div>
       </div>
+
+      {/* DEDICATED RESEARCH PROPOSAL & TECHNICAL BLUEPRINT SHOWCASE */}
+      {hasProposal && (
+        <Card
+          className={`border-2 transition-all shadow-sm overflow-hidden ${
+            isApproved
+              ? "border-emerald-400/80 bg-gradient-to-br from-emerald-50/60 via-background to-background"
+              : institution.proposalStatus === "SUBMITTED"
+              ? "border-sky-400/80 bg-gradient-to-br from-sky-50/60 via-background to-background"
+              : "border-border bg-card"
+          }`}
+        >
+          <div
+            className={`h-1.5 ${
+              isApproved
+                ? "bg-gradient-to-r from-emerald-500 via-teal-500 to-green-600"
+                : "bg-gradient-to-r from-sky-500 via-indigo-500 to-primary"
+            }`}
+          />
+          <CardContent className="p-5 sm:p-6 space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
+              <div className="space-y-1">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <FileText className="w-4 h-4 text-primary" />
+                  <h3 className="text-base font-black text-foreground tracking-tight">
+                    Research Proposal &amp; Technical Blueprint
+                  </h3>
+                  <Badge
+                    className={
+                      isApproved
+                        ? "bg-emerald-600 text-white font-bold text-[10px]"
+                        : institution.proposalStatus === "SUBMITTED"
+                        ? "bg-sky-600 text-white font-bold text-[10px]"
+                        : "bg-muted text-muted-foreground text-[10px]"
+                    }
+                  >
+                    {isApproved
+                      ? "✓ APPROVED RESEARCH SOLUTION"
+                      : institution.proposalStatus === "SUBMITTED"
+                      ? "SUBMITTED FOR EVALUATION"
+                      : institution.proposalStatus || "PROPOSAL ACTIVE"}
+                  </Badge>
+                  <Badge variant="outline" className="text-[10px] font-mono font-bold bg-card">
+                    Version {institution.proposalVersion || currentProposal?.versionNumber || 1}
+                  </Badge>
+                </div>
+                <p className="text-muted-foreground text-xs">
+                  {institution.institutionName}'s formal technical solution submitted for "{problemTitle}"
+                </p>
+              </div>
+
+              {onNavigateToTab && (
+                <Button
+                  size="sm"
+                  onClick={() => onNavigateToTab("proposal")}
+                  className={`text-xs font-bold gap-1.5 shadow-sm shrink-0 h-9 px-4 ${
+                    isApproved
+                      ? "bg-emerald-700 hover:bg-emerald-800 text-white"
+                      : "bg-primary hover:bg-primary/90 text-primary-foreground"
+                  }`}
+                >
+                  <FileText className="w-3.5 h-3.5" />
+                  <span>View Full 11-Section Proposal</span>
+                  <ArrowRight className="w-3.5 h-3.5" />
+                </Button>
+              )}
+            </div>
+
+            {/* Project Objective Excerpt */}
+            <div className="p-4 rounded-xl bg-card border border-border/80 space-y-1.5 shadow-2xs">
+              <span className="text-[10px] uppercase font-bold text-muted-foreground flex items-center gap-1.5">
+                <Target className="w-3.5 h-3.5 text-primary" />
+                <span>Project Objective &amp; Research Solution Scope</span>
+              </span>
+              <p className="text-foreground font-medium leading-relaxed text-xs">
+                {currentProposal?.projectObjective ||
+                  "Formal municipal co-development and empirical research proposal tailored to this civic challenge."}
+              </p>
+            </div>
+
+            {/* Technical Approach Excerpt if present */}
+            {currentProposal?.technicalApproach && (
+              <div className="p-3.5 rounded-xl bg-muted/20 border border-border/70 space-y-1">
+                <span className="text-[10px] uppercase font-bold text-muted-foreground block">
+                  Technical Approach &amp; Engineering Methodology
+                </span>
+                <p className="text-muted-foreground leading-relaxed text-xs line-clamp-2">
+                  {currentProposal.technicalApproach}
+                </p>
+              </div>
+            )}
+
+            {/* Structured Deliverables and Milestones Summary Grid */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 pt-1">
+              <div className="p-2.5 rounded-xl bg-card border border-border/80">
+                <span className="text-[9px] uppercase font-bold text-muted-foreground block">
+                  Milestones
+                </span>
+                <span className="text-xs font-bold text-foreground block mt-0.5">
+                  {currentProposal?.milestones?.length || 0} Defined Phases
+                </span>
+              </div>
+
+              <div className="p-2.5 rounded-xl bg-card border border-border/80">
+                <span className="text-[9px] uppercase font-bold text-muted-foreground block">
+                  Deliverables
+                </span>
+                <span className="text-xs font-bold text-foreground block mt-0.5">
+                  {currentProposal?.deliverables?.length || 0} Expected Items
+                </span>
+              </div>
+
+              <div className="p-2.5 rounded-xl bg-card border border-border/80">
+                <span className="text-[9px] uppercase font-bold text-muted-foreground block">
+                  Success Metrics
+                </span>
+                <span className="text-xs font-bold text-foreground block mt-0.5">
+                  {currentProposal?.successMetrics?.length || 0} Target Metrics
+                </span>
+              </div>
+
+              <div className="p-2.5 rounded-xl bg-card border border-border/80">
+                <span className="text-[9px] uppercase font-bold text-muted-foreground block">
+                  Submission Date
+                </span>
+                <span className="text-xs font-bold text-foreground block mt-0.5">
+                  {institution.proposalSubmittedAt
+                    ? new Date(institution.proposalSubmittedAt).toLocaleDateString()
+                    : "Recorded"}
+                </span>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* 2. LIFECYCLE PROGRESS PIPELINE */}
       <Card className="border-border shadow-xs">

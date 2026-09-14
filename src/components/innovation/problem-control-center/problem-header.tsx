@@ -27,6 +27,8 @@ interface ProblemHeaderProps {
   refreshing: boolean;
   onRefresh: () => void;
   onOpenRecommendationEngine: () => void;
+  onOpenFormulation?: () => void;
+  onOpenProposalReview?: (institutionId?: string, proposalId?: string) => void;
 }
 
 export function ProblemHeader({
@@ -38,6 +40,8 @@ export function ProblemHeader({
   refreshing,
   onRefresh,
   onOpenRecommendationEngine,
+  onOpenFormulation,
+  onOpenProposalReview,
 }: ProblemHeaderProps) {
   const navigate = useNavigate();
 
@@ -175,7 +179,11 @@ export function ProblemHeader({
                 <Button
                   size="sm"
                   onClick={() => {
-                    void navigate(`/app/innovation/issues/${problem.id}`);
+                    if (onOpenFormulation) {
+                      onOpenFormulation();
+                    } else {
+                      void navigate(`/app/innovation/issues/${problem.id}`);
+                    }
                   }}
                   className="bg-primary hover:bg-primary/90 text-primary-foreground text-xs font-bold gap-1.5 shadow-sm h-9 px-4"
                 >
@@ -187,7 +195,7 @@ export function ProblemHeader({
           </div>
 
           {/* Quick Problem Metadata Strip */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-3 border-t border-border/70 text-xs">
+          <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 pt-3 border-t border-border/70 text-xs">
             <div className="space-y-0.5">
               <span className="text-[10px] uppercase font-bold text-muted-foreground block">
                 Administrative Classification
@@ -224,6 +232,37 @@ export function ProblemHeader({
               </span>
               <span className="font-semibold text-foreground truncate block">
                 {challenge ? challenge.status : "Pending Formulation"}
+              </span>
+            </div>
+
+            <div
+              onClick={() => {
+                if (stats.proposalsApprovedCount > 0 && onOpenProposalReview) {
+                  onOpenProposalReview();
+                }
+              }}
+              className={`space-y-0.5 col-span-2 sm:col-span-1 ${
+                stats.proposalsApprovedCount > 0 ? "cursor-pointer group" : ""
+              }`}
+            >
+              <span className="text-[10px] uppercase font-bold text-muted-foreground block flex items-center gap-1">
+                <GraduationCap className="w-2.5 h-2.5 text-primary" />
+                <span>Research Solutions</span>
+              </span>
+              <span
+                className={`font-semibold truncate block ${
+                  stats.proposalsApprovedCount > 0
+                    ? "text-emerald-700 font-bold group-hover:underline"
+                    : stats.proposalsCount > 0
+                    ? "text-sky-700 font-bold"
+                    : "text-foreground"
+                }`}
+              >
+                {stats.proposalsApprovedCount > 0
+                  ? `${stats.proposalsApprovedCount} Approved ✓`
+                  : stats.proposalsCount > 0
+                  ? `${stats.proposalsCount} Submitted`
+                  : "Awaiting Proposals"}
               </span>
             </div>
           </div>
@@ -273,7 +312,11 @@ export function ProblemHeader({
                   <Button
                     size="sm"
                     onClick={() => {
-                      void navigate(`/app/innovation/proposals/${item.id}`);
+                      if (onOpenProposalReview) {
+                        onOpenProposalReview(item.institutionId, item.id);
+                      } else {
+                        void navigate(`/app/innovation/proposals/${item.id}`);
+                      }
                     }}
                     className="bg-primary text-primary-foreground text-xs font-bold gap-1 h-7 px-2.5"
                   >
@@ -284,6 +327,43 @@ export function ProblemHeader({
               </div>
             ))}
           </div>
+        </div>
+      )}
+
+      {/* 3b. PROBLEM-LEVEL APPROVED SOLUTIONS SUMMARY RIBBON */}
+      {stats.proposalsApprovedCount > 0 && actionRequired.proposalsAwaitingReviewList.length === 0 && (
+        <div className="p-4 rounded-2xl border border-emerald-300 bg-gradient-to-r from-emerald-50 via-teal-50/40 to-background shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+          <div className="flex items-center gap-2.5">
+            <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />
+            <div className="space-y-0.5">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="font-bold text-emerald-950">
+                  Approved Research Solution &amp; Technical Blueprint
+                </span>
+                <Badge className="bg-emerald-600 text-white font-bold text-[10px]">
+                  {stats.proposalsApprovedCount} Approved Solution
+                </Badge>
+              </div>
+              <p className="text-emerald-900">
+                Institutional research proposal has been approved and authorized for municipal co-development.
+              </p>
+            </div>
+          </div>
+
+          <Button
+            size="sm"
+            onClick={() => {
+              if (onOpenProposalReview) {
+                onOpenProposalReview();
+              } else {
+                void navigate(`/app/innovation/problems/${problem.id}?view=collaborations&tab=proposal`);
+              }
+            }}
+            className="bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs gap-1.5 h-8 px-3.5 shrink-0 shadow-xs"
+          >
+            <span>View Approved Proposal</span>
+            <ArrowRight className="w-3.5 h-3.5" />
+          </Button>
         </div>
       )}
     </div>

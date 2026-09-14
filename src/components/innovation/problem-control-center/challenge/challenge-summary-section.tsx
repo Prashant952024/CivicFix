@@ -16,11 +16,15 @@ import type { ProblemControlCenterData } from "@/lib/innovation";
 interface ChallengeSummarySectionProps {
   challenge: ProblemControlCenterData["challenge"];
   problemId: string;
+  onNavigateToFormulation?: () => void;
+  onNavigateToRecommendation?: () => void;
 }
 
 export function ChallengeSummarySection({
   challenge,
   problemId,
+  onNavigateToFormulation,
+  onNavigateToRecommendation,
 }: ChallengeSummarySectionProps) {
   const navigate = useNavigate();
 
@@ -42,7 +46,13 @@ export function ChallengeSummarySection({
 
           <Button
             size="sm"
-            onClick={() => void navigate(`/app/innovation/issues/${problemId}`)}
+            onClick={() => {
+              if (onNavigateToFormulation) {
+                onNavigateToFormulation();
+              } else {
+                void navigate(`/app/innovation/issues/${problemId}`);
+              }
+            }}
             className="bg-primary hover:bg-primary/90 text-primary-foreground text-xs font-bold gap-1.5 shadow-xs shrink-0"
           >
             <Sparkles className="w-3.5 h-3.5" />
@@ -77,16 +87,41 @@ export function ChallengeSummarySection({
           </p>
         </div>
 
-        <Button
-          size="sm"
-          variant="outline"
-          onClick={() => void navigate(`/app/innovation/challenges/${challenge.id}`)}
-          className="text-xs font-bold gap-1.5 h-8"
-        >
-          <BookOpen className="w-3.5 h-3.5" />
-          <span>View Challenge</span>
-          <ExternalLink className="w-3 h-3 opacity-60" />
-        </Button>
+        <div className="flex items-center gap-2 flex-wrap">
+          {onNavigateToFormulation && (
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={onNavigateToFormulation}
+              className="text-xs font-semibold gap-1.5 h-8"
+            >
+              <Sparkles className="w-3.5 h-3.5 text-primary" />
+              <span>Edit Formulation</span>
+            </Button>
+          )}
+
+          {onNavigateToRecommendation && (
+            <Button
+              size="sm"
+              onClick={onNavigateToRecommendation}
+              className="bg-teal-700 hover:bg-teal-800 text-white text-xs font-bold gap-1.5 h-8 px-3"
+            >
+              <Rocket className="w-3.5 h-3.5" />
+              <span>Recommendation Engine &rarr;</span>
+            </Button>
+          )}
+
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => void navigate(`/app/innovation/challenges/${challenge.id}`)}
+            className="text-xs font-bold gap-1.5 h-8"
+          >
+            <BookOpen className="w-3.5 h-3.5" />
+            <span>Full Dossier</span>
+            <ExternalLink className="w-3 h-3 opacity-60" />
+          </Button>
+        </div>
       </CardHeader>
 
       <CardContent className="p-5 sm:p-6 space-y-4 text-xs">
