@@ -1450,6 +1450,16 @@ export interface Database {
           project_summary: string | null;
           status: "FORMING_TEAM" | "ACTIVE" | "PAUSED" | "COMPLETED" | "ARCHIVED";
           project_lead_profile_id: string | null;
+          update_cadence_days: number;
+          research_stage:
+            | "RESEARCH_STARTED"
+            | "PROTOTYPE_DEVELOPMENT"
+            | "PROTOTYPE_COMPLETED"
+            | "TESTING"
+            | "PILOT_READY"
+            | "PILOT_ACTIVE"
+            | "VALIDATION"
+            | "COMPLETED";
           created_by: string;
           created_at: string;
           updated_at: string;
@@ -1463,6 +1473,16 @@ export interface Database {
           project_summary?: string | null;
           status?: "FORMING_TEAM" | "ACTIVE" | "PAUSED" | "COMPLETED" | "ARCHIVED";
           project_lead_profile_id?: string | null;
+          update_cadence_days?: number;
+          research_stage?:
+            | "RESEARCH_STARTED"
+            | "PROTOTYPE_DEVELOPMENT"
+            | "PROTOTYPE_COMPLETED"
+            | "TESTING"
+            | "PILOT_READY"
+            | "PILOT_ACTIVE"
+            | "VALIDATION"
+            | "COMPLETED";
           created_by: string;
           created_at?: string;
           updated_at?: string;
@@ -1476,6 +1496,16 @@ export interface Database {
           project_summary?: string | null;
           status?: "FORMING_TEAM" | "ACTIVE" | "PAUSED" | "COMPLETED" | "ARCHIVED";
           project_lead_profile_id?: string | null;
+          update_cadence_days?: number;
+          research_stage?:
+            | "RESEARCH_STARTED"
+            | "PROTOTYPE_DEVELOPMENT"
+            | "PROTOTYPE_COMPLETED"
+            | "TESTING"
+            | "PILOT_READY"
+            | "PILOT_ACTIVE"
+            | "VALIDATION"
+            | "COMPLETED";
           created_by?: string;
           created_at?: string;
           updated_at?: string;
@@ -1727,7 +1757,19 @@ export interface Database {
             | "PROPOSAL_REVISION_REQUESTED"
             | "PROPOSAL_RESUBMITTED"
             | "PROPOSAL_APPROVED"
-            | "PROPOSAL_REJECTED";
+            | "PROPOSAL_REJECTED"
+            | "RESEARCH_STARTED"
+            | "MILESTONE_CREATED"
+            | "MILESTONE_UPDATED"
+            | "MILESTONE_COMPLETED"
+            | "PROGRESS_UPDATE_SUBMITTED"
+            | "PROGRESS_UPDATE_ACKNOWLEDGED"
+            | "EVIDENCE_ADDED"
+            | "BLOCKER_REPORTED"
+            | "BLOCKER_RESOLVED"
+            | "RISK_REPORTED"
+            | "RISK_UPDATED"
+            | "EXTERNAL_RESOURCE_ADDED";
           description: string;
           metadata: Json;
           created_at: string;
@@ -1753,7 +1795,19 @@ export interface Database {
             | "PROPOSAL_REVISION_REQUESTED"
             | "PROPOSAL_RESUBMITTED"
             | "PROPOSAL_APPROVED"
-            | "PROPOSAL_REJECTED";
+            | "PROPOSAL_REJECTED"
+            | "RESEARCH_STARTED"
+            | "MILESTONE_CREATED"
+            | "MILESTONE_UPDATED"
+            | "MILESTONE_COMPLETED"
+            | "PROGRESS_UPDATE_SUBMITTED"
+            | "PROGRESS_UPDATE_ACKNOWLEDGED"
+            | "EVIDENCE_ADDED"
+            | "BLOCKER_REPORTED"
+            | "BLOCKER_RESOLVED"
+            | "RISK_REPORTED"
+            | "RISK_UPDATED"
+            | "EXTERNAL_RESOURCE_ADDED";
           description: string;
           metadata?: Json;
           created_at?: string;
@@ -1779,7 +1833,19 @@ export interface Database {
             | "PROPOSAL_REVISION_REQUESTED"
             | "PROPOSAL_RESUBMITTED"
             | "PROPOSAL_APPROVED"
-            | "PROPOSAL_REJECTED";
+            | "PROPOSAL_REJECTED"
+            | "RESEARCH_STARTED"
+            | "MILESTONE_CREATED"
+            | "MILESTONE_UPDATED"
+            | "MILESTONE_COMPLETED"
+            | "PROGRESS_UPDATE_SUBMITTED"
+            | "PROGRESS_UPDATE_ACKNOWLEDGED"
+            | "EVIDENCE_ADDED"
+            | "BLOCKER_REPORTED"
+            | "BLOCKER_RESOLVED"
+            | "RISK_REPORTED"
+            | "RISK_UPDATED"
+            | "EXTERNAL_RESOURCE_ADDED";
           description?: string;
           metadata?: Json;
           created_at?: string;
@@ -1981,6 +2047,299 @@ export interface Database {
           },
         ];
       };
+      research_project_milestones: {
+        Row: {
+          id: string;
+          project_id: string;
+          proposal_id: string | null;
+          sequence_order: number;
+          title: string;
+          description: string | null;
+          status: "NOT_STARTED" | "IN_PROGRESS" | "COMPLETED" | "BLOCKED" | "DELAYED" | "CANCELLED";
+          planned_start_date: string | null;
+          planned_completion_date: string | null;
+          actual_completion_date: string | null;
+          completion_percentage: number;
+          deliverables: Json;
+          notes: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          project_id: string;
+          proposal_id?: string | null;
+          sequence_order?: number;
+          title: string;
+          description?: string | null;
+          status?: "NOT_STARTED" | "IN_PROGRESS" | "COMPLETED" | "BLOCKED" | "DELAYED" | "CANCELLED";
+          planned_start_date?: string | null;
+          planned_completion_date?: string | null;
+          actual_completion_date?: string | null;
+          completion_percentage?: number;
+          deliverables?: Json;
+          notes?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          project_id?: string;
+          proposal_id?: string | null;
+          sequence_order?: number;
+          title?: string;
+          description?: string | null;
+          status?: "NOT_STARTED" | "IN_PROGRESS" | "COMPLETED" | "BLOCKED" | "DELAYED" | "CANCELLED";
+          planned_start_date?: string | null;
+          planned_completion_date?: string | null;
+          actual_completion_date?: string | null;
+          completion_percentage?: number;
+          deliverables?: Json;
+          notes?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "research_project_milestones_project_id_fkey";
+            columns: ["project_id"];
+            isOneToOne: false;
+            referencedRelation: "challenge_projects";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      research_progress_updates: {
+        Row: {
+          id: string;
+          project_id: string;
+          reporting_period_start: string;
+          reporting_period_end: string;
+          summary_completed: string;
+          current_findings: string | null;
+          milestone_id: string | null;
+          milestone_progress_pct: number | null;
+          next_planned_work: string;
+          support_required: string | null;
+          support_category:
+            | "HARDWARE"
+            | "DATA_ACCESS"
+            | "TESTBED"
+            | "REGULATORY"
+            | "FINANCIAL"
+            | "TECHNICAL_ADVISORY"
+            | "OTHER"
+            | null;
+          submitted_by: string | null;
+          submitted_at: string;
+          manager_acknowledged_at: string | null;
+          manager_acknowledged_by: string | null;
+          manager_feedback: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          project_id: string;
+          reporting_period_start: string;
+          reporting_period_end: string;
+          summary_completed: string;
+          current_findings?: string | null;
+          milestone_id?: string | null;
+          milestone_progress_pct?: number | null;
+          next_planned_work: string;
+          support_required?: string | null;
+          support_category?:
+            | "HARDWARE"
+            | "DATA_ACCESS"
+            | "TESTBED"
+            | "REGULATORY"
+            | "FINANCIAL"
+            | "TECHNICAL_ADVISORY"
+            | "OTHER"
+            | null;
+          submitted_by?: string | null;
+          submitted_at?: string;
+          manager_acknowledged_at?: string | null;
+          manager_acknowledged_by?: string | null;
+          manager_feedback?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          project_id?: string;
+          reporting_period_start?: string;
+          reporting_period_end?: string;
+          summary_completed?: string;
+          current_findings?: string | null;
+          milestone_id?: string | null;
+          milestone_progress_pct?: number | null;
+          next_planned_work?: string;
+          support_required?: string | null;
+          support_category?:
+            | "HARDWARE"
+            | "DATA_ACCESS"
+            | "TESTBED"
+            | "REGULATORY"
+            | "FINANCIAL"
+            | "TECHNICAL_ADVISORY"
+            | "OTHER"
+            | null;
+          submitted_by?: string | null;
+          submitted_at?: string;
+          manager_acknowledged_at?: string | null;
+          manager_acknowledged_by?: string | null;
+          manager_feedback?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "research_progress_updates_project_id_fkey";
+            columns: ["project_id"];
+            isOneToOne: false;
+            referencedRelation: "challenge_projects";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      research_evidence: {
+        Row: {
+          id: string;
+          project_id: string;
+          progress_update_id: string | null;
+          milestone_id: string | null;
+          title: string;
+          evidence_type:
+            | "REPORT"
+            | "CODE_REPO"
+            | "DATASET"
+            | "IMAGE"
+            | "VIDEO"
+            | "DASHBOARD"
+            | "PUBLICATION"
+            | "PROTOTYPE_DOC"
+            | "OTHER";
+          url: string | null;
+          file_path: string | null;
+          description: string | null;
+          uploaded_by: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          project_id: string;
+          progress_update_id?: string | null;
+          milestone_id?: string | null;
+          title: string;
+          evidence_type:
+            | "REPORT"
+            | "CODE_REPO"
+            | "DATASET"
+            | "IMAGE"
+            | "VIDEO"
+            | "DASHBOARD"
+            | "PUBLICATION"
+            | "PROTOTYPE_DOC"
+            | "OTHER";
+          url?: string | null;
+          file_path?: string | null;
+          description?: string | null;
+          uploaded_by?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          project_id?: string;
+          progress_update_id?: string | null;
+          milestone_id?: string | null;
+          title?: string;
+          evidence_type?:
+            | "REPORT"
+            | "CODE_REPO"
+            | "DATASET"
+            | "IMAGE"
+            | "VIDEO"
+            | "DASHBOARD"
+            | "PUBLICATION"
+            | "PROTOTYPE_DOC"
+            | "OTHER";
+          url?: string | null;
+          file_path?: string | null;
+          description?: string | null;
+          uploaded_by?: string | null;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "research_evidence_project_id_fkey";
+            columns: ["project_id"];
+            isOneToOne: false;
+            referencedRelation: "challenge_projects";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      research_blockers_risks: {
+        Row: {
+          id: string;
+          project_id: string;
+          item_type: "BLOCKER" | "RISK";
+          title: string;
+          description: string;
+          severity: "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
+          status: "OPEN" | "IN_PROGRESS" | "RESOLVED";
+          support_required: string | null;
+          reported_by: string | null;
+          reported_at: string;
+          resolution_notes: string | null;
+          resolved_at: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          project_id: string;
+          item_type: "BLOCKER" | "RISK";
+          title: string;
+          description: string;
+          severity?: "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
+          status?: "OPEN" | "IN_PROGRESS" | "RESOLVED";
+          support_required?: string | null;
+          reported_by?: string | null;
+          reported_at?: string;
+          resolution_notes?: string | null;
+          resolved_at?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          project_id?: string;
+          item_type?: "BLOCKER" | "RISK";
+          title?: string;
+          description?: string;
+          severity?: "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
+          status?: "OPEN" | "IN_PROGRESS" | "RESOLVED";
+          support_required?: string | null;
+          reported_by?: string | null;
+          reported_at?: string;
+          resolution_notes?: string | null;
+          resolved_at?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "research_blockers_risks_project_id_fkey";
+            columns: ["project_id"];
+            isOneToOne: false;
+            referencedRelation: "challenge_projects";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
     };
     Views: Record<string, never>;
     Functions: Record<string, never>;
@@ -2123,4 +2482,63 @@ export interface ProposalResource {
   critical: boolean;
   [key: string]: Json | undefined;
 }
+
+export type ResearchMilestoneStatus =
+  | "NOT_STARTED"
+  | "IN_PROGRESS"
+  | "COMPLETED"
+  | "BLOCKED"
+  | "DELAYED"
+  | "CANCELLED";
+
+export type ResearchStage =
+  | "RESEARCH_STARTED"
+  | "PROTOTYPE_DEVELOPMENT"
+  | "PROTOTYPE_COMPLETED"
+  | "TESTING"
+  | "PILOT_READY"
+  | "PILOT_ACTIVE"
+  | "VALIDATION"
+  | "COMPLETED";
+
+export type EvidenceType =
+  | "REPORT"
+  | "CODE_REPO"
+  | "DATASET"
+  | "IMAGE"
+  | "VIDEO"
+  | "DASHBOARD"
+  | "PUBLICATION"
+  | "PROTOTYPE_DOC"
+  | "OTHER";
+
+export type BlockerSeverity = "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
+
+export type BlockerStatus = "OPEN" | "IN_PROGRESS" | "RESOLVED";
+
+export type SupportCategory =
+  | "HARDWARE"
+  | "DATA_ACCESS"
+  | "TESTBED"
+  | "REGULATORY"
+  | "FINANCIAL"
+  | "TECHNICAL_ADVISORY"
+  | "OTHER";
+
+export type ResearchProjectMilestoneRow = Database["public"]["Tables"]["research_project_milestones"]["Row"];
+export type ResearchProjectMilestoneInsert = Database["public"]["Tables"]["research_project_milestones"]["Insert"];
+export type ResearchProjectMilestoneUpdate = Database["public"]["Tables"]["research_project_milestones"]["Update"];
+
+export type ResearchProgressUpdateRow = Database["public"]["Tables"]["research_progress_updates"]["Row"];
+export type ResearchProgressUpdateInsert = Database["public"]["Tables"]["research_progress_updates"]["Insert"];
+export type ResearchProgressUpdateUpdate = Database["public"]["Tables"]["research_progress_updates"]["Update"];
+
+export type ResearchEvidenceRow = Database["public"]["Tables"]["research_evidence"]["Row"];
+export type ResearchEvidenceInsert = Database["public"]["Tables"]["research_evidence"]["Insert"];
+export type ResearchEvidenceUpdate = Database["public"]["Tables"]["research_evidence"]["Update"];
+
+export type ResearchBlockerRiskRow = Database["public"]["Tables"]["research_blockers_risks"]["Row"];
+export type ResearchBlockerRiskInsert = Database["public"]["Tables"]["research_blockers_risks"]["Insert"];
+export type ResearchBlockerRiskUpdate = Database["public"]["Tables"]["research_blockers_risks"]["Update"];
+
 

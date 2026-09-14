@@ -20,6 +20,7 @@ import {
   Sparkles,
   Plus,
   FileText,
+  FlaskConical,
   LayoutGrid,
   List,
 } from "lucide-react";
@@ -31,6 +32,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog } from "@/components/ui/dialog";
 import { EmptyState } from "@/components/ui/empty-state";
+import { ResearchPrototypeWorkspace } from "@/components/research-workspace/research-prototype-workspace";
 import { TeamMemberCard } from "@/components/projects/team-member-card";
 import { TeamMemberTable } from "@/components/projects/team-member-table";
 import { TeamMemberProfileDialog } from "@/components/projects/team-member-profile-dialog";
@@ -68,7 +70,7 @@ export function UniversityProjectDetailPage() {
   const [activity, setActivity] = useState<ChallengeProjectActivityWithActor[]>([]);
   const [currentProposal, setCurrentProposal] = useState<ResearchProposalWithDetails | null>(null);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<"team" | "challenge" | "activity" | "proposal">("team");
+  const [activeTab, setActiveTab] = useState<"team" | "proposal" | "research" | "challenge" | "activity">("team");
 
   // Notifications
   const [actionSuccess, setActionSuccess] = useState<string | null>(null);
@@ -878,6 +880,37 @@ export function UniversityProjectDetailPage() {
           Research Team ({activeMembersList.length})
         </button>
         <button
+          onClick={() => setActiveTab("proposal")}
+          className={`pb-2.5 flex items-center gap-1.5 transition-colors border-b-2 ${
+            activeTab === "proposal"
+              ? "border-primary text-primary"
+              : "border-transparent text-muted-foreground hover:text-foreground"
+          }`}
+        >
+          <FileText className="w-3.5 h-3.5" />
+          Research Proposal {currentProposal ? `(v${currentProposal.version_number})` : ""}
+        </button>
+        <button
+          onClick={() => setActiveTab("research")}
+          className={`pb-2.5 flex items-center gap-1.5 transition-colors border-b-2 ${
+            activeTab === "research"
+              ? "border-primary text-primary"
+              : "border-transparent text-muted-foreground hover:text-foreground"
+          }`}
+        >
+          <FlaskConical className="w-3.5 h-3.5" />
+          Research &amp; Prototype
+          {currentProposal?.status === "APPROVED" ? (
+            <Badge className="bg-emerald-100 text-emerald-800 border-emerald-300 font-bold text-[9px] px-1 py-0 ml-1">
+              Active
+            </Badge>
+          ) : (
+            <Badge variant="outline" className="text-[9px] px-1 py-0 ml-1 text-muted-foreground">
+              Locked
+            </Badge>
+          )}
+        </button>
+        <button
           onClick={() => setActiveTab("challenge")}
           className={`pb-2.5 flex items-center gap-1.5 transition-colors border-b-2 ${
             activeTab === "challenge"
@@ -898,17 +931,6 @@ export function UniversityProjectDetailPage() {
         >
           <History className="w-3.5 h-3.5" />
           Activity Log ({activity.length})
-        </button>
-        <button
-          onClick={() => setActiveTab("proposal")}
-          className={`pb-2.5 flex items-center gap-1.5 transition-colors border-b-2 ${
-            activeTab === "proposal"
-              ? "border-primary text-primary"
-              : "border-transparent text-muted-foreground hover:text-foreground"
-          }`}
-        >
-          <FileText className="w-3.5 h-3.5" />
-          Research Proposal {currentProposal ? `(v${currentProposal.version_number})` : ""}
         </button>
       </div>
 
@@ -1443,6 +1465,19 @@ export function UniversityProjectDetailPage() {
               </CardContent>
             </Card>
           )}
+        </div>
+      )}
+
+      {/* Tab: Research & Prototype Development Workspace */}
+      {activeTab === "research" && project && (
+        <div className="space-y-4">
+          <ResearchPrototypeWorkspace
+            projectId={project.id}
+            isManager={false}
+            onNavigateToTab={(t) => {
+              if (t === "proposal") setActiveTab("proposal");
+            }}
+          />
         </div>
       )}
 

@@ -6,6 +6,7 @@ import {
   CheckCircle2,
   Clock,
   FileText,
+  FlaskConical,
   GraduationCap,
   HelpCircle,
   LayoutDashboard,
@@ -18,6 +19,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { ResearchPrototypeWorkspace } from "@/components/research-workspace/research-prototype-workspace";
 import { UniversityActivity } from "@/components/innovation/problem-control-center/workspace/university-activity";
 import { UniversityCommunication } from "@/components/innovation/problem-control-center/workspace/university-communication";
 import { UniversityHelpRequests } from "@/components/innovation/problem-control-center/workspace/university-help-requests";
@@ -33,6 +35,7 @@ export type UniversityWorkspaceTab =
   | "progress"
   | "team"
   | "proposal"
+  | "research"
   | "communication"
   | "updates"
   | "help"
@@ -352,7 +355,41 @@ export function UniversityWorkspace({
             )}
           </Button>
 
-          {/* TAB 5: COMMUNICATION */}
+          {/* TAB 5: RESEARCH / PROTOTYPE */}
+          <Button
+            size="sm"
+            variant={activeTab === "research" ? "default" : "ghost"}
+            onClick={() => handleTabChange("research")}
+            className={`text-xs font-semibold gap-1.5 h-8.5 px-3 rounded-xl transition shrink-0 ${
+              activeTab === "research" ? "shadow-xs font-bold" : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            <FlaskConical className="w-3.5 h-3.5" />
+            <span>Research / Prototype</span>
+            {isApproved ? (
+              <Badge
+                className={`text-[9px] ml-0.5 px-1.5 py-0 ${
+                  activeTab === "research"
+                    ? "bg-white/20 text-primary-foreground border-transparent"
+                    : "bg-emerald-100 text-emerald-800 border-emerald-300 font-bold"
+                }`}
+              >
+                Active
+              </Badge>
+            ) : (
+              <Badge
+                className={`text-[9px] ml-0.5 px-1.5 py-0 ${
+                  activeTab === "research"
+                    ? "bg-white/20 text-primary-foreground border-transparent"
+                    : "bg-muted text-muted-foreground"
+                }`}
+              >
+                Locked
+              </Badge>
+            )}
+          </Button>
+
+          {/* TAB 6: COMMUNICATION */}
           <Button
             size="sm"
             variant={activeTab === "communication" ? "default" : "ghost"}
@@ -440,6 +477,14 @@ export function UniversityWorkspace({
 
         {activeTab === "proposal" && (
           <UniversityProposal institution={institution} />
+        )}
+
+        {activeTab === "research" && institution.projectId && (
+          <ResearchPrototypeWorkspace
+            projectId={institution.projectId}
+            isManager={true}
+            onNavigateToTab={(t) => handleTabChange(t as UniversityWorkspaceTab)}
+          />
         )}
 
         {activeTab === "communication" && (

@@ -681,6 +681,8 @@ export interface InstitutionLifecycleTrack {
   projectStatus: string | null;
   projectLeadName: string | null;
   projectLeadEmail: string | null;
+  updateCadenceDays?: number | null;
+  researchStage?: string | null;
 
   // Team
   teamMembersCount: number;
@@ -1584,7 +1586,7 @@ interface ControlCenterActivity {
       supabase
         .from("challenge_projects")
         .select(`
-          id, challenge_id, institution_id, project_title, project_summary, status, created_at, updated_at,
+          id, challenge_id, institution_id, project_title, project_summary, status, update_cadence_days, research_stage, created_at, updated_at,
           institution:institutions(id, name, acronym, institution_type, city, state, website, research_domains, facilities, areas_of_expertise),
           project_lead:profiles!challenge_projects_project_lead_profile_id_fkey(id, full_name, email)
         `)
@@ -1976,6 +1978,8 @@ interface ControlCenterActivity {
         projectStatus: proj?.status ?? null,
         projectLeadName: proj?.project_lead?.full_name ?? null,
         projectLeadEmail: proj?.project_lead?.email ?? null,
+        updateCadenceDays: (proj as unknown as { update_cadence_days?: number })?.update_cadence_days ?? 5,
+        researchStage: (proj as unknown as { research_stage?: string })?.research_stage ?? "RESEARCH_STARTED",
 
         teamMembersCount: allProjMembers.length,
         teamMembersActiveCount: projMembers.length,

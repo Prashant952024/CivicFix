@@ -1,0 +1,379 @@
+import { useEffect, useState, useCallback } from "react";
+import {
+  ArrowRight,
+  FileText,
+  FlaskConical,
+  Layers,
+  Link2,
+  Lock,
+  RefreshCw,
+  ShieldAlert,
+  Wrench,
+} from "lucide-react";
+
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { EvidenceAndResourcesCard } from "@/components/research-workspace/evidence-and-resources-card";
+import { MilestonesTracker } from "@/components/research-workspace/milestones-tracker";
+import { ProgressUpdatesLog } from "@/components/research-workspace/progress-updates-log";
+import { ResearchOverviewStrip } from "@/components/research-workspace/research-overview-strip";
+import { RisksAndBlockersCard } from "@/components/research-workspace/risks-and-blockers-card";
+import { SubmitProgressDialog } from "@/components/research-workspace/submit-progress-dialog";
+import type { ResearchWorkspaceSummary } from "@/lib/research-workspace";
+import { fetchResearchWorkspaceData } from "@/lib/research-workspace";
+
+interface ResearchPrototypeWorkspaceProps {
+  projectId: string;
+  isManager?: boolean;
+  onNavigateToTab?: (tab: string) => void;
+}
+
+type WorkspaceSubTab =
+  | "milestones"
+  | "updates"
+  | "evidence"
+  | "risks"
+  | "support";
+
+export function ResearchPrototypeWorkspace({
+  projectId,
+  isManager = false,
+  onNavigateToTab,
+}: ResearchPrototypeWorkspaceProps) {
+  const [summary, setSummary] = useState<ResearchWorkspaceSummary | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [activeSubTab, setActiveSubTab] = useState<WorkspaceSubTab>("milestones");
+  const [submitDialogOpen, setSubmitDialogOpen] = useState(false);
+
+  const loadData = useCallback(async () => {
+    if (!projectId) return;
+    try {
+      const data = await fetchResearchWorkspaceData(projectId);
+      setSummary(data);
+    } catch (err) {
+      console.error("Failed to load research workspace data:", err);
+    } finally {
+      setLoading(false);
+    }
+  }, [projectId]);
+
+  const handleRefresh = useCallback(() => {
+    setLoading(true);
+    void loadData();
+  }, [loadData]);
+
+  useEffect(() => {
+    let active = true;
+    void fetchResearchWorkspaceData(projectId)
+      .then((data) => {
+        if (active) {
+          setSummary(data);
+          setLoading(false);
+        }
+      })
+      .catch((err: unknown) => {
+        if (active) {
+          console.error("Failed to load research workspace data:", err);
+          setLoading(false);
+        }
+      });
+    return () => {
+      active = false;
+    };
+  }, [projectId]);
+
+  if (loading && !summary) {
+    return (
+      <Card className="border-border/80">
+        <CardContent className="p-12 flex flex-col items-center justify-center gap-3">
+          <RefreshCw className="w-6 h-6 animate-spin text-primary" />
+          <p className="text-xs text-muted-foreground font-medium">
+            Loading Research &amp; Prototype Development Workspace...
+          </p>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (!summary) {
+    return (
+      <Card className="border-border/80">
+        <CardContent className="p-8 text-center space-y-2">
+          <p className="text-sm font-bold text-foreground">Project Workspace Not Found</p>
+          <p className="text-xs text-muted-foreground">
+            Could not locate challenge project records.
+          </p>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  // 1. STRICT PROPOSAL GATING CHECK
+  if (summary.isGated) {
+    return (
+      <Card className="border-2 border-amber-300 bg-gradient-to-br from-amber-50/50 via-background to-background shadow-xs overflow-hidden">
+        <div className="h-2 bg-gradient-to-r from-amber-400 to-amber-600" />
+        <CardContent className="p-6 sm:p-8 space-y-6">
+          <div className="flex flex-col sm:flex-row sm:items-start gap-4">
+            <div className="p-3 rounded-2xl bg-amber-100 text-amber-800 shrink-0 self-start">
+              <Lock className="w-8 h-8" />
+            </div>
+
+            <div className="space-y-2 flex-1">
+              <div className="flex items-center gap-2 flex-wrap">
+                <Badge variant="outline" className="bg-amber-100 text-amber-950 border-amber-300 font-bold text-xs">
+                  Workspace Gated
+                </Badge>
+                {summary.proposalStatus && (
+                  <Badge variant="outline" className="text-xs font-semibold">
+                    Proposal Status: {summary.proposalStatus}
+                  </Badge>
+                )}
+              </div>
+
+              <h3 className="text-xl font-black text-foreground tracking-tight">
+                Research &amp; Prototype Development Workspace Locked
+              </h3>
+
+              <p className="text-xs sm:text-sm text-slate-600 leading-relaxed max-w-2xl">
+                CivicFix governance requires formal municipal evaluation and authorization before active research and prototype development begins. This workspace becomes operational <strong>only after the university research proposal has been approved</strong> by the Innovation Manager.
+              </p>
+
+              <div className="pt-2">
+                <div className="p-3.5 rounded-xl bg-card border border-amber-200/80 text-xs text-slate-700 space-y-1.5 max-w-xl">
+                  <div className="font-bold text-foreground flex items-center gap-1.5">
+                    <FlaskConical className="w-4 h-4 text-primary" />
+                    <span>Current Workflow Requirement:</span>
+                  </div>
+                  <p className="text-muted-foreground leading-relaxed">
+                    {summary.proposalStatus === "SUBMITTED" || summary.proposalStatus === "RESUBMITTED"
+                      ? "The proposal is currently awaiting Innovation Manager evaluation. Once accepted, operational milestones, 5-day progress reporting, and evidence tracking will unlock."
+                      : summary.proposalStatus === "REQUESTED_REVISION"
+                      ? "The Innovation Manager requested revisions on the proposal. Submit the updated iteration to proceed."
+                      : summary.proposalStatus === "REJECTED"
+                      ? "The submitted proposal was rejected. Review the manager's feedback in the Research Proposal tab."
+                      : "The research proposal has not been submitted yet. Complete and submit the 11-section blueprint in the Research Proposal tab."}
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="flex items-center justify-end gap-3 pt-4 border-t border-border/80">
+            {onNavigateToTab && (
+              <Button
+                onClick={() => onNavigateToTab("proposal")}
+                className="bg-primary hover:bg-primary/90 text-primary-foreground text-xs font-bold gap-2 shadow-xs h-9 px-4"
+              >
+                <span>Go to Research Proposal Tab</span>
+                <ArrowRight className="w-4 h-4" />
+              </Button>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  // 2. ACTIVE RESEARCH & PROTOTYPE DEVELOPMENT WORKSPACE
+  return (
+    <div className="space-y-6">
+      {/* 2A. TOP RESEARCH OVERVIEW STRIP */}
+      <ResearchOverviewStrip
+        summary={summary}
+        isManager={isManager}
+        onRefresh={handleRefresh}
+      />
+
+      {/* 2B. SUB-NAVIGATION BAR */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-border/80 pb-2">
+        <div className="flex items-center gap-1 overflow-x-auto no-scrollbar">
+          <Button
+            size="sm"
+            variant={activeSubTab === "milestones" ? "default" : "ghost"}
+            onClick={() => setActiveSubTab("milestones")}
+            className={`text-xs font-semibold gap-1.5 h-8 px-3 rounded-xl shrink-0 ${
+              activeSubTab === "milestones" ? "font-bold shadow-xs" : "text-muted-foreground"
+            }`}
+          >
+            <Layers className="w-3.5 h-3.5" />
+            <span>Milestones ({summary.milestones.length})</span>
+          </Button>
+
+          <Button
+            size="sm"
+            variant={activeSubTab === "updates" ? "default" : "ghost"}
+            onClick={() => setActiveSubTab("updates")}
+            className={`text-xs font-semibold gap-1.5 h-8 px-3 rounded-xl shrink-0 ${
+              activeSubTab === "updates" ? "font-bold shadow-xs" : "text-muted-foreground"
+            }`}
+          >
+            <FileText className="w-3.5 h-3.5" />
+            <span>Progress Updates ({summary.progressUpdates.length})</span>
+          </Button>
+
+          <Button
+            size="sm"
+            variant={activeSubTab === "evidence" ? "default" : "ghost"}
+            onClick={() => setActiveSubTab("evidence")}
+            className={`text-xs font-semibold gap-1.5 h-8 px-3 rounded-xl shrink-0 ${
+              activeSubTab === "evidence" ? "font-bold shadow-xs" : "text-muted-foreground"
+            }`}
+          >
+            <Link2 className="w-3.5 h-3.5" />
+            <span>Evidence &amp; Artifacts ({summary.evidence.length})</span>
+          </Button>
+
+          <Button
+            size="sm"
+            variant={activeSubTab === "risks" ? "default" : "ghost"}
+            onClick={() => setActiveSubTab("risks")}
+            className={`text-xs font-semibold gap-1.5 h-8 px-3 rounded-xl shrink-0 ${
+              activeSubTab === "risks" ? "font-bold shadow-xs" : "text-muted-foreground"
+            }`}
+          >
+            <ShieldAlert className="w-3.5 h-3.5" />
+            <span>Blockers &amp; Risks</span>
+            {summary.openBlockersCount > 0 && (
+              <Badge variant="danger" className="text-[9px] ml-1 px-1 py-0">
+                {summary.openBlockersCount}
+              </Badge>
+            )}
+          </Button>
+
+          <Button
+            size="sm"
+            variant={activeSubTab === "support" ? "default" : "ghost"}
+            onClick={() => setActiveSubTab("support")}
+            className={`text-xs font-semibold gap-1.5 h-8 px-3 rounded-xl shrink-0 ${
+              activeSubTab === "support" ? "font-bold shadow-xs" : "text-muted-foreground"
+            }`}
+          >
+            <Wrench className="w-3.5 h-3.5" />
+            <span>Support Requirements ({summary.activeSupportRequests.length})</span>
+          </Button>
+        </div>
+
+        {!isManager && (
+          <Button
+            size="sm"
+            onClick={() => setSubmitDialogOpen(true)}
+            className="bg-primary hover:bg-primary/90 text-primary-foreground text-xs font-bold gap-1.5 shadow-xs h-8 px-3.5 shrink-0 self-end sm:self-auto"
+          >
+            <FileText className="w-3.5 h-3.5" />
+            <span>Submit 5-Day Update</span>
+          </Button>
+        )}
+      </div>
+
+      {/* 2C. SUB-TAB CONTENT */}
+      <div>
+        {activeSubTab === "milestones" && (
+          <MilestonesTracker
+            projectId={projectId}
+            milestones={summary.milestones}
+            canEdit={!isManager}
+            onRefresh={handleRefresh}
+          />
+        )}
+
+        {activeSubTab === "updates" && (
+          <ProgressUpdatesLog
+            projectId={projectId}
+            updates={summary.progressUpdates}
+            isManager={isManager}
+            onRefresh={handleRefresh}
+            onOpenSubmitModal={() => setSubmitDialogOpen(true)}
+            onNavigateToTab={onNavigateToTab}
+          />
+        )}
+
+        {activeSubTab === "evidence" && (
+          <EvidenceAndResourcesCard
+            projectId={projectId}
+            evidence={summary.evidence}
+            canEdit={!isManager}
+            onRefresh={handleRefresh}
+          />
+        )}
+
+        {activeSubTab === "risks" && (
+          <RisksAndBlockersCard
+            projectId={projectId}
+            items={summary.blockersAndRisks}
+            canEdit={!isManager}
+            onRefresh={handleRefresh}
+          />
+        )}
+
+        {activeSubTab === "support" && (
+          <div className="space-y-4">
+            <div className="space-y-1">
+              <h3 className="text-sm font-bold text-foreground flex items-center gap-2">
+                <Wrench className="w-4 h-4 text-primary" />
+                <span>Support &amp; Resource Requirements ({summary.activeSupportRequests.length})</span>
+              </h3>
+              <p className="text-xs text-muted-foreground">
+                Assistance requested by the research team from municipal departments, testbed providers, or future industry partners.
+              </p>
+            </div>
+
+            {summary.activeSupportRequests.length === 0 ? (
+              <Card className="border-border/80">
+                <CardContent className="p-8">
+                  <div className="text-center space-y-2">
+                    <p className="text-xs font-bold text-foreground">No Open Support Requests</p>
+                    <p className="text-xs text-muted-foreground">
+                      The university currently has the necessary access and resources to execute planned research work.
+                    </p>
+                  </div>
+                </CardContent>
+              </Card>
+            ) : (
+              <div className="space-y-3">
+                {summary.activeSupportRequests.map((req) => (
+                  <Card key={req.id} className="border-amber-200 bg-amber-50/20">
+                    <CardContent className="p-4 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <span className="p-1.5 rounded-lg bg-amber-100 text-amber-900">
+                            <Wrench className="w-3.5 h-3.5" />
+                          </span>
+                          <span className="font-bold text-xs text-foreground">
+                            {req.title}
+                          </span>
+                        </div>
+                        {req.category && (
+                          <Badge variant="outline" className="text-[10px] bg-white font-semibold">
+                            {req.category}
+                          </Badge>
+                        )}
+                      </div>
+                      <p className="text-xs text-amber-950 leading-relaxed font-medium pl-8">
+                        {req.supportRequired}
+                      </p>
+                      <div className="text-[10px] text-muted-foreground font-mono pl-8">
+                        Logged from {req.source === "BLOCKER" ? "Blocker Report" : "Progress Update"} • {new Date(req.createdAt).toLocaleDateString()}
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* SUBMIT PROGRESS UPDATE MODAL */}
+      <SubmitProgressDialog
+        open={submitDialogOpen}
+        onClose={() => setSubmitDialogOpen(false)}
+        projectId={projectId}
+        milestones={summary.milestones}
+        lastUpdateAt={summary.lastUpdateAt}
+        onSuccess={handleRefresh}
+      />
+    </div>
+  );
+}
