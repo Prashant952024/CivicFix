@@ -114,12 +114,12 @@ export function ProblemHeader({
                 {challenge ? (
                   <Badge
                     className={
-                      challenge.status === "APPROVED"
+                      ["APPROVED", "INVITATIONS_SENT", "OPEN_FOR_PROPOSALS", "ACTIVE", "PILOT_ACTIVE", "SOLVED"].includes(challenge.status)
                         ? "bg-emerald-100 text-emerald-900 border-emerald-300 text-xs font-bold"
                         : "bg-teal-100 text-teal-900 border-teal-300 text-xs font-bold"
                     }
                   >
-                    Challenge {challenge.status}
+                    Challenge {challenge.status.replace(/_/g, " ")}
                   </Badge>
                 ) : (
                   <Badge variant="outline" className="text-xs text-amber-700 border-amber-300">

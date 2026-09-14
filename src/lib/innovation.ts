@@ -1411,9 +1411,11 @@ interface ControlCenterInstitution {
   institution_type?: string | null;
   city?: string | null;
   state?: string | null;
+  website?: string | null;
   website_url?: string | null;
   research_domains?: string[] | null;
   facilities?: string[] | null;
+  areas_of_expertise?: string[] | null;
   specializations?: string[] | null;
   created_at?: string;
 }
@@ -1534,7 +1536,7 @@ interface ControlCenterActivity {
         .from("challenge_institution_selections")
         .select(`
           institution_id, selected_at,
-          institution:institutions(id, name, acronym, institution_type, city, state, website_url, research_domains, facilities, specializations)
+          institution:institutions(id, name, acronym, institution_type, city, state, website, research_domains, facilities, areas_of_expertise)
         `)
         .eq("challenge_id", challengeId),
 
@@ -1542,7 +1544,7 @@ interface ControlCenterActivity {
         .from("institution_invitations")
         .select(`
           id, institution_id, status, invited_at, responded_at,
-          institution:institutions(id, name, acronym, institution_type, city, state, website_url, research_domains, facilities, specializations)
+          institution:institutions(id, name, acronym, institution_type, city, state, website, research_domains, facilities, areas_of_expertise)
         `)
         .eq("challenge_id", challengeId),
 
@@ -1550,7 +1552,7 @@ interface ControlCenterActivity {
         .from("challenge_projects")
         .select(`
           id, challenge_id, institution_id, project_title, project_summary, status, created_at, updated_at,
-          institution:institutions(id, name, acronym, institution_type, city, state, website_url, research_domains, facilities, specializations),
+          institution:institutions(id, name, acronym, institution_type, city, state, website, research_domains, facilities, areas_of_expertise),
           project_lead:profiles!challenge_projects_project_lead_profile_id_fkey(id, full_name, email)
         `)
         .eq("challenge_id", challengeId),
@@ -1567,6 +1569,19 @@ interface ControlCenterActivity {
         .eq("challenge_id", challengeId)
         .order("version_number", { ascending: false }),
     ]);
+
+    if (selectionsRes.error) {
+      console.error("[fetchProblemControlCenterData] selectionsRes error:", selectionsRes.error);
+    }
+    if (invitationsRes.error) {
+      console.error("[fetchProblemControlCenterData] invitationsRes error:", invitationsRes.error);
+    }
+    if (projectsRes.error) {
+      console.error("[fetchProblemControlCenterData] projectsRes error:", projectsRes.error);
+    }
+    if (proposalsRes.error) {
+      console.error("[fetchProblemControlCenterData] proposalsRes error:", proposalsRes.error);
+    }
 
     matchRun = matchRunRes.data || null;
     selections = (selectionsRes.data as unknown as { institution_id: string; selected_at: string; institution: ControlCenterInstitution | null }[]) || [];
@@ -1661,16 +1676,89 @@ interface ControlCenterActivity {
   // 4. Build institutions map and tracks
   const institutionsMap = new Map<string, ControlCenterInstitution>();
 
+  // Helper to normalize institution fields from queries
+  const normalizeInst = (raw: ControlCenterInstitution | null | undefined): ControlCenterInstitution | null => {
+    if (!raw || !raw.id) return null;
+    return {
+      ...raw,
+      website_url: raw.website_url || raw.website || null,
+      specializations: (Array.isArray(raw.specializations) && raw.specializations.length > 0)
+        ? raw.specializations
+        : (Array.isArray(raw.areas_of_expertise) ? raw.areas_of_expertise : []),
+    };
+  };
+
   // Collect institutions from selections, invitations, projects
   selections.forEach((s) => {
-    if (s.institution) institutionsMap.set(s.institution_id, s.institution);
+    const inst = normalizeInst(s.institution);
+    if (inst) institutionsMap.set(s.institution_id, inst);
   });
   invitations.forEach((inv) => {
-    if (inv.institution) institutionsMap.set(inv.institution_id, inv.institution);
+    const inst = normalizeInst(inv.institution);
+    if (inst) institutionsMap.set(inv.institution_id, inst);
   });
   projects.forEach((p) => {
-    if (p.institution) institutionsMap.set(p.institution_id, p.institution);
+    const inst = normalizeInst(p.institution);
+    if (inst) institutionsMap.set(p.institution_id, inst);
   });
+
+  // Collect all unique institution IDs referenced in any related table
+  const allReferencedInstitutionIds = new Set<string>();
+  selections.forEach((s) => { if (s.institution_id) allReferencedInstitutionIds.add(s.institution_id); });
+  invitations.forEach((i) => { if (i.institution_id) allReferencedInstitutionIds.add(i.institution_id); });
+  projects.forEach((p) => { if (p.institution_id) allReferencedInstitutionIds.add(p.institution_id); });
+  proposals.forEach((pr) => { if (pr.institution_id) allReferencedInstitutionIds.add(pr.institution_id); });
+
+  // If any institution is missing from institutionsMap, fetch directly from institutions table
+  const missingInstitutionIds = Array.from(allReferencedInstitutionIds).filter((id) => !institutionsMap.has(id));
+  if (missingInstitutionIds.length > 0) {
+    const { data: missingInsts, error: missingError } = await supabase
+      .from("institutions")
+      .select("id, name, acronym, institution_type, city, state, website, research_domains, facilities, areas_of_expertise, created_at")
+      .in("id", missingInstitutionIds);
+
+    if (missingError) {
+      console.error("[fetchProblemControlCenterData] Error fetching missing institutions:", missingError);
+    } else if (missingInsts) {
+      missingInsts.forEach((raw) => {
+        institutionsMap.set(raw.id, {
+          id: raw.id,
+          name: raw.name,
+          acronym: raw.acronym,
+          institution_type: raw.institution_type,
+          city: raw.city,
+          state: raw.state,
+          website: raw.website,
+          website_url: raw.website,
+          research_domains: raw.research_domains,
+          facilities: raw.facilities,
+          areas_of_expertise: raw.areas_of_expertise,
+          specializations: raw.areas_of_expertise,
+          created_at: raw.created_at,
+        });
+      });
+    }
+
+    // Safety fallback: if any ID still not in institutionsMap, provide a minimal entry
+    missingInstitutionIds.forEach((id) => {
+      if (!institutionsMap.has(id)) {
+        institutionsMap.set(id, {
+          id,
+          name: `Participating Institution (${id.slice(0, 8)})`,
+          acronym: null,
+          institution_type: "University",
+          city: null,
+          state: null,
+          website: null,
+          website_url: null,
+          research_domains: [],
+          facilities: [],
+          areas_of_expertise: [],
+          specializations: [],
+        });
+      }
+    });
+  }
 
   const institutionTracks: InstitutionLifecycleTrack[] = Array.from(institutionsMap.values()).map(
     (inst) => {
@@ -1825,10 +1913,12 @@ interface ControlCenterActivity {
         institutionType: inst.institution_type ?? null,
         city: inst.city ?? null,
         state: inst.state ?? null,
-        websiteUrl: inst.website_url ?? null,
+        websiteUrl: inst.website_url ?? inst.website ?? null,
         researchDomains: Array.isArray(inst.research_domains) ? inst.research_domains : [],
         facilities: Array.isArray(inst.facilities) ? inst.facilities : [],
-        specializations: Array.isArray(inst.specializations) ? inst.specializations : [],
+        specializations: (Array.isArray(inst.specializations) && inst.specializations.length > 0)
+          ? inst.specializations
+          : (Array.isArray(inst.areas_of_expertise) ? inst.areas_of_expertise : []),
 
         isSelected: Boolean(sel),
         selectedAt: sel?.selected_at ?? null,

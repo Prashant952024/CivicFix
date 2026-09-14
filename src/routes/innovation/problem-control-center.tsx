@@ -275,11 +275,11 @@ export function InnovationProblemControlCenterPage() {
       label: "Formulation",
       icon: Sparkles,
       badge: challenge
-        ? challenge.status === "APPROVED"
-          ? "Approved"
+        ? ["APPROVED", "READY_FOR_MATCHING", "MATCHING_IN_PROGRESS", "MATCHING_COMPLETED", "INSTITUTIONS_SELECTED", "READY_FOR_INVITATION", "INVITATIONS_SENT", "OPEN_FOR_PROPOSALS", "PILOT_ACTIVE", "SOLVED"].includes(challenge.status)
+          ? "Finalized"
           : "Draft"
         : "Needs Formulation",
-      badgeVariant: challenge?.status === "APPROVED" ? "success" : "warning",
+      badgeVariant: challenge && challenge.status !== "DRAFT" ? "success" : "warning",
     },
     {
       id: "recommendation",
