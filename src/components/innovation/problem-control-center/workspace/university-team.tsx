@@ -1,13 +1,11 @@
-import {
-  ExternalLink,
-  Info,
-  Mail,
-  Users,
-} from "lucide-react";
+import { useState } from "react";
+import { Info, Users, UserCheck, UserX } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
+import { TeamMemberCard } from "@/components/projects/team-member-card";
+import { TeamMemberProfileDialog } from "@/components/projects/team-member-profile-dialog";
+import type { ChallengeProjectMemberWithProfile } from "@/lib/projects";
 import type { InstitutionLifecycleTrack } from "@/lib/innovation";
 
 interface UniversityTeamProps {
@@ -15,171 +13,142 @@ interface UniversityTeamProps {
 }
 
 export function UniversityTeam({ institution }: UniversityTeamProps) {
-  const members = institution.teamMembers || [];
+  const [selectedProfileMember, setSelectedProfileMember] =
+    useState<ChallengeProjectMemberWithProfile | null>(null);
+
+  const rawMembers = institution.teamMembers || [];
+  const totalCount = institution.teamMembersCount ?? rawMembers.length;
+  const activeCount =
+    institution.teamMembersActiveCount ??
+    rawMembers.filter((m) => m.isActive).length;
+  const formerCount =
+    institution.teamMembersFormerCount ??
+    rawMembers.filter((m) => !m.isActive).length;
+
+  const mappedMembers: ChallengeProjectMemberWithProfile[] = rawMembers.map((m) => ({
+    id: m.id,
+    project_id: institution.projectId || "",
+    profile_id: m.profileId,
+    member_name: m.memberName,
+    member_email: m.memberEmail,
+    member_type: (m.memberType as ChallengeProjectMemberWithProfile["member_type"]) || null,
+    role: (m.role as ChallengeProjectMemberWithProfile["role"]) || "MEMBER",
+    designation: m.designation,
+    department: m.department || null,
+    organization: m.organization || null,
+    institution_name: m.institutionName || institution.institutionName,
+    academic_program: m.academicProgram || null,
+    academic_year: m.academicYear || null,
+    academic_level: m.academicLevel || null,
+    specialization: m.specialization || null,
+    expected_graduation_year: m.expectedGraduationYear || null,
+    years_of_experience: m.yearsOfExperience || null,
+    primary_expertise: m.primaryExpertise || null,
+    secondary_expertise: m.secondaryExpertise || null,
+    expertise: m.expertise || null,
+    research_areas: m.researchAreas || [],
+    research_domains: m.researchDomains || [],
+    technical_skills: m.technicalSkills || [],
+    technologies: m.technologies || [],
+    project_responsibility: m.projectResponsibility || null,
+    project_contribution: m.projectContribution || null,
+    professional_bio: m.professionalBio || null,
+    research_profile_url: m.researchProfileUrl || null,
+    linkedin_url: m.linkedinUrl || null,
+    website_url: m.websiteUrl || null,
+    is_active: m.isActive,
+    joined_at: m.joinedAt || new Date().toISOString(),
+    added_by: institution.projectId || "",
+    created_at: m.joinedAt || new Date().toISOString(),
+    updated_at: m.joinedAt || new Date().toISOString(),
+    profile: m.profileId
+      ? { id: m.profileId, full_name: m.memberName, email: m.memberEmail || "", phone: null }
+      : null,
+  }));
 
   return (
     <div className="space-y-5 text-xs">
-      {/* Top Banner with Governance Notice */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-2 border-b border-border">
+      {/* Top Banner with Member Count Chips */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-border">
         <div>
-          <h4 className="text-sm font-bold text-foreground flex items-center gap-2">
+          <div className="flex items-center gap-2">
             <Users className="w-4 h-4 text-primary" />
-            <span>Research Team Roster ({members.length})</span>
-          </h4>
-          <p className="text-muted-foreground">
-            Multidisciplinary researchers, faculty, and scholars provisioned for this project
+            <h4 className="text-sm font-bold text-foreground">
+              Research Team Roster
+            </h4>
+            <div className="flex items-center gap-1.5 ml-2">
+              <Badge variant="outline" className="text-[11px] font-semibold">
+                {totalCount} Total
+              </Badge>
+              <Badge
+                variant="outline"
+                className="text-[11px] font-semibold border-emerald-300 text-emerald-700 dark:text-emerald-400 bg-emerald-50/50 dark:bg-emerald-950/30 flex items-center gap-1"
+              >
+                <UserCheck className="w-3 h-3" />
+                <span>{activeCount} Active</span>
+              </Badge>
+              {formerCount > 0 && (
+                <Badge
+                  variant="outline"
+                  className="text-[11px] font-semibold border-muted-foreground/30 text-muted-foreground flex items-center gap-1"
+                >
+                  <UserX className="w-3 h-3" />
+                  <span>{formerCount} Former</span>
+                </Badge>
+              )}
+            </div>
+          </div>
+          <p className="text-muted-foreground mt-0.5">
+            Multidisciplinary researchers, faculty, and scholars provisioned by {institution.institutionName} for this municipal challenge.
           </p>
         </div>
 
-        <Badge variant="outline" className="text-[10px] font-semibold text-primary">
-          Project Lead: {institution.projectLeadName || "Assigned Coordinator"}
-        </Badge>
+        {institution.projectLeadName && (
+          <Badge variant="outline" className="text-[11px] font-semibold text-primary shrink-0 self-start sm:self-auto">
+            Project Lead: {institution.projectLeadName}
+          </Badge>
+        )}
       </div>
 
       {/* Governance & Privacy Notice */}
-      <div className="p-3.5 rounded-xl border border-sky-200 bg-sky-50/40 text-sky-950 flex items-start gap-2.5">
-        <Info className="w-4 h-4 text-sky-700 shrink-0 mt-0.5" />
+      <div className="p-3.5 rounded-xl border border-sky-200 bg-sky-50/40 dark:bg-sky-950/20 dark:border-sky-900/60 text-sky-950 dark:text-sky-200 flex items-start gap-2.5">
+        <Info className="w-4 h-4 text-sky-700 dark:text-sky-400 shrink-0 mt-0.5" />
         <div className="space-y-0.5">
           <span className="font-bold block text-[11px]">
             CivicFix Institutional Research Governance
           </span>
-          <p className="text-[11px] text-sky-900 leading-relaxed">
-            Research teammates are registered academic contributors entered and managed by the authenticated Project Lead. Teammates are research collaborator records and do not require municipal login credentials.
+          <p className="text-[11px] text-sky-900 dark:text-sky-300 leading-relaxed">
+            Research teammates are registered academic contributors entered and managed by the authenticated Project Lead. Teammates are official research collaborator records and do not require separate municipal login credentials.
           </p>
         </div>
       </div>
 
       {/* Team Members List */}
-      {members.length === 0 ? (
+      {mappedMembers.length === 0 ? (
         <EmptyState
-          title="Research Team Not Formed Yet"
-          description={`Once ${institution.institutionName}'s Project Lead activates the project workspace, faculty co-investigators and research scholars will appear here.`}
+          title="No Research Team Assigned Yet"
+          description={`Once ${institution.institutionName}'s Project Lead forms and registers the research roster, faculty co-investigators, domain researchers, and student scholars will appear here.`}
         />
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {members.map((member) => (
-            <Card
+          {mappedMembers.map((member) => (
+            <TeamMemberCard
               key={member.id}
-              className="border-border/90 shadow-xs hover:border-border transition-all flex flex-col justify-between"
-            >
-              <CardContent className="p-5 space-y-3.5">
-                {/* Header: Name, Role, Type */}
-                <div className="flex items-start justify-between gap-3">
-                  <div className="space-y-0.5 min-w-0">
-                    <h5 className="text-sm font-bold text-foreground truncate">
-                      {member.memberName}
-                    </h5>
-                    <p className="text-muted-foreground truncate">
-                      {member.designation || member.role}
-                      {member.department && ` • ${member.department}`}
-                    </p>
-                  </div>
-
-                  <Badge
-                    className={
-                      member.role === "PROJECT_LEAD"
-                        ? "bg-teal-100 text-teal-900 border-teal-300 font-bold text-[10px] shrink-0"
-                        : "bg-muted text-muted-foreground text-[10px] shrink-0"
-                    }
-                  >
-                    {member.memberType || member.role}
-                  </Badge>
-                </div>
-
-                {/* Academic Context */}
-                {(member.academicProgram || member.academicYear || member.specialization) && (
-                  <div className="text-[11px] bg-muted/20 p-2.5 rounded-lg border border-border/60 space-y-0.5 text-muted-foreground">
-                    {member.academicProgram && (
-                      <span className="font-semibold text-foreground block">
-                        {member.academicProgram} {member.academicYear ? `(${member.academicYear})` : ""}
-                      </span>
-                    )}
-                    {member.specialization && (
-                      <span>Specialization: {member.specialization}</span>
-                    )}
-                  </div>
-                )}
-
-                {/* Expertise & Skills */}
-                <div className="space-y-1.5">
-                  {member.primaryExpertise && (
-                    <p className="text-[11px]">
-                      <span className="font-bold text-foreground">Primary Expertise: </span>
-                      <span className="text-muted-foreground">{member.primaryExpertise}</span>
-                    </p>
-                  )}
-
-                  {member.technicalSkills && member.technicalSkills.length > 0 && (
-                    <div className="flex items-center gap-1 flex-wrap">
-                      {member.technicalSkills.map((sk, i) => (
-                        <Badge key={i} variant="outline" className="text-[9px]">
-                          {sk}
-                        </Badge>
-                      ))}
-                    </div>
-                  )}
-                </div>
-
-                {/* Responsibilities & Contributions */}
-                {(member.projectResponsibility || member.projectContribution) && (
-                  <div className="pt-2 border-t border-border/60 space-y-1 text-[11px]">
-                    {member.projectResponsibility && (
-                      <p className="text-muted-foreground">
-                        <span className="font-bold text-foreground">Role: </span>
-                        {member.projectResponsibility}
-                      </p>
-                    )}
-                    {member.projectContribution && (
-                      <p className="text-muted-foreground">
-                        <span className="font-bold text-foreground">Deliverables: </span>
-                        {member.projectContribution}
-                      </p>
-                    )}
-                  </div>
-                )}
-
-                {/* Footer: Email & Links */}
-                <div className="flex items-center justify-between pt-2 border-t border-border text-[11px] text-muted-foreground">
-                  <span className="truncate flex items-center gap-1">
-                    {member.memberEmail && (
-                      <>
-                        <Mail className="w-3 h-3 shrink-0" />
-                        <span className="truncate">{member.memberEmail}</span>
-                      </>
-                    )}
-                  </span>
-
-                  <div className="flex items-center gap-2 shrink-0">
-                    {member.linkedinUrl && (
-                      <a
-                        href={member.linkedinUrl}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="text-primary hover:underline flex items-center gap-0.5"
-                        title="LinkedIn Profile"
-                      >
-                        <span>LinkedIn</span>
-                        <ExternalLink className="w-3 h-3" />
-                      </a>
-                    )}
-                    {member.websiteUrl && (
-                      <a
-                        href={member.websiteUrl}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="text-primary hover:underline flex items-center gap-0.5"
-                        title="Academic Website"
-                      >
-                        <ExternalLink className="w-3 h-3" />
-                      </a>
-                    )}
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+              member={member}
+              onViewProfile={(m) => setSelectedProfileMember(m)}
+              isCoordinatorOrLead={false}
+            />
           ))}
         </div>
       )}
+
+      {/* Full Member Profile Modal */}
+      <TeamMemberProfileDialog
+        member={selectedProfileMember}
+        open={Boolean(selectedProfileMember)}
+        onClose={() => setSelectedProfileMember(null)}
+        canEdit={false}
+      />
     </div>
   );
 }

@@ -171,6 +171,8 @@ export function getProposalStatusLabel(status: string): string {
       return "Waiting for Institution";
     case "APPROVED":
       return "Approved";
+    case "REJECTED":
+      return "Rejected";
     case "DRAFT":
       return "Draft (In Progress)";
     default:
@@ -375,7 +377,15 @@ export async function fetchInnovationDashboardData(): Promise<InnovationDashboar
     })
     .sort((a, b) => {
       // Prioritize RESUBMITTED first, then SUBMITTED, then UNDER_REVIEW
-      const priorityOrder = { RESUBMITTED: 1, SUBMITTED: 2, UNDER_REVIEW: 3, REQUESTED_REVISION: 4, DRAFT: 5, APPROVED: 6 };
+      const priorityOrder: Record<string, number> = {
+        RESUBMITTED: 1,
+        SUBMITTED: 2,
+        UNDER_REVIEW: 3,
+        REQUESTED_REVISION: 4,
+        DRAFT: 5,
+        APPROVED: 6,
+        REJECTED: 7,
+      };
       const diff = (priorityOrder[a.status] || 99) - (priorityOrder[b.status] || 99);
       if (diff !== 0) return diff;
       return new Date(b.submittedAt || 0).getTime() - new Date(a.submittedAt || 0).getTime();
@@ -674,6 +684,8 @@ export interface InstitutionLifecycleTrack {
 
   // Team
   teamMembersCount: number;
+  teamMembersActiveCount: number;
+  teamMembersFormerCount: number;
   teamMembers: {
     id: string;
     profileId: string | null;
@@ -684,14 +696,24 @@ export interface InstitutionLifecycleTrack {
     designation: string | null;
     department?: string | null;
     organization?: string | null;
+    institutionName?: string | null;
     academicProgram?: string | null;
     academicYear?: string | null;
+    academicLevel?: string | null;
     specialization?: string | null;
+    expectedGraduationYear?: string | null;
+    yearsOfExperience?: number | null;
     primaryExpertise?: string | null;
+    secondaryExpertise?: string | null;
+    expertise?: string | null;
     researchAreas?: string[];
+    researchDomains?: string[];
     technicalSkills?: string[];
+    technologies?: string[];
     projectResponsibility?: string | null;
     projectContribution?: string | null;
+    professionalBio?: string | null;
+    researchProfileUrl?: string | null;
     linkedinUrl?: string | null;
     websiteUrl?: string | null;
     isActive: boolean;
@@ -721,55 +743,47 @@ export interface InstitutionLifecycleTrack {
     deliverables?: { name?: string; title?: string; description?: string; format?: string }[] | null;
     risksAndMitigation?: { risk?: string; mitigation?: string; severity?: string }[] | null;
     successMetrics?: { metric?: string; target?: string; measurement_method?: string }[] | null;
-    submittedAt: string | null;
-    reviewedAt: string | null;
-    reviewFeedback: string | null;
+    submittedAt?: string | null;
+    reviewedAt?: string | null;
+    reviewFeedback?: string | null;
     approvedAt?: string | null;
-    createdAt: string;
+    createdAt?: string;
   }[];
 
-  // Scoped Activity & Updates (strictly this institution)
-  scopedTimeline?: {
+  // Scoped Timeline strictly for this institution
+  scopedTimeline: {
     id: string;
     timestamp: string;
     title: string;
     description: string;
-    actorName: string | null;
-    category: "INVITATION" | "PROJECT" | "TEAM" | "PROPOSAL" | "SYSTEM";
+    actorName: string;
+    category: "INVITATION" | "PROJECT" | "TEAM" | "PROPOSAL";
   }[];
-  scopedUpdates?: {
+
+  // Scoped Feed Updates
+  scopedUpdates: {
     id: string;
     timestamp: string;
     title: string;
     description: string;
-    actorName: string | null;
-    type: string;
+    actorName: string;
+    type: "INVITATION" | "PROJECT" | "TEAM" | "PROPOSAL";
   }[];
 
-  // Scoped Match Evidence for this problem
-  matchEvidence?: {
+  // Match Intelligence
+  matchEvidence: {
     overallScore: number;
     structuredScore: number;
     aiSemanticScore: number;
     rank: number;
-    recommendedRole: string | null;
+    recommendedRole: string;
     topStrengths: string[];
-    gaps?: string[];
-    whyRecommended?: string | null;
+    gaps: string[];
+    whyRecommended: string;
   } | null;
 
-  // Computed Status & Lifecycle
-  lifecycleStage:
-    | "SELECTED"
-    | "INVITED"
-    | "ACCEPTED"
-    | "PROJECT_CREATED"
-    | "TEAM_FORMED"
-    | "PROPOSAL_SUBMITTED"
-    | "UNDER_REVIEW"
-    | "REVISION_REQUESTED"
-    | "RESUBMITTED"
-    | "APPROVED";
+  // Derived Workflow Stage
+  lifecycleStage: string;
   lifecycleLabel: string;
   actionRequired: boolean;
   actionRequiredMessage: string | null;
@@ -789,6 +803,8 @@ export function getProposalStatusBadgeClass(status: string): string {
       return "bg-orange-100 text-orange-900 border-orange-300 font-bold text-xs";
     case "APPROVED":
       return "bg-emerald-100 text-emerald-900 border-emerald-300 font-bold text-xs";
+    case "REJECTED":
+      return "bg-rose-100 text-rose-900 border-rose-300 font-bold text-xs";
     case "DRAFT":
       return "bg-slate-100 text-slate-700 border-slate-300 text-xs";
     default:
@@ -1038,7 +1054,8 @@ export function deriveInstitutionLifecycle(
     | "UNDER_REVIEW"
     | "REVISION_REQUESTED"
     | "RESUBMITTED"
-    | "APPROVED";
+    | "APPROVED"
+    | "REJECTED";
   label: string;
   actionRequired: boolean;
   actionRequiredMessage: string | null;
@@ -1049,6 +1066,13 @@ export function deriveInstitutionLifecycle(
         return {
           stage: "APPROVED",
           label: "Proposal Approved & Locked",
+          actionRequired: false,
+          actionRequiredMessage: null,
+        };
+      case "REJECTED":
+        return {
+          stage: "REJECTED",
+          label: "Proposal Rejected",
           actionRequired: false,
           actionRequiredMessage: null,
         };
@@ -1438,21 +1462,30 @@ interface ControlCenterMember {
   project_id: string;
   profile_id?: string | null;
   role?: string | null;
-  role_title?: string | null;
   designation?: string | null;
   member_name?: string | null;
   member_email?: string | null;
   member_type?: string | null;
   department?: string | null;
   organization?: string | null;
+  institution_name?: string | null;
   academic_program?: string | null;
   academic_year?: string | null;
+  academic_level?: string | null;
   specialization?: string | null;
+  expected_graduation_year?: string | null;
+  years_of_experience?: number | null;
   primary_expertise?: string | null;
+  secondary_expertise?: string | null;
+  expertise?: string | null;
   research_areas?: string[] | null;
+  research_domains?: string[] | null;
   technical_skills?: string[] | null;
+  technologies?: string[] | null;
   project_responsibility?: string | null;
   project_contribution?: string | null;
+  professional_bio?: string | null;
+  research_profile_url?: string | null;
   linkedin_url?: string | null;
   website_url?: string | null;
   is_active: boolean;
@@ -1596,11 +1629,12 @@ interface ControlCenterActivity {
         supabase
           .from("challenge_project_members")
           .select(`
-            id, project_id, profile_id, member_name, member_email, member_type, role, role_title,
-            designation, department, organization, academic_program, academic_year, specialization,
-            primary_expertise, research_areas, technical_skills, project_responsibility,
-            project_contribution, linkedin_url, website_url, is_active, joined_at,
-            profile:profiles(id, full_name, email)
+            id, project_id, profile_id, member_name, member_email, member_type, role,
+            designation, department, organization, institution_name, academic_program, academic_year, academic_level,
+            specialization, expected_graduation_year, years_of_experience, primary_expertise, secondary_expertise,
+            expertise, research_areas, research_domains, technical_skills, technologies, project_responsibility,
+            project_contribution, professional_bio, research_profile_url, linkedin_url, website_url, is_active, joined_at,
+            profile:profiles!challenge_project_members_profile_id_fkey(id, full_name, email)
           `)
           .in("project_id", projectIds),
 
@@ -1614,6 +1648,13 @@ interface ControlCenterActivity {
           .order("created_at", { ascending: false })
           .limit(50),
       ]);
+
+      if (membersRes.error) {
+        console.error("[fetchProblemControlCenterData] membersRes error:", membersRes.error);
+      }
+      if (activityRes.error) {
+        console.error("[fetchProblemControlCenterData] activityRes error:", activityRes.error);
+      }
 
       members = (membersRes.data as unknown as ControlCenterMember[]) || [];
       activities = (activityRes.data as unknown as ControlCenterActivity[]) || [];
@@ -1765,7 +1806,9 @@ interface ControlCenterActivity {
       const sel = selections.find((s) => s.institution_id === inst.id);
       const inv = invitations.find((i) => i.institution_id === inst.id);
       const proj = projects.find((p) => p.institution_id === inst.id);
-      const projMembers = proj ? members.filter((m) => m.project_id === proj.id && m.is_active) : [];
+      const allProjMembers = proj ? members.filter((m) => m.project_id === proj.id) : [];
+      const projMembers = allProjMembers.filter((m) => m.is_active);
+      const formerProjMembers = allProjMembers.filter((m) => !m.is_active);
       const instProposals = proposals.filter((pr) => pr.institution_id === inst.id || (proj && pr.project_id === proj.id));
       const currentProp = instProposals.find((pr) => pr.is_current) || instProposals[0] || null;
 
@@ -1934,25 +1977,37 @@ interface ControlCenterActivity {
         projectLeadName: proj?.project_lead?.full_name ?? null,
         projectLeadEmail: proj?.project_lead?.email ?? null,
 
-        teamMembersCount: projMembers.length,
-        teamMembers: projMembers.map((m) => ({
+        teamMembersCount: allProjMembers.length,
+        teamMembersActiveCount: projMembers.length,
+        teamMembersFormerCount: formerProjMembers.length,
+        teamMembers: allProjMembers.map((m) => ({
           id: m.id,
           profileId: m.profile_id ?? null,
           memberName: m.profile?.full_name || m.member_name || "Team Member",
           memberEmail: m.profile?.email || m.member_email || null,
           memberType: m.member_type ?? null,
           role: m.role || "MEMBER",
-          designation: m.designation || m.role_title || null,
+          designation: m.designation ?? null,
           department: m.department ?? null,
           organization: m.organization ?? null,
+          institutionName: m.institution_name ?? null,
           academicProgram: m.academic_program ?? null,
           academicYear: m.academic_year ?? null,
+          academicLevel: m.academic_level ?? null,
           specialization: m.specialization ?? null,
+          expectedGraduationYear: m.expected_graduation_year ?? null,
+          yearsOfExperience: m.years_of_experience ?? null,
           primaryExpertise: m.primary_expertise ?? null,
+          secondaryExpertise: m.secondary_expertise ?? null,
+          expertise: m.expertise ?? null,
           researchAreas: Array.isArray(m.research_areas) ? m.research_areas : [],
+          researchDomains: Array.isArray(m.research_domains) ? m.research_domains : [],
           technicalSkills: Array.isArray(m.technical_skills) ? m.technical_skills : [],
+          technologies: Array.isArray(m.technologies) ? m.technologies : [],
           projectResponsibility: m.project_responsibility ?? null,
           projectContribution: m.project_contribution ?? null,
+          professionalBio: m.professional_bio ?? null,
+          researchProfileUrl: m.research_profile_url ?? null,
           linkedinUrl: m.linkedin_url ?? null,
           websiteUrl: m.website_url ?? null,
           isActive: m.is_active,

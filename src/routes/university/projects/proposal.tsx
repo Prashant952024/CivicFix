@@ -20,6 +20,9 @@ import {
   Lock,
   ChevronRight,
   HelpCircle,
+  Eye,
+  History,
+  XCircle,
 } from "lucide-react";
 import { Link, useParams, useNavigate } from "react-router-dom";
 
@@ -196,7 +199,7 @@ export function UniversityProposalWorkspacePage() {
   }, [proposals, activeProposalId]);
 
   const proposalStatus: ProposalStatus = currentProposal?.status ?? "DRAFT";
-  const isReadOnly = proposalStatus === "SUBMITTED" || proposalStatus === "UNDER_REVIEW" || proposalStatus === "APPROVED";
+  const isReadOnly = proposalStatus === "SUBMITTED" || proposalStatus === "UNDER_REVIEW" || proposalStatus === "APPROVED" || proposalStatus === "REJECTED";
 
   // Check user authority
   const isAuthorizedToEdit = useMemo(() => {
@@ -551,6 +554,11 @@ export function UniversityProposalWorkspacePage() {
                   APPROVED • LOCKED
                 </Badge>
               )}
+              {proposalStatus === "REJECTED" && (
+                <Badge className="bg-rose-100 text-rose-800 border-rose-300 dark:bg-rose-950 dark:text-rose-300">
+                  REJECTED • CLOSED
+                </Badge>
+              )}
             </div>
 
             <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">
@@ -601,17 +609,50 @@ export function UniversityProposalWorkspacePage() {
                 Approved &amp; Locked
               </div>
             )}
+
+            {proposalStatus === "REJECTED" && (
+              <div className="flex items-center gap-2 text-xs font-semibold text-rose-700 dark:text-rose-400 bg-rose-50 dark:bg-rose-950/60 border border-rose-300 dark:border-rose-800 px-3 py-1.5 rounded-xl">
+                <XCircle className="w-3.5 h-3.5" />
+                Proposal Rejected
+              </div>
+            )}
           </div>
         </div>
 
-        {/* Read-only Alert for Submitted/Under Review */}
+        {/* Read-only Alert for Submitted/Under Review/Approved/Rejected */}
         {isReadOnly && (
           <div className="mt-4 p-3 bg-muted/60 border border-border rounded-xl flex items-center gap-2 text-xs text-muted-foreground">
             <Lock className="w-4 h-4 text-primary shrink-0" />
             <span>
               This proposal version is in <strong>{proposalStatus}</strong> state and cannot be modified.{" "}
-              {proposalStatus === "APPROVED" ? "It has been officially approved." : "It is awaiting Innovation Manager evaluation."}
+              {proposalStatus === "APPROVED"
+                ? "It has been officially approved."
+                : proposalStatus === "REJECTED"
+                ? "It has been rejected by the Innovation Manager."
+                : "It is awaiting Innovation Manager evaluation."}
             </span>
+          </div>
+        )}
+
+        {/* Manager Rejection Feedback Banner if REJECTED */}
+        {proposalStatus === "REJECTED" && currentProposal?.review_feedback && (
+          <div className="mt-4 p-4 rounded-xl border border-rose-300 dark:border-rose-800 bg-rose-50/90 dark:bg-rose-950/40 text-rose-900 dark:text-rose-200">
+            <div className="flex items-start gap-3">
+              <XCircle className="w-5 h-5 text-rose-600 dark:text-rose-400 shrink-0 mt-0.5" />
+              <div className="space-y-1">
+                <h4 className="text-sm font-bold text-rose-950 dark:text-rose-100">
+                  Proposal Rejected by Innovation Manager
+                </h4>
+                <p className="text-xs leading-relaxed whitespace-pre-wrap font-medium">
+                  {currentProposal.review_feedback}
+                </p>
+                {currentProposal.reviewed_at && (
+                  <p className="text-[11px] text-rose-700 dark:text-rose-400 pt-1">
+                    Rejected on: {new Date(currentProposal.reviewed_at).toLocaleDateString()}
+                  </p>
+                )}
+              </div>
+            </div>
           </div>
         )}
 
@@ -1568,6 +1609,101 @@ export function UniversityProposalWorkspacePage() {
           </div>
         </div>
       </div>
+
+      {/* Version History & Governance Audit Log */}
+      <Card className="border-border shadow-xs">
+        <CardHeader className="pb-3 border-b border-border/60">
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-sm font-bold text-foreground flex items-center gap-2">
+              <History className="w-4 h-4 text-primary" />
+              <span>Version History &amp; Governance Audit ({proposals.length || 1})</span>
+            </CardTitle>
+            <span className="text-muted-foreground text-[11px]">
+              Immutable iteration history &amp; evaluation logs
+            </span>
+          </div>
+        </CardHeader>
+        <CardContent className="p-4 divide-y divide-border/60">
+          {proposals.length === 0 ? (
+            <div className="py-2 text-muted-foreground text-xs italic">
+              Initial draft in progress.
+            </div>
+          ) : (
+            proposals
+              .slice()
+              .sort((a, b) => b.version_number - a.version_number)
+              .map((prop) => {
+                const isSelected = (currentProposal?.id === prop.id);
+                return (
+                  <div
+                    key={prop.id}
+                    className={`py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs transition-colors rounded-xl px-2 ${
+                      isSelected ? "bg-primary/5 font-medium" : "hover:bg-muted/30"
+                    }`}
+                  >
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <Badge variant="outline" className="text-[10px] font-mono font-bold">
+                          v{prop.version_number}
+                        </Badge>
+                        <Badge
+                          className={
+                            prop.status === "APPROVED"
+                              ? "bg-emerald-100 text-emerald-800 border-emerald-300 dark:bg-emerald-950 dark:text-emerald-300"
+                              : prop.status === "REJECTED"
+                              ? "bg-rose-100 text-rose-800 border-rose-300 dark:bg-rose-950 dark:text-rose-300"
+                              : prop.status === "REQUESTED_REVISION"
+                              ? "bg-orange-100 text-orange-800 border-orange-300 dark:bg-orange-950 dark:text-orange-300"
+                              : prop.status === "UNDER_REVIEW"
+                              ? "bg-purple-100 text-purple-800 border-purple-300 dark:bg-purple-950 dark:text-purple-300"
+                              : prop.status === "SUBMITTED" || prop.status === "RESUBMITTED"
+                              ? "bg-sky-100 text-sky-800 border-sky-300 dark:bg-sky-950 dark:text-sky-300"
+                              : "bg-amber-100 text-amber-800 border-amber-300 dark:bg-amber-950 dark:text-amber-300"
+                          }
+                        >
+                          {prop.status}
+                        </Badge>
+                        {prop.is_current && (
+                          <Badge variant="outline" className="text-[9px] border-primary/30 text-primary">
+                            Active Version
+                          </Badge>
+                        )}
+                        {isSelected && (
+                          <Badge className="bg-primary text-primary-foreground text-[9px]">
+                            Viewing
+                          </Badge>
+                        )}
+                      </div>
+
+                      {prop.review_feedback && (
+                        <p className="text-[11px] text-muted-foreground line-clamp-1 italic max-w-xl">
+                          Feedback: &ldquo;{prop.review_feedback}&rdquo;
+                        </p>
+                      )}
+                    </div>
+
+                    <div className="flex items-center gap-3 shrink-0">
+                      <span className="text-muted-foreground text-[11px]">
+                        {prop.submitted_at
+                          ? new Date(prop.submitted_at).toLocaleDateString()
+                          : "Draft"}
+                      </span>
+                      <Button
+                        size="sm"
+                        variant={isSelected ? "default" : "outline"}
+                        onClick={() => handleSelectProposalVersion(prop.id)}
+                        className="h-7 text-xs px-2.5 gap-1"
+                      >
+                        <Eye className="w-3 h-3" />
+                        <span>{isSelected ? "Viewing" : "View Version"}</span>
+                      </Button>
+                    </div>
+                  </div>
+                );
+              })
+          )}
+        </CardContent>
+      </Card>
 
       {/* Submit Confirmation Modal */}
       {submitConfirmOpen && (

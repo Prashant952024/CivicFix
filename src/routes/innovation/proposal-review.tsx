@@ -17,6 +17,7 @@ import {
   GraduationCap,
   ExternalLink,
   Check,
+  XCircle,
 } from "lucide-react";
 import { Link, useParams, useNavigate } from "react-router-dom";
 
@@ -35,6 +36,8 @@ function getStatusBadge(status: string) {
       return <Badge className="bg-orange-100 text-orange-800 border-orange-300">Revision Requested</Badge>;
     case "APPROVED":
       return <Badge className="bg-emerald-100 text-emerald-800 border-emerald-300">Approved &amp; Locked</Badge>;
+    case "REJECTED":
+      return <Badge className="bg-rose-100 text-rose-800 border-rose-300">Rejected</Badge>;
     case "DRAFT":
       return <Badge className="bg-slate-100 text-slate-700 border-slate-300">Draft</Badge>;
     default:
@@ -53,6 +56,7 @@ import {
   startProposalReview,
   requestProposalRevision,
   approveProposal,
+  rejectProposal,
   type ResearchProposalWithDetails,
   type ProposalMilestone,
   type ProposalDeliverable,
@@ -81,6 +85,8 @@ export function InnovationProposalReviewPage() {
   const [revisionDialogOpen, setRevisionDialogOpen] = useState(false);
   const [revisionFeedback, setRevisionFeedback] = useState("");
   const [approveDialogOpen, setApproveDialogOpen] = useState(false);
+  const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
+  const [rejectionReason, setRejectionReason] = useState("");
   const [viewingProfileMember, setViewingProfileMember] =
     useState<ChallengeProjectMemberWithProfile | null>(null);
 
@@ -172,6 +178,35 @@ export function InnovationProposalReviewPage() {
     }
   }
 
+  // Reject Proposal
+  async function handleRejectProposal() {
+    if (!proposal) return;
+    if (!rejectionReason || rejectionReason.trim().length < 10) {
+      setActionError("Rejection reason must be at least 10 characters detailing why the proposal was rejected.");
+      return;
+    }
+
+    setActionLoading(true);
+    setActionError(null);
+    setActionSuccess(null);
+
+    try {
+      const updated = await rejectProposal(proposal.id, rejectionReason.trim());
+      setProposal({
+        ...proposal,
+        status: updated.status,
+        review_feedback: updated.review_feedback,
+        reviewed_at: updated.reviewed_at,
+      });
+      setRejectDialogOpen(false);
+      setActionSuccess("Research proposal officially REJECTED.");
+    } catch (err: unknown) {
+      setActionError(err instanceof Error ? err.message : "Failed to reject proposal.");
+    } finally {
+      setActionLoading(false);
+    }
+  }
+
   // Approve Proposal
   async function handleApproveProposal() {
     if (!proposal) return;
@@ -224,6 +259,7 @@ export function InnovationProposalReviewPage() {
   }
 
   const isApproved = proposal.status === "APPROVED";
+  const isRejected = proposal.status === "REJECTED";
   const isRevisionRequested = proposal.status === "REQUESTED_REVISION";
   const isUnderReview = proposal.status === "UNDER_REVIEW";
   const isSubmittedOrResubmitted = proposal.status === "SUBMITTED" || proposal.status === "RESUBMITTED";
@@ -378,6 +414,15 @@ export function InnovationProposalReviewPage() {
                     <span>Request Revision</span>
                   </Button>
                   <Button
+                    variant="outline"
+                    onClick={() => setRejectDialogOpen(true)}
+                    disabled={actionLoading}
+                    className="border-rose-300 text-rose-800 hover:bg-rose-50 text-xs font-bold gap-1.5 h-8"
+                  >
+                    <XCircle className="w-3.5 h-3.5 text-rose-600" />
+                    <span>Reject Proposal</span>
+                  </Button>
+                  <Button
                     onClick={() => setApproveDialogOpen(true)}
                     disabled={actionLoading}
                     className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold gap-1.5 shadow-sm h-8"
@@ -392,6 +437,13 @@ export function InnovationProposalReviewPage() {
                 <Badge className="bg-emerald-100 text-emerald-900 border-emerald-300 font-bold px-3 py-1 text-xs flex items-center gap-1.5">
                   <Check className="w-3.5 h-3.5 text-emerald-700" />
                   <span>Approved by Innovation Manager</span>
+                </Badge>
+              )}
+
+              {isRejected && (
+                <Badge className="bg-rose-100 text-rose-900 border-rose-300 font-bold px-3 py-1 text-xs flex items-center gap-1.5">
+                  <XCircle className="w-3.5 h-3.5 text-rose-700" />
+                  <span>Rejected by Innovation Manager</span>
                 </Badge>
               )}
             </div>
@@ -426,7 +478,7 @@ export function InnovationProposalReviewPage() {
         </CardContent>
       </Card>
 
-      {/* Notifications */}
+      {/* Notifications & Rejection Banner */}
       {actionSuccess && (
         <div className="p-3.5 bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-300 dark:border-emerald-800 rounded-xl text-xs text-emerald-800 dark:text-emerald-300 flex items-center gap-2">
           <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-600" />
@@ -437,6 +489,22 @@ export function InnovationProposalReviewPage() {
         <div className="p-3.5 bg-rose-50 dark:bg-rose-950/50 border border-rose-300 dark:border-rose-800 rounded-xl text-xs text-rose-800 dark:text-rose-300 flex items-center gap-2">
           <AlertCircle className="w-4 h-4 shrink-0 text-rose-600" />
           <span>{actionError}</span>
+        </div>
+      )}
+      {isRejected && proposal.review_feedback && (
+        <div className="p-4 bg-rose-50 dark:bg-rose-950/50 border border-rose-300 dark:border-rose-800 rounded-xl text-xs text-rose-900 dark:text-rose-200 flex items-start gap-3 shadow-2xs">
+          <XCircle className="w-5 h-5 text-rose-600 dark:text-rose-400 shrink-0 mt-0.5" />
+          <div className="space-y-1 flex-1">
+            <h4 className="font-bold text-sm text-rose-950 dark:text-rose-100">
+              Proposal Rejected by Innovation Manager
+            </h4>
+            <p className="leading-relaxed whitespace-pre-wrap font-medium">{proposal.review_feedback}</p>
+            {proposal.reviewed_at && (
+              <p className="text-[11px] text-rose-700 dark:text-rose-400 pt-1">
+                Rejected on: {new Date(proposal.reviewed_at).toLocaleDateString()}
+              </p>
+            )}
+          </div>
         </div>
       )}
 
@@ -1074,6 +1142,60 @@ export function InnovationProposalReviewPage() {
               >
                 <Check className="w-4 h-4" />
                 {actionLoading ? "Approving..." : "Confirm & Approve"}
+              </Button>
+            </div>
+          </div>
+        </Dialog>
+      )}
+
+      {/* Reject Confirmation Dialog */}
+      {rejectDialogOpen && (
+        <Dialog open={rejectDialogOpen} onClose={() => setRejectDialogOpen(false)}>
+          <div className="p-6 space-y-4 max-w-md">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full bg-rose-100 text-rose-700 flex items-center justify-center shrink-0">
+                <XCircle className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="text-base font-bold text-foreground">Reject Research Proposal</h3>
+                <p className="text-xs text-muted-foreground">Version {proposal.version_number}</p>
+              </div>
+            </div>
+
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              Rejecting this proposal marks it permanently as rejected. Please explain the technical or municipal grounds for rejection.
+            </p>
+
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-foreground">
+                Rejection Grounds &amp; Justification <span className="text-rose-500">*</span>
+              </label>
+              <textarea
+                rows={4}
+                value={rejectionReason}
+                onChange={(e) => setRejectionReason(e.target.value)}
+                placeholder="e.g. The proposed methodology lacks required field sensor telemetry calibration and does not comply with municipal regulatory constraints."
+                className="w-full text-xs sm:text-sm p-3 rounded-xl border border-input bg-background text-foreground focus:outline-hidden focus:ring-2 focus:ring-rose-500"
+              />
+              <div className="flex items-center justify-between text-[11px] text-muted-foreground">
+                <span>Minimum 10 characters required.</span>
+                <span className={rejectionReason.trim().length >= 10 ? "text-emerald-600 font-semibold" : ""}>
+                  {rejectionReason.trim().length} characters
+                </span>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-2">
+              <Button variant="ghost" onClick={() => setRejectDialogOpen(false)} disabled={actionLoading}>
+                Cancel
+              </Button>
+              <Button
+                onClick={() => void handleRejectProposal()}
+                disabled={actionLoading || rejectionReason.trim().length < 10}
+                className="bg-rose-600 hover:bg-rose-700 text-white gap-1.5"
+              >
+                <XCircle className="w-4 h-4" />
+                {actionLoading ? "Rejecting..." : "Confirm Rejection"}
               </Button>
             </div>
           </div>

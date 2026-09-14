@@ -625,6 +625,34 @@ export async function approveProposal(
 }
 
 /**
+ * Reject a research proposal with mandatory reason (Innovation Manager action)
+ */
+export async function rejectProposal(
+  proposalId: string,
+  rejectionReason: string
+): Promise<ResearchProposalRow> {
+  if (!rejectionReason || rejectionReason.trim().length < 10) {
+    throw new Error("Rejection reason must be at least 10 characters explaining why the proposal was rejected.");
+  }
+
+  const { data, error } = await supabase
+    .from("research_proposals")
+    .update({
+      status: "REJECTED",
+      review_feedback: rejectionReason.trim(),
+    })
+    .eq("id", proposalId)
+    .select()
+    .single();
+
+  if (error) {
+    throw new Error(`Failed to reject proposal: ${error.message}`);
+  }
+
+  return data;
+}
+
+/**
  * Fetch all research proposals across projects for Innovation Manager review hub
  */
 export async function fetchAllProposals(options?: {

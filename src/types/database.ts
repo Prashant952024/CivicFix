@@ -1726,7 +1726,8 @@ export interface Database {
             | "PROPOSAL_REVIEW_STARTED"
             | "PROPOSAL_REVISION_REQUESTED"
             | "PROPOSAL_RESUBMITTED"
-            | "PROPOSAL_APPROVED";
+            | "PROPOSAL_APPROVED"
+            | "PROPOSAL_REJECTED";
           description: string;
           metadata: Json;
           created_at: string;
@@ -1751,7 +1752,8 @@ export interface Database {
             | "PROPOSAL_REVIEW_STARTED"
             | "PROPOSAL_REVISION_REQUESTED"
             | "PROPOSAL_RESUBMITTED"
-            | "PROPOSAL_APPROVED";
+            | "PROPOSAL_APPROVED"
+            | "PROPOSAL_REJECTED";
           description: string;
           metadata?: Json;
           created_at?: string;
@@ -1776,7 +1778,8 @@ export interface Database {
             | "PROPOSAL_REVIEW_STARTED"
             | "PROPOSAL_REVISION_REQUESTED"
             | "PROPOSAL_RESUBMITTED"
-            | "PROPOSAL_APPROVED";
+            | "PROPOSAL_APPROVED"
+            | "PROPOSAL_REJECTED";
           description?: string;
           metadata?: Json;
           created_at?: string;
@@ -1849,7 +1852,7 @@ export interface Database {
           challenge_id: string;
           institution_id: string;
           version_number: number;
-          status: "DRAFT" | "SUBMITTED" | "UNDER_REVIEW" | "REQUESTED_REVISION" | "RESUBMITTED" | "APPROVED";
+          status: "DRAFT" | "SUBMITTED" | "UNDER_REVIEW" | "REQUESTED_REVISION" | "RESUBMITTED" | "APPROVED" | "REJECTED";
           is_current: boolean;
           project_objective: string;
           research_questions: Json;
@@ -1879,7 +1882,7 @@ export interface Database {
           challenge_id: string;
           institution_id: string;
           version_number?: number;
-          status?: "DRAFT" | "SUBMITTED" | "UNDER_REVIEW" | "REQUESTED_REVISION" | "RESUBMITTED" | "APPROVED";
+          status?: "DRAFT" | "SUBMITTED" | "UNDER_REVIEW" | "REQUESTED_REVISION" | "RESUBMITTED" | "APPROVED" | "REJECTED";
           is_current?: boolean;
           project_objective?: string;
           research_questions?: Json;
@@ -1909,7 +1912,7 @@ export interface Database {
           challenge_id?: string;
           institution_id?: string;
           version_number?: number;
-          status?: "DRAFT" | "SUBMITTED" | "UNDER_REVIEW" | "REQUESTED_REVISION" | "RESUBMITTED" | "APPROVED";
+          status?: "DRAFT" | "SUBMITTED" | "UNDER_REVIEW" | "REQUESTED_REVISION" | "RESUBMITTED" | "APPROVED" | "REJECTED";
           is_current?: boolean;
           project_objective?: string;
           research_questions?: Json;
