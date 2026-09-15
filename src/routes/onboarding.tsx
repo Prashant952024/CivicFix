@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import {
   AlertCircle,
   ArrowRight,
+  Briefcase,
   Building2,
   Crown,
   GraduationCap,
@@ -39,6 +40,22 @@ const roleCards: RoleCard[] = [
     tone: "success",
   },
   {
+    code: "INDUSTRY_PARTNER",
+    label: "Industry Partner / Company",
+    description: "Collaborate on civic innovation challenges, deploy pilots, and provide co-funding or technical support.",
+    icon: Briefcase,
+    note: "Admin provisioned",
+    tone: "warning",
+  },
+  {
+    code: "INSTITUTION",
+    label: "University / Institution",
+    description: "Collaborate on civic innovation challenges, deploy pilots, and conduct domain research.",
+    icon: GraduationCap,
+    note: "Admin provisioned",
+    tone: "info",
+  },
+  {
     code: "MUNICIPAL_OFFICER",
     label: "Municipal Officer",
     description: "Verify complaints, assign responsible departments, and review final resolutions.",
@@ -69,14 +86,6 @@ const roleCards: RoleCard[] = [
     icon: HardHat,
     note: "Admin provisioned",
     tone: "warning",
-  },
-  {
-    code: "INSTITUTION",
-    label: "University / Institution",
-    description: "Collaborate on civic innovation challenges, deploy pilots, and conduct domain research.",
-    icon: GraduationCap,
-    note: "Admin provisioned",
-    tone: "info",
   },
   {
     code: "ADMIN",

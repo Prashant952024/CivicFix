@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState, type ChangeEvent, type FormEvent 
 import {
   AlertCircle,
   AlertTriangle,
+  Briefcase,
   Building2,
   Calendar,
   Camera,
@@ -11,6 +12,7 @@ import {
   Edit2,
   Eye,
   Filter,
+  GraduationCap,
   KeyRound,
   Loader2,
   Mail,
@@ -44,14 +46,25 @@ import type { Database } from "@/types/database";
 type ProfileRow = Database["public"]["Tables"]["profiles"]["Row"] & {
   role?: Pick<Database["public"]["Tables"]["roles"]["Row"], "id" | "code" | "name"> | null;
   department?: Pick<Database["public"]["Tables"]["departments"]["Row"], "id" | "name" | "is_active"> | null;
+  institution?: Pick<Database["public"]["Tables"]["institutions"]["Row"], "id" | "name" | "acronym"> | null;
+  organization?: Pick<Database["public"]["Tables"]["industry_organizations"]["Row"], "id" | "name" | "organization_type" | "verification_status"> | null;
 };
 
 type RoleRow = Pick<Database["public"]["Tables"]["roles"]["Row"], "id" | "code" | "name" | "description" | "is_system_role">;
 type DepartmentRow = Pick<Database["public"]["Tables"]["departments"]["Row"], "id" | "name" | "is_active">;
+type InstitutionRow = Pick<Database["public"]["Tables"]["institutions"]["Row"], "id" | "name" | "acronym" | "is_active">;
+type OrganizationRow = Pick<Database["public"]["Tables"]["industry_organizations"]["Row"], "id" | "name" | "organization_type" | "verification_status">;
 type IssueRow = Pick<Database["public"]["Tables"]["issues"]["Row"], "id" | "reporter_profile_id" | "updated_at">;
 type AssignmentRow = Pick<Database["public"]["Tables"]["issue_assignments"]["Row"], "id" | "worker_id" | "department_id" | "status" | "unassigned_at">;
 
-type ManagedRoleCode = "MUNICIPAL_OFFICER" | "DEPARTMENT_MANAGER" | "FIELD_WORKER" | "INNOVATION_MANAGER";
+type ManagedRoleCode =
+  | "MUNICIPAL_OFFICER"
+  | "DEPARTMENT_MANAGER"
+  | "FIELD_WORKER"
+  | "INNOVATION_MANAGER"
+  | "INSTITUTION"
+  | "INDUSTRY_PARTNER";
+
 type WizardStep = 1 | 2 | 3 | 4;
 
 type CreateUserFormState = {
@@ -60,6 +73,21 @@ type CreateUserFormState = {
   phone: string;
   roleCode: ManagedRoleCode;
   departmentId: string;
+  institutionId: string;
+  roleTitle: string;
+  isPrimaryContact: boolean;
+  // Organization fields
+  organizationMode: "existing" | "new";
+  organizationId: string;
+  newOrgName: string;
+  newOrgType: string;
+  newOrgWebsite: string;
+  newOrgDescription: string;
+  newOrgSupportTypes: string[];
+  newOrgDomains: string;
+  newOrgCapabilities: string;
+  newOrgTechnologies: string;
+  newOrgVerificationStatus: "VERIFIED" | "PENDING";
   employeeId: string;
   designation: string;
   joinedAt: string;
@@ -75,6 +103,8 @@ type EditUserFormState = {
   roleId: string;
   roleCode: string;
   departmentId: string;
+  institutionId: string;
+  organizationId: string;
   employeeId: string;
   designation: string;
   avatarUrl: string;
@@ -89,7 +119,16 @@ type UserRecord = ProfileRow & {
 };
 
 const PAGE_SIZE = 10;
-type RoleFilter = "all" | "CITIZEN" | "MUNICIPAL_OFFICER" | "DEPARTMENT_MANAGER" | "FIELD_WORKER" | "ADMIN" | "INNOVATION_MANAGER";
+type RoleFilter =
+  | "all"
+  | "CITIZEN"
+  | "MUNICIPAL_OFFICER"
+  | "DEPARTMENT_MANAGER"
+  | "FIELD_WORKER"
+  | "ADMIN"
+  | "INNOVATION_MANAGER"
+  | "INSTITUTION"
+  | "INDUSTRY_PARTNER";
 type StatusFilter = "all" | "active" | "inactive";
 
 const DEFAULT_CREATE_FORM: CreateUserFormState = {
@@ -98,6 +137,20 @@ const DEFAULT_CREATE_FORM: CreateUserFormState = {
   phone: "",
   roleCode: "FIELD_WORKER",
   departmentId: "",
+  institutionId: "",
+  roleTitle: "Institution Coordinator",
+  isPrimaryContact: false,
+  organizationMode: "existing",
+  organizationId: "",
+  newOrgName: "",
+  newOrgType: "COMPANY",
+  newOrgWebsite: "",
+  newOrgDescription: "",
+  newOrgSupportTypes: ["TECHNOLOGY", "EXPERTISE"],
+  newOrgDomains: "Smart Cities, IoT",
+  newOrgCapabilities: "Hardware Prototyping, Telemetry",
+  newOrgTechnologies: "ESP32, Python",
+  newOrgVerificationStatus: "VERIFIED",
   employeeId: "",
   designation: "",
   joinedAt: new Date().toISOString().split("T")[0],
@@ -105,7 +158,26 @@ const DEFAULT_CREATE_FORM: CreateUserFormState = {
   avatarFile: null,
 };
 
-function getSuggestedPrefix(roleCode: ManagedRoleCode, departmentName?: string | null): string {
+function getSuggestedPrefix(
+  roleCode: ManagedRoleCode,
+  departmentName?: string | null,
+  institutionAcronym?: string | null,
+  organizationName?: string | null,
+): string {
+  if (roleCode === "INDUSTRY_PARTNER") {
+    if (organizationName) {
+      const clean = organizationName.toLowerCase().replace(/[^a-z0-9]/g, "").slice(0, 10);
+      if (clean) return `ind-${clean}`;
+    }
+    return "ind-partner";
+  }
+  if (roleCode === "INSTITUTION") {
+    if (institutionAcronym) {
+      const clean = institutionAcronym.toLowerCase().replace(/[^a-z0-9]/g, "");
+      if (clean) return `inst-${clean}`;
+    }
+    return "inst-univ";
+  }
   if (roleCode === "MUNICIPAL_OFFICER") return "municipal-officer";
   if (roleCode === "INNOVATION_MANAGER") return "innovation-manager";
   if (roleCode === "DEPARTMENT_MANAGER") {
@@ -148,6 +220,8 @@ export function AdminUsersPage() {
   const [profiles, setProfiles] = useState<ProfileRow[]>([]);
   const [roles, setRoles] = useState<RoleRow[]>([]);
   const [departments, setDepartments] = useState<DepartmentRow[]>([]);
+  const [institutions, setInstitutions] = useState<InstitutionRow[]>([]);
+  const [organizations, setOrganizations] = useState<OrganizationRow[]>([]);
   const [issues, setIssues] = useState<IssueRow[]>([]);
   const [assignments, setAssignments] = useState<AssignmentRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -173,6 +247,8 @@ export function AdminUsersPage() {
     employeeId: string;
     roleName: string;
     departmentName: string;
+    organizationName?: string;
+    institutionName?: string;
     temporaryPassword?: string;
   } | null>(null);
   const [createForm, setCreateForm] = useState<CreateUserFormState>(DEFAULT_CREATE_FORM);
@@ -215,15 +291,17 @@ export function AdminUsersPage() {
       setLoading(true);
       setError(null);
 
-      const [profilesResult, rolesResult, departmentsResult, issuesResult, assignmentsResult] = await Promise.all([
+      const [profilesResult, rolesResult, departmentsResult, institutionsResult, orgsResult, issuesResult, assignmentsResult] = await Promise.all([
         supabase
           .from("profiles")
           .select(
-            "id, clerk_user_id, full_name, email, phone, role_id, department_id, employee_id, designation, is_active, avatar_url, institution_id, organization_id, joined_at, created_at, updated_at, role:roles!profiles_role_id_fkey(id, code, name), department:departments!profiles_department_id_fkey(id, name, is_active)",
+            "id, clerk_user_id, full_name, email, phone, role_id, department_id, employee_id, designation, is_active, avatar_url, institution_id, organization_id, joined_at, created_at, updated_at, role:roles!profiles_role_id_fkey(id, code, name), department:departments!profiles_department_id_fkey(id, name, is_active), institution:institutions!profiles_institution_id_fkey(id, name, acronym), organization:industry_organizations!profiles_organization_id_fkey(id, name, organization_type, verification_status)",
           )
           .order("created_at", { ascending: false }),
         supabase.from("roles").select("id, code, name, description, is_system_role").order("name", { ascending: true }),
         supabase.from("departments").select("id, name, is_active").order("name", { ascending: true }),
+        supabase.from("institutions").select("id, name, acronym, is_active").order("name", { ascending: true }),
+        supabase.from("industry_organizations").select("id, name, organization_type, verification_status").order("name", { ascending: true }),
         supabase.from("issues").select("id, reporter_profile_id, updated_at"),
         supabase.from("issue_assignments").select("id, worker_id, department_id, status, unassigned_at"),
       ]);
@@ -241,6 +319,12 @@ export function AdminUsersPage() {
       if (departmentsResult.error) {
         console.error("Admin users departments query error:", departmentsResult.error);
       }
+      if (institutionsResult.error) {
+        console.error("Admin users institutions query error:", institutionsResult.error);
+      }
+      if (orgsResult.error) {
+        console.error("Admin users organizations query error:", orgsResult.error);
+      }
       if (issuesResult.error) {
         console.error("Admin users issues query error:", issuesResult.error);
       }
@@ -249,7 +333,7 @@ export function AdminUsersPage() {
       }
 
       const firstError =
-        profilesResult.error ?? rolesResult.error ?? departmentsResult.error ?? issuesResult.error ?? assignmentsResult.error;
+        profilesResult.error ?? rolesResult.error ?? departmentsResult.error ?? institutionsResult.error ?? orgsResult.error ?? issuesResult.error ?? assignmentsResult.error;
       if (firstError) {
         setError(firstError.message || "Unable to load user management right now.");
         setLoading(false);
@@ -259,6 +343,8 @@ export function AdminUsersPage() {
       setProfiles(profilesResult.data ?? []);
       setRoles(rolesResult.data ?? []);
       setDepartments(departmentsResult.data ?? []);
+      setInstitutions(institutionsResult.data ?? []);
+      setOrganizations(orgsResult.data ?? []);
       setIssues(issuesResult.data ?? []);
       setAssignments(assignmentsResult.data ?? []);
       setLoading(false);
@@ -306,7 +392,19 @@ export function AdminUsersPage() {
     return users.filter((user) => {
       const matchesSearch =
         !query ||
-        [user.full_name, user.email, user.phone, user.employee_id, user.designation, user.role?.name, user.department?.name]
+        [
+          user.full_name,
+          user.email,
+          user.phone,
+          user.employee_id,
+          user.designation,
+          user.role?.name,
+          user.department?.name,
+          user.institution?.name,
+          user.institution?.acronym,
+          user.organization?.name,
+          user.organization?.organization_type,
+        ]
           .filter(Boolean)
           .some((value) => String(value).toLowerCase().includes(query));
 
@@ -330,7 +428,9 @@ export function AdminUsersPage() {
           role.code === "MUNICIPAL_OFFICER" ||
           role.code === "DEPARTMENT_MANAGER" ||
           role.code === "FIELD_WORKER" ||
-          role.code === "INNOVATION_MANAGER",
+          role.code === "INNOVATION_MANAGER" ||
+          role.code === "INSTITUTION" ||
+          role.code === "INDUSTRY_PARTNER",
       ),
     [roles],
   );
@@ -339,6 +439,19 @@ export function AdminUsersPage() {
     if (!createForm.departmentId) return null;
     return departments.find((d) => d.id === createForm.departmentId)?.name ?? null;
   }, [createForm.departmentId, departments]);
+
+  const selectedCreateInstitutionName = useMemo(() => {
+    if (!createForm.institutionId) return null;
+    return institutions.find((i) => i.id === createForm.institutionId)?.name ?? null;
+  }, [createForm.institutionId, institutions]);
+
+  const selectedCreateOrganizationName = useMemo(() => {
+    if (createForm.organizationMode === "new") {
+      return createForm.newOrgName || "New Registered Organization";
+    }
+    if (!createForm.organizationId) return null;
+    return organizations.find((o) => o.id === createForm.organizationId)?.name ?? null;
+  }, [createForm.newOrgName, createForm.organizationId, createForm.organizationMode, organizations]);
 
   // Open modal from URL or button
   useEffect(() => {
@@ -411,13 +524,25 @@ export function AdminUsersPage() {
     setEditError(null);
   }
 
-  function handleRoleOrDeptChange(newRole: ManagedRoleCode, newDeptId: string) {
-    const deptName = departments.find((d) => d.id === newDeptId)?.name ?? null;
-    const prefix = getSuggestedPrefix(newRole, deptName);
+  function handleRoleOrEntityChange(
+    newRole: ManagedRoleCode,
+    newDeptId?: string,
+    newInstId?: string,
+    newOrgId?: string,
+    newOrgName?: string,
+  ) {
+    const deptName = departments.find((d) => d.id === (newDeptId ?? createForm.departmentId))?.name ?? null;
+    const inst = institutions.find((i) => i.id === (newInstId ?? createForm.institutionId));
+    const org = organizations.find((o) => o.id === (newOrgId ?? createForm.organizationId));
+    const orgName = newOrgName ?? org?.name ?? null;
+
+    const prefix = getSuggestedPrefix(newRole, deptName, inst?.acronym, orgName);
     setCreateForm((prev) => ({
       ...prev,
       roleCode: newRole,
-      departmentId: newDeptId,
+      departmentId: newDeptId !== undefined ? newDeptId : prev.departmentId,
+      institutionId: newInstId !== undefined ? newInstId : prev.institutionId,
+      organizationId: newOrgId !== undefined ? newOrgId : prev.organizationId,
       employeeId: `${prefix}-001`,
     }));
   }
@@ -454,6 +579,7 @@ export function AdminUsersPage() {
     const phone = createForm.phone.trim();
     const roleCode = createForm.roleCode;
     const departmentId = createForm.departmentId.trim();
+    const institutionId = createForm.institutionId.trim();
     const employeeId = createForm.employeeId.trim();
     const designation = createForm.designation.trim();
     const joinedAt = createForm.joinedAt.trim() || new Date().toISOString().split("T")[0];
@@ -482,6 +608,25 @@ export function AdminUsersPage() {
       return;
     }
 
+    if (roleCode === "INSTITUTION" && !institutionId) {
+      setCreateError("Institution / University selection is mandatory for Institution accounts.");
+      setCreateStep(2);
+      return;
+    }
+
+    if (roleCode === "INDUSTRY_PARTNER") {
+      if (createForm.organizationMode === "existing" && !createForm.organizationId) {
+        setCreateError("Please select an existing industry organization or switch to Register New.");
+        setCreateStep(2);
+        return;
+      }
+      if (createForm.organizationMode === "new" && !createForm.newOrgName.trim()) {
+        setCreateError("Company / Startup Name is mandatory for registering a new organization.");
+        setCreateStep(2);
+        return;
+      }
+    }
+
     setCreateSubmitting(true);
     setCreateError(null);
 
@@ -496,12 +641,35 @@ export function AdminUsersPage() {
         throw new Error("Clerk session token is unavailable. Please log in again.");
       }
 
+      let newOrgPayload: any = undefined;
+      if (roleCode === "INDUSTRY_PARTNER" && createForm.organizationMode === "new") {
+        newOrgPayload = {
+          name: createForm.newOrgName.trim(),
+          organizationType: createForm.newOrgType || "COMPANY",
+          websiteUrl: createForm.newOrgWebsite.trim() || undefined,
+          description: createForm.newOrgDescription.trim() || undefined,
+          supportTypes: createForm.newOrgSupportTypes,
+          domains: createForm.newOrgDomains.split(",").map((d) => d.trim()).filter(Boolean),
+          capabilities: createForm.newOrgCapabilities.split(",").map((c) => c.trim()).filter(Boolean),
+          technologies: createForm.newOrgTechnologies.split(",").map((t) => t.trim()).filter(Boolean),
+          verificationStatus: createForm.newOrgVerificationStatus,
+          contactEmail: email,
+          contactPhone: phone || undefined,
+          primaryContactName: fullName,
+        };
+      }
+
       const payload = {
         fullName,
         email,
         phone: phone || undefined,
         roleCode,
-        departmentId: departmentId || undefined,
+        departmentId: (roleCode === "DEPARTMENT_MANAGER" || roleCode === "FIELD_WORKER" || roleCode === "MUNICIPAL_OFFICER") ? (departmentId || undefined) : undefined,
+        institutionId: roleCode === "INSTITUTION" ? (institutionId || undefined) : undefined,
+        roleTitle: roleCode === "INSTITUTION" ? (createForm.roleTitle.trim() || undefined) : undefined,
+        isPrimaryContact: roleCode === "INSTITUTION" ? createForm.isPrimaryContact : undefined,
+        organizationId: roleCode === "INDUSTRY_PARTNER" && createForm.organizationMode === "existing" ? (createForm.organizationId || undefined) : undefined,
+        newOrganization: newOrgPayload,
         employeeId: employeeId || undefined,
         designation: designation || undefined,
         avatarUrl: finalAvatarUrl || undefined,
@@ -530,6 +698,8 @@ export function AdminUsersPage() {
           employeeId?: string;
           roleName?: string;
           departmentName?: string;
+          institutionName?: string;
+          organizationName?: string;
           temporaryPassword?: string;
         };
       };
@@ -545,6 +715,8 @@ export function AdminUsersPage() {
         employeeId: createdUser?.employeeId ?? employeeId,
         roleName: createdUser?.roleName ?? roleCode,
         departmentName: createdUser?.departmentName ?? (departments.find((d) => d.id === departmentId)?.name || "N/A"),
+        institutionName: createdUser?.institutionName ?? selectedCreateInstitutionName ?? undefined,
+        organizationName: createdUser?.organizationName ?? selectedCreateOrganizationName ?? undefined,
         temporaryPassword: createdUser?.temporaryPassword,
       });
 
@@ -573,6 +745,8 @@ export function AdminUsersPage() {
       roleId: user.role_id,
       roleCode: user.role?.code ?? "CITIZEN",
       departmentId: user.department_id || "",
+      institutionId: (user as any).institution_id || user.institution?.id || "",
+      organizationId: (user as any).organization_id || user.organization?.id || "",
       employeeId: user.employee_id || "",
       designation: user.designation || "",
       avatarUrl: user.avatar_url || "",
@@ -593,6 +767,8 @@ export function AdminUsersPage() {
     const designation = editForm.designation.trim();
     const employeeId = editForm.employeeId.trim();
     const departmentId = editForm.departmentId.trim() || null;
+    const institutionId = editForm.institutionId.trim() || null;
+    const organizationId = editForm.organizationId.trim() || null;
     const roleId = editForm.roleId;
 
     if (!fullName) {
@@ -612,12 +788,14 @@ export function AdminUsersPage() {
         }
       }
 
-      const updatePayload = {
+      const updatePayload: Database["public"]["Tables"]["profiles"]["Update"] = {
         full_name: fullName,
         phone: phone || null,
         designation: designation || null,
         employee_id: employeeId || null,
         department_id: departmentId,
+        institution_id: institutionId,
+        organization_id: organizationId,
         role_id: roleId,
         is_active: editForm.isActive,
         avatar_url: finalAvatarUrl || null,
@@ -758,6 +936,8 @@ export function AdminUsersPage() {
   const officerCount = users.filter((u) => u.role?.code === "MUNICIPAL_OFFICER").length;
   const managerCount = users.filter((u) => u.role?.code === "DEPARTMENT_MANAGER").length;
   const workerCount = users.filter((u) => u.role?.code === "FIELD_WORKER").length;
+  const industryCount = users.filter((u) => u.role?.code === "INDUSTRY_PARTNER").length;
+  const institutionCount = users.filter((u) => u.role?.code === "INSTITUTION").length;
   const adminCount = users.filter((u) => u.role?.code === "ADMIN").length;
 
   return (
@@ -766,7 +946,7 @@ export function AdminUsersPage() {
       <PageHeader
         tag="User Administration"
         title="CivicFix User Directory"
-        description="Manage municipal officers, department managers, field workers, citizens, and system administrators."
+        description="Manage municipal officers, department managers, field workers, industry partners, academic institutions, and administrators."
         actions={
           <div className="flex flex-wrap items-center gap-2">
             <Button onClick={openCreateModal} size="default" type="button" className="shadow-sm">
@@ -781,14 +961,15 @@ export function AdminUsersPage() {
       />
 
       {/* 2. Top Summary Metric Cards */}
-      <div className="grid gap-3 grid-cols-2 sm:grid-cols-3 lg:grid-cols-6">
+      <div className="grid gap-3 grid-cols-2 sm:grid-cols-3 lg:grid-cols-7">
         {[
           { label: "Total Accounts", value: users.length, icon: UsersRound, tone: "info" as const, desc: "Synced profiles" },
           { label: "Citizens", value: citizenCount, icon: UsersRound, tone: "info" as const, desc: "Registered residents" },
+          { label: "Industry Partners", value: industryCount, icon: Briefcase, tone: "warning" as const, desc: "50+ Co & Startups" },
+          { label: "Institutions", value: institutionCount, icon: GraduationCap, tone: "info" as const, desc: "Universities & labs" },
           { label: "Officers", value: officerCount, icon: Building2, tone: "warning" as const, desc: "Triage & verification" },
           { label: "Dept Managers", value: managerCount, icon: ShieldCheck, tone: "warning" as const, desc: "Operations leads" },
-          { label: "Field Workers", value: workerCount, icon: RefreshCw, tone: "danger" as const, desc: "Field technician fleet" },
-          { label: "Admins", value: adminCount, icon: ShieldAlert, tone: "danger" as const, desc: "System controllers" },
+          { label: "Field Fleet", value: workerCount, icon: RefreshCw, tone: "danger" as const, desc: "Field technician fleet" },
         ].map(({ label, value, icon: Icon, tone, desc }) => (
           <div
             key={label}
@@ -862,8 +1043,16 @@ export function AdminUsersPage() {
                   <p className="font-semibold text-foreground">{createSuccess.roleName}</p>
                 </div>
                 <div>
-                  <span className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground block">Department</span>
-                  <p className="font-semibold text-foreground">{createSuccess.departmentName}</p>
+                  <span className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground block">
+                    {createSuccess.organizationName
+                      ? "Company / Organization"
+                      : createSuccess.institutionName
+                        ? "Institution / University"
+                        : "Department"}
+                  </span>
+                  <p className="font-semibold text-foreground">
+                    {createSuccess.organizationName || createSuccess.institutionName || createSuccess.departmentName}
+                  </p>
                 </div>
                 <div>
                   <span className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground block">Login Email</span>
@@ -905,7 +1094,7 @@ export function AdminUsersPage() {
               <div className="flex items-start gap-2 rounded-xl border border-amber-300 bg-amber-50/90 p-2.5 text-xs text-amber-900">
                 <AlertTriangle className="h-4 w-4 shrink-0 text-amber-600 mt-0.5" />
                 <p>
-                  This temporary password is shown once. Store it securely and give it directly to the staff member so they can log in at <span className="font-mono font-semibold">/login</span>.
+                  This temporary password is shown once. Store it securely and give it directly to the user so they can log in at <span className="font-mono font-semibold">/login</span>.
                 </p>
               </div>
             </div>
@@ -969,7 +1158,7 @@ export function AdminUsersPage() {
                   setSearch(event.target.value);
                   setPage(1);
                 }}
-                placeholder="Search by name, employee ID, email, designation, role, or department..."
+                placeholder="Search by name, username, email, company, university, or role..."
                 value={search}
               />
             </div>
@@ -985,6 +1174,8 @@ export function AdminUsersPage() {
                 value={roleFilter}
               >
                 <option value="all">All Roles</option>
+                <option value="INDUSTRY_PARTNER">Industry Partner / Company</option>
+                <option value="INSTITUTION">Institution / University</option>
                 <option value="CITIZEN">Citizen</option>
                 <option value="MUNICIPAL_OFFICER">Municipal Officer</option>
                 <option value="DEPARTMENT_MANAGER">Department Manager</option>
@@ -1099,6 +1290,8 @@ export function AdminUsersPage() {
               value={roleFilter}
             >
               <option value="all">All Roles</option>
+              <option value="INDUSTRY_PARTNER">Industry Partner / Company</option>
+              <option value="INSTITUTION">Institution / University</option>
               <option value="CITIZEN">Citizen</option>
               <option value="MUNICIPAL_OFFICER">Municipal Officer</option>
               <option value="DEPARTMENT_MANAGER">Department Manager</option>
@@ -1192,9 +1385,9 @@ export function AdminUsersPage() {
                   <thead className="border-b border-border/60 bg-muted/40 text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
                     <tr>
                       <th className="px-4 py-3">User</th>
-                      <th className="px-4 py-3">Employee ID</th>
+                      <th className="px-4 py-3">Username / Emp ID</th>
                       <th className="px-4 py-3">Role</th>
-                      <th className="px-4 py-3">Department</th>
+                      <th className="px-4 py-3">Department / Entity</th>
                       <th className="px-4 py-3">Contact</th>
                       <th className="px-4 py-3">Status</th>
                       <th className="px-4 py-3 text-right">Actions</th>
@@ -1270,9 +1463,28 @@ export function AdminUsersPage() {
                             </Badge>
                           </td>
 
-                          {/* Department */}
+                          {/* Department / Entity */}
                           <td className="px-4 py-3.5">
-                            {user.department ? (
+                            {user.role?.code === "INDUSTRY_PARTNER" ? (
+                              <div className="space-y-0.5">
+                                <span className="inline-flex items-center rounded-md bg-purple-50 px-2 py-0.5 text-xs font-medium text-purple-800 border border-purple-200/80 max-w-[200px] truncate" title={user.organization?.name || "Company / Startup"}>
+                                  <Briefcase className="mr-1 h-3 w-3 shrink-0 text-purple-600" />
+                                  <span className="truncate">{user.organization?.name || "Industry Partner"}</span>
+                                </span>
+                                {user.organization?.organization_type && (
+                                  <p className="text-[10px] text-purple-700 font-medium">
+                                    {user.organization.organization_type}
+                                  </p>
+                                )}
+                              </div>
+                            ) : user.role?.code === "INSTITUTION" ? (
+                              <div className="space-y-0.5">
+                                <span className="inline-flex items-center rounded-md bg-indigo-50 px-2 py-0.5 text-xs font-medium text-indigo-800 border border-indigo-200/80 max-w-[200px] truncate" title={user.institution?.name || "Institution"}>
+                                  <GraduationCap className="mr-1 h-3 w-3 shrink-0 text-indigo-600" />
+                                  <span className="truncate">{user.institution?.name || "Academic Institution"}</span>
+                                </span>
+                              </div>
+                            ) : user.department ? (
                               <div className="space-y-0.5">
                                 <span className="inline-flex items-center rounded-md bg-sky-50 px-2 py-0.5 text-xs font-medium text-sky-800 border border-sky-200/80">
                                   <Building2 className="mr-1 h-3 w-3" />
@@ -1383,6 +1595,12 @@ export function AdminUsersPage() {
                 {visibleUsers.map((user) => {
                   const isSelf = user.id === profile?.id;
                   const roleTone = getAdminRoleTone(user.role?.code ?? "CITIZEN");
+                  const entityName =
+                    user.role?.code === "INDUSTRY_PARTNER"
+                      ? user.organization?.name || "Industry Partner"
+                      : user.role?.code === "INSTITUTION"
+                        ? user.institution?.name || "Institution"
+                        : user.department?.name || "Unassigned";
 
                   return (
                     <div key={user.id} className={`rounded-2xl border border-border/70 bg-background/50 p-4 space-y-3 ${!user.is_active ? "opacity-65" : ""}`}>
@@ -1424,8 +1642,8 @@ export function AdminUsersPage() {
                           <p className="font-mono font-medium text-foreground">{user.employee_id || "—"}</p>
                         </div>
                         <div>
-                          <span className="text-[10px] uppercase font-semibold text-muted-foreground">Department</span>
-                          <p className="font-medium text-foreground">{user.department?.name || "Unassigned"}</p>
+                          <span className="text-[10px] uppercase font-semibold text-muted-foreground">Department / Entity</span>
+                          <p className="font-medium text-foreground truncate">{entityName}</p>
                         </div>
                       </div>
 
@@ -1701,93 +1919,372 @@ export function AdminUsersPage() {
             </div>
           )}
 
-          {/* STEP 2: Role, Department, Designation & Joining Date */}
+          {/* STEP 2: Role, Department, Institution, or Company Assignment */}
           {createStep === 2 && (
             <div className="space-y-4">
-              {/* Role Picker */}
+              {/* Role Picker (All 6 Managed Roles) */}
               <div className="space-y-1.5">
                 <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground block">
-                  Staff Role <span className="text-destructive">*</span>
+                  Select User Type / Role <span className="text-destructive">*</span>
                 </label>
-                <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+                <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
                   {[
                     { code: "FIELD_WORKER" as const, name: "Field Worker", desc: "Executes repairs & evidence" },
                     { code: "DEPARTMENT_MANAGER" as const, name: "Dept Manager", desc: "Manages department crew" },
                     { code: "MUNICIPAL_OFFICER" as const, name: "Municipal Officer", desc: "Triage & routes issues" },
                     { code: "INNOVATION_MANAGER" as const, name: "Innovation Manager", desc: "Oversees complex challenges" },
+                    { code: "INSTITUTION" as const, name: "University Coordinator", desc: "Leads research & proposals" },
+                    { code: "INDUSTRY_PARTNER" as const, name: "Industry / Startup", desc: "Provides hardware, tech & funding" },
                   ].map((r) => (
                     <button
                       key={r.code}
                       type="button"
-                      onClick={() => handleRoleOrDeptChange(r.code, createForm.departmentId)}
+                      onClick={() => handleRoleOrEntityChange(r.code)}
                       className={`p-3 rounded-xl border text-left transition ${
                         createForm.roleCode === r.code
                           ? "border-primary bg-primary/5 ring-2 ring-primary/20"
                           : "border-border/80 hover:bg-muted/20"
                       }`}
                     >
-                      <p className="text-xs font-bold text-foreground">{r.name}</p>
+                      <div className="flex items-center justify-between">
+                        <p className="text-xs font-bold text-foreground">{r.name}</p>
+                        {createForm.roleCode === r.code && (
+                          <span className="h-2 w-2 rounded-full bg-primary" />
+                        )}
+                      </div>
                       <p className="text-[11px] text-muted-foreground mt-0.5">{r.desc}</p>
                     </button>
                   ))}
                 </div>
               </div>
 
-              {/* Department Picker (Strictly mandatory for Department Manager and Field Worker) */}
-              <div className="space-y-1.5">
-                <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground block">
-                  Assigned Municipal Department{" "}
-                  {createForm.roleCode !== "MUNICIPAL_OFFICER" && createForm.roleCode !== "INNOVATION_MANAGER" ? (
-                    <span className="text-destructive">*</span>
-                  ) : (
-                    <span className="text-muted-foreground font-normal">(Optional for Officer / Innovation)</span>
-                  )}
-                </label>
-                <select
-                  className="w-full rounded-xl border border-border/80 bg-background px-3.5 py-2.5 text-sm text-foreground outline-none focus:border-primary/50 focus:ring-2 focus:ring-primary/20"
-                  onChange={(e) => handleRoleOrDeptChange(createForm.roleCode, e.target.value)}
-                  required={createForm.roleCode !== "MUNICIPAL_OFFICER" && createForm.roleCode !== "INNOVATION_MANAGER"}
-                  value={createForm.departmentId}
-                >
-                  <option value="">Select Department...</option>
-                  {departments
-                    .filter((d) => d.is_active)
-                    .map((dept) => (
-                      <option key={dept.id} value={dept.id}>
-                        {dept.name}
-                      </option>
-                    ))}
-                </select>
-                <p className="text-[11px] text-muted-foreground">
-                  {createForm.roleCode === "FIELD_WORKER" || createForm.roleCode === "DEPARTMENT_MANAGER"
-                    ? "Department Manager and Field Worker roles are strictly locked to their assigned department."
-                    : "Municipal Officers can oversee multiple departments or specialize in one."}
-                </p>
-              </div>
+              {/* DYNAMIC FORM SECTION BASED ON ROLE */}
 
-              {/* Designation / Job Title */}
-              <div className="space-y-1.5">
-                <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground block">
-                  Designation / Official Title
-                </label>
-                <input
-                  className="w-full rounded-xl border border-border/80 bg-background px-3.5 py-2.5 text-sm text-foreground outline-none focus:border-primary/50 focus:ring-2 focus:ring-primary/20"
-                  onChange={(e) => setCreateForm((v) => ({ ...v, designation: e.target.value }))}
-                  placeholder={
-                    createForm.roleCode === "FIELD_WORKER"
-                      ? "e.g. Senior Asphalt Specialist, Line Inspector"
-                      : createForm.roleCode === "DEPARTMENT_MANAGER"
-                        ? "e.g. Road Works Lead Supervisor"
-                        : "e.g. Senior Municipal Triage Officer"
-                  }
-                  value={createForm.designation}
-                />
-              </div>
+              {/* A. DEPARTMENT-BASED ROLES (Field Worker, Dept Manager, Municipal Officer, Innovation Manager) */}
+              {(createForm.roleCode === "FIELD_WORKER" ||
+                createForm.roleCode === "DEPARTMENT_MANAGER" ||
+                createForm.roleCode === "MUNICIPAL_OFFICER" ||
+                createForm.roleCode === "INNOVATION_MANAGER") && (
+                <div className="space-y-3 rounded-2xl border border-border/80 bg-muted/10 p-4">
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground block">
+                      Assigned Municipal Department{" "}
+                      {createForm.roleCode === "FIELD_WORKER" || createForm.roleCode === "DEPARTMENT_MANAGER" ? (
+                        <span className="text-destructive">*</span>
+                      ) : (
+                        <span className="text-muted-foreground font-normal">(Optional for Officer / Innovation)</span>
+                      )}
+                    </label>
+                    <select
+                      className="w-full rounded-xl border border-border/80 bg-background px-3.5 py-2.5 text-sm text-foreground outline-none focus:border-primary/50 focus:ring-2 focus:ring-primary/20"
+                      onChange={(e) => handleRoleOrEntityChange(createForm.roleCode, e.target.value)}
+                      required={createForm.roleCode === "FIELD_WORKER" || createForm.roleCode === "DEPARTMENT_MANAGER"}
+                      value={createForm.departmentId}
+                    >
+                      <option value="">Select Department...</option>
+                      {departments
+                        .filter((d) => d.is_active)
+                        .map((dept) => (
+                          <option key={dept.id} value={dept.id}>
+                            {dept.name}
+                          </option>
+                        ))}
+                    </select>
+                    <p className="text-[11px] text-muted-foreground">
+                      {createForm.roleCode === "FIELD_WORKER" || createForm.roleCode === "DEPARTMENT_MANAGER"
+                        ? "Department assignment locks access strictly to this department's workflows."
+                        : "Municipal Officers can oversee multiple departments or specialize in one."}
+                    </p>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground block">
+                      Designation / Official Title
+                    </label>
+                    <input
+                      className="w-full rounded-xl border border-border/80 bg-background px-3.5 py-2.5 text-sm text-foreground outline-none focus:border-primary/50"
+                      onChange={(e) => setCreateForm((v) => ({ ...v, designation: e.target.value }))}
+                      placeholder={
+                        createForm.roleCode === "FIELD_WORKER"
+                          ? "e.g. Senior Asphalt Specialist, Line Inspector"
+                          : createForm.roleCode === "DEPARTMENT_MANAGER"
+                            ? "e.g. Road Works Lead Supervisor"
+                            : "e.g. Senior Municipal Triage Officer"
+                      }
+                      value={createForm.designation}
+                    />
+                  </div>
+                </div>
+              )}
+
+              {/* B. UNIVERSITY / INSTITUTION ROLE */}
+              {createForm.roleCode === "INSTITUTION" && (
+                <div className="space-y-3 rounded-2xl border border-sky-200 bg-sky-50/40 p-4">
+                  <div className="flex items-center gap-2 text-xs font-bold text-sky-900">
+                    <Building2 className="h-4 w-4 text-sky-700" />
+                    <span>University & Academic Affiliation</span>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground block">
+                      Select University / Institution <span className="text-destructive">*</span>
+                    </label>
+                    <select
+                      className="w-full rounded-xl border border-border/80 bg-background px-3.5 py-2.5 text-sm text-foreground outline-none focus:border-primary/50"
+                      onChange={(e) => handleRoleOrEntityChange(createForm.roleCode, undefined, e.target.value)}
+                      required
+                      value={createForm.institutionId}
+                    >
+                      <option value="">Select University / Institution...</option>
+                      {institutions
+                        .filter((i) => i.is_active)
+                        .map((inst) => (
+                          <option key={inst.id} value={inst.id}>
+                            {inst.name} {inst.acronym ? `(${inst.acronym})` : ""}
+                          </option>
+                        ))}
+                    </select>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground block">
+                      Academic Role Title / PI Designation
+                    </label>
+                    <input
+                      className="w-full rounded-xl border border-border/80 bg-background px-3.5 py-2.5 text-sm text-foreground outline-none focus:border-primary/50"
+                      onChange={(e) => setCreateForm((v) => ({ ...v, roleTitle: e.target.value, designation: e.target.value }))}
+                      placeholder="e.g. Nodal Research Coordinator, Principal Investigator"
+                      value={createForm.roleTitle}
+                    />
+                  </div>
+
+                  <label className="flex items-center gap-2.5 cursor-pointer pt-1">
+                    <input
+                      type="checkbox"
+                      checked={createForm.isPrimaryContact}
+                      onChange={(e) => setCreateForm((v) => ({ ...v, isPrimaryContact: e.target.checked }))}
+                      className="h-4 w-4 rounded border-border text-primary focus:ring-primary/30"
+                    />
+                    <span className="text-xs font-medium text-foreground">
+                      Set as Primary Nodal Contact for this Institution
+                    </span>
+                  </label>
+                </div>
+              )}
+
+              {/* C. INDUSTRY / STARTUP / SUPPORTING ORGANIZATION ROLE */}
+              {createForm.roleCode === "INDUSTRY_PARTNER" && (
+                <div className="space-y-3.5 rounded-2xl border border-teal-200 bg-teal-50/40 p-4">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2 text-xs font-bold text-teal-900">
+                      <Building2 className="h-4 w-4 text-teal-700" />
+                      <span>Company / Supporting Organization Details</span>
+                    </div>
+
+                    {/* Mode Toggle */}
+                    <div className="flex rounded-lg border border-teal-300 bg-white p-0.5 text-xs">
+                      <button
+                        type="button"
+                        onClick={() => setCreateForm((v) => ({ ...v, organizationMode: "existing" }))}
+                        className={`px-2.5 py-1 rounded-md font-semibold transition ${
+                          createForm.organizationMode === "existing"
+                            ? "bg-teal-700 text-white shadow-xs"
+                            : "text-muted-foreground hover:text-foreground"
+                        }`}
+                      >
+                        Existing Organization
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setCreateForm((v) => ({ ...v, organizationMode: "new" }))}
+                        className={`px-2.5 py-1 rounded-md font-semibold transition ${
+                          createForm.organizationMode === "new"
+                            ? "bg-teal-700 text-white shadow-xs"
+                            : "text-muted-foreground hover:text-foreground"
+                        }`}
+                      >
+                        + Register New
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Mode 1: Select Existing Organization */}
+                  {createForm.organizationMode === "existing" ? (
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground block">
+                        Select Existing Organization <span className="text-destructive">*</span>
+                      </label>
+                      <select
+                        className="w-full rounded-xl border border-border/80 bg-background px-3.5 py-2.5 text-sm text-foreground outline-none focus:border-primary/50"
+                        onChange={(e) => handleRoleOrEntityChange(createForm.roleCode, undefined, undefined, e.target.value)}
+                        required
+                        value={createForm.organizationId}
+                      >
+                        <option value="">Select Organization ({organizations.length} available)...</option>
+                        {organizations.map((org) => (
+                          <option key={org.id} value={org.id}>
+                            {org.name} — [{org.organization_type}] ({org.verification_status})
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  ) : (
+                    /* Mode 2: Register New Company / Startup */
+                    <div className="space-y-3 pt-1">
+                      <div className="grid gap-3 sm:grid-cols-2">
+                        <div className="space-y-1">
+                          <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground block">
+                            Company / Startup Name <span className="text-destructive">*</span>
+                          </label>
+                          <input
+                            className="w-full rounded-xl border border-border/80 bg-background px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50"
+                            onChange={(e) => {
+                              const val = e.target.value;
+                              setCreateForm((v) => ({ ...v, newOrgName: val }));
+                              handleRoleOrEntityChange(createForm.roleCode, undefined, undefined, undefined, val);
+                            }}
+                            placeholder="e.g. AeroSense IoT Labs Pvt Ltd"
+                            required
+                            value={createForm.newOrgName}
+                          />
+                        </div>
+
+                        <div className="space-y-1">
+                          <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground block">
+                            Organization Type <span className="text-destructive">*</span>
+                          </label>
+                          <select
+                            className="w-full rounded-xl border border-border/80 bg-background px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50"
+                            onChange={(e) => setCreateForm((v) => ({ ...v, newOrgType: e.target.value }))}
+                            value={createForm.newOrgType}
+                          >
+                            <option value="STARTUP">Startup</option>
+                            <option value="COMPANY">Company / Enterprise</option>
+                            <option value="INDUSTRY">Industry Conglomerate</option>
+                            <option value="RESEARCH_ORGANIZATION">Research Organization</option>
+                            <option value="NONPROFIT">Nonprofit / Foundation</option>
+                            <option value="OTHER">Other</option>
+                          </select>
+                        </div>
+                      </div>
+
+                      <div className="grid gap-3 sm:grid-cols-2">
+                        <div className="space-y-1">
+                          <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground block">
+                            Website URL
+                          </label>
+                          <input
+                            className="w-full rounded-xl border border-border/80 bg-background px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50"
+                            onChange={(e) => setCreateForm((v) => ({ ...v, newOrgWebsite: e.target.value }))}
+                            placeholder="https://company.com"
+                            type="url"
+                            value={createForm.newOrgWebsite}
+                          />
+                        </div>
+
+                        <div className="space-y-1">
+                          <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground block">
+                            Initial Verification Status
+                          </label>
+                          <select
+                            className="w-full rounded-xl border border-border/80 bg-background px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50"
+                            onChange={(e) => setCreateForm((v) => ({ ...v, newOrgVerificationStatus: e.target.value as "VERIFIED" | "PENDING" }))}
+                            value={createForm.newOrgVerificationStatus}
+                          >
+                            <option value="VERIFIED">Verified (Immediate Marketplace Access)</option>
+                            <option value="PENDING">Pending Review</option>
+                          </select>
+                        </div>
+                      </div>
+
+                      <div className="space-y-1">
+                        <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground block">
+                          Company Description & Focus
+                        </label>
+                        <textarea
+                          className="w-full rounded-xl border border-border/80 bg-background px-3 py-2 text-xs text-foreground outline-none focus:border-primary/50"
+                          rows={2}
+                          onChange={(e) => setCreateForm((v) => ({ ...v, newOrgDescription: e.target.value }))}
+                          placeholder="Brief description of products, technologies, and civic innovation focus..."
+                          value={createForm.newOrgDescription}
+                        />
+                      </div>
+
+                      {/* Support Categories Offered */}
+                      <div className="space-y-1.5">
+                        <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground block">
+                          Support Categories Provided
+                        </label>
+                        <div className="flex flex-wrap gap-1.5">
+                          {[
+                            "HARDWARE",
+                            "TECHNOLOGY",
+                            "EXPERTISE",
+                            "FUNDING",
+                            "INFRASTRUCTURE",
+                            "DATA",
+                            "MANUFACTURING",
+                          ].map((cat) => {
+                            const isSelected = createForm.newOrgSupportTypes.includes(cat);
+                            return (
+                              <button
+                                key={cat}
+                                type="button"
+                                onClick={() => {
+                                  setCreateForm((v) => ({
+                                    ...v,
+                                    newOrgSupportTypes: isSelected
+                                      ? v.newOrgSupportTypes.filter((c) => c !== cat)
+                                      : [...v.newOrgSupportTypes, cat],
+                                  }));
+                                }}
+                                className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold transition ${
+                                  isSelected
+                                    ? "bg-teal-700 text-white shadow-xs"
+                                    : "bg-background border border-border/80 text-muted-foreground hover:bg-muted/20"
+                                }`}
+                              >
+                                {isSelected ? "✓ " : "+ "}
+                                {cat}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+
+                      <div className="space-y-1">
+                        <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground block">
+                          Key Focus Domains (Comma-separated)
+                        </label>
+                        <input
+                          className="w-full rounded-xl border border-border/80 bg-background px-3 py-2 text-xs text-foreground outline-none focus:border-primary/50"
+                          onChange={(e) => setCreateForm((v) => ({ ...v, newOrgDomains: e.target.value }))}
+                          placeholder="e.g. Smart Mobility, CleanTech, Environmental IoT, Computer Vision"
+                          value={createForm.newOrgDomains}
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Representative Designation */}
+                  <div className="space-y-1.5 pt-1">
+                    <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground block">
+                      Representative Designation / Job Title
+                    </label>
+                    <input
+                      className="w-full rounded-xl border border-border/80 bg-background px-3.5 py-2.5 text-sm text-foreground outline-none focus:border-primary/50"
+                      onChange={(e) => setCreateForm((v) => ({ ...v, designation: e.target.value }))}
+                      placeholder="e.g. Chief Technology Officer, Director of Innovation, Founder & CEO"
+                      value={createForm.designation}
+                    />
+                  </div>
+                </div>
+              )}
 
               {/* Joining Date */}
               <div className="space-y-1.5">
                 <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground block">
-                  Joining Date
+                  Joining / Registration Date
                 </label>
                 <div className="relative">
                   <Calendar className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -1807,8 +2304,10 @@ export function AdminUsersPage() {
                 <Button
                   type="button"
                   disabled={
-                    (createForm.roleCode === "DEPARTMENT_MANAGER" || createForm.roleCode === "FIELD_WORKER") &&
-                    !createForm.departmentId
+                    ((createForm.roleCode === "DEPARTMENT_MANAGER" || createForm.roleCode === "FIELD_WORKER") && !createForm.departmentId) ||
+                    (createForm.roleCode === "INSTITUTION" && !createForm.institutionId) ||
+                    (createForm.roleCode === "INDUSTRY_PARTNER" && createForm.organizationMode === "existing" && !createForm.organizationId) ||
+                    (createForm.roleCode === "INDUSTRY_PARTNER" && createForm.organizationMode === "new" && !createForm.newOrgName.trim())
                   }
                   onClick={() => setCreateStep(3)}
                 >
@@ -1824,16 +2323,16 @@ export function AdminUsersPage() {
               {/* Employee ID / Username */}
               <div className="space-y-1.5">
                 <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground block">
-                  Staff Username / Employee Identifier
+                  Staff Username / Account Identifier
                 </label>
                 <input
                   className="w-full font-mono rounded-xl border border-border/80 bg-background px-3.5 py-2.5 text-sm text-foreground outline-none focus:border-primary/50 focus:ring-2 focus:ring-primary/20"
                   onChange={(e) => setCreateForm((v) => ({ ...v, employeeId: e.target.value.toLowerCase() }))}
-                  placeholder="e.g. road-worker-001"
+                  placeholder="e.g. ind-partner-001, road-worker-001"
                   value={createForm.employeeId}
                 />
                 <p className="text-[11px] text-muted-foreground">
-                  The backend automatically assigns and guarantees the next sequential canonical username upon creation.
+                  The backend guarantees the next sequential canonical username upon creation (e.g. <span className="font-mono text-primary font-semibold">{createForm.employeeId || "auto"}</span>).
                 </p>
               </div>
 
@@ -1844,7 +2343,7 @@ export function AdminUsersPage() {
                   <span>Server-Generated Cryptographic Temporary Password</span>
                 </div>
                 <p className="text-xs text-emerald-800 leading-relaxed">
-                  A strong 16-character temporary password will be cryptographically generated on the backend and registered in Clerk. It will be shown to you <strong>once</strong> upon submission so you can give it directly to the employee.
+                  A strong 16-character temporary password will be cryptographically generated on the backend and registered in Clerk. It will be shown to you <strong>once</strong> upon submission so you can give it directly to the user.
                 </p>
               </div>
 
@@ -1874,13 +2373,13 @@ export function AdminUsersPage() {
                   )}
                   <div>
                     <p className="font-bold text-base text-foreground">{createForm.fullName}</p>
-                    <p className="text-xs text-muted-foreground">{createForm.designation || "Municipal Staff"}</p>
+                    <p className="text-xs text-muted-foreground">{createForm.designation || "Staff Representative"}</p>
                   </div>
                 </div>
 
                 <div className="grid grid-cols-2 gap-3 text-xs">
                   <div>
-                    <span className="text-muted-foreground">Employee ID</span>
+                    <span className="text-muted-foreground">Employee ID / Username</span>
                     <p className="font-mono font-bold text-foreground">{createForm.employeeId || "Auto-assigned"}</p>
                   </div>
                   <div>
@@ -1889,10 +2388,40 @@ export function AdminUsersPage() {
                       {managedRoleOptions.find((r) => r.code === createForm.roleCode)?.name ?? createForm.roleCode}
                     </p>
                   </div>
-                  <div>
-                    <span className="text-muted-foreground">Department</span>
-                    <p className="font-bold text-foreground">{selectedCreateDepartmentName || "Cross-Departmental"}</p>
-                  </div>
+
+                  {/* Dynamic Organization / Institution / Department Display */}
+                  {createForm.roleCode === "INDUSTRY_PARTNER" && (
+                    <div className="col-span-2 rounded-xl border border-teal-200 bg-teal-50/50 p-2.5">
+                      <span className="text-[10px] uppercase font-bold text-teal-800 block">Company / Supporting Organization</span>
+                      <p className="font-bold text-foreground text-sm">{selectedCreateOrganizationName || "N/A"}</p>
+                      {createForm.organizationMode === "new" && (
+                        <p className="text-[11px] text-teal-700 mt-0.5">
+                          Type: {createForm.newOrgType} | Support: {createForm.newOrgSupportTypes.join(", ")}
+                        </p>
+                      )}
+                    </div>
+                  )}
+
+                  {createForm.roleCode === "INSTITUTION" && (
+                    <div className="col-span-2 rounded-xl border border-sky-200 bg-sky-50/50 p-2.5">
+                      <span className="text-[10px] uppercase font-bold text-sky-800 block">University / Institution</span>
+                      <p className="font-bold text-foreground text-sm">{selectedCreateInstitutionName || "N/A"}</p>
+                      {createForm.isPrimaryContact && (
+                        <p className="text-[11px] text-sky-700 font-semibold mt-0.5">Primary Nodal Coordinator</p>
+                      )}
+                    </div>
+                  )}
+
+                  {(createForm.roleCode === "FIELD_WORKER" ||
+                    createForm.roleCode === "DEPARTMENT_MANAGER" ||
+                    createForm.roleCode === "MUNICIPAL_OFFICER" ||
+                    createForm.roleCode === "INNOVATION_MANAGER") && (
+                    <div>
+                      <span className="text-muted-foreground">Department</span>
+                      <p className="font-bold text-foreground">{selectedCreateDepartmentName || "Cross-Departmental"}</p>
+                    </div>
+                  )}
+
                   <div>
                     <span className="text-muted-foreground">Official Email</span>
                     <p className="font-mono text-foreground truncate">{createForm.email}</p>
@@ -2285,10 +2814,30 @@ export function AdminUsersPage() {
               </div>
 
               <div>
-                <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground block">Department</span>
+                <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground block">
+                  {viewingUser.role?.code === "INDUSTRY_PARTNER"
+                    ? "Industry Organization"
+                    : viewingUser.role?.code === "INSTITUTION"
+                      ? "Academic Institution"
+                      : "Department"}
+                </span>
                 <p className="font-semibold text-foreground mt-1 flex items-center gap-1.5">
-                  <Building2 className="h-4 w-4 text-sky-700" />
-                  {viewingUser.department?.name || "None (Cross-Department)"}
+                  {viewingUser.role?.code === "INDUSTRY_PARTNER" ? (
+                    <>
+                      <Briefcase className="h-4 w-4 text-purple-700" />
+                      {viewingUser.organization?.name || "Unassigned Organization"}
+                    </>
+                  ) : viewingUser.role?.code === "INSTITUTION" ? (
+                    <>
+                      <GraduationCap className="h-4 w-4 text-indigo-700" />
+                      {viewingUser.institution?.name || "Unassigned Institution"}
+                    </>
+                  ) : (
+                    <>
+                      <Building2 className="h-4 w-4 text-sky-700" />
+                      {viewingUser.department?.name || "None (Cross-Department)"}
+                    </>
+                  )}
                 </p>
               </div>
 

@@ -47,6 +47,10 @@ export function getAdminRoleLabel(roleCode: AdminRoleCode) {
       return "Admin";
     case "INNOVATION_MANAGER":
       return "Innovation Manager";
+    case "INSTITUTION":
+      return "Institution";
+    case "INDUSTRY_PARTNER":
+      return "Industry Partner";
     case "CITIZEN":
     default:
       return "Citizen";

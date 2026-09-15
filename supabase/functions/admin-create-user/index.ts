@@ -9,6 +9,7 @@ const ALLOWED_ROLE_CODES = new Set([
   "DEPARTMENT_MANAGER",
   "INNOVATION_MANAGER",
   "INSTITUTION",
+  "INDUSTRY_PARTNER",
 ] as const);
 
 type CreateUserBody = {
@@ -17,6 +18,22 @@ type CreateUserBody = {
   roleCode?: string;
   departmentId?: string;
   institutionId?: string;
+  organizationId?: string;
+  newOrganization?: {
+    name: string;
+    organizationType?: string;
+    websiteUrl?: string;
+    description?: string;
+    domains?: string[];
+    capabilities?: string[];
+    technologies?: string[];
+    supportTypes?: string[];
+    geographicCoverage?: string[];
+    contactEmail?: string;
+    contactPhone?: string;
+    primaryContactName?: string;
+    verificationStatus?: string;
+  };
   roleTitle?: string;
   isPrimaryContact?: boolean;
   employeeId?: string;
@@ -24,6 +41,9 @@ type CreateUserBody = {
   phone?: string;
   avatarUrl?: string;
   joinedAt?: string;
+  password?: string;
+  action?: string;
+  companies?: Array<any>;
 };
 
 function parseOrigins(value: string | null | undefined) {
@@ -123,7 +143,19 @@ function generateSecureTemporaryPassword(): string {
   return combined.join("");
 }
 
-function getPrefixForRoleAndDepartment(roleCode: string, departmentName?: string | null, institutionAcronym?: string | null): string {
+function getPrefixForRoleAndDepartment(
+  roleCode: string,
+  departmentName?: string | null,
+  institutionAcronym?: string | null,
+  organizationName?: string | null,
+): string {
+  if (roleCode === "INDUSTRY_PARTNER") {
+    if (organizationName) {
+      const acr = normalizeUsername(organizationName).slice(0, 12);
+      if (acr) return `ind-${acr}`;
+    }
+    return "ind";
+  }
   if (roleCode === "INSTITUTION") {
     if (institutionAcronym) {
       const acr = normalizeUsername(institutionAcronym);
@@ -170,8 +202,9 @@ async function generateNextUniqueEmployeeId(
   roleCode: string,
   departmentName?: string | null,
   institutionAcronym?: string | null,
+  organizationName?: string | null,
 ): Promise<string> {
-  const prefix = getPrefixForRoleAndDepartment(roleCode, departmentName, institutionAcronym);
+  const prefix = getPrefixForRoleAndDepartment(roleCode, departmentName, institutionAcronym, organizationName);
 
   const { data } = await supabaseClient
     .from("profiles")
@@ -650,6 +683,209 @@ Deno.serve(async (request: Request) => {
     return json(200, { success: true, count: results.length, results }, origin);
   }
 
+  // Batch seed companies action
+  if ((body as any).action === "batch-seed-50-companies") {
+    const companiesInput = Array.isArray(body.companies) && body.companies.length > 0 ? body.companies : null;
+    if (!companiesInput) {
+      return json(400, { error: "No companies list provided in request body." }, origin);
+    }
+    const defaultPassword = body.password || "CivicFix@Partner2026!";
+
+    // Resolve INDUSTRY_PARTNER role ID
+    const { data: roleRecord } = await supabase.from("roles").select("id, code, name").eq("code", "INDUSTRY_PARTNER").single();
+    if (!roleRecord) {
+      return json(500, { error: "INDUSTRY_PARTNER role not found in database." }, origin);
+    }
+
+    const report: any[] = [];
+
+    for (const c of companiesInput) {
+      const email = normalizeEmail(c.email || c.contactEmail);
+      const fullName = (c.primaryContactName || c.fullName || "Partner Representative").trim();
+      const phone = c.phone || c.contactPhone || null;
+      const designation = c.designation || "Primary Partner Representative";
+      const orgName = (c.name || c.organizationName).trim();
+      const orgType = c.organizationType || "COMPANY";
+      const verifStatus = c.verificationStatus || "VERIFIED";
+
+      // 1. Check or Insert industry_organizations
+      let orgId = c.organizationId;
+      if (!orgId) {
+        const { data: existingOrg } = await supabase
+          .from("industry_organizations")
+          .select("id, name")
+          .ilike("name", orgName)
+          .maybeSingle();
+
+        if (existingOrg) {
+          orgId = existingOrg.id;
+        } else {
+          const { data: insertedOrg, error: orgErr } = await supabase
+            .from("industry_organizations")
+            .insert({
+              name: orgName,
+              organization_type: orgType,
+              verification_status: verifStatus,
+              website_url: c.websiteUrl || null,
+              description: c.description || null,
+              domains: Array.isArray(c.domains) ? c.domains : [],
+              capabilities: Array.isArray(c.capabilities) ? c.capabilities : [],
+              technologies: Array.isArray(c.technologies) ? c.technologies : [],
+              support_types: Array.isArray(c.supportTypes) ? c.supportTypes : [],
+              geographic_coverage: Array.isArray(c.geographicCoverage) ? c.geographicCoverage : ["Pan-India"],
+              contact_email: email,
+              contact_phone: phone,
+              primary_contact_name: fullName,
+              verified_at: verifStatus === "VERIFIED" ? new Date().toISOString() : null,
+              verified_by: verifStatus === "VERIFIED" ? adminProfile.id : null,
+            })
+            .select("id, name")
+            .single();
+
+          if (orgErr || !insertedOrg) {
+            report.push({ name: orgName, email, error: `Org insert failed: ${getSafeErrorMessage(orgErr)}` });
+            continue;
+          }
+          orgId = insertedOrg.id;
+        }
+      }
+
+      // 2. Determine canonical username
+      let canonicalUsername = normalizeUsername(c.employeeId || c.username || "");
+      if (!canonicalUsername) {
+        canonicalUsername = await generateNextUniqueEmployeeId(supabase, "INDUSTRY_PARTNER", null, null, orgName);
+      }
+
+      const passwordToUse = c.password || defaultPassword;
+      const { firstName, lastName } = parseName(fullName);
+
+      // 3. Create or Update Clerk user
+      let clerkUserId: string | null = null;
+      try {
+        // Try searching if profile with email exists
+        const { data: existingProf } = await supabase.from("profiles").select("id, clerk_user_id").eq("email", email).maybeSingle();
+        if (existingProf?.clerk_user_id) {
+          clerkUserId = existingProf.clerk_user_id;
+          // Update password & metadata in Clerk
+          await fetch(`https://api.clerk.com/v1/users/${clerkUserId}`, {
+            method: "PATCH",
+            headers: {
+              Authorization: `Bearer ${clerkSecretKey}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              password: passwordToUse,
+              public_metadata: {
+                role: "INDUSTRY_PARTNER",
+                organization: orgName,
+                organizationId: orgId,
+                employeeId: canonicalUsername,
+              },
+            }),
+          });
+        } else {
+          // Create new user in Clerk
+          let clerkUser;
+          try {
+            clerkUser = await clerk.users.createUser({
+              emailAddress: [email],
+              password: passwordToUse,
+              firstName: firstName || fullName,
+              lastName,
+              username: canonicalUsername,
+              publicMetadata: {
+                role: "INDUSTRY_PARTNER",
+                organization: orgName,
+                organizationId: orgId,
+                employeeId: canonicalUsername,
+              },
+            });
+          } catch {
+            clerkUser = await clerk.users.createUser({
+              emailAddress: [email],
+              password: passwordToUse,
+              firstName: firstName || fullName,
+              lastName,
+              publicMetadata: {
+                role: "INDUSTRY_PARTNER",
+                organization: orgName,
+                organizationId: orgId,
+                employeeId: canonicalUsername,
+              },
+            });
+          }
+          clerkUserId = clerkUser.id;
+        }
+
+        // Auto verify email
+        if (clerkUserId) {
+          const uRes = await fetch(`https://api.clerk.com/v1/users/${clerkUserId}`, {
+            headers: { Authorization: `Bearer ${clerkSecretKey}` },
+          });
+          if (uRes.ok) {
+            const uData = await uRes.json();
+            for (const em of uData.email_addresses || []) {
+              if (em.verification?.status !== "verified") {
+                await fetch(`https://api.clerk.com/v1/email_addresses/${em.id}`, {
+                  method: "PATCH",
+                  headers: {
+                    Authorization: `Bearer ${clerkSecretKey}`,
+                    "Content-Type": "application/json",
+                  },
+                  body: JSON.stringify({ verified: true }),
+                });
+              }
+            }
+          }
+        }
+      } catch (clerkErr) {
+        report.push({ name: orgName, email, error: `Clerk creation failed: ${getSafeErrorMessage(clerkErr)}` });
+        continue;
+      }
+
+      // 4. Upsert Profile in Supabase
+      const { data: prof, error: profErr } = await supabase
+        .from("profiles")
+        .upsert(
+          {
+            clerk_user_id: clerkUserId,
+            full_name: fullName,
+            email,
+            phone,
+            role_id: roleRecord.id,
+            organization_id: orgId,
+            employee_id: canonicalUsername,
+            designation,
+            is_active: true,
+            joined_at: new Date().toISOString().split("T")[0],
+          },
+          { onConflict: "clerk_user_id" },
+        )
+        .select("id, email, employee_id")
+        .single();
+
+      if (profErr) {
+        report.push({ name: orgName, email, error: `Profile upsert failed: ${getSafeErrorMessage(profErr)}` });
+      } else {
+        report.push({
+          organizationName: orgName,
+          organizationType: orgType,
+          organizationId: orgId,
+          email,
+          username: canonicalUsername,
+          password: passwordToUse,
+          fullName,
+          designation,
+          profileId: prof?.id,
+          clerkUserId,
+          status: "SUCCESS",
+        });
+      }
+    }
+
+    return json(200, { success: true, count: report.length, report }, origin);
+  }
+
   const fullName = body.fullName?.trim() ?? "";
   const email = body.email?.trim() ?? "";
   const roleCode = body.roleCode?.trim() ?? "";
@@ -667,7 +903,7 @@ Deno.serve(async (request: Request) => {
   }
 
   if (!ALLOWED_ROLE_CODES.has(roleCode as any)) {
-    return json(400, { error: "Only Municipal Officer, Department Manager, Field Worker, Innovation Manager, or Institution accounts can be created." }, origin);
+    return json(400, { error: "Only Municipal Officer, Department Manager, Field Worker, Innovation Manager, Institution, or Industry Partner accounts can be created." }, origin);
   }
 
   const departmentId = body.departmentId?.trim() || null;
@@ -678,6 +914,55 @@ Deno.serve(async (request: Request) => {
   const institutionId = body.institutionId?.trim() || null;
   if (roleCode === "INSTITUTION" && !institutionId) {
     return json(400, { error: "An institution must be selected for Institution accounts." }, origin);
+  }
+
+  let organizationId = body.organizationId?.trim() || null;
+  let organizationName: string | null = null;
+
+  if (roleCode === "INDUSTRY_PARTNER") {
+    if (body.newOrganization && body.newOrganization.name?.trim()) {
+      const newOrg = body.newOrganization;
+      const validTypes = new Set(["COMPANY", "STARTUP", "INDUSTRY", "RESEARCH_ORGANIZATION", "NONPROFIT", "OTHER"]);
+      const orgType = validTypes.has(newOrg.organizationType ?? "") ? newOrg.organizationType! : "COMPANY";
+      const validVerif = new Set(["PENDING", "VERIFIED", "REJECTED", "SUSPENDED"]);
+      const verifStatus = validVerif.has(newOrg.verificationStatus ?? "") ? newOrg.verificationStatus! : "VERIFIED";
+
+      const { data: createdOrg, error: orgErr } = await supabase
+        .from("industry_organizations")
+        .insert({
+          name: newOrg.name.trim(),
+          organization_type: orgType,
+          verification_status: verifStatus,
+          website_url: newOrg.websiteUrl?.trim() || null,
+          description: newOrg.description?.trim() || null,
+          domains: Array.isArray(newOrg.domains) ? newOrg.domains : [],
+          capabilities: Array.isArray(newOrg.capabilities) ? newOrg.capabilities : [],
+          technologies: Array.isArray(newOrg.technologies) ? newOrg.technologies : [],
+          support_types: Array.isArray(newOrg.supportTypes) ? newOrg.supportTypes : [],
+          geographic_coverage: Array.isArray(newOrg.geographicCoverage) ? newOrg.geographicCoverage : ["Pan-India"],
+          contact_email: newOrg.contactEmail?.trim() || normalizedEmail || null,
+          contact_phone: newOrg.contactPhone?.trim() || phone || null,
+          primary_contact_name: newOrg.primaryContactName?.trim() || fullName || null,
+          verified_at: verifStatus === "VERIFIED" ? new Date().toISOString() : null,
+          verified_by: verifStatus === "VERIFIED" ? adminProfile.id : null,
+        })
+        .select("id, name")
+        .single();
+
+      if (orgErr || !createdOrg) {
+        return json(500, { error: `Failed to create company/organization: ${getSafeErrorMessage(orgErr)}` }, origin);
+      }
+      organizationId = createdOrg.id;
+      organizationName = createdOrg.name;
+    } else if (organizationId) {
+      const { data: orgData } = await supabase.from("industry_organizations").select("name").eq("id", organizationId).maybeSingle();
+      if (!orgData) {
+        return json(400, { error: "The selected organization does not exist." }, origin);
+      }
+      organizationName = orgData.name;
+    } else {
+      return json(400, { error: "Please select an existing organization or provide details to register a new company/startup." }, origin);
+    }
   }
 
   let departmentName: string | null = null;
@@ -716,7 +1001,7 @@ Deno.serve(async (request: Request) => {
   // 2. Generate canonical normalized Username / Employee ID (lowercase only, hyphens only)
   let canonicalUsername = normalizeUsername(body.employeeId?.trim() || "");
   if (!canonicalUsername) {
-    canonicalUsername = await generateNextUniqueEmployeeId(supabase, roleCode, departmentName, institutionAcronym);
+    canonicalUsername = await generateNextUniqueEmployeeId(supabase, roleCode, departmentName, institutionAcronym, organizationName);
   }
 
   const { data: existingEmp } = await supabase
@@ -726,7 +1011,7 @@ Deno.serve(async (request: Request) => {
     .maybeSingle();
 
   if (existingEmp) {
-    canonicalUsername = await generateNextUniqueEmployeeId(supabase, roleCode, departmentName, institutionAcronym);
+    canonicalUsername = await generateNextUniqueEmployeeId(supabase, roleCode, departmentName, institutionAcronym, organizationName);
   }
 
   const { data: roleRecord } = await supabase.from("roles").select("id, code, name").eq("code", roleCode).maybeSingle();
@@ -755,6 +1040,8 @@ Deno.serve(async (request: Request) => {
           role: roleCode,
           department: departmentName,
           institution: institutionName,
+          organization: organizationName,
+          organizationId: organizationId,
           employeeId: canonicalUsername,
         },
       });
@@ -771,6 +1058,8 @@ Deno.serve(async (request: Request) => {
             role: roleCode,
             department: departmentName,
             institution: institutionName,
+            organization: organizationName,
+            organizationId: organizationId,
             employeeId: canonicalUsername,
           },
         });
@@ -824,13 +1113,14 @@ Deno.serve(async (request: Request) => {
         role_id: roleRecord.id,
         department_id: departmentId,
         institution_id: institutionId,
+        organization_id: organizationId,
         employee_id: canonicalUsername,
-        designation: designation || (roleCode === "INSTITUTION" ? (body.roleTitle?.trim() || "Institution Coordinator") : null),
+        designation: designation || (roleCode === "INSTITUTION" ? (body.roleTitle?.trim() || "Institution Coordinator") : (roleCode === "INDUSTRY_PARTNER" ? "Partner Representative" : null)),
         joined_at: joinedAt,
         is_active: true,
         avatar_url: avatarUrl,
       })
-      .select("id, full_name, email, phone, employee_id, designation, is_active, avatar_url, role:roles!profiles_role_id_fkey(code, name), department:departments!profiles_department_id_fkey(id, name)")
+      .select("id, full_name, email, phone, employee_id, designation, is_active, avatar_url, role:roles!profiles_role_id_fkey(code, name), department:departments!profiles_department_id_fkey(id, name), organization_id")
       .single();
 
     if (insertError) {
@@ -888,9 +1178,11 @@ Deno.serve(async (request: Request) => {
           roleCode: roleObj?.code ?? roleCode,
           roleName: roleObj?.name ?? roleRecord.name,
           departmentId: deptObj?.id ?? departmentId,
-          departmentName: deptObj?.name ?? (departmentName || (institutionName ? institutionName : "Cross-Departmental")),
+          departmentName: deptObj?.name ?? (departmentName || (institutionName ? institutionName : (organizationName ? organizationName : "Cross-Departmental"))),
           institutionId,
           institutionName,
+          organizationId,
+          organizationName,
           isActive: createdProfile.is_active,
           avatarUrl: createdProfile.avatar_url,
           temporaryPassword,
