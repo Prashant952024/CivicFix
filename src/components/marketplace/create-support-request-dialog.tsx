@@ -1,27 +1,30 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Dialog } from "@/components/ui/dialog";
 import {
   createSupportRequest,
   SUPPORT_CATEGORY_META,
+  type UniversityEligibleProject,
 } from "@/lib/marketplace";
 import type {
-  ResearchProjectMilestoneRow,
   SupportConfidentiality,
   SupportRequestCategory,
   SupportRequestPriority,
 } from "@/types/database";
-import { AlertCircle, Loader2, Sparkles } from "lucide-react";
+import { AlertCircle, CheckCircle2, FileText, Loader2, Sparkles } from "lucide-react";
 
 interface CreateSupportRequestDialogProps {
   open: boolean;
   onClose: () => void;
-  projectId: string;
-  challengeId: string;
-  institutionId: string;
   profileId: string;
-  milestones: ResearchProjectMilestoneRow[];
   onCreated: () => void;
+  // Workspace Mode (Direct project context)
+  projectId?: string;
+  challengeId?: string;
+  institutionId?: string;
+  milestones?: { id: string; title: string; sequence_order: number }[];
+  // Global University Mode (Dropdown selection of eligible approved projects)
+  eligibleProjects?: UniversityEligibleProject[];
 }
 
 const CATEGORIES: SupportRequestCategory[] = [
@@ -39,15 +42,36 @@ const PRIORITIES: SupportRequestPriority[] = ["LOW", "MEDIUM", "HIGH", "CRITICAL
 export function CreateSupportRequestDialog({
   open,
   onClose,
-  projectId,
-  challengeId,
-  institutionId,
   profileId,
-  milestones,
+  projectId: propProjectId,
+  challengeId: propChallengeId,
+  institutionId: propInstitutionId,
+  milestones: propMilestones,
+  eligibleProjects,
   onCreated,
 }: CreateSupportRequestDialogProps) {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Selected project for Global University Mode
+  const [selectedProjectId, setSelectedProjectId] = useState<string>(propProjectId || "");
+
+  useEffect(() => {
+    if (propProjectId) {
+      setSelectedProjectId(propProjectId);
+    } else if (eligibleProjects && eligibleProjects.length > 0 && !selectedProjectId) {
+      // Default to first project with approved proposal if available
+      const approved = eligibleProjects.find((p) => p.has_approved_proposal);
+      setSelectedProjectId(approved ? approved.id : eligibleProjects[0].id);
+    }
+  }, [propProjectId, eligibleProjects, selectedProjectId]);
+
+  const activeProject = eligibleProjects?.find((p) => p.id === selectedProjectId);
+  const activeProjectId = propProjectId || selectedProjectId;
+  const activeChallengeId = propChallengeId || activeProject?.challenge_id || "";
+  const activeInstitutionId = propInstitutionId || activeProject?.institution_id || "";
+  const availableMilestones = propMilestones || activeProject?.milestones || [];
+  const isApproved = propProjectId ? true : (activeProject?.has_approved_proposal ?? true);
 
   const [category, setCategory] = useState<SupportRequestCategory>("HARDWARE");
   const [title, setTitle] = useState("");
@@ -66,6 +90,14 @@ export function CreateSupportRequestDialog({
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (!activeProjectId || !activeChallengeId || !activeInstitutionId) {
+      setError("Please select a research project to link this requirement to.");
+      return;
+    }
+    if (!isApproved) {
+      setError("This project does not have an approved proposal yet. Only approved projects can request marketplace support.");
+      return;
+    }
     if (!title.trim() || !description.trim()) {
       setError("Please fill out the title and description.");
       return;
@@ -76,9 +108,9 @@ export function CreateSupportRequestDialog({
 
     try {
       await createSupportRequest({
-        challengeId,
-        institutionId,
-        projectId,
+        challengeId: activeChallengeId,
+        institutionId: activeInstitutionId,
+        projectId: activeProjectId,
         createdBy: profileId,
         category,
         title: title.trim(),
@@ -129,6 +161,52 @@ export function CreateSupportRequestDialog({
         )}
 
         <div className="space-y-3.5">
+          {/* Project Selection (shown when in Global University Marketplace mode) */}
+          {!propProjectId && eligibleProjects && (
+            <div className="space-y-1.5 p-3 bg-muted/40 rounded-lg border border-border/80">
+              <label htmlFor="select-project" className="text-xs font-semibold text-foreground flex items-center justify-between">
+                <span>Select Research Project &amp; Problem Statement *</span>
+                {activeProject && (
+                  <span className={`text-[11px] flex items-center gap-1 font-normal ${
+                    activeProject.has_approved_proposal ? "text-emerald-700 dark:text-emerald-400" : "text-amber-700 dark:text-amber-400"
+                  }`}>
+                    {activeProject.has_approved_proposal ? (
+                      <>
+                        <CheckCircle2 className="w-3.5 h-3.5" /> Proposal Approved
+                      </>
+                    ) : (
+                      <>
+                        <AlertCircle className="w-3.5 h-3.5" /> Proposal Under Review
+                      </>
+                    )}
+                  </span>
+                )}
+              </label>
+              <select
+                id="select-project"
+                value={selectedProjectId}
+                onChange={(e) => setSelectedProjectId(e.target.value)}
+                className="w-full rounded-lg border border-border bg-background px-3 py-2 text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                required
+              >
+                {eligibleProjects.length === 0 ? (
+                  <option value="">No active research projects found</option>
+                ) : (
+                  eligibleProjects.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.title} {p.challenge ? `(${p.challenge.title})` : ""} {p.has_approved_proposal ? "✓ Approved" : "⏳ Pending Approval"}
+                    </option>
+                  ))
+                )}
+              </select>
+              {!isApproved && (
+                <p className="text-[11px] text-amber-700 dark:text-amber-400 mt-1">
+                  ⚠️ This project does not have an approved proposal yet. Only projects with approved proposals can publish requirements to the marketplace.
+                </p>
+              )}
+            </div>
+          )}
+
           {/* Category selection */}
           <div className="space-y-1.5">
             <label className="text-xs font-semibold text-foreground">Support Category *</label>
@@ -166,7 +244,19 @@ export function CreateSupportRequestDialog({
               <input
                 id="title"
                 type="text"
-                placeholder="e.g. 10x Ultrasonic Depth Sensors & LoRaWAN Modems"
+                placeholder={
+                  category === "FUNDING"
+                    ? "e.g. Prototype Co-Funding for Sensor Field Deployment"
+                    : category === "HARDWARE"
+                    ? "e.g. 10x Ultrasonic Depth Sensors & LoRaWAN Modems"
+                    : category === "EXPERTISE"
+                    ? "e.g. Embedded Firmware & Low-Power RF Domain Expert"
+                    : category === "INFRASTRUCTURE"
+                    ? "e.g. Environmental Testing Chamber & Vibration Rig Access"
+                    : category === "DATA"
+                    ? "e.g. 3-Year Historical Municipal Water Quality Sensor Feed"
+                    : "e.g. Rapid CNC & 3D Prototyping for Casing Enclosures"
+                }
                 value={title}
                 onChange={(e: React.ChangeEvent<HTMLInputElement>) => setTitle(e.target.value)}
                 className="w-full rounded-lg border border-border bg-background px-3 py-2 text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
@@ -213,12 +303,20 @@ export function CreateSupportRequestDialog({
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div className="space-y-1.5">
               <label htmlFor="specification" className="text-xs font-semibold text-foreground">
-                Technical Specifications / Model
+                Technical Specifications / Deliverables
               </label>
               <input
                 id="specification"
                 type="text"
-                placeholder="e.g. IP67 waterproof, I2C/UART interface, 20m range"
+                placeholder={
+                  category === "FUNDING"
+                    ? "e.g. Disbursed across 3 prototype testing milestones"
+                    : category === "HARDWARE"
+                    ? "e.g. IP67 waterproof, I2C/UART interface, 20m range"
+                    : category === "TECHNOLOGY"
+                    ? "e.g. Python SDK, REST API, >100 req/sec rate limit"
+                    : "e.g. Industry standard SLA and deliverable specifications"
+                }
                 value={specification}
                 onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSpecification(e.target.value)}
                 className="w-full rounded-lg border border-border bg-background px-3 py-2 text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
@@ -232,7 +330,15 @@ export function CreateSupportRequestDialog({
               <input
                 id="scope"
                 type="text"
-                placeholder="e.g. 10 physical units, or 50 GPU hours"
+                placeholder={
+                  category === "FUNDING"
+                    ? "e.g. Full grant or partial sponsorship"
+                    : category === "HARDWARE"
+                    ? "e.g. 10 physical units"
+                    : category === "EXPERTISE"
+                    ? "e.g. 4 hours/week for 2 months"
+                    : "e.g. Target scope or test sessions"
+                }
                 value={quantityOrScope}
                 onChange={(e: React.ChangeEvent<HTMLInputElement>) => setQuantityOrScope(e.target.value)}
                 className="w-full rounded-lg border border-border bg-background px-3 py-2 text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
@@ -300,7 +406,7 @@ export function CreateSupportRequestDialog({
                 className="w-full rounded-lg border border-border bg-background px-3 py-2 text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
               >
                 <option value="none">-- General Requirement (Not tied to milestone) --</option>
-                {milestones.map((m) => (
+                {availableMilestones.map((m) => (
                   <option key={m.id} value={m.id}>
                     Milestone {m.sequence_order}: {m.title}
                   </option>

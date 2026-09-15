@@ -102,6 +102,71 @@ export const APPLICATION_STATUS_META: Record<
   WITHDRAWN: { label: "Withdrawn", badgeTone: "default" },
 };
 
+export const ORGANIZATION_TYPE_META: Record<
+  string,
+  { label: string; badgeTone: "default" | "info" | "warning" | "success" | "danger" }
+> = {
+  COMPANY: { label: "Industry / Company", badgeTone: "info" },
+  STARTUP: { label: "Startup / Scaleup", badgeTone: "success" },
+  INDUSTRY: { label: "Industry Partner", badgeTone: "info" },
+  RESEARCH_ORGANIZATION: { label: "Research Organization", badgeTone: "info" },
+  NONPROFIT: { label: "Non-Profit / NGO", badgeTone: "warning" },
+  CSR: { label: "CSR Foundation", badgeTone: "success" },
+  FOUNDATION: { label: "Foundation", badgeTone: "info" },
+  OTHER: { label: "Supporting Organization", badgeTone: "default" },
+};
+
+export interface UniversityMarketplaceRequestItem extends ResearchSupportRequestRow {
+  challenge?: { id: string; title: string; category?: string | null } | null;
+  institution?: { id: string; name: string; city?: string | null } | null;
+  project?: { id: string; title: string; project_lead_profile_id?: string | null } | null;
+  listing?: ResearchSupportListingRow | null;
+  partners?: (ProjectSupportPartnerRow & {
+    organization?: Pick<IndustryOrganizationRow, "id" | "name" | "organization_type" | "verification_status"> | null;
+  })[];
+  applications_count?: number;
+}
+
+export interface UniversityEligibleProject {
+  id: string;
+  title: string;
+  challenge_id: string;
+  institution_id: string;
+  challenge?: {
+    id: string;
+    title: string;
+  } | null;
+  has_approved_proposal: boolean;
+  milestones?: {
+    id: string;
+    title: string;
+    sequence_order: number;
+    status: string;
+  }[];
+}
+
+export interface EcosystemContributionItem {
+  id: string;
+  problem_title: string;
+  institution_name: string;
+  project_id: string;
+  project_title: string;
+  requirement_id: string;
+  requirement_title: string;
+  category: SupportRequestCategory;
+  organization_id: string;
+  organization_name: string;
+  organization_type: string;
+  organization_verified: boolean;
+  contribution_summary: string;
+  estimated_value: number | null;
+  timeline: string | null;
+  status: string;
+  access_scope?: string | null;
+  is_partner: boolean;
+  created_at: string;
+}
+
 export interface EnrichedSupportRequest extends ResearchSupportRequestRow {
   linked_milestone?: { id: string; title: string } | null;
   listing?: ResearchSupportListingRow | null;
@@ -386,7 +451,7 @@ export async function fetchMarketplaceListings(filters?: {
       applications_count,
       published_at,
       expires_at,
-      challenge:challenges!research_support_listings_challenge_id_fkey(title, domain),
+      challenge:innovation_challenges!research_support_listings_challenge_id_fkey(title, category),
       institution:institutions!research_support_listings_institution_id_fkey(name, city)
     `)
     .eq("status", "OPEN")
@@ -405,7 +470,7 @@ export async function fetchMarketplaceListings(filters?: {
 
   // Flatten joined fields into sanitized public representation
   type RawListingItem = ResearchSupportListingRow & {
-    challenge?: { title?: string; domain?: string | null } | null;
+    challenge?: { title?: string; category?: string | null } | null;
     institution?: { name?: string; city?: string | null } | null;
   };
 
@@ -416,7 +481,7 @@ export async function fetchMarketplaceListings(filters?: {
     support_request_id: item.support_request_id,
     challenge_id: item.challenge_id,
     challenge_title: item.challenge?.title ?? "Civic Innovation Challenge",
-    challenge_domain: item.challenge?.domain ?? null,
+    challenge_domain: item.challenge?.category ?? null,
     institution_id: item.institution_id,
     institution_name: item.institution?.name ?? "Partner University",
     institution_city: item.institution?.city ?? null,
@@ -476,7 +541,7 @@ export async function fetchMarketplaceListingDetail(
       applications_count,
       published_at,
       expires_at,
-      challenge:challenges!research_support_listings_challenge_id_fkey(title, domain, description),
+      challenge:innovation_challenges!research_support_listings_challenge_id_fkey(title, category, problem_statement),
       institution:institutions!research_support_listings_institution_id_fkey(name, city, state, website)
     `)
     .eq("id", listingId)
@@ -488,7 +553,7 @@ export async function fetchMarketplaceListingDetail(
   }
 
   type RawDetail = ResearchSupportListingRow & {
-    challenge?: { title?: string; domain?: string | null; description?: string } | null;
+    challenge?: { title?: string; category?: string | null; problem_statement?: string } | null;
     institution?: { name?: string; city?: string | null; state?: string | null; website?: string | null } | null;
   };
 
@@ -499,7 +564,7 @@ export async function fetchMarketplaceListingDetail(
     support_request_id: item.support_request_id,
     challenge_id: item.challenge_id,
     challenge_title: item.challenge?.title ?? "Civic Innovation Challenge",
-    challenge_domain: item.challenge?.domain ?? null,
+    challenge_domain: item.challenge?.category ?? null,
     institution_id: item.institution_id,
     institution_name: item.institution?.name ?? "Partner University",
     institution_city: item.institution?.city ?? null,
@@ -848,7 +913,7 @@ export async function fetchOrganizationApplications(organizationId: string) {
         public_timeline,
         desired_outcome,
         status,
-        challenge:challenges!research_support_listings_challenge_id_fkey(title),
+        challenge:innovation_challenges!research_support_listings_challenge_id_fkey(title),
         institution:institutions!research_support_listings_institution_id_fkey(name, city)
       )
     `)
@@ -873,9 +938,9 @@ export async function fetchOrganizationPartnerships(organizationId: string) {
       *,
       project:challenge_projects!project_support_partners_project_id_fkey(
         id,
-        title,
+        project_title,
         status,
-        challenge:challenges!challenge_projects_challenge_id_fkey(title),
+        challenge:innovation_challenges!challenge_projects_challenge_id_fkey(title),
         institution:institutions!challenge_projects_institution_id_fkey(name)
       ),
       listing:research_support_listings!project_support_partners_listing_id_fkey(public_title, category)
@@ -901,13 +966,13 @@ export async function fetchInnovationMarketplaceOverview() {
       .select(`
         *,
         institution:institutions!research_support_requests_institution_id_fkey(name, city),
-        challenge:challenges!research_support_requests_challenge_id_fkey(title),
-        project:challenge_projects!research_support_requests_project_id_fkey(title)
+        challenge:innovation_challenges!research_support_requests_challenge_id_fkey(title),
+        project:challenge_projects!research_support_requests_project_id_fkey(project_title)
       `)
       .order("created_at", { ascending: false }),
     supabase.from("research_support_listings").select("id, status, category, applications_count"),
     supabase.from("research_support_applications").select("id, status"),
-    supabase.from("project_support_partners").select("id, status, category"),
+    supabase.from("project_support_partners").select("id, participation_status, category"),
     supabase.from("industry_organizations").select("id, name, organization_type, verification_status"),
   ]);
 
@@ -921,7 +986,7 @@ export async function fetchInnovationMarketplaceOverview() {
     totalRequests: requests.length,
     publishedListings: listings.filter((l) => l.status === "OPEN").length,
     totalApplications: apps.length,
-    activePartnerships: partners.filter((p) => p.status === "ACTIVE").length,
+    activePartnerships: partners.filter((p: any) => p.participation_status === "ACTIVE").length,
     verifiedOrganizations: orgs.filter((o) => o.verification_status === "VERIFIED").length,
     pendingOrganizations: orgs.filter((o) => o.verification_status === "PENDING").length,
   };
@@ -976,3 +1041,235 @@ async function logProjectActivity(input: {
     console.warn("Could not log project activity:", err);
   }
 }
+
+/**
+ * Fetches eligible research projects belonging to an institution.
+ * Identifies if they have an approved research proposal and their milestones.
+ */
+export async function fetchInstitutionEligibleProjects(institutionId: string): Promise<UniversityEligibleProject[]> {
+  const { data, error } = await supabase
+    .from("challenge_projects")
+    .select(`
+      id,
+      project_title,
+      challenge_id,
+      institution_id,
+      challenge:innovation_challenges!challenge_projects_challenge_id_fkey(id, title),
+      proposals:research_proposals(id, status),
+      milestones:research_project_milestones(id, title, sequence_order, status)
+    `)
+    .eq("institution_id", institutionId)
+    .order("created_at", { ascending: false });
+
+  if (error) {
+    console.error("Error fetching institution eligible projects:", error);
+    throw new Error(error.message);
+  }
+
+  return (data ?? []).map((p: any) => {
+    const hasApproved = Array.isArray(p.proposals) && p.proposals.some((pr: any) => pr.status === "APPROVED");
+    return {
+      id: p.id,
+      title: p.project_title ?? p.title ?? "Research Project",
+      challenge_id: p.challenge_id,
+      institution_id: p.institution_id,
+      challenge: p.challenge,
+      has_approved_proposal: hasApproved,
+      milestones: p.milestones ?? [],
+    };
+  });
+}
+
+/**
+ * Fetches aggregated marketplace data for a university.
+ */
+export async function fetchUniversityMarketplaceData(institutionId: string) {
+  const [requestsRes, partnersRes, eligibleProjects] = await Promise.all([
+    supabase
+      .from("research_support_requests")
+      .select(`
+        *,
+        challenge:innovation_challenges!research_support_requests_challenge_id_fkey(id, title, category),
+        institution:institutions!research_support_requests_institution_id_fkey(id, name, city),
+        project:challenge_projects!research_support_requests_project_id_fkey(id, project_title, project_lead_profile_id),
+        listing:research_support_listings!research_support_listings_support_request_id_fkey(*),
+        partners:project_support_partners!project_support_partners_support_request_id_fkey(
+          *,
+          organization:industry_organizations!project_support_partners_organization_id_fkey(id, name, organization_type, verification_status)
+        )
+      `)
+      .eq("institution_id", institutionId)
+      .order("created_at", { ascending: false }),
+    supabase
+      .from("project_support_partners")
+      .select(`
+        id,
+        participation_status,
+        project:challenge_projects!project_support_partners_project_id_fkey(institution_id)
+      `),
+    fetchInstitutionEligibleProjects(institutionId),
+  ]);
+
+  if (requestsRes.error) {
+    console.error("Error fetching university marketplace requests:", requestsRes.error);
+    throw new Error(requestsRes.error.message);
+  }
+
+  const rawRequests = requestsRes.data ?? [];
+  const allPartners = partnersRes.data ?? [];
+  const instPartners = allPartners.filter((p: any) => p.project?.institution_id === institutionId);
+
+  // Collect listing IDs to fetch application counts
+  const listingIds = rawRequests.map((r: any) => r.listing?.id).filter(Boolean);
+  const appCountMap: Record<string, number> = {};
+  if (listingIds.length > 0) {
+    const { data: appCounts } = await supabase
+      .from("research_support_applications")
+      .select("listing_id")
+      .in("listing_id", listingIds);
+    if (appCounts) {
+      for (const app of appCounts) {
+        appCountMap[app.listing_id] = (appCountMap[app.listing_id] || 0) + 1;
+      }
+    }
+  }
+
+  const requests: UniversityMarketplaceRequestItem[] = rawRequests.map((r: any) => ({
+    ...r,
+    project: r.project ? { id: r.project.id, title: r.project.project_title ?? r.project.title } : null,
+    applications_count: r.listing ? (appCountMap[r.listing.id] ?? r.listing.applications_count ?? 0) : 0,
+  }));
+
+  const activeRequirements = requests.filter((r) =>
+    ["SUBMITTED", "UNDER_REVIEW", "APPROVED", "PUBLISHED", "IN_PROGRESS"].includes(r.status)
+  ).length;
+
+  const totalApplications = Object.values(appCountMap).reduce((sum, count) => sum + count, 0);
+
+  const activePartnerships = instPartners.filter((p: any) => p.participation_status === "ACTIVE").length;
+
+  const totalValueCommitted = requests.reduce((sum, r) => {
+    if (r.status === "IN_PROGRESS" || r.status === "FULFILLED") {
+      return sum + (Number(r.estimated_cost) || 0);
+    }
+    return sum;
+  }, 0);
+
+  return {
+    metrics: {
+      activeRequirements,
+      applicationsReceived: totalApplications,
+      activePartnerships,
+      totalValueCommitted,
+    },
+    requests,
+    eligibleProjects,
+  };
+}
+
+/**
+ * Fetches Innovation Contributions for Ecosystem Mapping.
+ * Shows who is contributing what to which research project across all entities.
+ */
+export async function fetchInnovationContributions(): Promise<EcosystemContributionItem[]> {
+  const [partnersRes, appsRes] = await Promise.all([
+    supabase
+      .from("project_support_partners")
+      .select(`
+        id,
+        participation_status,
+        access_scope,
+        created_at,
+        organization:industry_organizations!project_support_partners_organization_id_fkey(id, name, organization_type, verification_status),
+        project:challenge_projects!project_support_partners_project_id_fkey(
+          id,
+          project_title,
+          challenge:innovation_challenges!challenge_projects_challenge_id_fkey(id, title),
+          institution:institutions!challenge_projects_institution_id_fkey(name)
+        ),
+        request:research_support_requests!project_support_partners_support_request_id_fkey(id, title, category, estimated_cost, required_by_date)
+      `)
+      .order("created_at", { ascending: false }),
+    supabase
+      .from("research_support_applications")
+      .select(`
+        id,
+        status,
+        proposal,
+        offered_support,
+        offered_amount,
+        estimated_timeline,
+        created_at,
+        organization:industry_organizations!research_support_applications_organization_id_fkey(id, name, organization_type, verification_status),
+        listing:research_support_listings!research_support_applications_listing_id_fkey(
+          id,
+          listing_title,
+          category,
+          challenge:innovation_challenges!research_support_listings_challenge_id_fkey(id, title),
+          institution:institutions!research_support_listings_institution_id_fkey(name),
+          project:challenge_projects!research_support_listings_project_id_fkey(id, project_title)
+        )
+      `)
+      .order("created_at", { ascending: false }),
+  ]);
+
+  const items: EcosystemContributionItem[] = [];
+
+  // Active or confirmed partners
+  if (partnersRes.data) {
+    for (const p of partnersRes.data as any[]) {
+      items.push({
+        id: p.id,
+        problem_title: p.project?.challenge?.title ?? "Problem Statement",
+        institution_name: p.project?.institution?.name ?? "Institution",
+        project_id: p.project?.id ?? "",
+        project_title: p.project?.project_title ?? "Research Project",
+        requirement_id: p.request?.id ?? "",
+        requirement_title: p.request?.title ?? "Support Requirement",
+        category: (p.request?.category as SupportRequestCategory) ?? "HARDWARE",
+        organization_id: p.organization?.id ?? "",
+        organization_name: p.organization?.name ?? "Unknown Organization",
+        organization_type: p.organization?.organization_type ?? "COMPANY",
+        organization_verified: p.organization?.verification_status === "VERIFIED",
+        contribution_summary: "Confirmed Partner Engagement",
+        estimated_value: p.request?.estimated_cost ? Number(p.request.estimated_cost) : null,
+        timeline: p.request?.required_by_date ?? null,
+        status: p.participation_status ?? "ACTIVE",
+        access_scope: p.access_scope ?? "SUPPORT_SPECIFIC",
+        is_partner: true,
+        created_at: p.created_at,
+      });
+    }
+  }
+
+  // Applications (in review or shortlisted)
+  if (appsRes.data) {
+    for (const app of appsRes.data as any[]) {
+      if (app.status === "ACCEPTED") continue;
+      items.push({
+        id: app.id,
+        problem_title: app.listing?.challenge?.title ?? "Problem Statement",
+        institution_name: app.listing?.institution?.name ?? "Institution",
+        project_id: app.listing?.project?.id ?? "",
+        project_title: app.listing?.project?.project_title ?? "Research Project",
+        requirement_id: app.listing?.id ?? "",
+        requirement_title: app.listing?.listing_title ?? "Support Requirement",
+        category: (app.listing?.category as SupportRequestCategory) ?? "HARDWARE",
+        organization_id: app.organization?.id ?? "",
+        organization_name: app.organization?.name ?? "Unknown Organization",
+        organization_type: app.organization?.organization_type ?? "COMPANY",
+        organization_verified: app.organization?.verification_status === "VERIFIED",
+        contribution_summary: app.offered_support || app.proposal || "Support Application",
+        estimated_value: app.offered_amount ? Number(app.offered_amount) : null,
+        timeline: app.estimated_timeline ?? null,
+        status: app.status ?? "SUBMITTED",
+        access_scope: "SUPPORT_SPECIFIC",
+        is_partner: false,
+        created_at: app.created_at,
+      });
+    }
+  }
+
+  return items;
+}
+

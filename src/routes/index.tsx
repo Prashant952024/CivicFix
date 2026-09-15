@@ -69,6 +69,7 @@ const IndustryApplicationsPage = lazy(() => import("@/routes/industry/applicatio
 const UniversityDashboardPage = lazy(() => import("@/routes/university/index").then((module) => ({ default: module.UniversityDashboardPage })));
 const UniversityProfilePage = lazy(() => import("@/routes/university/profile").then((module) => ({ default: module.UniversityProfilePage })));
 const UniversityChallengesPage = lazy(() => import("@/routes/university/challenges").then((module) => ({ default: module.UniversityChallengesPage })));
+const UniversityMarketplacePage = lazy(() => import("@/routes/university/marketplace"));
 const UniversityProjectDetailPage = lazy(() => import("@/routes/university/projects/detail").then((module) => ({ default: module.UniversityProjectDetailPage })));
 const UniversityProposalWorkspacePage = lazy(() => import("@/routes/university/projects/proposal").then((module) => ({ default: module.UniversityProposalWorkspacePage })));
 const UniversityNotificationsPage = lazy(() => import("@/routes/university/notifications").then((module) => ({ default: module.UniversityNotificationsPage })));
@@ -349,6 +350,7 @@ export function AppRoutes() {
             <Route index element={<UniversityDashboardPage />} />
             <Route path="profile" element={<UniversityProfilePage />} />
             <Route path="challenges" element={<UniversityChallengesPage />} />
+            <Route path="marketplace" element={<UniversityMarketplacePage />} />
             <Route path="projects/:projectId" element={<UniversityProjectDetailPage />} />
             <Route path="projects/:projectId/proposal" element={<UniversityProposalWorkspacePage />} />
             <Route path="notifications" element={<UniversityNotificationsPage />} />

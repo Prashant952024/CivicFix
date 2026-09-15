@@ -135,6 +135,7 @@ export const civicFixNavItems: Record<CivicFixRoleCode, CivicFixRoleNavItem[]> =
     { label: "Dashboard", path: "/app/university", description: "Institution overview and active engagements." },
     { label: "Institution Profile", path: "/app/university/profile", description: "Manage research profile and capabilities." },
     { label: "Challenges", path: "/app/university/challenges", description: "Explore civic innovation challenges." },
+    { label: "Marketplace", path: "/app/university/marketplace", description: "Publish and manage research support requirements and partner offers." },
     { label: "Notifications", path: "/app/university/notifications", description: "Matching invites and challenge updates." },
   ],
   INDUSTRY_PARTNER: [

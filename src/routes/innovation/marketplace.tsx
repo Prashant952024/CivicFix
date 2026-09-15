@@ -19,10 +19,13 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Dialog } from "@/components/ui/dialog";
 import { PageHeader } from "@/components/ui/page-header";
 import {
+  fetchInnovationContributions,
   fetchInnovationMarketplaceOverview,
+  ORGANIZATION_TYPE_META,
   PRIORITY_META,
   REQUEST_STATUS_META,
   SUPPORT_CATEGORY_META,
+  type EcosystemContributionItem,
 } from "@/lib/marketplace";
 import { supabase } from "@/lib/supabase";
 import type {
@@ -32,8 +35,9 @@ import type {
   SupportRequestStatus,
   VerificationStatus,
 } from "@/types/database";
+import { Network } from "lucide-react";
 
-type ActiveTab = "requirements" | "organizations" | "partnerships";
+type ActiveTab = "requirements" | "organizations" | "partnerships" | "mapping";
 
 interface JoinedRequestItem extends ResearchSupportRequestRow {
   institution?: { name: string; city?: string | null } | null;
@@ -72,6 +76,7 @@ export function InnovationMarketplacePage() {
   const [requests, setRequests] = useState<JoinedRequestItem[]>([]);
   const [organizations, setOrganizations] = useState<IndustryOrganizationRow[]>([]);
   const [partners, setPartners] = useState<OverviewPartner[]>([]);
+  const [contributions, setContributions] = useState<EcosystemContributionItem[]>([]);
 
   // Filters
   const [searchQuery, setSearchQuery] = useState("");
@@ -88,11 +93,15 @@ export function InnovationMarketplacePage() {
     setLoading(true);
     setError(null);
     try {
-      const data = await fetchInnovationMarketplaceOverview();
+      const [data, contribs] = await Promise.all([
+        fetchInnovationMarketplaceOverview(),
+        fetchInnovationContributions(),
+      ]);
       setMetrics(data.metrics);
       setRequests(data.requests as unknown as JoinedRequestItem[]);
       setOrganizations(data.organizations as IndustryOrganizationRow[]);
       setPartners(data.partners as unknown as OverviewPartner[]);
+      setContributions(contribs);
     } catch (err: unknown) {
       console.error("Error loading marketplace overview:", err);
       setError(err instanceof Error ? err.message : "Failed to load marketplace data.");
@@ -105,12 +114,16 @@ export function InnovationMarketplacePage() {
     let isMounted = true;
     async function init() {
       try {
-        const data = await fetchInnovationMarketplaceOverview();
+        const [data, contribs] = await Promise.all([
+          fetchInnovationMarketplaceOverview(),
+          fetchInnovationContributions(),
+        ]);
         if (!isMounted) return;
         setMetrics(data.metrics);
         setRequests(data.requests as unknown as JoinedRequestItem[]);
         setOrganizations(data.organizations as IndustryOrganizationRow[]);
         setPartners(data.partners as unknown as OverviewPartner[]);
+        setContributions(contribs);
       } catch (err: unknown) {
         if (!isMounted) return;
         console.error("Error loading marketplace overview:", err);
@@ -279,6 +292,15 @@ export function InnovationMarketplacePage() {
         >
           <Handshake className="w-3.5 h-3.5" />
           <span>Active Partnerships ({partners.length})</span>
+        </Button>
+        <Button
+          size="sm"
+          variant={activeTab === "mapping" ? "default" : "ghost"}
+          onClick={() => setActiveTab("mapping")}
+          className="text-xs font-semibold gap-1.5 h-8 px-3 rounded-lg"
+        >
+          <Network className="w-3.5 h-3.5" />
+          <span>Contributions &amp; Ecosystem Mapping ({contributions.length})</span>
         </Button>
       </div>
 
@@ -564,6 +586,112 @@ export function InnovationMarketplacePage() {
                   </CardContent>
                 </Card>
               ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* TAB 4: ECOSYSTEM CONTRIBUTIONS & MAPPING */}
+      {activeTab === "mapping" && (
+        <div className="space-y-4">
+          <div>
+            <h3 className="text-sm font-bold text-foreground">Ecosystem Contributions &amp; Entity Mapping</h3>
+            <p className="text-xs text-muted-foreground">
+              Live mapping answering: <strong>&ldquo;Who is contributing what to which research project?&rdquo;</strong> across all industry partners, startups, CSR foundations, and research institutions.
+            </p>
+          </div>
+
+          {contributions.length === 0 ? (
+            <Card className="border-border/80">
+              <CardContent className="p-8 text-center text-xs text-muted-foreground space-y-1">
+                <Network className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
+                <p className="font-bold text-foreground">No Ecosystem Contributions Mapped Yet</p>
+                <p>When supporting organizations submit offers or get engaged as research partners, they will be mapped here.</p>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="rounded-xl border border-border overflow-hidden bg-card shadow-xs">
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs">
+                  <thead className="bg-muted/50 text-muted-foreground border-b border-border font-medium">
+                    <tr>
+                      <th className="p-3">Problem Statement &amp; Project</th>
+                      <th className="p-3">University</th>
+                      <th className="p-3">Support Requirement</th>
+                      <th className="p-3">Supporting Organization</th>
+                      <th className="p-3">Contribution / Deliverable</th>
+                      <th className="p-3">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border/60">
+                    {contributions.map((c) => {
+                      const orgTypeMeta = ORGANIZATION_TYPE_META[c.organization_type] ?? {
+                        label: c.organization_type,
+                        badgeTone: "default",
+                      };
+                      const catMeta = SUPPORT_CATEGORY_META[c.category] ?? {
+                        label: c.category,
+                        badgeTone: "default",
+                      };
+
+                      return (
+                        <tr key={c.id} className="hover:bg-muted/30 transition-colors">
+                          <td className="p-3 space-y-0.5">
+                            <div className="font-semibold text-foreground">{c.problem_title}</div>
+                            <div className="text-[11px] text-primary">{c.project_title}</div>
+                          </td>
+                          <td className="p-3 font-medium text-foreground">
+                            {c.institution_name}
+                          </td>
+                          <td className="p-3 space-y-1">
+                            <div className="font-medium text-foreground">{c.requirement_title}</div>
+                            <Badge variant={catMeta.badgeTone} className="text-[10px]">
+                              {catMeta.label}
+                            </Badge>
+                          </td>
+                          <td className="p-3 space-y-1">
+                            <div className="font-semibold text-foreground flex items-center gap-1">
+                              <span>{c.organization_name}</span>
+                              {c.organization_verified && (
+                                <ShieldCheck className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                              )}
+                            </div>
+                            <Badge variant={orgTypeMeta.badgeTone} className="text-[10px]">
+                              {orgTypeMeta.label}
+                            </Badge>
+                          </td>
+                          <td className="p-3 space-y-0.5 max-w-xs">
+                            <div className="line-clamp-2 text-foreground font-medium">
+                              {c.contribution_summary}
+                            </div>
+                            {c.estimated_value && (
+                              <div className="text-[11px] text-emerald-700 dark:text-emerald-400 font-semibold">
+                                Value: ₹{c.estimated_value.toLocaleString()}
+                              </div>
+                            )}
+                            {c.timeline && (
+                              <div className="text-[10px] text-muted-foreground">
+                                Timeline: {c.timeline}
+                              </div>
+                            )}
+                          </td>
+                          <td className="p-3 space-y-1">
+                            <Badge
+                              variant={c.is_partner ? "success" : "info"}
+                              className="text-[10px]"
+                            >
+                              {c.is_partner ? `Partner: ${c.status}` : `Offer: ${c.status}`}
+                            </Badge>
+                            <div className="text-[10px] text-muted-foreground font-mono">
+                              {c.access_scope}
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
             </div>
           )}
         </div>

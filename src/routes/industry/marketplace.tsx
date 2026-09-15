@@ -12,16 +12,19 @@ import {
 } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 
+import { useAppSession } from "@/auth/app-session";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { PageHeader } from "@/components/ui/page-header";
 import {
+  fetchIndustryOrganizationProfile,
   fetchMarketplaceListings,
+  ORGANIZATION_TYPE_META,
   SUPPORT_CATEGORY_META,
   type PublicMarketplaceListing,
 } from "@/lib/marketplace";
-import type { SupportRequestCategory } from "@/types/database";
+import type { IndustryOrganizationRow, SupportRequestCategory } from "@/types/database";
 
 const CATEGORIES: { label: string; value: SupportRequestCategory | "ALL" }[] = [
   { label: "All Opportunities", value: "ALL" },
@@ -36,9 +39,11 @@ const CATEGORIES: { label: string; value: SupportRequestCategory | "ALL" }[] = [
 
 export function IndustryMarketplacePage() {
   const navigate = useNavigate();
+  const { profile } = useAppSession();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [listings, setListings] = useState<PublicMarketplaceListing[]>([]);
+  const [organization, setOrganization] = useState<IndustryOrganizationRow | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<SupportRequestCategory | "ALL">("ALL");
   const [searchQuery, setSearchQuery] = useState("");
 
@@ -46,11 +51,15 @@ export function IndustryMarketplacePage() {
     setLoading(true);
     setError(null);
     try {
-      const data = await fetchMarketplaceListings({
-        category: selectedCategory,
-        searchQuery,
-      });
+      const [data, org] = await Promise.all([
+        fetchMarketplaceListings({
+          category: selectedCategory,
+          searchQuery,
+        }),
+        profile?.organization_id ? fetchIndustryOrganizationProfile(profile.organization_id) : Promise.resolve(null),
+      ]);
       setListings(data);
+      setOrganization(org);
     } catch (err: unknown) {
       console.error("Failed to load marketplace listings:", err);
       setError(err instanceof Error ? err.message : "Failed to load open listings.");
@@ -63,11 +72,15 @@ export function IndustryMarketplacePage() {
     let isMounted = true;
     async function run() {
       try {
-        const data = await fetchMarketplaceListings({
-          category: selectedCategory,
-        });
+        const [data, org] = await Promise.all([
+          fetchMarketplaceListings({
+            category: selectedCategory,
+          }),
+          profile?.organization_id ? fetchIndustryOrganizationProfile(profile.organization_id) : Promise.resolve(null),
+        ]);
         if (isMounted) {
           setListings(data);
+          setOrganization(org);
         }
       } catch (err: unknown) {
         if (isMounted) {
@@ -83,12 +96,19 @@ export function IndustryMarketplacePage() {
     return () => {
       isMounted = false;
     };
-  }, [selectedCategory]);
+  }, [selectedCategory, profile?.organization_id]);
 
   function handleSearchSubmit(e: React.FormEvent) {
     e.preventDefault();
     void loadListings();
   }
+
+  const orgTypeMeta = organization
+    ? ORGANIZATION_TYPE_META[organization.organization_type] ?? {
+        label: organization.organization_type,
+        badgeTone: "default",
+      }
+    : null;
 
   return (
     <div className="space-y-6 pb-12">
@@ -117,6 +137,38 @@ export function IndustryMarketplacePage() {
           </Button>
         </div>
       </PageHeader>
+
+      {/* Organization Identity Bar if authenticated */}
+      {organization && (
+        <div className="p-3.5 rounded-xl border border-primary/20 bg-primary/5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+          <div className="flex items-center gap-2.5">
+            <div className="p-2 rounded-lg bg-primary/10 text-primary">
+              <Building2 className="w-4 h-4" />
+            </div>
+            <div>
+              <div className="flex items-center gap-1.5">
+                <span className="font-bold text-foreground">{organization.name}</span>
+                {organization.verification_status === "VERIFIED" && (
+                  <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
+                )}
+              </div>
+              <div className="text-muted-foreground text-[11px] mt-0.5">
+                Organization: <strong className="text-foreground">{organization.name}</strong> • Type:{" "}
+                <Badge variant={orgTypeMeta?.badgeTone} className="text-[10px] ml-1">
+                  {orgTypeMeta?.label}
+                </Badge>
+              </div>
+            </div>
+          </div>
+
+          <Badge
+            variant={organization.verification_status === "VERIFIED" ? "success" : "warning"}
+            className="text-xs self-start sm:self-auto"
+          >
+            {organization.verification_status === "VERIFIED" ? "Verified Partner" : "Pending Verification"}
+          </Badge>
+        </div>
+      )}
 
       {error && (
         <div className="rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-xs text-destructive">
