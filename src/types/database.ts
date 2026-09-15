@@ -58,6 +58,7 @@ export interface Database {
           is_active: boolean;
           avatar_url: string | null;
           institution_id: string | null;
+          organization_id: string | null;
           joined_at: string | null;
           created_at: string;
           updated_at: string;
@@ -75,6 +76,7 @@ export interface Database {
           is_active?: boolean;
           avatar_url?: string | null;
           institution_id?: string | null;
+          organization_id?: string | null;
           joined_at?: string | null;
           created_at?: string;
           updated_at?: string;
@@ -92,6 +94,7 @@ export interface Database {
           is_active?: boolean;
           avatar_url?: string | null;
           institution_id?: string | null;
+          organization_id?: string | null;
           joined_at?: string | null;
           created_at?: string;
           updated_at?: string;
@@ -1769,7 +1772,17 @@ export interface Database {
             | "BLOCKER_RESOLVED"
             | "RISK_REPORTED"
             | "RISK_UPDATED"
-            | "EXTERNAL_RESOURCE_ADDED";
+            | "EXTERNAL_RESOURCE_ADDED"
+            | "SUPPORT_REQUEST_CREATED"
+            | "SUPPORT_REQUEST_SUBMITTED"
+            | "SUPPORT_REQUEST_APPROVED"
+            | "SUPPORT_REQUEST_PUBLISHED"
+            | "SUPPORT_APPLICATION_SUBMITTED"
+            | "SUPPORT_APPLICATION_REVIEWED"
+            | "SUPPORT_APPLICATION_ACCEPTED"
+            | "SUPPORT_APPLICATION_REJECTED"
+            | "SUPPORT_PARTNER_SELECTED"
+            | "SUPPORT_REQUEST_FULFILLED";
           description: string;
           metadata: Json;
           created_at: string;
@@ -1807,7 +1820,17 @@ export interface Database {
             | "BLOCKER_RESOLVED"
             | "RISK_REPORTED"
             | "RISK_UPDATED"
-            | "EXTERNAL_RESOURCE_ADDED";
+            | "EXTERNAL_RESOURCE_ADDED"
+            | "SUPPORT_REQUEST_CREATED"
+            | "SUPPORT_REQUEST_SUBMITTED"
+            | "SUPPORT_REQUEST_APPROVED"
+            | "SUPPORT_REQUEST_PUBLISHED"
+            | "SUPPORT_APPLICATION_SUBMITTED"
+            | "SUPPORT_APPLICATION_REVIEWED"
+            | "SUPPORT_APPLICATION_ACCEPTED"
+            | "SUPPORT_APPLICATION_REJECTED"
+            | "SUPPORT_PARTNER_SELECTED"
+            | "SUPPORT_REQUEST_FULFILLED";
           description: string;
           metadata?: Json;
           created_at?: string;
@@ -1845,7 +1868,17 @@ export interface Database {
             | "BLOCKER_RESOLVED"
             | "RISK_REPORTED"
             | "RISK_UPDATED"
-            | "EXTERNAL_RESOURCE_ADDED";
+            | "EXTERNAL_RESOURCE_ADDED"
+            | "SUPPORT_REQUEST_CREATED"
+            | "SUPPORT_REQUEST_SUBMITTED"
+            | "SUPPORT_REQUEST_APPROVED"
+            | "SUPPORT_REQUEST_PUBLISHED"
+            | "SUPPORT_APPLICATION_SUBMITTED"
+            | "SUPPORT_APPLICATION_REVIEWED"
+            | "SUPPORT_APPLICATION_ACCEPTED"
+            | "SUPPORT_APPLICATION_REJECTED"
+            | "SUPPORT_PARTNER_SELECTED"
+            | "SUPPORT_REQUEST_FULFILLED";
           description?: string;
           metadata?: Json;
           created_at?: string;
@@ -2340,6 +2373,398 @@ export interface Database {
           },
         ];
       };
+      industry_organizations: {
+        Row: {
+          id: string;
+          name: string;
+          legal_name: string | null;
+          organization_type: OrganizationType;
+          sector: string | null;
+          website_url: string | null;
+          contact_person: string | null;
+          contact_email: string;
+          contact_phone: string | null;
+          address: string | null;
+          verification_status: VerificationStatus;
+          verified_at: string | null;
+          verified_by: string | null;
+          rejection_reason: string | null;
+          metadata: Json;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          name: string;
+          legal_name?: string | null;
+          organization_type?: OrganizationType;
+          sector?: string | null;
+          website_url?: string | null;
+          contact_person?: string | null;
+          contact_email: string;
+          contact_phone?: string | null;
+          address?: string | null;
+          verification_status?: VerificationStatus;
+          verified_at?: string | null;
+          verified_by?: string | null;
+          rejection_reason?: string | null;
+          metadata?: Json;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          name?: string;
+          legal_name?: string | null;
+          organization_type?: OrganizationType;
+          sector?: string | null;
+          website_url?: string | null;
+          contact_person?: string | null;
+          contact_email?: string;
+          contact_phone?: string | null;
+          address?: string | null;
+          verification_status?: VerificationStatus;
+          verified_at?: string | null;
+          verified_by?: string | null;
+          rejection_reason?: string | null;
+          metadata?: Json;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "industry_organizations_verified_by_fkey";
+            columns: ["verified_by"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      research_support_requests: {
+        Row: {
+          id: string;
+          challenge_id: string;
+          institution_id: string;
+          project_id: string;
+          created_by: string;
+          category: SupportRequestCategory;
+          title: string;
+          description: string;
+          priority: SupportRequestPriority;
+          specification: string | null;
+          quantity_or_scope: string | null;
+          estimated_cost: number | null;
+          currency: string;
+          required_by_date: string | null;
+          linked_milestone_id: string | null;
+          confidentiality_level: SupportConfidentiality;
+          status: SupportRequestStatus;
+          review_notes: string | null;
+          reviewed_by: string | null;
+          reviewed_at: string | null;
+          metadata: Json;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          challenge_id: string;
+          institution_id: string;
+          project_id: string;
+          created_by: string;
+          category: SupportRequestCategory;
+          title: string;
+          description: string;
+          priority?: SupportRequestPriority;
+          specification?: string | null;
+          quantity_or_scope?: string | null;
+          estimated_cost?: number | null;
+          currency?: string;
+          required_by_date?: string | null;
+          linked_milestone_id?: string | null;
+          confidentiality_level?: SupportConfidentiality;
+          status?: SupportRequestStatus;
+          review_notes?: string | null;
+          reviewed_by?: string | null;
+          reviewed_at?: string | null;
+          metadata?: Json;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          challenge_id?: string;
+          institution_id?: string;
+          project_id?: string;
+          created_by?: string;
+          category?: SupportRequestCategory;
+          title?: string;
+          description?: string;
+          priority?: SupportRequestPriority;
+          specification?: string | null;
+          quantity_or_scope?: string | null;
+          estimated_cost?: number | null;
+          currency?: string;
+          required_by_date?: string | null;
+          linked_milestone_id?: string | null;
+          confidentiality_level?: SupportConfidentiality;
+          status?: SupportRequestStatus;
+          review_notes?: string | null;
+          reviewed_by?: string | null;
+          reviewed_at?: string | null;
+          metadata?: Json;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "research_support_requests_challenge_id_fkey";
+            columns: ["challenge_id"];
+            isOneToOne: false;
+            referencedRelation: "challenges";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "research_support_requests_institution_id_fkey";
+            columns: ["institution_id"];
+            isOneToOne: false;
+            referencedRelation: "institutions";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "research_support_requests_project_id_fkey";
+            columns: ["project_id"];
+            isOneToOne: false;
+            referencedRelation: "challenge_projects";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      research_support_listings: {
+        Row: {
+          id: string;
+          support_request_id: string;
+          challenge_id: string;
+          institution_id: string;
+          project_id: string;
+          public_title: string;
+          public_summary: string;
+          category: SupportRequestCategory;
+          public_specification: string | null;
+          public_timeline: string | null;
+          desired_outcome: string | null;
+          status: ListingStatus;
+          applications_count: number;
+          published_at: string | null;
+          published_by: string | null;
+          expires_at: string | null;
+          metadata: Json;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          support_request_id: string;
+          challenge_id: string;
+          institution_id: string;
+          project_id: string;
+          public_title: string;
+          public_summary: string;
+          category: SupportRequestCategory;
+          public_specification?: string | null;
+          public_timeline?: string | null;
+          desired_outcome?: string | null;
+          status?: ListingStatus;
+          applications_count?: number;
+          published_at?: string | null;
+          published_by?: string | null;
+          expires_at?: string | null;
+          metadata?: Json;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          support_request_id?: string;
+          challenge_id?: string;
+          institution_id?: string;
+          project_id?: string;
+          public_title?: string;
+          public_summary?: string;
+          category?: SupportRequestCategory;
+          public_specification?: string | null;
+          public_timeline?: string | null;
+          desired_outcome?: string | null;
+          status?: ListingStatus;
+          applications_count?: number;
+          published_at?: string | null;
+          published_by?: string | null;
+          expires_at?: string | null;
+          metadata?: Json;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "research_support_listings_support_request_id_fkey";
+            columns: ["support_request_id"];
+            isOneToOne: true;
+            referencedRelation: "research_support_requests";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      research_support_applications: {
+        Row: {
+          id: string;
+          listing_id: string;
+          organization_id: string;
+          applicant_profile_id: string;
+          proposed_contribution: string;
+          capabilities_summary: string;
+          estimated_value: number | null;
+          timeline: string | null;
+          terms_or_conditions: string | null;
+          status: ApplicationStatus;
+          review_notes: string | null;
+          reviewed_by: string | null;
+          reviewed_at: string | null;
+          acceptance_agreement_notes: string | null;
+          rejection_reason: string | null;
+          metadata: Json;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          listing_id: string;
+          organization_id: string;
+          applicant_profile_id: string;
+          proposed_contribution: string;
+          capabilities_summary: string;
+          estimated_value?: number | null;
+          timeline?: string | null;
+          terms_or_conditions?: string | null;
+          status?: ApplicationStatus;
+          review_notes?: string | null;
+          reviewed_by?: string | null;
+          reviewed_at?: string | null;
+          acceptance_agreement_notes?: string | null;
+          rejection_reason?: string | null;
+          metadata?: Json;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          listing_id?: string;
+          organization_id?: string;
+          applicant_profile_id?: string;
+          proposed_contribution?: string;
+          capabilities_summary?: string;
+          estimated_value?: number | null;
+          timeline?: string | null;
+          terms_or_conditions?: string | null;
+          status?: ApplicationStatus;
+          review_notes?: string | null;
+          reviewed_by?: string | null;
+          reviewed_at?: string | null;
+          acceptance_agreement_notes?: string | null;
+          rejection_reason?: string | null;
+          metadata?: Json;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "research_support_applications_listing_id_fkey";
+            columns: ["listing_id"];
+            isOneToOne: false;
+            referencedRelation: "research_support_listings";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "research_support_applications_organization_id_fkey";
+            columns: ["organization_id"];
+            isOneToOne: false;
+            referencedRelation: "industry_organizations";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      project_support_partners: {
+        Row: {
+          id: string;
+          project_id: string;
+          support_request_id: string;
+          listing_id: string;
+          application_id: string;
+          organization_id: string;
+          category: SupportRequestCategory;
+          access_scope: SupportAccessScope;
+          contribution_summary: string;
+          status: PartnerParticipationStatus;
+          started_at: string;
+          completed_at: string | null;
+          notes: string | null;
+          metadata: Json;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          project_id: string;
+          support_request_id: string;
+          listing_id: string;
+          application_id: string;
+          organization_id: string;
+          category: SupportRequestCategory;
+          access_scope?: SupportAccessScope;
+          contribution_summary: string;
+          status?: PartnerParticipationStatus;
+          started_at?: string;
+          completed_at?: string | null;
+          notes?: string | null;
+          metadata?: Json;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          project_id?: string;
+          support_request_id?: string;
+          listing_id?: string;
+          application_id?: string;
+          organization_id?: string;
+          category?: SupportRequestCategory;
+          access_scope?: SupportAccessScope;
+          contribution_summary?: string;
+          status?: PartnerParticipationStatus;
+          started_at?: string;
+          completed_at?: string | null;
+          notes?: string | null;
+          metadata?: Json;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "project_support_partners_project_id_fkey";
+            columns: ["project_id"];
+            isOneToOne: false;
+            referencedRelation: "challenge_projects";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "project_support_partners_organization_id_fkey";
+            columns: ["organization_id"];
+            isOneToOne: false;
+            referencedRelation: "industry_organizations";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
     };
     Views: Record<string, never>;
     Functions: Record<string, never>;
@@ -2369,7 +2794,7 @@ export interface Database {
         | "CITIZEN_VERIFIED"
         | "REOPENED";
       notification_type: "STATUS_CHANGE" | "ASSIGNMENT" | "SYSTEM" | "VERIFICATION";
-      role_code: "CITIZEN" | "MUNICIPAL_OFFICER" | "DEPARTMENT_MANAGER" | "FIELD_WORKER" | "ADMIN" | "INNOVATION_MANAGER" | "INSTITUTION";
+      role_code: "CITIZEN" | "MUNICIPAL_OFFICER" | "DEPARTMENT_MANAGER" | "FIELD_WORKER" | "ADMIN" | "INNOVATION_MANAGER" | "INSTITUTION" | "INDUSTRY_PARTNER";
       verification_result: "VERIFIED" | "UNRESOLVED";
     };
     CompositeTypes: Record<string, never>;
@@ -2540,5 +2965,36 @@ export type ResearchEvidenceUpdate = Database["public"]["Tables"]["research_evid
 export type ResearchBlockerRiskRow = Database["public"]["Tables"]["research_blockers_risks"]["Row"];
 export type ResearchBlockerRiskInsert = Database["public"]["Tables"]["research_blockers_risks"]["Insert"];
 export type ResearchBlockerRiskUpdate = Database["public"]["Tables"]["research_blockers_risks"]["Update"];
+
+export type OrganizationType = "COMPANY" | "STARTUP" | "RND_LAB" | "FOUNDATION" | "CIVIC_TECH" | "OTHER";
+export type VerificationStatus = "PENDING" | "VERIFIED" | "REJECTED" | "SUSPENDED";
+export type SupportRequestCategory = "FUNDING" | "HARDWARE" | "TECHNOLOGY" | "EXPERTISE" | "INFRASTRUCTURE" | "DATA" | "MANUFACTURING";
+export type SupportRequestPriority = "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
+export type SupportConfidentiality = "PUBLIC" | "RESTRICTED" | "INTERNAL";
+export type SupportRequestStatus = "DRAFT" | "SUBMITTED" | "UNDER_REVIEW" | "APPROVED" | "PUBLISHED" | "IN_PROGRESS" | "FULFILLED" | "REJECTED" | "CANCELLED" | "CLOSED";
+export type ListingStatus = "DRAFT" | "PENDING_REVIEW" | "APPROVED" | "OPEN" | "PAUSED" | "FULFILLED" | "CLOSED" | "CANCELLED";
+export type ApplicationStatus = "DRAFT" | "SUBMITTED" | "UNDER_REVIEW" | "SHORTLISTED" | "ACCEPTED" | "REJECTED" | "WITHDRAWN";
+export type SupportAccessScope = "SUPPORT_SPECIFIC";
+export type PartnerParticipationStatus = "ACTIVE" | "COMPLETED" | "WITHDRAWN" | "TERMINATED";
+
+export type IndustryOrganizationRow = Database["public"]["Tables"]["industry_organizations"]["Row"];
+export type IndustryOrganizationInsert = Database["public"]["Tables"]["industry_organizations"]["Insert"];
+export type IndustryOrganizationUpdate = Database["public"]["Tables"]["industry_organizations"]["Update"];
+
+export type ResearchSupportRequestRow = Database["public"]["Tables"]["research_support_requests"]["Row"];
+export type ResearchSupportRequestInsert = Database["public"]["Tables"]["research_support_requests"]["Insert"];
+export type ResearchSupportRequestUpdate = Database["public"]["Tables"]["research_support_requests"]["Update"];
+
+export type ResearchSupportListingRow = Database["public"]["Tables"]["research_support_listings"]["Row"];
+export type ResearchSupportListingInsert = Database["public"]["Tables"]["research_support_listings"]["Insert"];
+export type ResearchSupportListingUpdate = Database["public"]["Tables"]["research_support_listings"]["Update"];
+
+export type ResearchSupportApplicationRow = Database["public"]["Tables"]["research_support_applications"]["Row"];
+export type ResearchSupportApplicationInsert = Database["public"]["Tables"]["research_support_applications"]["Insert"];
+export type ResearchSupportApplicationUpdate = Database["public"]["Tables"]["research_support_applications"]["Update"];
+
+export type ProjectSupportPartnerRow = Database["public"]["Tables"]["project_support_partners"]["Row"];
+export type ProjectSupportPartnerInsert = Database["public"]["Tables"]["project_support_partners"]["Insert"];
+export type ProjectSupportPartnerUpdate = Database["public"]["Tables"]["project_support_partners"]["Update"];
 
 

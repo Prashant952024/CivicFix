@@ -45,6 +45,11 @@ export const civicFixRoleConfigs: Record<CivicFixRoleCode, CivicFixRoleConfig> =
     label: "University / Institution",
     dashboardPath: "/app/university",
   },
+  INDUSTRY_PARTNER: {
+    code: "INDUSTRY_PARTNER",
+    label: "Industry Partner",
+    dashboardPath: "/app/industry/marketplace",
+  },
 };
 
 export function getCivicFixRoleLabel(roleCode: CivicFixRoleCode | null | undefined) {
@@ -122,6 +127,7 @@ export const civicFixNavItems: Record<CivicFixRoleCode, CivicFixRoleNavItem[]> =
     { label: "Dashboard", path: "/app/innovation", description: "Innovation command center & metrics." },
     { label: "Complex Problems", path: "/app/innovation/problems", description: "Primary control catalog of complex civic problems." },
     { label: "University Collaborations", path: "/app/innovation/collaborations", description: "Global directory of university partnerships and workspaces." },
+    { label: "Innovation Marketplace", path: "/app/innovation/marketplace", description: "Monitor, review, and govern research support requirements." },
     { label: "Institution Registry", path: "/app/innovation/institutions", description: "Accredited universities, research centers & capabilities." },
     { label: "Notifications", path: "/app/innovation/notifications", description: "Alerts on proposals, invitations, and matching." },
   ],
@@ -130,5 +136,9 @@ export const civicFixNavItems: Record<CivicFixRoleCode, CivicFixRoleNavItem[]> =
     { label: "Institution Profile", path: "/app/university/profile", description: "Manage research profile and capabilities." },
     { label: "Challenges", path: "/app/university/challenges", description: "Explore civic innovation challenges." },
     { label: "Notifications", path: "/app/university/notifications", description: "Matching invites and challenge updates." },
+  ],
+  INDUSTRY_PARTNER: [
+    { label: "Marketplace", path: "/app/industry/marketplace", description: "Civic research & innovation opportunities." },
+    { label: "My Applications", path: "/app/industry/applications", description: "Track submitted support applications and partnerships." },
   ],
 };

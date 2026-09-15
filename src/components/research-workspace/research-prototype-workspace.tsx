@@ -8,12 +8,14 @@ import {
   Lock,
   RefreshCw,
   ShieldAlert,
-  Wrench,
+  Store,
 } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { useAppSession } from "@/auth/app-session";
+import { SupportRequirementsCard } from "@/components/marketplace/support-requirements-card";
 import { EvidenceAndResourcesCard } from "@/components/research-workspace/evidence-and-resources-card";
 import { MilestonesTracker } from "@/components/research-workspace/milestones-tracker";
 import { ProgressUpdatesLog } from "@/components/research-workspace/progress-updates-log";
@@ -41,6 +43,7 @@ export function ResearchPrototypeWorkspace({
   isManager = false,
   onNavigateToTab,
 }: ResearchPrototypeWorkspaceProps) {
+  const { profile } = useAppSession();
   const [summary, setSummary] = useState<ResearchWorkspaceSummary | null>(null);
   const [loading, setLoading] = useState(true);
   const [activeSubTab, setActiveSubTab] = useState<WorkspaceSubTab>("milestones");
@@ -250,8 +253,8 @@ export function ResearchPrototypeWorkspace({
               activeSubTab === "support" ? "font-bold shadow-xs" : "text-muted-foreground"
             }`}
           >
-            <Wrench className="w-3.5 h-3.5" />
-            <span>Support Requirements ({summary.activeSupportRequests.length})</span>
+            <Store className="w-3.5 h-3.5" />
+            <span>Marketplace &amp; Support</span>
           </Button>
         </div>
 
@@ -267,7 +270,7 @@ export function ResearchPrototypeWorkspace({
         )}
       </div>
 
-      {/* 2C. SUB-TAB CONTENT */}
+      {/* ACTIVE SUB-TAB CONTENT */}
       <div>
         {activeSubTab === "milestones" && (
           <MilestonesTracker
@@ -308,60 +311,15 @@ export function ResearchPrototypeWorkspace({
         )}
 
         {activeSubTab === "support" && (
-          <div className="space-y-4">
-            <div className="space-y-1">
-              <h3 className="text-sm font-bold text-foreground flex items-center gap-2">
-                <Wrench className="w-4 h-4 text-primary" />
-                <span>Support &amp; Resource Requirements ({summary.activeSupportRequests.length})</span>
-              </h3>
-              <p className="text-xs text-muted-foreground">
-                Assistance requested by the research team from municipal departments, testbed providers, or future industry partners.
-              </p>
-            </div>
-
-            {summary.activeSupportRequests.length === 0 ? (
-              <Card className="border-border/80">
-                <CardContent className="p-8">
-                  <div className="text-center space-y-2">
-                    <p className="text-xs font-bold text-foreground">No Open Support Requests</p>
-                    <p className="text-xs text-muted-foreground">
-                      The university currently has the necessary access and resources to execute planned research work.
-                    </p>
-                  </div>
-                </CardContent>
-              </Card>
-            ) : (
-              <div className="space-y-3">
-                {summary.activeSupportRequests.map((req) => (
-                  <Card key={req.id} className="border-amber-200 bg-amber-50/20">
-                    <CardContent className="p-4 space-y-2">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <span className="p-1.5 rounded-lg bg-amber-100 text-amber-900">
-                            <Wrench className="w-3.5 h-3.5" />
-                          </span>
-                          <span className="font-bold text-xs text-foreground">
-                            {req.title}
-                          </span>
-                        </div>
-                        {req.category && (
-                          <Badge variant="outline" className="text-[10px] bg-white font-semibold">
-                            {req.category}
-                          </Badge>
-                        )}
-                      </div>
-                      <p className="text-xs text-amber-950 leading-relaxed font-medium pl-8">
-                        {req.supportRequired}
-                      </p>
-                      <div className="text-[10px] text-muted-foreground font-mono pl-8">
-                        Logged from {req.source === "BLOCKER" ? "Blocker Report" : "Progress Update"} • {new Date(req.createdAt).toLocaleDateString()}
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            )}
-          </div>
+          <SupportRequirementsCard
+            projectId={summary.projectId}
+            challengeId={summary.challengeId}
+            institutionId={summary.institutionId}
+            profileId={profile?.id ?? ""}
+            isGated={summary.isGated}
+            proposalStatus={summary.proposalStatus}
+            milestones={summary.milestones}
+          />
         )}
       </div>
 

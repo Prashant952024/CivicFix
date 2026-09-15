@@ -61,6 +61,10 @@ const InnovationNotificationsPage = lazy(() => import("@/routes/innovation/notif
 const InnovationInstitutionsPage = lazy(() => import("@/routes/innovation/institutions").then((module) => ({ default: module.InnovationInstitutionsPage })));
 const InnovationUniversityWorkspacePage = lazy(() => import("@/routes/innovation/university-workspace").then((module) => ({ default: module.InnovationUniversityWorkspacePage })));
 const InnovationCollaborationsPage = lazy(() => import("@/routes/innovation/collaborations").then((module) => ({ default: module.InnovationCollaborationsPage })));
+const InnovationMarketplacePage = lazy(() => import("@/routes/innovation/marketplace").then((module) => ({ default: module.InnovationMarketplacePage })));
+const IndustryMarketplacePage = lazy(() => import("@/routes/industry/marketplace").then((module) => ({ default: module.IndustryMarketplacePage })));
+const IndustryListingDetailPage = lazy(() => import("@/routes/industry/listing-detail").then((module) => ({ default: module.IndustryListingDetailPage })));
+const IndustryApplicationsPage = lazy(() => import("@/routes/industry/applications").then((module) => ({ default: module.IndustryApplicationsPage })));
 
 const UniversityDashboardPage = lazy(() => import("@/routes/university/index").then((module) => ({ default: module.UniversityDashboardPage })));
 const UniversityProfilePage = lazy(() => import("@/routes/university/profile").then((module) => ({ default: module.UniversityProfilePage })));
@@ -318,6 +322,7 @@ export function AppRoutes() {
             <Route path="problems/:problemId" element={<InnovationProblemControlCenterPage />} />
             <Route path="problems/:problemId/universities/:institutionId" element={<InnovationUniversityWorkspacePage />} />
             <Route path="collaborations" element={<InnovationCollaborationsPage />} />
+            <Route path="marketplace" element={<InnovationMarketplacePage />} />
             <Route path="issues" element={<InnovationProblemsPage />} />
             <Route path="issues/:issueId" element={<InnovationIssueDetailsPage />} />
             <Route path="challenges" element={<InnovationChallengesPage />} />
@@ -347,6 +352,21 @@ export function AppRoutes() {
             <Route path="projects/:projectId" element={<UniversityProjectDetailPage />} />
             <Route path="projects/:projectId/proposal" element={<UniversityProposalWorkspacePage />} />
             <Route path="notifications" element={<UniversityNotificationsPage />} />
+          </Route>
+
+          {/* Industry / Organization Partner Portal */}
+          <Route
+            path="industry"
+            element={
+              <RequireRole allowedRoles={["INDUSTRY_PARTNER", "INNOVATION_MANAGER", "ADMIN"]}>
+                <AppLayout />
+              </RequireRole>
+            }
+          >
+            <Route index element={<Navigate replace to="/app/industry/marketplace" />} />
+            <Route path="marketplace" element={<IndustryMarketplacePage />} />
+            <Route path="marketplace/:listingId" element={<IndustryListingDetailPage />} />
+            <Route path="applications" element={<IndustryApplicationsPage />} />
           </Route>
 
           {/* Backwards-compatible /app/institution alias */}
