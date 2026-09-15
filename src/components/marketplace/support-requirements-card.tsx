@@ -411,7 +411,7 @@ export function SupportRequirementsCard({
                               </Badge>
                             </div>
                             <span className="text-[10px] text-emerald-800 font-mono">
-                              Onboarded {new Date(activePartners[0].started_at).toLocaleDateString()}
+                              Onboarded {new Date(activePartners[0].started_at ?? activePartners[0].onboarded_at ?? activePartners[0].created_at).toLocaleDateString()}
                             </span>
                           </div>
                           <p className="text-xs text-emerald-900 pl-7 leading-relaxed">

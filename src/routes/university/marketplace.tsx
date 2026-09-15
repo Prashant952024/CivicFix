@@ -138,7 +138,7 @@ export default function UniversityMarketplacePage() {
             partnerType: p.organization?.organization_type ?? "COMPANY",
             partnerStatus: p.participation_status ?? p.status ?? "ACTIVE",
             verified: p.organization?.verification_status === "VERIFIED",
-            startedAt: p.started_at,
+            startedAt: p.started_at ?? p.onboarded_at ?? p.created_at,
           });
         }
       }

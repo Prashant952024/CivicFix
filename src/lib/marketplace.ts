@@ -839,14 +839,12 @@ export async function acceptSupportApplication(input: {
     .insert({
       project_id: typedApp.listing.project_id,
       support_request_id: typedApp.listing.support_request_id,
-      listing_id: typedApp.listing.id,
       application_id: input.applicationId,
       organization_id: typedApp.organization_id,
-      category: typedApp.listing.category,
+      participation_status: "ACTIVE",
       access_scope: "SUPPORT_SPECIFIC",
-      contribution_summary: typedApp.proposed_contribution,
-      status: "ACTIVE",
-      notes: input.agreementNotes.trim(),
+      agreement_notes: input.agreementNotes.trim(),
+      onboarded_at: new Date().toISOString(),
     })
     .select()
     .single();
@@ -978,17 +976,24 @@ export async function fetchOrganizationPartnerships(organizationId: string) {
         challenge:innovation_challenges!challenge_projects_challenge_id_fkey(title),
         institution:institutions!challenge_projects_institution_id_fkey(name)
       ),
-      listing:research_support_listings!project_support_partners_listing_id_fkey(public_title, category)
+      request:research_support_requests!project_support_partners_support_request_id_fkey(id, title, category)
     `)
     .eq("organization_id", organizationId)
-    .order("started_at", { ascending: false });
+    .order("created_at", { ascending: false });
 
   if (error) {
     console.error("Error fetching organization partnerships:", error);
     throw new Error(error.message);
   }
 
-  return data ?? [];
+  return (data ?? []).map((p: any) => ({
+    ...p,
+    category: p.category ?? p.request?.category ?? "HARDWARE",
+    listing: {
+      public_title: p.request?.title ?? "Prototype Support",
+      category: p.category ?? p.request?.category ?? "HARDWARE",
+    },
+  }));
 }
 
 /**
