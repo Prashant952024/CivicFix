@@ -17,6 +17,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { PageHeader } from "@/components/ui/page-header";
+import { supabase } from "@/lib/supabase";
 import {
   APPLICATION_STATUS_META,
   fetchIndustryOrganizationProfile,
@@ -85,22 +86,73 @@ export function IndustryApplicationsPage() {
   const [applications, setApplications] = useState<OrganizationApplicationItem[]>([]);
   const [partnerships, setPartnerships] = useState<OrganizationPartnershipItem[]>([]);
 
-  async function loadData() {
-    if (!profile?.organization_id) {
-      setLoading(false);
-      return;
+  async function resolveOrganization(currentProfile: typeof profile): Promise<IndustryOrganizationRow | null> {
+    if (!currentProfile) return null;
+    let orgId = currentProfile.organization_id;
+    if (orgId) {
+      try {
+        const directOrg = await fetchIndustryOrganizationProfile(orgId);
+        if (directOrg) return directOrg;
+      } catch (e) {
+        console.warn("Direct org fetch failed, falling back:", e);
+      }
     }
 
+    // Fallback 1: Query profile directly from database
+    if (currentProfile.id) {
+      try {
+        const { data: dbProfile } = await supabase
+          .from("profiles")
+          .select("organization_id")
+          .eq("id", currentProfile.id)
+          .maybeSingle();
+        if (dbProfile?.organization_id) {
+          const directOrg = await fetchIndustryOrganizationProfile(dbProfile.organization_id);
+          if (directOrg) return directOrg;
+        }
+      } catch (e) {
+        console.warn("Profile org lookup failed:", e);
+      }
+    }
+
+    // Fallback 2: Match by contact email in industry_organizations
+    if (currentProfile.email) {
+      try {
+        const normalizedEmail = currentProfile.email.trim().toLowerCase();
+        const { data: matchedOrg } = await supabase
+          .from("industry_organizations")
+          .select("*")
+          .eq("contact_email", normalizedEmail)
+          .maybeSingle();
+        if (matchedOrg) {
+          void supabase
+            .from("profiles")
+            .update({ organization_id: matchedOrg.id, updated_at: new Date().toISOString() })
+            .eq("id", currentProfile.id);
+          return matchedOrg as IndustryOrganizationRow;
+        }
+      } catch (e) {
+        console.warn("Email org lookup failed:", e);
+      }
+    }
+
+    return null;
+  }
+
+  async function loadData() {
     setLoading(true);
     try {
-      const [org, apps, parts] = await Promise.all([
-        fetchIndustryOrganizationProfile(profile.organization_id),
-        fetchOrganizationApplications(profile.organization_id),
-        fetchOrganizationPartnerships(profile.organization_id),
-      ]);
+      const org = await resolveOrganization(profile);
       setOrganization(org);
-      setApplications(apps);
-      setPartnerships(parts);
+
+      if (org) {
+        const [apps, parts] = await Promise.all([
+          fetchOrganizationApplications(org.id),
+          fetchOrganizationPartnerships(org.id),
+        ]);
+        setApplications(apps);
+        setPartnerships(parts);
+      }
     } catch (err) {
       console.error("Failed to load organization applications:", err);
     } finally {
@@ -111,20 +163,19 @@ export function IndustryApplicationsPage() {
   useEffect(() => {
     let isMounted = true;
     async function init() {
-      if (!profile?.organization_id) {
-        if (isMounted) setLoading(false);
-        return;
-      }
       try {
-        const [org, apps, parts] = await Promise.all([
-          fetchIndustryOrganizationProfile(profile.organization_id),
-          fetchOrganizationApplications(profile.organization_id),
-          fetchOrganizationPartnerships(profile.organization_id),
-        ]);
-        if (isMounted) {
-          setOrganization(org);
-          setApplications(apps);
-          setPartnerships(parts);
+        const org = await resolveOrganization(profile);
+        if (isMounted) setOrganization(org);
+
+        if (org) {
+          const [apps, parts] = await Promise.all([
+            fetchOrganizationApplications(org.id),
+            fetchOrganizationPartnerships(org.id),
+          ]);
+          if (isMounted) {
+            setApplications(apps);
+            setPartnerships(parts);
+          }
         }
       } catch (err) {
         console.error("Failed to load organization applications:", err);
@@ -138,9 +189,9 @@ export function IndustryApplicationsPage() {
     return () => {
       isMounted = false;
     };
-  }, [profile?.organization_id]);
+  }, [profile?.id, profile?.organization_id, profile?.email]);
 
-  if (!profile?.organization_id && !loading) {
+  if (!organization && !loading) {
     return (
       <div className="space-y-6 pb-12">
         <PageHeader

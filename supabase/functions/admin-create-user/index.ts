@@ -424,6 +424,62 @@ Deno.serve(async (request: Request) => {
     return json(tokenRes.status, tokenData, origin);
   }
 
+  if ((body as any).action === "sync-clerk-usernames") {
+    const { data: profiles, error: pErr } = await supabase
+      .from("profiles")
+      .select("id, clerk_user_id, email, employee_id, full_name, role:roles!profiles_role_id_fkey(code)")
+      .not("employee_id", "is", null)
+      .not("clerk_user_id", "is", null);
+
+    if (pErr) {
+      return json(500, { error: pErr.message }, origin);
+    }
+
+    const results: any[] = [];
+    for (const p of profiles || []) {
+      if (!p.clerk_user_id || !p.employee_id) continue;
+
+      const rawUsername = p.employee_id.trim();
+      // Try setting username directly as employee_id
+      const patchRes = await fetch(`https://api.clerk.com/v1/users/${p.clerk_user_id}`, {
+        method: "PATCH",
+        headers: {
+          Authorization: `Bearer ${clerkSecretKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          username: rawUsername.toLowerCase(),
+        }),
+      });
+
+      const patchData = await patchRes.json();
+      if (patchRes.ok) {
+        results.push({ email: p.email, employeeId: p.employee_id, username: patchData.username, status: "SUCCESS" });
+      } else {
+        // If failed, check if underscore variant works
+        const underscoreUsername = rawUsername.toLowerCase().replace(/[^a-z0-9_]/g, "_");
+        const retryRes = await fetch(`https://api.clerk.com/v1/users/${p.clerk_user_id}`, {
+          method: "PATCH",
+          headers: {
+            Authorization: `Bearer ${clerkSecretKey}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            username: underscoreUsername,
+          }),
+        });
+        const retryData = await retryRes.json();
+        if (retryRes.ok) {
+          results.push({ email: p.email, employeeId: p.employee_id, username: retryData.username, status: "SUCCESS_UNDERSCORE" });
+        } else {
+          results.push({ email: p.email, employeeId: p.employee_id, attempted: rawUsername, error: patchData, retryError: retryData, status: "FAILED" });
+        }
+      }
+    }
+
+    return json(200, { total: results.length, successful: results.filter(r => r.status.startsWith("SUCCESS")).length, results }, origin);
+  }
+
   if ((body as any).action === "reassign-iits-emails") {
     const passwordToSet = (body as any).password || "CivicFix@2026!";
     const updates = [

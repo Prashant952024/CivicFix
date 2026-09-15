@@ -19,6 +19,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Dialog } from "@/components/ui/dialog";
+import { supabase } from "@/lib/supabase";
 import {
   APPLICATION_STATUS_META,
   fetchIndustryOrganizationProfile,
@@ -54,18 +55,68 @@ export function IndustryListingDetailPage() {
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
 
+  async function resolveOrganization(currentProfile: typeof profile): Promise<IndustryOrganizationRow | null> {
+    if (!currentProfile) return null;
+    let orgId = currentProfile.organization_id;
+    if (orgId) {
+      try {
+        const directOrg = await fetchIndustryOrganizationProfile(orgId);
+        if (directOrg) return directOrg;
+      } catch (e) {
+        console.warn("Direct org fetch failed, falling back:", e);
+      }
+    }
+
+    // Fallback 1: Query profile directly from database
+    if (currentProfile.id) {
+      try {
+        const { data: dbProfile } = await supabase
+          .from("profiles")
+          .select("organization_id")
+          .eq("id", currentProfile.id)
+          .maybeSingle();
+        if (dbProfile?.organization_id) {
+          const directOrg = await fetchIndustryOrganizationProfile(dbProfile.organization_id);
+          if (directOrg) return directOrg;
+        }
+      } catch (e) {
+        console.warn("Profile org lookup failed:", e);
+      }
+    }
+
+    // Fallback 2: Match by contact email in industry_organizations
+    if (currentProfile.email) {
+      try {
+        const normalizedEmail = currentProfile.email.trim().toLowerCase();
+        const { data: matchedOrg } = await supabase
+          .from("industry_organizations")
+          .select("*")
+          .eq("contact_email", normalizedEmail)
+          .maybeSingle();
+        if (matchedOrg) {
+          void supabase
+            .from("profiles")
+            .update({ organization_id: matchedOrg.id, updated_at: new Date().toISOString() })
+            .eq("id", currentProfile.id);
+          return matchedOrg as IndustryOrganizationRow;
+        }
+      } catch (e) {
+        console.warn("Email org lookup failed:", e);
+      }
+    }
+
+    return null;
+  }
+
   async function loadData() {
     if (!listingId) return;
     setLoading(true);
     setError(null);
     try {
-      let orgData: IndustryOrganizationRow | null = null;
-      if (profile?.organization_id) {
-        orgData = await fetchIndustryOrganizationProfile(profile.organization_id);
-        setOrganization(orgData);
-      }
+      const orgData = await resolveOrganization(profile);
+      setOrganization(orgData);
 
-      const res = await fetchMarketplaceListingDetail(listingId, profile?.organization_id ?? null);
+      const res = await fetchMarketplaceListingDetail(listingId, orgData?.id ?? null);
       setListing(res.listing);
       setHasApplied(res.hasApplied);
       setExistingApplication(res.existingApplication ?? null);
@@ -82,13 +133,10 @@ export function IndustryListingDetailPage() {
     async function init() {
       if (!listingId) return;
       try {
-        let orgData: IndustryOrganizationRow | null = null;
-        if (profile?.organization_id) {
-          orgData = await fetchIndustryOrganizationProfile(profile.organization_id);
-          if (isMounted) setOrganization(orgData);
-        }
+        const orgData = await resolveOrganization(profile);
+        if (isMounted) setOrganization(orgData);
 
-        const res = await fetchMarketplaceListingDetail(listingId, profile?.organization_id ?? null);
+        const res = await fetchMarketplaceListingDetail(listingId, orgData?.id ?? null);
         if (isMounted) {
           setListing(res.listing);
           setHasApplied(res.hasApplied);
@@ -109,7 +157,7 @@ export function IndustryListingDetailPage() {
     return () => {
       isMounted = false;
     };
-  }, [listingId, profile?.organization_id]);
+  }, [listingId, profile?.id, profile?.organization_id, profile?.email]);
 
   async function handleApplySubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -349,7 +397,7 @@ export function IndustryListingDetailPage() {
                 <span>Support This Prototype</span>
               </h3>
 
-              {!profile?.organization_id ? (
+              {!organization ? (
                 <div className="p-3 rounded-lg bg-muted/40 border border-border/60 text-xs text-muted-foreground space-y-2">
                   <p>
                     You are viewing this as a general user. To submit offers, your profile must be linked to an industry partner organization.
@@ -362,21 +410,30 @@ export function IndustryListingDetailPage() {
                     <span>Organization Verification Pending</span>
                   </div>
                   <p className="leading-relaxed text-[11px]">
-                    Your organization (<strong>{organization?.name}</strong>) is currently <code>{organization?.verification_status}</code>. Municipal administrators review credentials before applications can be submitted.
+                    Your organization (<strong>{organization.name}</strong>) is currently <code>{organization.verification_status}</code>. Municipal administrators review credentials before applications can be submitted.
                   </p>
                 </div>
               ) : hasApplied ? (
                 <div className="space-y-2 text-xs">
-                  <Button disabled className="w-full text-xs font-semibold gap-1.5">
-                    <CheckCircle2 className="w-3.5 h-3.5" />
+                  <Button disabled className="w-full text-xs font-semibold gap-1.5 bg-emerald-600/15 text-emerald-800 border border-emerald-300">
+                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
                     <span>Application Submitted</span>
                   </Button>
                   <p className="text-[11px] text-muted-foreground text-center">
-                    The research team is reviewing incoming offers. You will be notified of any updates.
+                    The research team is reviewing your offer. You will be notified of any updates.
                   </p>
                 </div>
               ) : (
                 <div className="space-y-3 text-xs">
+                  <div className="p-2.5 bg-primary/5 rounded-lg border border-primary/20 text-[11px] text-foreground space-y-0.5">
+                    <div className="font-semibold flex items-center gap-1.5 text-primary">
+                      <Building2 className="w-3.5 h-3.5 shrink-0" />
+                      <span className="truncate">{organization.name}</span>
+                    </div>
+                    <div className="text-[10px] text-muted-foreground pl-5">
+                      Verified {organization.organization_type} Partner
+                    </div>
+                  </div>
                   <p className="text-muted-foreground leading-relaxed">
                     Provide hardware units, software access, test facility slots, or grant support to help the university build this prototype.
                   </p>

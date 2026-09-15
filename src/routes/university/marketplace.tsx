@@ -3,15 +3,19 @@ import { Link } from "react-router-dom";
 import { useAppSession } from "@/auth/app-session";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Dialog } from "@/components/ui/dialog";
 import { CreateSupportRequestDialog } from "@/components/marketplace/create-support-request-dialog";
 import { ApplicationReviewDialog } from "@/components/marketplace/application-review-dialog";
 import {
+  acceptSupportApplication,
+  APPLICATION_STATUS_META,
   fetchUniversityMarketplaceData,
   ORGANIZATION_TYPE_META,
   PRIORITY_META,
   REQUEST_STATUS_META,
   SUPPORT_CATEGORY_META,
   type UniversityEligibleProject,
+  type UniversityMarketplaceApplicationItem,
   type UniversityMarketplaceRequestItem,
 } from "@/lib/marketplace";
 import type { SupportRequestCategory, SupportRequestStatus } from "@/types/database";
@@ -24,6 +28,7 @@ import {
   ExternalLink,
   Filter,
   Handshake,
+  HelpCircle,
   Inbox,
   Layers,
   Loader2,
@@ -48,16 +53,24 @@ export default function UniversityMarketplacePage() {
   });
   const [requests, setRequests] = useState<UniversityMarketplaceRequestItem[]>([]);
   const [eligibleProjects, setEligibleProjects] = useState<UniversityEligibleProject[]>([]);
+  const [allApplications, setAllApplications] = useState<UniversityMarketplaceApplicationItem[]>([]);
 
   // Dialogs
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [reviewRequest, setReviewRequest] = useState<UniversityMarketplaceRequestItem | null>(null);
 
+  // Quick Accept Dialog
+  const [acceptingApp, setAcceptingApp] = useState<UniversityMarketplaceApplicationItem | null>(null);
+  const [agreementNotes, setAgreementNotes] = useState("");
+  const [acceptSubmitting, setAcceptSubmitting] = useState(false);
+  const [acceptError, setAcceptError] = useState<string | null>(null);
+
   // Filters & Tabs
-  const [activeTab, setActiveTab] = useState<"requirements" | "partnerships" | "eligible">("requirements");
+  const [activeTab, setActiveTab] = useState<"requirements" | "applications" | "partnerships" | "eligible">("requirements");
   const [searchQuery, setSearchQuery] = useState("");
   const [categoryFilter, setCategoryFilter] = useState<string>("ALL");
   const [statusFilter, setStatusFilter] = useState<string>("ALL");
+  const [appStatusFilter, setAppStatusFilter] = useState<string>("ALL");
 
   const institutionId = profile?.institution_id;
 
@@ -74,6 +87,7 @@ export default function UniversityMarketplacePage() {
       setMetrics(data.metrics);
       setRequests(data.requests);
       setEligibleProjects(data.eligibleProjects);
+      setAllApplications(data.allApplications ?? []);
     } catch (err: unknown) {
       console.error("Failed to load university marketplace data:", err);
       setError(err instanceof Error ? err.message : "Failed to load marketplace data.");
@@ -132,6 +146,44 @@ export default function UniversityMarketplacePage() {
 
     return list;
   }, [requests]);
+
+  // Filtered applications for Company Applications tab
+  const filteredApplications = useMemo(() => {
+    return allApplications.filter((app) => {
+      const matchesSearch =
+        searchQuery.trim() === "" ||
+        app.organization?.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        app.request?.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (app.project?.title && app.project.title.toLowerCase().includes(searchQuery.toLowerCase())) ||
+        (app.challenge?.title && app.challenge.title.toLowerCase().includes(searchQuery.toLowerCase()));
+
+      const matchesAppStatus = appStatusFilter === "ALL" || app.status === appStatusFilter;
+      const matchesCategory = categoryFilter === "ALL" || app.request?.category === categoryFilter;
+
+      return matchesSearch && matchesAppStatus && matchesCategory;
+    });
+  }, [allApplications, searchQuery, appStatusFilter, categoryFilter]);
+
+  async function handleConfirmAccept() {
+    if (!acceptingApp || !profile?.id) return;
+    setAcceptSubmitting(true);
+    setAcceptError(null);
+    try {
+      await acceptSupportApplication({
+        applicationId: acceptingApp.id,
+        reviewerProfileId: profile.id,
+        agreementNotes: agreementNotes.trim() || "Offer accepted for research prototype collaboration and testing.",
+      });
+      setAcceptingApp(null);
+      setAgreementNotes("");
+      await loadData();
+    } catch (err: unknown) {
+      console.error("Failed to accept application:", err);
+      setAcceptError(err instanceof Error ? err.message : "Failed to accept application.");
+    } finally {
+      setAcceptSubmitting(false);
+    }
+  }
 
   if (!institutionId && !loading) {
     return (
@@ -249,11 +301,11 @@ export default function UniversityMarketplacePage() {
       </div>
 
       {/* Tabs */}
-      <div className="flex items-center gap-2 border-b border-border">
+      <div className="flex items-center gap-2 border-b border-border overflow-x-auto">
         <button
           type="button"
           onClick={() => setActiveTab("requirements")}
-          className={`pb-2.5 px-3 text-xs font-semibold border-b-2 transition-colors ${
+          className={`pb-2.5 px-3 text-xs font-semibold border-b-2 transition-colors shrink-0 ${
             activeTab === "requirements"
               ? "border-primary text-primary"
               : "border-transparent text-muted-foreground hover:text-foreground"
@@ -263,8 +315,25 @@ export default function UniversityMarketplacePage() {
         </button>
         <button
           type="button"
+          onClick={() => setActiveTab("applications")}
+          className={`pb-2.5 px-3 text-xs font-semibold border-b-2 transition-colors flex items-center gap-1.5 shrink-0 ${
+            activeTab === "applications"
+              ? "border-primary text-primary"
+              : "border-transparent text-muted-foreground hover:text-foreground"
+          }`}
+        >
+          <span>Company Applications</span>
+          <Badge
+            variant={allApplications.length > 0 ? "info" : "outline"}
+            className="text-[10px] px-1.5 py-0"
+          >
+            {allApplications.length}
+          </Badge>
+        </button>
+        <button
+          type="button"
           onClick={() => setActiveTab("partnerships")}
-          className={`pb-2.5 px-3 text-xs font-semibold border-b-2 transition-colors ${
+          className={`pb-2.5 px-3 text-xs font-semibold border-b-2 transition-colors shrink-0 ${
             activeTab === "partnerships"
               ? "border-primary text-primary"
               : "border-transparent text-muted-foreground hover:text-foreground"
@@ -275,7 +344,7 @@ export default function UniversityMarketplacePage() {
         <button
           type="button"
           onClick={() => setActiveTab("eligible")}
-          className={`pb-2.5 px-3 text-xs font-semibold border-b-2 transition-colors ${
+          className={`pb-2.5 px-3 text-xs font-semibold border-b-2 transition-colors shrink-0 ${
             activeTab === "eligible"
               ? "border-primary text-primary"
               : "border-transparent text-muted-foreground hover:text-foreground"
@@ -462,6 +531,89 @@ export default function UniversityMarketplacePage() {
                           ))}
                         </div>
                       )}
+
+                      {/* Applied Companies Section */}
+                      {req.applications && req.applications.length > 0 && (
+                        <div className="pt-2.5 border-t border-border/60 space-y-2">
+                          <div className="flex items-center justify-between text-[11px]">
+                            <span className="font-bold text-foreground flex items-center gap-1.5">
+                              <Building2 className="w-3.5 h-3.5 text-primary" />
+                              <span>Companies Applied ({req.applications.length}):</span>
+                            </span>
+                            <span className="text-muted-foreground text-[10px]">
+                              {req.applications.filter((a) => a.status === "ACCEPTED").length} Accepted
+                            </span>
+                          </div>
+                          <div className="space-y-1.5">
+                            {req.applications.map((app) => {
+                              const appStatusMeta = APPLICATION_STATUS_META[app.status] ?? {
+                                label: app.status,
+                                badgeTone: "default",
+                              };
+                              const isAccepted = app.status === "ACCEPTED";
+                              return (
+                                <div
+                                  key={app.id}
+                                  className="p-2.5 rounded-lg bg-muted/40 border border-border/70 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs"
+                                >
+                                  <div className="space-y-0.5 min-w-0 flex-1">
+                                    <div className="flex items-center gap-1.5 flex-wrap">
+                                      <span className="font-semibold text-foreground truncate">
+                                        {app.organization.name}
+                                      </span>
+                                      <Badge variant={appStatusMeta.badgeTone} className="text-[9px] py-0 px-1.5">
+                                        {appStatusMeta.label}
+                                      </Badge>
+                                      {app.organization.verification_status === "VERIFIED" && (
+                                        <ShieldCheck className="w-3 h-3 text-emerald-600 shrink-0" />
+                                      )}
+                                    </div>
+                                    <p className="text-[11px] text-muted-foreground line-clamp-1">
+                                      {app.proposed_contribution}
+                                    </p>
+                                    {app.estimated_value != null && (
+                                      <div className="text-[10px] text-primary font-medium">
+                                        Value: ₹{app.estimated_value.toLocaleString()} {app.timeline ? `• ${app.timeline}` : ""}
+                                      </div>
+                                    )}
+                                  </div>
+
+                                  <div className="flex items-center gap-1.5 shrink-0">
+                                    {!isAccepted && app.status !== "REJECTED" ? (
+                                      <Button
+                                        size="sm"
+                                        onClick={() => {
+                                          setAcceptingApp({
+                                            ...app,
+                                            request: {
+                                              id: req.id,
+                                              title: req.title,
+                                              category: req.category,
+                                              status: req.status,
+                                            },
+                                            project: req.project,
+                                            challenge: req.challenge,
+                                          });
+                                          setAgreementNotes("Offer accepted for research prototype collaboration and testing.");
+                                        }}
+                                        className="text-[11px] h-7 px-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold gap-1 shadow-xs"
+                                      >
+                                        <CheckCircle2 className="w-3 h-3" />
+                                        <span>Accept Offer</span>
+                                      </Button>
+                                    ) : isAccepted ? (
+                                      <span className="text-[11px] text-emerald-700 dark:text-emerald-400 font-bold flex items-center gap-1 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-300">
+                                        <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                                        <span>Partner Accepted</span>
+                                      </span>
+                                    ) : null}
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
                     </div>
 
                     {/* Footer Actions */}
@@ -505,7 +657,283 @@ export default function UniversityMarketplacePage() {
         </div>
       )}
 
-      {/* TAB 2: ACTIVE PARTNERSHIPS */}
+      {/* TAB 2: COMPANY APPLICATIONS */}
+      {activeTab === "applications" && (
+        <div className="space-y-4">
+          {/* Search & Filter Bar */}
+          <div className="flex flex-col sm:flex-row items-center gap-3">
+            <div className="relative flex-1 w-full">
+              <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+              <input
+                type="text"
+                placeholder="Search by company name, requirement, or research project..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full rounded-lg border border-border bg-background pl-8.5 pr-3 py-1.5 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+              />
+            </div>
+
+            <div className="flex items-center gap-2 w-full sm:w-auto">
+              <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                <Filter className="w-3.5 h-3.5 shrink-0" />
+                <span>Status:</span>
+              </div>
+              <select
+                value={appStatusFilter}
+                onChange={(e) => setAppStatusFilter(e.target.value)}
+                className="rounded-lg border border-border bg-background px-2.5 py-1.5 text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+              >
+                <option value="ALL">All Application Statuses</option>
+                <option value="SUBMITTED">Pending Review (Submitted)</option>
+                <option value="UNDER_REVIEW">Under Review / Clarification</option>
+                <option value="ACCEPTED">Accepted (Partner Onboarded)</option>
+                <option value="REJECTED">Declined</option>
+              </select>
+            </div>
+          </div>
+
+          {loading ? (
+            <div className="p-12 text-center text-muted-foreground space-y-2">
+              <Loader2 className="w-6 h-6 animate-spin mx-auto text-primary" />
+              <p className="text-xs">Loading company applications...</p>
+            </div>
+          ) : filteredApplications.length === 0 ? (
+            <div className="p-12 text-center rounded-xl border border-dashed border-border bg-card/50 space-y-3">
+              <div className="p-3 bg-muted/60 rounded-full w-12 h-12 flex items-center justify-center mx-auto text-muted-foreground">
+                <Inbox className="w-6 h-6" />
+              </div>
+              <div className="space-y-1">
+                <h3 className="text-sm font-semibold text-foreground">No Company Applications Yet</h3>
+                <p className="text-xs text-muted-foreground max-w-sm mx-auto">
+                  {allApplications.length === 0
+                    ? "When industry partners or startups apply for your raised demands in the marketplace, their detailed support offers will appear here for you to review and accept."
+                    : "No applications match your active filter criteria."}
+                </p>
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {filteredApplications.map((app) => {
+                const statusMeta = APPLICATION_STATUS_META[app.status] ?? {
+                  label: app.status,
+                  badgeTone: "default",
+                };
+                const orgTypeMeta = ORGANIZATION_TYPE_META[app.organization.organization_type] ?? {
+                  label: app.organization.organization_type,
+                  badgeTone: "default",
+                };
+                const isAccepted = app.status === "ACCEPTED";
+
+                return (
+                  <div
+                    key={app.id}
+                    className="p-5 rounded-xl border border-border bg-card shadow-xs hover:border-border/80 transition-all space-y-4"
+                  >
+                    {/* Header */}
+                    <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <h3 className="text-base font-bold text-foreground">
+                            {app.organization.name}
+                          </h3>
+                          <Badge variant={orgTypeMeta.badgeTone} className="text-[10px]">
+                            {orgTypeMeta.label}
+                          </Badge>
+                          {app.organization.verification_status === "VERIFIED" && (
+                            <Badge variant="success" className="text-[10px] gap-1 py-0">
+                              <ShieldCheck className="w-3 h-3" />
+                              Verified Partner
+                            </Badge>
+                          )}
+                        </div>
+                        {app.organization.sector && (
+                          <p className="text-xs text-muted-foreground">
+                            Sector: {app.organization.sector}
+                          </p>
+                        )}
+                      </div>
+
+                      <div className="flex items-center gap-2 shrink-0">
+                        <Badge variant={statusMeta.badgeTone} className="text-xs">
+                          {statusMeta.label}
+                        </Badge>
+                        <span className="text-[11px] text-muted-foreground font-mono">
+                          {new Date(app.created_at).toLocaleDateString()}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Applied For Banner */}
+                    <div className="p-3 bg-muted/40 rounded-lg border border-border/60 text-xs space-y-1">
+                      <div className="flex items-center justify-between gap-2 flex-wrap">
+                        <div>
+                          <span className="text-muted-foreground font-medium">Applied for Demand: </span>
+                          <span className="font-semibold text-foreground">{app.request.title}</span>
+                        </div>
+                        <Badge variant="outline" className="text-[10px]">
+                          {app.request.category}
+                        </Badge>
+                      </div>
+                      <div className="flex items-center gap-4 text-muted-foreground text-[11px] flex-wrap">
+                        {app.project && (
+                          <span>
+                            Project:{" "}
+                            <Link
+                              to={`/app/university/projects/${app.project.id}`}
+                              className="text-primary hover:underline font-medium"
+                            >
+                              {app.project.title}
+                            </Link>
+                          </span>
+                        )}
+                        {app.challenge && (
+                          <span>Problem: <span className="text-foreground">{app.challenge.title}</span></span>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Offer Content */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
+                      <div className="p-3 rounded-lg border border-border/70 bg-background space-y-1">
+                        <span className="font-semibold text-foreground block text-[11px] uppercase tracking-wider text-muted-foreground">
+                          Proposed Contribution &amp; Deliverables
+                        </span>
+                        <p className="text-foreground leading-relaxed">
+                          {app.proposed_contribution}
+                        </p>
+                      </div>
+
+                      <div className="p-3 rounded-lg border border-border/70 bg-background space-y-1">
+                        <span className="font-semibold text-foreground block text-[11px] uppercase tracking-wider text-muted-foreground">
+                          Capabilities &amp; Track Record
+                        </span>
+                        <p className="text-muted-foreground leading-relaxed">
+                          {app.capabilities_summary}
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Specs / Meta Grid */}
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs pt-1">
+                      {app.estimated_value != null && (
+                        <div className="p-2.5 rounded-lg border border-border/60 bg-muted/20">
+                          <span className="text-[10px] text-muted-foreground block">Offered Value</span>
+                          <span className="font-bold text-foreground text-sm">
+                            ₹{app.estimated_value.toLocaleString()}
+                          </span>
+                        </div>
+                      )}
+                      {app.timeline && (
+                        <div className="p-2.5 rounded-lg border border-border/60 bg-muted/20">
+                          <span className="text-[10px] text-muted-foreground block">Schedule / Delivery</span>
+                          <span className="font-medium text-foreground">{app.timeline}</span>
+                        </div>
+                      )}
+                      {app.organization.contact_person && (
+                        <div className="p-2.5 rounded-lg border border-border/60 bg-muted/20">
+                          <span className="text-[10px] text-muted-foreground block">Contact Lead</span>
+                          <span className="font-medium text-foreground truncate block">
+                            {app.organization.contact_person}
+                          </span>
+                        </div>
+                      )}
+                      {app.organization.contact_email && (
+                        <div className="p-2.5 rounded-lg border border-border/60 bg-muted/20">
+                          <span className="text-[10px] text-muted-foreground block">Email</span>
+                          <span className="font-medium text-foreground truncate block">
+                            {app.organization.contact_email}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Notes if present */}
+                    {app.acceptance_agreement_notes && (
+                      <div className="p-3 bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800/50 rounded-lg text-xs text-emerald-950 dark:text-emerald-200 space-y-1">
+                        <div className="font-bold flex items-center gap-1.5 text-emerald-800 dark:text-emerald-300">
+                          <CheckCircle2 className="w-3.5 h-3.5" />
+                          <span>Collaboration Agreement Notes:</span>
+                        </div>
+                        <p className="pl-5">{app.acceptance_agreement_notes}</p>
+                      </div>
+                    )}
+
+                    {app.review_notes && !isAccepted && (
+                      <div className="p-3 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/50 rounded-lg text-xs text-amber-950 dark:text-amber-200 space-y-1">
+                        <div className="font-bold flex items-center gap-1.5 text-amber-800 dark:text-amber-300">
+                          <HelpCircle className="w-3.5 h-3.5" />
+                          <span>Clarification Notes Sent:</span>
+                        </div>
+                        <p className="pl-5">{app.review_notes}</p>
+                      </div>
+                    )}
+
+                    {/* Actions */}
+                    <div className="pt-3 border-t border-border/60 flex items-center justify-between gap-3 flex-wrap">
+                      <div className="text-xs text-muted-foreground">
+                        {isAccepted ? (
+                          <span className="text-emerald-700 dark:text-emerald-400 font-semibold flex items-center gap-1.5">
+                            <CheckCircle2 className="w-4 h-4" />
+                            <span>Partner Accepted &amp; Engaged in Research Project</span>
+                          </span>
+                        ) : (
+                          <span>Review candidate proposal and decide to accept or clarify terms.</span>
+                        )}
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        {!isAccepted && app.status !== "REJECTED" && (
+                          <>
+                            <Button
+                              size="sm"
+                              onClick={() => {
+                                setAcceptingApp(app);
+                                setAgreementNotes("Offer accepted for research prototype deployment and collaborative evaluation.");
+                              }}
+                              className="text-xs gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs font-semibold"
+                            >
+                              <CheckCircle2 className="w-3.5 h-3.5" />
+                              <span>Accept Company Offer</span>
+                            </Button>
+
+                            {/* Also trigger full review dialog for this request */}
+                            {requests.find((r) => r.id === app.request.id) && (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => {
+                                  const targetReq = requests.find((r) => r.id === app.request.id);
+                                  if (targetReq) setReviewRequest(targetReq);
+                                }}
+                                className="text-xs gap-1"
+                              >
+                                <span>Detailed Review</span>
+                                <ChevronRight className="w-3 h-3" />
+                              </Button>
+                            )}
+                          </>
+                        )}
+
+                        {isAccepted && app.project && (
+                          <Link
+                            to={`/app/university/projects/${app.project.id}`}
+                            className="inline-flex items-center gap-1 text-xs text-primary font-medium hover:underline px-3 py-1.5 rounded-lg border border-primary/20 bg-primary/5"
+                          >
+                            <span>Open Project Workspace</span>
+                            <ExternalLink className="w-3.5 h-3.5" />
+                          </Link>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* TAB 3: ACTIVE PARTNERSHIPS */}
       {activeTab === "partnerships" && (
         <div className="space-y-4">
           {activePartnershipsList.length === 0 ? (
@@ -672,6 +1100,88 @@ export default function UniversityMarketplacePage() {
             void loadData();
           }}
         />
+      )}
+
+      {/* Quick Accept Dialog */}
+      {acceptingApp && (
+        <Dialog
+          open={Boolean(acceptingApp)}
+          onClose={() => setAcceptingApp(null)}
+          title="Accept Company Support Offer"
+          description={`Onboard ${acceptingApp.organization.name} to support "${acceptingApp.request.title}"`}
+          maxWidth="md"
+        >
+          <div className="space-y-4 text-xs">
+            {acceptError && (
+              <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-red-800 flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 text-red-600 shrink-0" />
+                <span>{acceptError}</span>
+              </div>
+            )}
+
+            <div className="p-3 bg-muted/40 rounded-lg border border-border/60 space-y-1.5">
+              <div className="font-bold text-foreground flex items-center gap-1.5">
+                <Building2 className="w-4 h-4 text-primary" />
+                <span>{acceptingApp.organization.name}</span>
+                {acceptingApp.organization.verification_status === "VERIFIED" && (
+                  <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
+                )}
+              </div>
+              <p className="text-muted-foreground">
+                <strong>Offered Contribution:</strong> {acceptingApp.proposed_contribution}
+              </p>
+              {acceptingApp.estimated_value != null && (
+                <p className="text-muted-foreground">
+                  <strong>Estimated Value:</strong> ₹{acceptingApp.estimated_value.toLocaleString()}
+                </p>
+              )}
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="font-semibold text-foreground">
+                Collaboration Agreement Notes &amp; Scope
+              </label>
+              <textarea
+                rows={3}
+                value={agreementNotes}
+                onChange={(e) => setAgreementNotes(e.target.value)}
+                placeholder="Specify agreed delivery schedule, testbed access, or prototype scope..."
+                className="w-full rounded-lg border border-border bg-background px-3 py-2 text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-primary resize-none"
+              />
+            </div>
+
+            <div className="p-3 rounded-lg bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800/50 text-emerald-900 dark:text-emerald-200 text-[11px] space-y-0.5">
+              <span className="font-semibold block">Upon Acceptance:</span>
+              <ul className="list-disc pl-4 space-y-0.5 text-muted-foreground">
+                <li>The company will be onboarded as a Project Support Partner (<code>SUPPORT_SPECIFIC</code> access).</li>
+                <li>Application status will be marked <code>ACCEPTED</code>.</li>
+                <li>The partnership will be visible under Active Partnerships and in the project workspace.</li>
+              </ul>
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-2 border-t border-border">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setAcceptingApp(null)}
+                disabled={acceptSubmitting}
+                className="text-xs"
+              >
+                Cancel
+              </Button>
+              <Button
+                size="sm"
+                onClick={() => void handleConfirmAccept()}
+                disabled={acceptSubmitting}
+                className="text-xs gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold shadow-xs"
+              >
+                {acceptSubmitting && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                <CheckCircle2 className="w-3.5 h-3.5" />
+                <span>Confirm &amp; Accept Offer</span>
+              </Button>
+            </div>
+          </div>
+        </Dialog>
       )}
     </div>
   );

@@ -124,7 +124,25 @@ export interface UniversityMarketplaceRequestItem extends ResearchSupportRequest
   partners?: (ProjectSupportPartnerRow & {
     organization?: Pick<IndustryOrganizationRow, "id" | "name" | "organization_type" | "verification_status"> | null;
   })[];
+  applications?: EnrichedApplication[];
   applications_count?: number;
+}
+
+export interface UniversityMarketplaceApplicationItem extends EnrichedApplication {
+  request: {
+    id: string;
+    title: string;
+    category: SupportRequestCategory;
+    status: SupportRequestStatus;
+  };
+  project?: {
+    id: string;
+    title: string;
+  } | null;
+  challenge?: {
+    id: string;
+    title: string;
+  } | null;
 }
 
 export interface UniversityEligibleProject {
@@ -287,8 +305,10 @@ export async function createSupportRequest(input: {
       specification: input.specification?.trim() || null,
       quantity_or_scope: input.quantityOrScope?.trim() || null,
       estimated_cost: input.estimatedCost ?? null,
+      amount: input.estimatedCost ?? null,
       currency: input.currency ?? "INR",
       required_by_date: input.requiredByDate || null,
+      required_by: input.requiredByDate || null,
       linked_milestone_id: input.linkedMilestoneId || null,
       confidentiality_level: input.confidentialityLevel ?? "RESTRICTED",
       status: initialStatus,
@@ -309,11 +329,15 @@ export async function createSupportRequest(input: {
       institution_id: input.institutionId,
       project_id: input.projectId,
       public_title: input.title.trim(),
+      listing_title: input.title.trim(),
       public_summary: input.description.trim(),
       category: input.category,
       public_specification: input.specification?.trim() || null,
+      deliverable_specs: input.specification?.trim() || null,
       public_timeline: input.requiredByDate ? `Required by ${new Date(input.requiredByDate).toLocaleDateString()}` : null,
+      target_timeline: input.requiredByDate ? `Required by ${new Date(input.requiredByDate).toLocaleDateString()}` : null,
       desired_outcome: input.quantityOrScope?.trim() || "Collaborative support for prototype testing and deployment.",
+      expected_outcome: input.quantityOrScope?.trim() || "Collaborative support for prototype testing and deployment.",
       status: "OPEN",
       published_by: input.createdBy,
       published_at: new Date().toISOString(),
@@ -375,11 +399,15 @@ export async function publishSupportRequest(input: {
         institution_id: input.institutionId,
         project_id: input.projectId,
         public_title: input.publicTitle.trim(),
+        listing_title: input.publicTitle.trim(),
         public_summary: input.publicSummary.trim(),
         category: input.category,
         public_specification: input.publicSpecification?.trim() || null,
+        deliverable_specs: input.publicSpecification?.trim() || null,
         public_timeline: input.publicTimeline?.trim() || null,
+        target_timeline: input.publicTimeline?.trim() || null,
         desired_outcome: input.desiredOutcome?.trim() || null,
+        expected_outcome: input.desiredOutcome?.trim() || null,
         status: "OPEN",
         published_by: input.actorProfileId,
         published_at: new Date().toISOString(),
@@ -629,10 +657,10 @@ export async function submitSupportApplication(input: {
     throw new Error(`Your organization cannot submit applications yet. Current status: ${org.verification_status}. Contact the civic administrator for verification.`);
   }
 
-  // Fetch listing to know the project_id for activity logging
+  // Fetch listing to know the project_id and support_request_id for linking & activity logging
   const { data: listing, error: listErr } = await supabase
     .from("research_support_listings")
-    .select("id, project_id, public_title")
+    .select("id, project_id, support_request_id, public_title")
     .eq("id", input.listingId)
     .single();
 
@@ -644,13 +672,20 @@ export async function submitSupportApplication(input: {
     .from("research_support_applications")
     .insert({
       listing_id: input.listingId,
+      support_request_id: listing.support_request_id,
       organization_id: input.organizationId,
       applicant_profile_id: input.applicantProfileId,
+      submitted_by: input.applicantProfileId,
       proposed_contribution: input.proposedContribution.trim(),
+      offered_support: input.proposedContribution.trim(),
       capabilities_summary: input.capabilitiesSummary.trim(),
+      proposal: input.capabilitiesSummary.trim(),
       estimated_value: input.estimatedValue ?? null,
+      offered_amount: input.estimatedValue ?? null,
       timeline: input.timeline?.trim() || null,
+      estimated_timeline: input.timeline?.trim() || null,
       terms_or_conditions: input.termsOrConditions?.trim() || null,
+      conditions: input.termsOrConditions?.trim() || null,
       status: "SUBMITTED",
     })
     .select()
@@ -1119,32 +1154,78 @@ export async function fetchUniversityMarketplaceData(institutionId: string) {
   const allPartners = partnersRes.data ?? [];
   const instPartners = allPartners.filter((p: any) => p.project?.institution_id === institutionId);
 
-  // Collect listing IDs to fetch application counts
-  const listingIds = rawRequests.map((r: any) => r.listing?.id).filter(Boolean);
-  const appCountMap: Record<string, number> = {};
+  // Collect listing IDs to fetch full applications and counts
+  const listingToReqMap: Record<string, any> = {};
+  const listingIds: string[] = [];
+
+  for (const r of rawRequests as any[]) {
+    const listing = Array.isArray(r.listing) ? r.listing[0] : r.listing;
+    if (listing?.id) {
+      listingIds.push(listing.id);
+      listingToReqMap[listing.id] = r;
+    }
+  }
+
+  const applicationsByListing: Record<string, EnrichedApplication[]> = {};
+  const allApplications: UniversityMarketplaceApplicationItem[] = [];
+
   if (listingIds.length > 0) {
-    const { data: appCounts } = await supabase
+    const { data: appData, error: appErr } = await supabase
       .from("research_support_applications")
-      .select("listing_id")
-      .in("listing_id", listingIds);
-    if (appCounts) {
-      for (const app of appCounts) {
-        appCountMap[app.listing_id] = (appCountMap[app.listing_id] || 0) + 1;
+      .select(`
+        *,
+        organization:industry_organizations!research_support_applications_organization_id_fkey(*),
+        applicant:profiles!research_support_applications_applicant_profile_id_fkey(id, full_name, email)
+      `)
+      .in("listing_id", listingIds)
+      .order("created_at", { ascending: false });
+
+    if (!appErr && appData) {
+      for (const app of appData as any[]) {
+        if (!applicationsByListing[app.listing_id]) {
+          applicationsByListing[app.listing_id] = [];
+        }
+        applicationsByListing[app.listing_id].push(app);
+
+        const parentReq = listingToReqMap[app.listing_id];
+        if (parentReq) {
+          allApplications.push({
+            ...app,
+            request: {
+              id: parentReq.id,
+              title: parentReq.title,
+              category: parentReq.category,
+              status: parentReq.status,
+            },
+            project: parentReq.project
+              ? { id: parentReq.project.id, title: parentReq.project.project_title ?? parentReq.project.title }
+              : null,
+            challenge: parentReq.challenge
+              ? { id: parentReq.challenge.id, title: parentReq.challenge.title }
+              : null,
+          });
+        }
       }
     }
   }
 
-  const requests: UniversityMarketplaceRequestItem[] = rawRequests.map((r: any) => ({
-    ...r,
-    project: r.project ? { id: r.project.id, title: r.project.project_title ?? r.project.title } : null,
-    applications_count: r.listing ? (appCountMap[r.listing.id] ?? r.listing.applications_count ?? 0) : 0,
-  }));
+  const requests: UniversityMarketplaceRequestItem[] = rawRequests.map((r: any) => {
+    const listing = Array.isArray(r.listing) ? r.listing[0] : r.listing;
+    const listingApps = listing?.id ? (applicationsByListing[listing.id] ?? []) : [];
+    return {
+      ...r,
+      listing: listing ?? null,
+      project: r.project ? { id: r.project.id, title: r.project.project_title ?? r.project.title } : null,
+      applications: listingApps,
+      applications_count: listingApps.length || (listing?.applications_count ?? 0),
+    };
+  });
 
   const activeRequirements = requests.filter((r) =>
     ["SUBMITTED", "UNDER_REVIEW", "APPROVED", "PUBLISHED", "IN_PROGRESS"].includes(r.status)
   ).length;
 
-  const totalApplications = Object.values(appCountMap).reduce((sum, count) => sum + count, 0);
+  const totalApplications = allApplications.length;
 
   const activePartnerships = instPartners.filter((p: any) => p.participation_status === "ACTIVE").length;
 
@@ -1164,6 +1245,7 @@ export async function fetchUniversityMarketplaceData(institutionId: string) {
     },
     requests,
     eligibleProjects,
+    allApplications,
   };
 }
 

@@ -18,7 +18,7 @@ export function LoginPage() {
           </p>
         </div>
 
-      <SignIn
+        <SignIn
           forceRedirectUrl="/app/role-selection"
           path="/login"
           routing="path"

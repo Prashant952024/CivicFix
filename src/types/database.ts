@@ -2596,6 +2596,10 @@ export interface Database {
           metadata: Json;
           created_at: string;
           updated_at: string;
+          listing_title?: string | null;
+          deliverable_specs?: string | null;
+          target_timeline?: string | null;
+          expected_outcome?: string | null;
         };
         Insert: {
           id?: string;
@@ -2617,6 +2621,10 @@ export interface Database {
           metadata?: Json;
           created_at?: string;
           updated_at?: string;
+          listing_title?: string | null;
+          deliverable_specs?: string | null;
+          target_timeline?: string | null;
+          expected_outcome?: string | null;
         };
         Update: {
           id?: string;
@@ -2638,6 +2646,10 @@ export interface Database {
           metadata?: Json;
           created_at?: string;
           updated_at?: string;
+          listing_title?: string | null;
+          deliverable_specs?: string | null;
+          target_timeline?: string | null;
+          expected_outcome?: string | null;
         };
         Relationships: [
           {
@@ -2653,13 +2665,20 @@ export interface Database {
         Row: {
           id: string;
           listing_id: string;
+          support_request_id?: string | null;
           organization_id: string;
           applicant_profile_id: string;
+          submitted_by?: string | null;
           proposed_contribution: string;
+          offered_support?: string | null;
           capabilities_summary: string;
+          proposal?: string | null;
           estimated_value: number | null;
+          offered_amount?: number | null;
           timeline: string | null;
+          estimated_timeline?: string | null;
           terms_or_conditions: string | null;
+          conditions?: string | null;
           status: ApplicationStatus;
           review_notes: string | null;
           reviewed_by: string | null;
@@ -2673,13 +2692,20 @@ export interface Database {
         Insert: {
           id?: string;
           listing_id: string;
+          support_request_id?: string | null;
           organization_id: string;
           applicant_profile_id: string;
+          submitted_by?: string | null;
           proposed_contribution: string;
+          offered_support?: string | null;
           capabilities_summary: string;
+          proposal?: string | null;
           estimated_value?: number | null;
+          offered_amount?: number | null;
           timeline?: string | null;
+          estimated_timeline?: string | null;
           terms_or_conditions?: string | null;
+          conditions?: string | null;
           status?: ApplicationStatus;
           review_notes?: string | null;
           reviewed_by?: string | null;
@@ -2693,13 +2719,20 @@ export interface Database {
         Update: {
           id?: string;
           listing_id?: string;
+          support_request_id?: string | null;
           organization_id?: string;
           applicant_profile_id?: string;
+          submitted_by?: string | null;
           proposed_contribution?: string;
+          offered_support?: string | null;
           capabilities_summary?: string;
+          proposal?: string | null;
           estimated_value?: number | null;
+          offered_amount?: number | null;
           timeline?: string | null;
+          estimated_timeline?: string | null;
           terms_or_conditions?: string | null;
+          conditions?: string | null;
           status?: ApplicationStatus;
           review_notes?: string | null;
           reviewed_by?: string | null;
