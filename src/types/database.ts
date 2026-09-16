@@ -1462,6 +1462,9 @@ export interface Database {
             | "PILOT_READY"
             | "PILOT_ACTIVE"
             | "VALIDATION"
+            | "DEPLOYMENT_READY"
+            | "DEPLOYMENT_ACTIVE"
+            | "IMPACT_MONITORING"
             | "COMPLETED";
           created_by: string;
           created_at: string;
@@ -1485,6 +1488,9 @@ export interface Database {
             | "PILOT_READY"
             | "PILOT_ACTIVE"
             | "VALIDATION"
+            | "DEPLOYMENT_READY"
+            | "DEPLOYMENT_ACTIVE"
+            | "IMPACT_MONITORING"
             | "COMPLETED";
           created_by: string;
           created_at?: string;
@@ -1508,6 +1514,9 @@ export interface Database {
             | "PILOT_READY"
             | "PILOT_ACTIVE"
             | "VALIDATION"
+            | "DEPLOYMENT_READY"
+            | "DEPLOYMENT_ACTIVE"
+            | "IMPACT_MONITORING"
             | "COMPLETED";
           created_by?: string;
           created_at?: string;
@@ -1795,7 +1804,26 @@ export interface Database {
             | "PILOT_MILESTONE_UPDATED"
             | "PILOT_EVIDENCE_ADDED"
             | "PILOT_BLOCKER_REPORTED"
-            | "PILOT_BLOCKER_RESOLVED";
+            | "PILOT_BLOCKER_RESOLVED"
+            | "VALIDATION_DRAFT_SAVED"
+            | "VALIDATION_SUBMITTED"
+            | "VALIDATION_REVIEW_STARTED"
+            | "VALIDATION_REVISION_REQUESTED"
+            | "VALIDATION_RESUBMITTED"
+            | "VALIDATION_APPROVED"
+            | "VALIDATION_REJECTED"
+            | "DEPLOYMENT_PLAN_CREATED"
+            | "DEPLOYMENT_PLAN_UPDATED"
+            | "DEPLOYMENT_PLAN_SUBMITTED"
+            | "DEPLOYMENT_REVIEW_STARTED"
+            | "DEPLOYMENT_REVISION_REQUESTED"
+            | "DEPLOYMENT_RESUBMITTED"
+            | "DEPLOYMENT_APPROVED"
+            | "DEPLOYMENT_REJECTED"
+            | "DEPLOYMENT_STARTED"
+            | "IMPACT_REPORT_SUBMITTED"
+            | "IMPACT_REPORT_ACKNOWLEDGED"
+            | "IMPACT_METRIC_UPDATED";
           description: string;
           metadata: Json;
           created_at: string;
@@ -1856,7 +1884,26 @@ export interface Database {
             | "PILOT_MILESTONE_UPDATED"
             | "PILOT_EVIDENCE_ADDED"
             | "PILOT_BLOCKER_REPORTED"
-            | "PILOT_BLOCKER_RESOLVED";
+            | "PILOT_BLOCKER_RESOLVED"
+            | "VALIDATION_DRAFT_SAVED"
+            | "VALIDATION_SUBMITTED"
+            | "VALIDATION_REVIEW_STARTED"
+            | "VALIDATION_REVISION_REQUESTED"
+            | "VALIDATION_RESUBMITTED"
+            | "VALIDATION_APPROVED"
+            | "VALIDATION_REJECTED"
+            | "DEPLOYMENT_PLAN_CREATED"
+            | "DEPLOYMENT_PLAN_UPDATED"
+            | "DEPLOYMENT_PLAN_SUBMITTED"
+            | "DEPLOYMENT_REVIEW_STARTED"
+            | "DEPLOYMENT_REVISION_REQUESTED"
+            | "DEPLOYMENT_RESUBMITTED"
+            | "DEPLOYMENT_APPROVED"
+            | "DEPLOYMENT_REJECTED"
+            | "DEPLOYMENT_STARTED"
+            | "IMPACT_REPORT_SUBMITTED"
+            | "IMPACT_REPORT_ACKNOWLEDGED"
+            | "IMPACT_METRIC_UPDATED";
           description: string;
           metadata?: Json;
           created_at?: string;
@@ -1917,7 +1964,26 @@ export interface Database {
             | "PILOT_MILESTONE_UPDATED"
             | "PILOT_EVIDENCE_ADDED"
             | "PILOT_BLOCKER_REPORTED"
-            | "PILOT_BLOCKER_RESOLVED";
+            | "PILOT_BLOCKER_RESOLVED"
+            | "VALIDATION_DRAFT_SAVED"
+            | "VALIDATION_SUBMITTED"
+            | "VALIDATION_REVIEW_STARTED"
+            | "VALIDATION_REVISION_REQUESTED"
+            | "VALIDATION_RESUBMITTED"
+            | "VALIDATION_APPROVED"
+            | "VALIDATION_REJECTED"
+            | "DEPLOYMENT_PLAN_CREATED"
+            | "DEPLOYMENT_PLAN_UPDATED"
+            | "DEPLOYMENT_PLAN_SUBMITTED"
+            | "DEPLOYMENT_REVIEW_STARTED"
+            | "DEPLOYMENT_REVISION_REQUESTED"
+            | "DEPLOYMENT_RESUBMITTED"
+            | "DEPLOYMENT_APPROVED"
+            | "DEPLOYMENT_REJECTED"
+            | "DEPLOYMENT_STARTED"
+            | "IMPACT_REPORT_SUBMITTED"
+            | "IMPACT_REPORT_ACKNOWLEDGED"
+            | "IMPACT_METRIC_UPDATED";
           description?: string;
           metadata?: Json;
           created_at?: string;
@@ -3405,6 +3471,455 @@ export interface Database {
           },
         ];
       };
+      deployment_plans: {
+        Row: {
+          id: string;
+          project_id: string;
+          pilot_plan_id: string;
+          validation_id: string;
+          challenge_id: string;
+          institution_id: string;
+          created_by: string;
+          version: number;
+          status: string;
+          deployment_decision: string | null;
+          title: string;
+          summary: string;
+          deployment_scope: string;
+          target_geography: string;
+          target_population: string;
+          scale_multiplier: string | null;
+          deployment_phases: Json;
+          technical_readiness: string;
+          operational_readiness: string;
+          funding_requirements: string | null;
+          hardware_requirements: string | null;
+          technology_requirements: string | null;
+          human_resource_requirements: string | null;
+          infrastructure_requirements: string | null;
+          training_plan: string | null;
+          maintenance_plan: string | null;
+          risk_management_plan: string;
+          planned_start_date: string;
+          planned_end_date: string;
+          estimated_duration_days: number;
+          deployment_started_at: string | null;
+          deployment_completed_at: string | null;
+          submitted_by: string | null;
+          submitted_at: string | null;
+          reviewed_by: string | null;
+          reviewed_at: string | null;
+          review_feedback: string | null;
+          revision_requested_at: string | null;
+          approved_by: string | null;
+          approved_at: string | null;
+          approval_notes: string | null;
+          rejected_by: string | null;
+          rejected_at: string | null;
+          rejection_reason: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          project_id: string;
+          pilot_plan_id: string;
+          validation_id: string;
+          challenge_id: string;
+          institution_id: string;
+          created_by: string;
+          version?: number;
+          status?: string;
+          deployment_decision?: string | null;
+          title: string;
+          summary: string;
+          deployment_scope: string;
+          target_geography: string;
+          target_population: string;
+          scale_multiplier?: string | null;
+          deployment_phases?: Json;
+          technical_readiness: string;
+          operational_readiness: string;
+          funding_requirements?: string | null;
+          hardware_requirements?: string | null;
+          technology_requirements?: string | null;
+          human_resource_requirements?: string | null;
+          infrastructure_requirements?: string | null;
+          training_plan?: string | null;
+          maintenance_plan?: string | null;
+          risk_management_plan: string;
+          planned_start_date: string;
+          planned_end_date: string;
+          estimated_duration_days?: number;
+          deployment_started_at?: string | null;
+          deployment_completed_at?: string | null;
+          submitted_by?: string | null;
+          submitted_at?: string | null;
+          reviewed_by?: string | null;
+          reviewed_at?: string | null;
+          review_feedback?: string | null;
+          revision_requested_at?: string | null;
+          approved_by?: string | null;
+          approved_at?: string | null;
+          approval_notes?: string | null;
+          rejected_by?: string | null;
+          rejected_at?: string | null;
+          rejection_reason?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          project_id?: string;
+          pilot_plan_id?: string;
+          validation_id?: string;
+          challenge_id?: string;
+          institution_id?: string;
+          created_by?: string;
+          version?: number;
+          status?: string;
+          deployment_decision?: string | null;
+          title?: string;
+          summary?: string;
+          deployment_scope?: string;
+          target_geography?: string;
+          target_population?: string;
+          scale_multiplier?: string | null;
+          deployment_phases?: Json;
+          technical_readiness?: string;
+          operational_readiness?: string;
+          funding_requirements?: string | null;
+          hardware_requirements?: string | null;
+          technology_requirements?: string | null;
+          human_resource_requirements?: string | null;
+          infrastructure_requirements?: string | null;
+          training_plan?: string | null;
+          maintenance_plan?: string | null;
+          risk_management_plan?: string;
+          planned_start_date?: string;
+          planned_end_date?: string;
+          estimated_duration_days?: number;
+          deployment_started_at?: string | null;
+          deployment_completed_at?: string | null;
+          submitted_by?: string | null;
+          submitted_at?: string | null;
+          reviewed_by?: string | null;
+          reviewed_at?: string | null;
+          review_feedback?: string | null;
+          revision_requested_at?: string | null;
+          approved_by?: string | null;
+          approved_at?: string | null;
+          approval_notes?: string | null;
+          rejected_by?: string | null;
+          rejected_at?: string | null;
+          rejection_reason?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "deployment_plans_challenge_id_fkey";
+            columns: ["challenge_id"];
+            isOneToOne: false;
+            referencedRelation: "innovation_challenges";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "deployment_plans_institution_id_fkey";
+            columns: ["institution_id"];
+            isOneToOne: false;
+            referencedRelation: "institutions";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "deployment_plans_pilot_plan_id_fkey";
+            columns: ["pilot_plan_id"];
+            isOneToOne: false;
+            referencedRelation: "pilot_plans";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "deployment_plans_project_id_fkey";
+            columns: ["project_id"];
+            isOneToOne: false;
+            referencedRelation: "challenge_projects";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "deployment_plans_validation_id_fkey";
+            columns: ["validation_id"];
+            isOneToOne: false;
+            referencedRelation: "pilot_validation_results";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      deployment_impact_metrics: {
+        Row: {
+          id: string;
+          deployment_plan_id: string;
+          project_id: string;
+          metric_name: string;
+          description: string | null;
+          unit: string | null;
+          baseline_value: string;
+          target_value: string;
+          observed_value: string;
+          measurement_period: string | null;
+          measurement_method: string | null;
+          data_source: string | null;
+          evidence_ids: Json;
+          status: string;
+          notes: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          deployment_plan_id: string;
+          project_id: string;
+          metric_name: string;
+          description?: string | null;
+          unit?: string | null;
+          baseline_value: string;
+          target_value: string;
+          observed_value?: string;
+          measurement_period?: string | null;
+          measurement_method?: string | null;
+          data_source?: string | null;
+          evidence_ids?: Json;
+          status?: string;
+          notes?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          deployment_plan_id?: string;
+          project_id?: string;
+          metric_name?: string;
+          description?: string | null;
+          unit?: string | null;
+          baseline_value?: string;
+          target_value?: string;
+          observed_value?: string;
+          measurement_period?: string | null;
+          measurement_method?: string | null;
+          data_source?: string | null;
+          evidence_ids?: Json;
+          status?: string;
+          notes?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "deployment_impact_metrics_deployment_plan_id_fkey";
+            columns: ["deployment_plan_id"];
+            isOneToOne: false;
+            referencedRelation: "deployment_plans";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "deployment_impact_metrics_project_id_fkey";
+            columns: ["project_id"];
+            isOneToOne: false;
+            referencedRelation: "challenge_projects";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      deployment_impact_reports: {
+        Row: {
+          id: string;
+          deployment_plan_id: string;
+          project_id: string;
+          reporting_period: string;
+          period_start_date: string;
+          period_end_date: string;
+          key_findings: string;
+          deployment_progress_summary: string;
+          metric_measurements: Json;
+          unexpected_effects: string | null;
+          emerging_risks: string | null;
+          corrective_actions: string | null;
+          next_steps: string | null;
+          evidence_ids: Json;
+          submitted_by: string | null;
+          submitted_at: string;
+          acknowledged_by: string | null;
+          acknowledged_at: string | null;
+          acknowledgement_notes: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          deployment_plan_id: string;
+          project_id: string;
+          reporting_period: string;
+          period_start_date: string;
+          period_end_date: string;
+          key_findings: string;
+          deployment_progress_summary: string;
+          metric_measurements?: Json;
+          unexpected_effects?: string | null;
+          emerging_risks?: string | null;
+          corrective_actions?: string | null;
+          next_steps?: string | null;
+          evidence_ids?: Json;
+          submitted_by?: string | null;
+          submitted_at?: string;
+          acknowledged_by?: string | null;
+          acknowledged_at?: string | null;
+          acknowledgement_notes?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          deployment_plan_id?: string;
+          project_id?: string;
+          reporting_period?: string;
+          period_start_date?: string;
+          period_end_date?: string;
+          key_findings?: string;
+          deployment_progress_summary?: string;
+          metric_measurements?: Json;
+          unexpected_effects?: string | null;
+          emerging_risks?: string | null;
+          corrective_actions?: string | null;
+          next_steps?: string | null;
+          evidence_ids?: Json;
+          submitted_by?: string | null;
+          submitted_at?: string;
+          acknowledged_by?: string | null;
+          acknowledged_at?: string | null;
+          acknowledgement_notes?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "deployment_impact_reports_deployment_plan_id_fkey";
+            columns: ["deployment_plan_id"];
+            isOneToOne: false;
+            referencedRelation: "deployment_plans";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "deployment_impact_reports_project_id_fkey";
+            columns: ["project_id"];
+            isOneToOne: false;
+            referencedRelation: "challenge_projects";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      deployment_plan_revisions: {
+        Row: {
+          id: string;
+          deployment_plan_id: string;
+          version: number;
+          title: string;
+          summary: string;
+          deployment_scope: string;
+          target_geography: string;
+          target_population: string;
+          scale_multiplier: string | null;
+          deployment_phases: Json;
+          technical_readiness: string;
+          operational_readiness: string;
+          funding_requirements: string | null;
+          hardware_requirements: string | null;
+          technology_requirements: string | null;
+          human_resource_requirements: string | null;
+          infrastructure_requirements: string | null;
+          training_plan: string | null;
+          maintenance_plan: string | null;
+          risk_management_plan: string;
+          impact_metrics_snapshot: Json;
+          status: string;
+          deployment_decision: string | null;
+          submitted_by: string | null;
+          submitted_at: string | null;
+          reviewed_by: string | null;
+          reviewed_at: string | null;
+          review_feedback: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          deployment_plan_id: string;
+          version: number;
+          title: string;
+          summary: string;
+          deployment_scope: string;
+          target_geography: string;
+          target_population: string;
+          scale_multiplier?: string | null;
+          deployment_phases?: Json;
+          technical_readiness: string;
+          operational_readiness: string;
+          funding_requirements?: string | null;
+          hardware_requirements?: string | null;
+          technology_requirements?: string | null;
+          human_resource_requirements?: string | null;
+          infrastructure_requirements?: string | null;
+          training_plan?: string | null;
+          maintenance_plan?: string | null;
+          risk_management_plan: string;
+          impact_metrics_snapshot?: Json;
+          status: string;
+          deployment_decision?: string | null;
+          submitted_by?: string | null;
+          submitted_at?: string | null;
+          reviewed_by?: string | null;
+          reviewed_at?: string | null;
+          review_feedback?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          deployment_plan_id?: string;
+          version?: number;
+          title?: string;
+          summary?: string;
+          deployment_scope?: string;
+          target_geography?: string;
+          target_population?: string;
+          scale_multiplier?: string | null;
+          deployment_phases?: Json;
+          technical_readiness?: string;
+          operational_readiness?: string;
+          funding_requirements?: string | null;
+          hardware_requirements?: string | null;
+          technology_requirements?: string | null;
+          human_resource_requirements?: string | null;
+          infrastructure_requirements?: string | null;
+          training_plan?: string | null;
+          maintenance_plan?: string | null;
+          risk_management_plan?: string;
+          impact_metrics_snapshot?: Json;
+          status?: string;
+          deployment_decision?: string | null;
+          submitted_by?: string | null;
+          submitted_at?: string | null;
+          reviewed_by?: string | null;
+          reviewed_at?: string | null;
+          review_feedback?: string | null;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "deployment_plan_revisions_deployment_plan_id_fkey";
+            columns: ["deployment_plan_id"];
+            isOneToOne: false;
+            referencedRelation: "deployment_plans";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
     };
     Views: Record<string, never>;
     Functions: Record<string, never>;
@@ -3564,6 +4079,9 @@ export type ResearchStage =
   | "PILOT_READY"
   | "PILOT_ACTIVE"
   | "VALIDATION"
+  | "DEPLOYMENT_READY"
+  | "DEPLOYMENT_ACTIVE"
+  | "IMPACT_MONITORING"
   | "COMPLETED";
 
 export type EvidenceType =
@@ -3724,6 +4242,54 @@ export type PilotValidationKPIResultUpdate = Database["public"]["Tables"]["pilot
 export type PilotValidationRevisionRow = Database["public"]["Tables"]["pilot_validation_revisions"]["Row"];
 export type PilotValidationRevisionInsert = Database["public"]["Tables"]["pilot_validation_revisions"]["Insert"];
 export type PilotValidationRevisionUpdate = Database["public"]["Tables"]["pilot_validation_revisions"]["Update"];
+
+export type DeploymentPlanStatus =
+  | "DRAFT"
+  | "SUBMITTED"
+  | "UNDER_REVIEW"
+  | "REQUESTED_REVISION"
+  | "RESUBMITTED"
+  | "APPROVED"
+  | "REJECTED";
+
+export type DeploymentDecision =
+  | "PENDING_REVIEW"
+  | "APPROVED_FOR_SCALE_UP"
+  | "REQUESTED_REVISION"
+  | "NOT_READY"
+  | "REJECTED";
+
+export type ImpactMetricStatus =
+  | "PENDING"
+  | "ON_TRACK"
+  | "SURPASSED"
+  | "BELOW_TARGET"
+  | "INCONCLUSIVE";
+
+export interface DeploymentPhaseItem {
+  id: string;
+  phase_name: string;
+  target_timeline: string;
+  description: string;
+  key_milestones: string;
+}
+
+export type DeploymentPlanRow = Database["public"]["Tables"]["deployment_plans"]["Row"];
+export type DeploymentPlanInsert = Database["public"]["Tables"]["deployment_plans"]["Insert"];
+export type DeploymentPlanUpdate = Database["public"]["Tables"]["deployment_plans"]["Update"];
+
+export type DeploymentImpactMetricRow = Database["public"]["Tables"]["deployment_impact_metrics"]["Row"];
+export type DeploymentImpactMetricInsert = Database["public"]["Tables"]["deployment_impact_metrics"]["Insert"];
+export type DeploymentImpactMetricUpdate = Database["public"]["Tables"]["deployment_impact_metrics"]["Update"];
+
+export type DeploymentImpactReportRow = Database["public"]["Tables"]["deployment_impact_reports"]["Row"];
+export type DeploymentImpactReportInsert = Database["public"]["Tables"]["deployment_impact_reports"]["Insert"];
+export type DeploymentImpactReportUpdate = Database["public"]["Tables"]["deployment_impact_reports"]["Update"];
+
+export type DeploymentPlanRevisionRow = Database["public"]["Tables"]["deployment_plan_revisions"]["Row"];
+export type DeploymentPlanRevisionInsert = Database["public"]["Tables"]["deployment_plan_revisions"]["Insert"];
+export type DeploymentPlanRevisionUpdate = Database["public"]["Tables"]["deployment_plan_revisions"]["Update"];
+
 
 
 

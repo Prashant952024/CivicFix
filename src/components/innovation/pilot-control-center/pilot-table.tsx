@@ -145,7 +145,30 @@ export function PilotTable({ pilots, onSelectPilot }: PilotTableProps) {
                   {/* Governance Status */}
                   <td className="py-3 px-4">
                     <div className="space-y-1">
-                      {pilot.project?.research_stage === "VALIDATION" ? (
+                      {pilot.project?.research_stage === "IMPACT_MONITORING" ? (
+                        <Badge
+                          variant="info"
+                          className="text-[10px] uppercase font-bold tracking-wide flex items-center gap-1 bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 border-cyan-500/20"
+                        >
+                          <Sparkles className="h-2.5 w-2.5" />
+                          IMPACT MONITORING
+                        </Badge>
+                      ) : pilot.project?.research_stage === "DEPLOYMENT_ACTIVE" ? (
+                        <Badge
+                          variant="emerald"
+                          className="text-[10px] uppercase font-bold tracking-wide flex items-center gap-1 bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20"
+                        >
+                          <Radio className="h-2.5 w-2.5 animate-pulse" />
+                          DEPLOYMENT ACTIVE
+                        </Badge>
+                      ) : pilot.project?.research_stage === "DEPLOYMENT_READY" ? (
+                        <Badge
+                          variant="teal"
+                          className="text-[10px] uppercase font-bold tracking-wide"
+                        >
+                          DEPLOYMENT READY
+                        </Badge>
+                      ) : pilot.project?.research_stage === "VALIDATION" ? (
                         <Badge
                           variant="info"
                           className="text-[10px] uppercase font-bold tracking-wide flex items-center gap-1 bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-500/20"

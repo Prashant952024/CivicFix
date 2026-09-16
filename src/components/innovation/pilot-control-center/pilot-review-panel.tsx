@@ -100,7 +100,7 @@ export function PilotReviewPanel({
   const [rejectModalOpen, setRejectModalOpen] = useState(false);
   const [rejectionReason, setRejectionReason] = useState("");
 
-  const isPilotActiveOrValidating = ["PILOT_ACTIVE", "VALIDATION", "COMPLETED"].includes(pilot.project?.research_stage || "");
+  const isPilotActiveOrValidating = ["PILOT_ACTIVE", "VALIDATION", "DEPLOYMENT_READY", "DEPLOYMENT_ACTIVE", "IMPACT_MONITORING", "COMPLETED"].includes(pilot.project?.research_stage || "");
 
   const loadExecData = async () => {
     if (isPilotActiveOrValidating) {

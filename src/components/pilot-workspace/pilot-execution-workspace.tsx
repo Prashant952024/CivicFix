@@ -56,12 +56,19 @@ import { PilotActivity } from "@/components/pilot-workspace/pilot-activity";
 import { PilotPlanSummary } from "@/components/pilot-workspace/pilot-plan-summary";
 import { PilotSupportSummary } from "@/components/pilot-workspace/pilot-support-summary";
 import { PilotValidationWorkspace } from "@/components/pilot-workspace/validation/pilot-validation-workspace";
+import { PilotDeploymentWorkspace } from "@/components/pilot-workspace/deployment/pilot-deployment-workspace";
 import {
   fetchPilotValidationByProjectId,
   fetchPilotValidationReadiness,
   type PilotValidationWithDetails,
   type PilotValidationReadiness,
 } from "@/lib/pilot-validation";
+import {
+  fetchDeploymentByProjectId,
+  fetchDeploymentReadiness,
+  type DeploymentPlanWithDetails,
+  type DeploymentReadinessStatus,
+} from "@/lib/deployment-impact";
 import {
   addPilotEvidence,
   acknowledgePilotProgressUpdate,
@@ -92,31 +99,47 @@ export function PilotExecutionWorkspace({
     executionData;
 
   const [activeTab, setActiveTab] = useState<
-    "updates" | "milestones" | "evidence" | "blockers" | "partners" | "validation" | "plan_reference" | "activity"
-  >(project.research_stage === "VALIDATION" ? "validation" : "updates");
+    "updates" | "milestones" | "evidence" | "blockers" | "partners" | "validation" | "deployment" | "plan_reference" | "activity"
+  >(
+    ["DEPLOYMENT_READY", "DEPLOYMENT_ACTIVE", "IMPACT_MONITORING"].includes(project.research_stage)
+      ? "deployment"
+      : project.research_stage === "VALIDATION"
+      ? "validation"
+      : "updates"
+  );
 
   const [validationData, setValidationData] = useState<PilotValidationWithDetails | null>(null);
   const [valReadiness, setValReadiness] = useState<PilotValidationReadiness | null>(null);
   const [valLoading, setValLoading] = useState(false);
 
-  const loadValidation = async () => {
+  const [deploymentData, setDeploymentData] = useState<DeploymentPlanWithDetails | null>(null);
+  const [deployReadiness, setDeployReadiness] = useState<DeploymentReadinessStatus | null>(null);
+  const [deployLoading, setDeployLoading] = useState(false);
+
+  const loadValidationAndDeployment = async () => {
     try {
       setValLoading(true);
-      const [vData, vReadiness] = await Promise.all([
+      setDeployLoading(true);
+      const [vData, vReadiness, dData, dReadiness] = await Promise.all([
         fetchPilotValidationByProjectId(project.id),
         fetchPilotValidationReadiness(project.id),
+        fetchDeploymentByProjectId(project.id),
+        fetchDeploymentReadiness(project.id),
       ]);
       setValidationData(vData);
       setValReadiness(vReadiness);
+      setDeploymentData(dData);
+      setDeployReadiness(dReadiness);
     } catch (err) {
-      console.error("Failed to load validation:", err);
+      console.error("Failed to load validation or deployment:", err);
     } finally {
       setValLoading(false);
+      setDeployLoading(false);
     }
   };
 
   React.useEffect(() => {
-    void loadValidation();
+    void loadValidationAndDeployment();
   }, [project.id]);
 
   // Modals
@@ -550,6 +573,7 @@ export function PilotExecutionWorkspace({
           { id: "blockers", label: "Risks & Blockers", count: blockers.length },
           { id: "partners", label: "Supporting Partners", count: supportPartners.length },
           { id: "validation", label: "Validation & Results", status: validationData?.status },
+          { id: "deployment", label: "Deployment & Impact", status: deploymentData?.status },
           { id: "plan_reference", label: "Approved Plan Reference" },
           { id: "activity", label: "Activity Trail", count: activity.length },
         ].map((tab) => (
@@ -999,7 +1023,7 @@ export function PilotExecutionWorkspace({
               validation={validationData}
               readiness={valReadiness}
               onRefresh={async () => {
-                await loadValidation();
+                await loadValidationAndDeployment();
                 await onRefresh();
               }}
               isManager={isManager}
@@ -1007,6 +1031,34 @@ export function PilotExecutionWorkspace({
           ) : (
             <div className="p-8 text-center text-xs text-muted-foreground">
               Failed to load validation dossier.
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* TAB: Deployment & Impact */}
+      {activeTab === "deployment" && (
+        <div>
+          {deployLoading && !deploymentData ? (
+            <div className="flex flex-col items-center justify-center py-16 text-muted-foreground gap-3">
+              <Loader2 className="h-6 w-6 animate-spin text-primary" />
+              <p className="text-xs">Loading scale-up & deployment dossier...</p>
+            </div>
+          ) : deploymentData && deployReadiness ? (
+            <PilotDeploymentWorkspace
+              project={project}
+              deployment={deploymentData}
+              readiness={deployReadiness}
+              onRefresh={async () => {
+                await loadValidationAndDeployment();
+                await onRefresh();
+              }}
+              isManager={isManager}
+              onNavigateToValidation={() => setActiveTab("validation")}
+            />
+          ) : (
+            <div className="p-8 text-center text-xs text-muted-foreground">
+              Failed to load scale-up and deployment dossier.
             </div>
           )}
         </div>

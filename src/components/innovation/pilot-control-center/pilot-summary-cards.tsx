@@ -34,11 +34,13 @@ export function PilotSummaryCards({
   const activePilots = pilots.filter(
     (p) => p.project?.research_stage === "PILOT_ACTIVE"
   ).length;
-  const approvedReady = pilots.filter(
-    (p) => p.status === "APPROVED" && p.project?.research_stage === "PILOT_READY"
-  ).length;
   const inValidation = pilots.filter(
     (p) => p.project?.research_stage === "VALIDATION"
+  ).length;
+  const inDeployment = pilots.filter((p) =>
+    ["DEPLOYMENT_READY", "DEPLOYMENT_ACTIVE", "IMPACT_MONITORING"].includes(
+      p.project?.research_stage || ""
+    )
   ).length;
   const revisionRequested = pilots.filter(
     (p) => p.status === "REQUESTED_REVISION"
@@ -73,22 +75,22 @@ export function PilotSummaryCards({
       border: "border-purple-500/20",
     },
     {
-      id: "PILOT_READY",
-      label: "Approved (Ready)",
-      count: approvedReady,
+      id: "DEPLOYMENT_ACTIVE",
+      label: "Scale-Up / Deployment",
+      count: inDeployment,
       icon: Rocket,
-      color: "text-primary",
-      bg: "bg-primary/5",
-      border: "border-primary/20",
+      color: "text-blue-500",
+      bg: "bg-blue-500/5",
+      border: "border-blue-500/20",
     },
     {
       id: "NEEDS_REVIEW",
       label: "Awaiting Review",
       count: needsReview,
       icon: Clock,
-      color: "text-blue-500",
-      bg: "bg-blue-500/5",
-      border: "border-blue-500/20",
+      color: "text-primary",
+      bg: "bg-primary/5",
+      border: "border-primary/20",
     },
     {
       id: "REQUESTED_REVISION",

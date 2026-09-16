@@ -64,9 +64,12 @@ export function PilotFilters({
           className="h-8 rounded-md border border-input bg-background px-2.5 text-xs shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
         >
           <option value="ALL">All Pilots & Statuses</option>
-          <option value="PILOT_ACTIVE">⚡ Active Pilots (Executing)</option>
+          <option value="DEPLOYMENT_ACTIVE">🚀 Deployment Active</option>
+          <option value="DEPLOYMENT_READY">📦 Deployment Ready</option>
+          <option value="IMPACT_MONITORING">📊 Impact Monitoring</option>
           <option value="VALIDATION">🔍 In Validation (Results Submitted)</option>
-          <option value="PILOT_READY">🚀 Pilot Ready (Approved)</option>
+          <option value="PILOT_ACTIVE">⚡ Active Pilots (Executing)</option>
+          <option value="PILOT_READY">🎯 Pilot Ready (Approved)</option>
           <option value="NEEDS_REVIEW">⏳ Awaiting Review (Submitted / Resubmitted)</option>
           <option value="REQUESTED_REVISION">⚠️ Revision Requested</option>
           <option value="APPROVED">✅ Approved</option>

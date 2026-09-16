@@ -31,7 +31,10 @@ const STAGE_LABELS: Record<ResearchStage, { label: string; step: number; color: 
   PILOT_READY: { label: "5. Field Pilot Preparation", step: 5, color: "bg-amber-100 text-amber-900 border-amber-300" },
   PILOT_ACTIVE: { label: "6. Field Pilot Active", step: 6, color: "bg-purple-100 text-purple-900 border-purple-300" },
   VALIDATION: { label: "7. Field Validation", step: 7, color: "bg-emerald-100 text-emerald-900 border-emerald-300" },
-  COMPLETED: { label: "8. Solution Completed", step: 8, color: "bg-emerald-200 text-emerald-950 border-emerald-400" },
+  DEPLOYMENT_READY: { label: "8. Scale-Up Ready", step: 8, color: "bg-teal-100 text-teal-900 border-teal-300" },
+  DEPLOYMENT_ACTIVE: { label: "9. Large-Scale Deployment", step: 9, color: "bg-blue-100 text-blue-900 border-blue-300" },
+  IMPACT_MONITORING: { label: "10. Impact Monitoring", step: 10, color: "bg-cyan-100 text-cyan-900 border-cyan-300" },
+  COMPLETED: { label: "11. Solution Completed", step: 11, color: "bg-emerald-200 text-emerald-950 border-emerald-400" },
 };
 
 export function ResearchOverviewStrip({

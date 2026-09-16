@@ -84,7 +84,7 @@ export function UniversityPilotWorkspace({
       setLoading(true);
       setFeedbackMsg(null);
       
-      const isPilotActive = ["PILOT_ACTIVE", "VALIDATION", "COMPLETED"].includes(project.research_stage);
+      const isPilotActive = ["PILOT_ACTIVE", "VALIDATION", "DEPLOYMENT_READY", "DEPLOYMENT_ACTIVE", "IMPACT_MONITORING", "COMPLETED"].includes(project.research_stage);
       if (isPilotActive) {
         const exec = await fetchPilotExecutionData(projectId);
         setExecutionData(exec);
