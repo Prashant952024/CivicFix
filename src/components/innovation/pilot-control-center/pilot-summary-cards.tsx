@@ -37,6 +37,9 @@ export function PilotSummaryCards({
   const approvedReady = pilots.filter(
     (p) => p.status === "APPROVED" && p.project?.research_stage === "PILOT_READY"
   ).length;
+  const inValidation = pilots.filter(
+    (p) => p.project?.research_stage === "VALIDATION"
+  ).length;
   const revisionRequested = pilots.filter(
     (p) => p.status === "REQUESTED_REVISION"
   ).length;
@@ -59,6 +62,15 @@ export function PilotSummaryCards({
       color: "text-emerald-500",
       bg: "bg-emerald-500/5",
       border: "border-emerald-500/20",
+    },
+    {
+      id: "VALIDATION",
+      label: "In Validation",
+      count: inValidation,
+      icon: CheckCircle2,
+      color: "text-purple-500",
+      bg: "bg-purple-500/5",
+      border: "border-purple-500/20",
     },
     {
       id: "PILOT_READY",
@@ -90,7 +102,7 @@ export function PilotSummaryCards({
   ];
 
   return (
-    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
       {cards.map((c) => {
         const Icon = c.icon;
         const isSelected = selectedStatus === c.id;

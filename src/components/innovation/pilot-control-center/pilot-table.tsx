@@ -145,7 +145,15 @@ export function PilotTable({ pilots, onSelectPilot }: PilotTableProps) {
                   {/* Governance Status */}
                   <td className="py-3 px-4">
                     <div className="space-y-1">
-                      {pilot.project?.research_stage === "PILOT_ACTIVE" ? (
+                      {pilot.project?.research_stage === "VALIDATION" ? (
+                        <Badge
+                          variant="info"
+                          className="text-[10px] uppercase font-bold tracking-wide flex items-center gap-1 bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-500/20"
+                        >
+                          <FileCheck className="h-2.5 w-2.5" />
+                          IN VALIDATION
+                        </Badge>
+                      ) : pilot.project?.research_stage === "PILOT_ACTIVE" ? (
                         <Badge
                           variant="emerald"
                           className="text-[10px] uppercase font-bold tracking-wide flex items-center gap-1"
@@ -193,11 +201,13 @@ export function PilotTable({ pilots, onSelectPilot }: PilotTableProps) {
                   <td className="py-3 px-4 text-right">
                     <Button
                       size="sm"
-                      variant={isActionable ? "default" : "outline"}
+                      variant={isActionable || pilot.project?.research_stage === "VALIDATION" ? "default" : "outline"}
                       onClick={() => onSelectPilot(pilot)}
                       className="text-xs h-7 gap-1 font-semibold"
                     >
-                      {pilot.project?.research_stage === "PILOT_ACTIVE"
+                      {pilot.project?.research_stage === "VALIDATION"
+                        ? "Review Validation"
+                        : pilot.project?.research_stage === "PILOT_ACTIVE"
                         ? "Monitor Execution"
                         : isActionable
                         ? "Review Plan"

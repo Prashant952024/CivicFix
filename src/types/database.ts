@@ -3144,6 +3144,267 @@ export interface Database {
           },
         ];
       };
+      pilot_validation_results: {
+        Row: {
+          id: string;
+          pilot_plan_id: string;
+          project_id: string;
+          challenge_id: string;
+          institution_id: string;
+          version: number;
+          status: "DRAFT" | "SUBMITTED" | "UNDER_REVIEW" | "REQUESTED_REVISION" | "RESUBMITTED" | "APPROVED" | "REJECTED";
+          overall_summary: string;
+          observed_outcomes: string;
+          deviations: Json;
+          lessons_learned: string;
+          limitations: string | null;
+          recommendations: string | null;
+          university_interpretation: string | null;
+          final_outcome: "MEETS_SUCCESS_CRITERIA" | "PARTIALLY_MEETS_SUCCESS_CRITERIA" | "DOES_NOT_MEET_SUCCESS_CRITERIA" | "INCONCLUSIVE" | null;
+          submitted_by: string | null;
+          submitted_at: string | null;
+          reviewed_by: string | null;
+          reviewed_at: string | null;
+          review_feedback: string | null;
+          revision_requested_at: string | null;
+          approved_at: string | null;
+          approved_by: string | null;
+          approval_notes: string | null;
+          rejected_at: string | null;
+          rejected_by: string | null;
+          rejection_reason: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          pilot_plan_id: string;
+          project_id: string;
+          challenge_id: string;
+          institution_id: string;
+          version?: number;
+          status?: "DRAFT" | "SUBMITTED" | "UNDER_REVIEW" | "REQUESTED_REVISION" | "RESUBMITTED" | "APPROVED" | "REJECTED";
+          overall_summary: string;
+          observed_outcomes: string;
+          deviations?: Json;
+          lessons_learned: string;
+          limitations?: string | null;
+          recommendations?: string | null;
+          university_interpretation?: string | null;
+          final_outcome?: "MEETS_SUCCESS_CRITERIA" | "PARTIALLY_MEETS_SUCCESS_CRITERIA" | "DOES_NOT_MEET_SUCCESS_CRITERIA" | "INCONCLUSIVE" | null;
+          submitted_by?: string | null;
+          submitted_at?: string | null;
+          reviewed_by?: string | null;
+          reviewed_at?: string | null;
+          review_feedback?: string | null;
+          revision_requested_at?: string | null;
+          approved_at?: string | null;
+          approved_by?: string | null;
+          approval_notes?: string | null;
+          rejected_at?: string | null;
+          rejected_by?: string | null;
+          rejection_reason?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          pilot_plan_id?: string;
+          project_id?: string;
+          challenge_id?: string;
+          institution_id?: string;
+          version?: number;
+          status?: "DRAFT" | "SUBMITTED" | "UNDER_REVIEW" | "REQUESTED_REVISION" | "RESUBMITTED" | "APPROVED" | "REJECTED";
+          overall_summary?: string;
+          observed_outcomes?: string;
+          deviations?: Json;
+          lessons_learned?: string;
+          limitations?: string | null;
+          recommendations?: string | null;
+          university_interpretation?: string | null;
+          final_outcome?: "MEETS_SUCCESS_CRITERIA" | "PARTIALLY_MEETS_SUCCESS_CRITERIA" | "DOES_NOT_MEET_SUCCESS_CRITERIA" | "INCONCLUSIVE" | null;
+          submitted_by?: string | null;
+          submitted_at?: string | null;
+          reviewed_by?: string | null;
+          reviewed_at?: string | null;
+          review_feedback?: string | null;
+          revision_requested_at?: string | null;
+          approved_at?: string | null;
+          approved_by?: string | null;
+          approval_notes?: string | null;
+          rejected_at?: string | null;
+          rejected_by?: string | null;
+          rejection_reason?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "pilot_validation_results_pilot_plan_id_fkey";
+            columns: ["pilot_plan_id"];
+            isOneToOne: false;
+            referencedRelation: "pilot_plans";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "pilot_validation_results_project_id_fkey";
+            columns: ["project_id"];
+            isOneToOne: true;
+            referencedRelation: "challenge_projects";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "pilot_validation_results_challenge_id_fkey";
+            columns: ["challenge_id"];
+            isOneToOne: false;
+            referencedRelation: "innovation_challenges";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "pilot_validation_results_institution_id_fkey";
+            columns: ["institution_id"];
+            isOneToOne: false;
+            referencedRelation: "institutions";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      pilot_validation_kpi_results: {
+        Row: {
+          id: string;
+          validation_id: string;
+          kpi_id: string;
+          kpi_name: string;
+          description: string | null;
+          unit: string | null;
+          baseline_value: string;
+          target_value: string;
+          observed_value: string;
+          measurement_method: string | null;
+          measurement_period: string | null;
+          achievement_status: "ACHIEVED" | "PARTIALLY_ACHIEVED" | "NOT_ACHIEVED" | "INCONCLUSIVE";
+          evidence_ids: Json;
+          notes: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          validation_id: string;
+          kpi_id: string;
+          kpi_name: string;
+          description?: string | null;
+          unit?: string | null;
+          baseline_value: string;
+          target_value: string;
+          observed_value: string;
+          measurement_method?: string | null;
+          measurement_period?: string | null;
+          achievement_status?: "ACHIEVED" | "PARTIALLY_ACHIEVED" | "NOT_ACHIEVED" | "INCONCLUSIVE";
+          evidence_ids?: Json;
+          notes?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          validation_id?: string;
+          kpi_id?: string;
+          kpi_name?: string;
+          description?: string | null;
+          unit?: string | null;
+          baseline_value?: string;
+          target_value?: string;
+          observed_value?: string;
+          measurement_method?: string | null;
+          measurement_period?: string | null;
+          achievement_status?: "ACHIEVED" | "PARTIALLY_ACHIEVED" | "NOT_ACHIEVED" | "INCONCLUSIVE";
+          evidence_ids?: Json;
+          notes?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "pilot_validation_kpi_results_validation_id_fkey";
+            columns: ["validation_id"];
+            isOneToOne: false;
+            referencedRelation: "pilot_validation_results";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      pilot_validation_revisions: {
+        Row: {
+          id: string;
+          validation_id: string;
+          version: number;
+          overall_summary: string;
+          observed_outcomes: string;
+          deviations: Json;
+          lessons_learned: string;
+          limitations: string | null;
+          recommendations: string | null;
+          university_interpretation: string | null;
+          kpi_results_snapshot: Json;
+          status: string;
+          submitted_by: string | null;
+          submitted_at: string | null;
+          reviewed_by: string | null;
+          reviewed_at: string | null;
+          review_feedback: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          validation_id: string;
+          version: number;
+          overall_summary: string;
+          observed_outcomes: string;
+          deviations?: Json;
+          lessons_learned: string;
+          limitations?: string | null;
+          recommendations?: string | null;
+          university_interpretation?: string | null;
+          kpi_results_snapshot?: Json;
+          status: string;
+          submitted_by?: string | null;
+          submitted_at?: string | null;
+          reviewed_by?: string | null;
+          reviewed_at?: string | null;
+          review_feedback?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          validation_id?: string;
+          version?: number;
+          overall_summary?: string;
+          observed_outcomes?: string;
+          deviations?: Json;
+          lessons_learned?: string;
+          limitations?: string | null;
+          recommendations?: string | null;
+          university_interpretation?: string | null;
+          kpi_results_snapshot?: Json;
+          status?: string;
+          submitted_by?: string | null;
+          submitted_at?: string | null;
+          reviewed_by?: string | null;
+          reviewed_at?: string | null;
+          review_feedback?: string | null;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "pilot_validation_revisions_validation_id_fkey";
+            columns: ["validation_id"];
+            isOneToOne: false;
+            referencedRelation: "pilot_validation_results";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
     };
     Views: Record<string, never>;
     Functions: Record<string, never>;
@@ -3422,6 +3683,47 @@ export type PilotPlanUpdate = Database["public"]["Tables"]["pilot_plans"]["Updat
 export type PilotPlanRevisionRow = Database["public"]["Tables"]["pilot_plan_revisions"]["Row"];
 export type PilotPlanRevisionInsert = Database["public"]["Tables"]["pilot_plan_revisions"]["Insert"];
 export type PilotPlanRevisionUpdate = Database["public"]["Tables"]["pilot_plan_revisions"]["Update"];
+
+export type PilotValidationStatus =
+  | "DRAFT"
+  | "SUBMITTED"
+  | "UNDER_REVIEW"
+  | "REQUESTED_REVISION"
+  | "RESUBMITTED"
+  | "APPROVED"
+  | "REJECTED";
+
+export type PilotValidationOutcome =
+  | "MEETS_SUCCESS_CRITERIA"
+  | "PARTIALLY_MEETS_SUCCESS_CRITERIA"
+  | "DOES_NOT_MEET_SUCCESS_CRITERIA"
+  | "INCONCLUSIVE";
+
+export type PilotKPIAchievementStatus =
+  | "ACHIEVED"
+  | "PARTIALLY_ACHIEVED"
+  | "NOT_ACHIEVED"
+  | "INCONCLUSIVE";
+
+export interface PilotDeviationItem {
+  id: string;
+  deviation: string;
+  reason: string;
+  impact: string;
+  mitigation: string;
+}
+
+export type PilotValidationResultRow = Database["public"]["Tables"]["pilot_validation_results"]["Row"];
+export type PilotValidationResultInsert = Database["public"]["Tables"]["pilot_validation_results"]["Insert"];
+export type PilotValidationResultUpdate = Database["public"]["Tables"]["pilot_validation_results"]["Update"];
+
+export type PilotValidationKPIResultRow = Database["public"]["Tables"]["pilot_validation_kpi_results"]["Row"];
+export type PilotValidationKPIResultInsert = Database["public"]["Tables"]["pilot_validation_kpi_results"]["Insert"];
+export type PilotValidationKPIResultUpdate = Database["public"]["Tables"]["pilot_validation_kpi_results"]["Update"];
+
+export type PilotValidationRevisionRow = Database["public"]["Tables"]["pilot_validation_revisions"]["Row"];
+export type PilotValidationRevisionInsert = Database["public"]["Tables"]["pilot_validation_revisions"]["Insert"];
+export type PilotValidationRevisionUpdate = Database["public"]["Tables"]["pilot_validation_revisions"]["Update"];
 
 
 

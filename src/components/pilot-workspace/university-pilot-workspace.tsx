@@ -84,7 +84,7 @@ export function UniversityPilotWorkspace({
       setLoading(true);
       setFeedbackMsg(null);
       
-      const isPilotActive = project.research_stage === "PILOT_ACTIVE";
+      const isPilotActive = ["PILOT_ACTIVE", "VALIDATION", "COMPLETED"].includes(project.research_stage);
       if (isPilotActive) {
         const exec = await fetchPilotExecutionData(projectId);
         setExecutionData(exec);
@@ -225,8 +225,8 @@ export function UniversityPilotWorkspace({
     );
   }
 
-  // Active Pilot Execution Workspace Branch
-  if (project.research_stage === "PILOT_ACTIVE" && executionData) {
+  // Active Pilot Execution & Validation Workspace Branch
+  if (["PILOT_ACTIVE", "VALIDATION", "COMPLETED"].includes(project.research_stage) && executionData) {
     return (
       <div className="space-y-6">
         {feedbackMsg && (

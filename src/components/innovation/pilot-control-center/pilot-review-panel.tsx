@@ -100,10 +100,10 @@ export function PilotReviewPanel({
   const [rejectModalOpen, setRejectModalOpen] = useState(false);
   const [rejectionReason, setRejectionReason] = useState("");
 
-  const isPilotActive = pilot.project?.research_stage === "PILOT_ACTIVE";
+  const isPilotActiveOrValidating = ["PILOT_ACTIVE", "VALIDATION", "COMPLETED"].includes(pilot.project?.research_stage || "");
 
   const loadExecData = async () => {
-    if (isPilotActive) {
+    if (isPilotActiveOrValidating) {
       try {
         setExecLoading(true);
         const data = await fetchPilotExecutionData(pilot.project_id);
@@ -118,7 +118,7 @@ export function PilotReviewPanel({
 
   React.useEffect(() => {
     void loadExecData();
-  }, [pilot.project_id, isPilotActive]);
+  }, [pilot.project_id, isPilotActiveOrValidating]);
 
   const isActionable =
     pilot.status === "SUBMITTED" ||
@@ -281,8 +281,8 @@ export function PilotReviewPanel({
         </div>
       )}
 
-      {/* If Active, Show Live Pilot Execution Workspace */}
-      {isPilotActive && executionData ? (
+      {/* If Active or Validating, Show Live Pilot Execution Workspace */}
+      {isPilotActiveOrValidating && executionData ? (
         <PilotExecutionWorkspace
           project={pilot.project as any}
           executionData={executionData}

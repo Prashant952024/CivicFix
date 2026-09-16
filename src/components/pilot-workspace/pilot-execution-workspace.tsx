@@ -55,6 +55,13 @@ import { cn } from "@/lib/utils";
 import { PilotActivity } from "@/components/pilot-workspace/pilot-activity";
 import { PilotPlanSummary } from "@/components/pilot-workspace/pilot-plan-summary";
 import { PilotSupportSummary } from "@/components/pilot-workspace/pilot-support-summary";
+import { PilotValidationWorkspace } from "@/components/pilot-workspace/validation/pilot-validation-workspace";
+import {
+  fetchPilotValidationByProjectId,
+  fetchPilotValidationReadiness,
+  type PilotValidationWithDetails,
+  type PilotValidationReadiness,
+} from "@/lib/pilot-validation";
 import {
   addPilotEvidence,
   acknowledgePilotProgressUpdate,
@@ -85,8 +92,32 @@ export function PilotExecutionWorkspace({
     executionData;
 
   const [activeTab, setActiveTab] = useState<
-    "updates" | "milestones" | "evidence" | "blockers" | "partners" | "plan_reference" | "activity"
-  >("updates");
+    "updates" | "milestones" | "evidence" | "blockers" | "partners" | "validation" | "plan_reference" | "activity"
+  >(project.research_stage === "VALIDATION" ? "validation" : "updates");
+
+  const [validationData, setValidationData] = useState<PilotValidationWithDetails | null>(null);
+  const [valReadiness, setValReadiness] = useState<PilotValidationReadiness | null>(null);
+  const [valLoading, setValLoading] = useState(false);
+
+  const loadValidation = async () => {
+    try {
+      setValLoading(true);
+      const [vData, vReadiness] = await Promise.all([
+        fetchPilotValidationByProjectId(project.id),
+        fetchPilotValidationReadiness(project.id),
+      ]);
+      setValidationData(vData);
+      setValReadiness(vReadiness);
+    } catch (err) {
+      console.error("Failed to load validation:", err);
+    } finally {
+      setValLoading(false);
+    }
+  };
+
+  React.useEffect(() => {
+    void loadValidation();
+  }, [project.id]);
 
   // Modals
   const [updateModalOpen, setUpdateModalOpen] = useState(false);
@@ -518,6 +549,7 @@ export function PilotExecutionWorkspace({
           { id: "evidence", label: "Evidence & Telemetry", count: evidence.length },
           { id: "blockers", label: "Risks & Blockers", count: blockers.length },
           { id: "partners", label: "Supporting Partners", count: supportPartners.length },
+          { id: "validation", label: "Validation & Results", status: validationData?.status },
           { id: "plan_reference", label: "Approved Plan Reference" },
           { id: "activity", label: "Activity Trail", count: activity.length },
         ].map((tab) => (
@@ -532,6 +564,11 @@ export function PilotExecutionWorkspace({
             )}
           >
             <span>{tab.label}</span>
+            {tab.status && (
+              <span className="px-1.5 py-0.2 rounded text-[9px] font-semibold uppercase bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+                {tab.status}
+              </span>
+            )}
             {typeof tab.count === "number" && (
               <span
                 className={cn(
@@ -946,6 +983,33 @@ export function PilotExecutionWorkspace({
       {/* TAB: Supporting Partners */}
       {activeTab === "partners" && (
         <PilotSupportSummary partners={supportPartners} />
+      )}
+
+      {/* TAB: Validation & Results */}
+      {activeTab === "validation" && (
+        <div>
+          {valLoading && !validationData ? (
+            <div className="flex flex-col items-center justify-center py-16 text-muted-foreground gap-3">
+              <Loader2 className="h-6 w-6 animate-spin text-primary" />
+              <p className="text-xs">Loading validation dossier...</p>
+            </div>
+          ) : validationData && valReadiness ? (
+            <PilotValidationWorkspace
+              project={project}
+              validation={validationData}
+              readiness={valReadiness}
+              onRefresh={async () => {
+                await loadValidation();
+                await onRefresh();
+              }}
+              isManager={isManager}
+            />
+          ) : (
+            <div className="p-8 text-center text-xs text-muted-foreground">
+              Failed to load validation dossier.
+            </div>
+          )}
+        </div>
       )}
 
       {/* TAB: Approved Plan Reference */}

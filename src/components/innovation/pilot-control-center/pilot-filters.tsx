@@ -65,6 +65,7 @@ export function PilotFilters({
         >
           <option value="ALL">All Pilots & Statuses</option>
           <option value="PILOT_ACTIVE">⚡ Active Pilots (Executing)</option>
+          <option value="VALIDATION">🔍 In Validation (Results Submitted)</option>
           <option value="PILOT_READY">🚀 Pilot Ready (Approved)</option>
           <option value="NEEDS_REVIEW">⏳ Awaiting Review (Submitted / Resubmitted)</option>
           <option value="REQUESTED_REVISION">⚠️ Revision Requested</option>
