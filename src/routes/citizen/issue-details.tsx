@@ -15,6 +15,7 @@ import {
   PlusCircle,
   RotateCcw,
   ShieldCheck,
+  Sparkles,
   ThumbsDown,
   ThumbsUp,
 } from "lucide-react";
@@ -64,6 +65,9 @@ type IssueRow = Pick<
   | "longitude"
   | "location_text"
   | "address_text"
+  | "resolved_at"
+  | "canonical_issue_id"
+  | "duplicate_status"
   | "created_at"
   | "updated_at"
 > & {
@@ -159,7 +163,7 @@ export function CitizenIssueDetailsPage() {
         supabase
           .from("issues")
           .select(
-            "id, title, description, category, priority, status, latitude, longitude, location_text, address_text, created_at, updated_at, issue_images(id, issue_id, storage_bucket, storage_path, image_type, uploaded_by_profile_id, created_at), issue_status_history(id, old_status, new_status, notes, created_at)",
+            "id, title, description, category, priority, status, latitude, longitude, location_text, address_text, resolved_at, canonical_issue_id, duplicate_status, duplicate_confidence, created_at, updated_at, issue_images(id, issue_id, storage_bucket, storage_path, image_type, uploaded_by_profile_id, created_at), issue_status_history(id, old_status, new_status, notes, created_at)",
           )
           .eq("id", currentIssueId)
           .eq("reporter_profile_id", currentProfileId)
@@ -208,9 +212,61 @@ export function CitizenIssueDetailsPage() {
         (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime(),
       );
 
+      // If this issue is clustered under a canonical issue, load canonical status & department assignments
+      let activeDeptAssignments = deptAssignmentsResult.data ?? [];
+      if (nextIssue.canonical_issue_id) {
+        const [canonicalRes, canonicalDeptRes] = await Promise.all([
+          supabase
+            .from("issues")
+            .select("id, status, resolved_at, issue_images(id, storage_path, image_type, created_at), issue_status_history(id, old_status, new_status, notes, created_at)")
+            .eq("id", nextIssue.canonical_issue_id)
+            .maybeSingle(),
+          supabase
+            .from("issue_department_assignments")
+            .select("id, department_id, status, department:departments(name)")
+            .eq("issue_id", nextIssue.canonical_issue_id)
+            .order("assigned_at", { ascending: true }),
+        ]);
+
+        if (canonicalRes.data) {
+          nextIssue.status = canonicalRes.data.status;
+          nextIssue.resolved_at = canonicalRes.data.resolved_at;
+          if (canonicalRes.data.issue_status_history && canonicalRes.data.issue_status_history.length > 0) {
+            nextIssue.issue_status_history = canonicalRes.data.issue_status_history;
+          }
+          if (canonicalRes.data.issue_images && canonicalRes.data.issue_images.length > 0) {
+            // merge resolution evidence images from canonical issue
+            interface RawCanonicalImage {
+              id: string;
+              storage_path: string;
+              image_type: string;
+              created_at: string;
+            }
+            const rawResolutionImgs = (canonicalRes.data.issue_images as unknown as RawCanonicalImage[]) || [];
+            const resolutionImgs: IssueImageRow[] = rawResolutionImgs
+              .filter((img) => img.image_type === "RESOLUTION_EVIDENCE")
+              .map((img) => ({
+                id: img.id,
+                issue_id: nextIssue.id,
+                storage_bucket: "issue-images",
+                storage_path: img.storage_path,
+                image_type: "RESOLUTION_EVIDENCE" as const,
+                uploaded_by_profile_id: "",
+                created_at: img.created_at,
+              }));
+            if (resolutionImgs.length > 0) {
+              nextIssue.issue_images = [...(nextIssue.issue_images ?? []), ...resolutionImgs];
+            }
+          }
+        }
+        if (canonicalDeptRes.data && canonicalDeptRes.data.length > 0) {
+          activeDeptAssignments = canonicalDeptRes.data;
+        }
+      }
+
       setIssue(nextIssue);
       setVerification(verificationResult.data ?? null);
-      setDepartmentAssignments(deptAssignmentsResult.data ?? []);
+      setDepartmentAssignments(activeDeptAssignments);
 
       if (verificationResult.error && import.meta.env.DEV) {
         console.error("Citizen verification load failed", verificationResult.error);
@@ -376,6 +432,28 @@ export function CitizenIssueDetailsPage() {
           </div>
         }
       />
+
+      {/* Canonical Linkage Banner if Clustered */}
+      {issue.canonical_issue_id && (
+        <Card className="border-sky-300 bg-sky-50/90 dark:bg-sky-950/40 p-5 rounded-2xl border text-xs sm:text-sm text-sky-900 dark:text-sky-100 shadow-xs space-y-2">
+          <div className="flex items-start gap-3">
+            <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-sky-600 text-white shrink-0 mt-0.5">
+              <Sparkles className="h-4 w-4" />
+            </div>
+            <div className="space-y-1 flex-1">
+              <div className="font-bold text-sm text-sky-950 dark:text-sky-50 flex items-center gap-2">
+                Linked to Canonical Civic Issue #{issue.canonical_issue_id.slice(0, 8).toUpperCase()}
+                <Badge variant="outline" className="bg-sky-100 dark:bg-sky-900/60 text-sky-800 dark:text-sky-200 border-sky-300 text-[10px]">
+                  Clustered Report
+                </Badge>
+              </div>
+              <p className="text-sky-800/90 dark:text-sky-200/90 leading-relaxed">
+                CivicFix identified an existing active report for this same location. Your report has been clustered into the central operational workflow. You will receive live status notifications as field teams address the issue, and you will be asked to verify once the repair is complete.
+              </p>
+            </div>
+          </div>
+        </Card>
+      )}
 
       {/* Notifications */}
       {actionMessage ? (

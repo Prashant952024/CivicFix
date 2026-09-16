@@ -835,6 +835,15 @@ export interface ProblemControlCenterData {
     reporterName: string | null;
     createdAt: string;
     images: { id: string; storage_bucket: string; storage_path: string; image_type?: string }[];
+    linkedReportsCount?: number;
+    linkedReports?: Array<{
+      id: string;
+      title: string;
+      description?: string;
+      reporterName?: string | null;
+      createdAt: string;
+      images: Array<{ id: string; storage_path: string }>;
+    }>;
   };
   issue: {
     id: string;
@@ -1428,6 +1437,51 @@ export async function fetchProblemControlCenterData(
       .maybeSingle();
 
     challengeRecord = chal;
+  }
+
+  // 2b. Fetch any clustered citizen reports linked to this complex problem
+  let linkedReportsList: Array<{
+    id: string;
+    title: string;
+    description?: string;
+    reporterName?: string | null;
+    createdAt: string;
+    images: Array<{ id: string; storage_path: string }>;
+  }> = [];
+
+  if (sourceIssueId) {
+    const { data: childIssues } = await supabase
+      .from("issues")
+      .select(`
+        id, title, description, created_at,
+        reporter_profile:profiles!issues_reporter_profile_id_fkey(full_name),
+        issue_images(id, storage_path)
+      `)
+      .eq("canonical_issue_id", sourceIssueId)
+      .order("created_at", { ascending: false });
+
+    if (childIssues && childIssues.length > 0) {
+      interface RawChildReportItem {
+        id: string;
+        title: string;
+        description: string;
+        created_at: string;
+        reporter_profile?: { full_name: string | null } | null;
+        issue_images?: Array<{ id: string; storage_path: string }> | null;
+      }
+      const typedChildIssues = childIssues as unknown as RawChildReportItem[];
+      linkedReportsList = typedChildIssues.map((child) => ({
+        id: child.id,
+        title: child.title,
+        description: child.description,
+        reporterName: child.reporter_profile?.full_name || null,
+        createdAt: child.created_at,
+        images: (child.issue_images || []).map((img) => ({
+          id: img.id,
+          storage_path: img.storage_path,
+        })),
+      }));
+    }
   }
 
 interface ControlCenterInstitution {
@@ -2328,6 +2382,8 @@ interface ControlCenterActivity {
         : null,
     createdAt: issueData.created_at,
     images: Array.isArray(issueData.issue_images) ? issueData.issue_images : [],
+    linkedReportsCount: linkedReportsList.length,
+    linkedReports: linkedReportsList,
   };
 
   return {

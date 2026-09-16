@@ -56,6 +56,12 @@ import {
   citizenIssueCategories,
   pickCitizenIssueImageByType,
 } from "@/lib/citizen-issues";
+import {
+  fetchLinkedReportsForCanonicalIssue,
+  confirmDuplicateAndLink,
+  rejectDuplicateCandidate,
+  type LinkedCitizenReport,
+} from "@/lib/duplicate-clustering";
 import { supabase } from "@/lib/supabase";
 import type { Database } from "@/types/database";
 
@@ -77,17 +83,23 @@ type IssueRow = Pick<
   | "resolved_at"
   | "created_at"
   | "updated_at"
+  | "canonical_issue_id"
+  | "duplicate_status"
+  | "duplicate_confidence"
+  | "merged_at"
 > & {
   issue_images?: OfficerIssueImageRow[] | null;
   issue_status_history?: OfficerIssueHistoryRow[] | null;
   department?: Pick<OfficerDepartmentRow, "id" | "name"> | null;
   reporter_profile?: Pick<OfficerProfileRow, "id" | "full_name" | "email" | "phone"> | null;
+  canonical_issue?: Pick<Database["public"]["Tables"]["issues"]["Row"], "id" | "title" | "status"> | null;
 };
 
 type DuplicateCandidateItem = {
   id: string;
   source_issue_id: string;
   duplicate_issue_id: string;
+  candidate_issue_id: string;
   confidence_score: number | null;
   similarity_score: number | null;
   confidence: "HIGH" | "MEDIUM" | "LOW" | null;
@@ -195,6 +207,7 @@ export function OfficerIssueDetailsPage() {
   const [aiAnalysis, setAiAnalysis] = useState<OfficerIssueAiAnalysisRow | null>(null);
   const [departments, setDepartments] = useState<OfficerDepartmentRow[]>([]);
   const [duplicates, setDuplicates] = useState<DuplicateCandidateItem[]>([]);
+  const [linkedReports, setLinkedReports] = useState<LinkedCitizenReport[]>([]);
   const [scanningDuplicates, setScanningDuplicates] = useState(false);
   const [duplicateActionId, setDuplicateActionId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -225,7 +238,7 @@ export function OfficerIssueDetailsPage() {
       setLoading(true);
       setError(null);
 
-      const [issueResult, aiResult, departmentsResult, deptAssignmentsResult, duplicatesResult] = await Promise.all([
+      const [issueResult, aiResult, departmentsResult, deptAssignmentsResult, duplicatesResult, linkedReportsResult] = await Promise.all([
         supabase
           .from("issues")
           .select(
@@ -246,10 +259,15 @@ export function OfficerIssueDetailsPage() {
             resolved_at,
             created_at,
             updated_at,
+            canonical_issue_id,
+            duplicate_status,
+            duplicate_confidence,
+            merged_at,
             issue_images(id, storage_bucket, storage_path, image_type, created_at),
             issue_status_history(id, old_status, new_status, notes, created_at),
             department:departments(id, name),
-            reporter_profile:profiles!issues_reporter_profile_id_fkey(id, full_name, email, phone)
+            reporter_profile:profiles!issues_reporter_profile_id_fkey(id, full_name, email, phone),
+            canonical_issue:issues!issues_canonical_issue_id_fkey(id, title, status)
           `,
           )
           .eq("id", currentIssueId)
@@ -316,6 +334,7 @@ export function OfficerIssueDetailsPage() {
           )
           .or(`source_issue_id.eq.${currentIssueId},duplicate_issue_id.eq.${currentIssueId}`)
           .order("created_at", { ascending: false }),
+        fetchLinkedReportsForCanonicalIssue(currentIssueId),
       ]);
 
       if (cancelled) {
@@ -366,6 +385,7 @@ export function OfficerIssueDetailsPage() {
           id: row.id,
           source_issue_id: row.source_issue_id,
           duplicate_issue_id: row.duplicate_issue_id,
+          candidate_issue_id: isSource ? row.duplicate_issue_id : row.source_issue_id,
           confidence_score: row.confidence_score,
           similarity_score: row.similarity_score ?? row.confidence_score,
           confidence: row.confidence,
@@ -394,6 +414,7 @@ export function OfficerIssueDetailsPage() {
       setDepartments(loadedDepts);
       setDepartmentAssignments(loadedAssignments);
       setDuplicates(mappedDuplicates);
+      setLinkedReports(linkedReportsResult || []);
 
       // Pre-fill form drafts with real AI recommendations (or current issue data)
       setCategoryDraft(nextAiAnalysis?.category_recommendation || nextIssue.category || "Other");
@@ -537,53 +558,60 @@ export function OfficerIssueDetailsPage() {
     }
   }
 
-  async function handleConfirmDuplicate(duplicateId: string) {
-    if (!profileId || duplicateActionId) return;
+  async function handleConfirmDuplicate(duplicateId: string, candidateIssueId?: string) {
+    if (!profileId || duplicateActionId || !issue) return;
     setDuplicateActionId(duplicateId);
     setActionError(null);
     setActionMessage(null);
 
-    const { error: confirmError } = await supabase
-      .from("issue_duplicates")
-      .update({
-        status: "CONFIRMED",
-        reviewed_at: new Date().toISOString(),
-        reviewed_by: profileId,
-      })
-      .eq("id", duplicateId);
+    const dupRecord = duplicates.find((d) => d.id === duplicateId);
+    const otherIssueId =
+      candidateIssueId ||
+      (dupRecord?.duplicate_issue_id === issue.id ? dupRecord?.source_issue_id : dupRecord?.duplicate_issue_id);
 
-    if (confirmError) {
+    if (!otherIssueId) {
+      setActionError("Could not determine duplicate candidate issue to merge.");
+      setDuplicateActionId(null);
+      return;
+    }
+
+    // Current issue remains canonical unless already a child; other issue becomes child linked to canonical
+    const canonicalId = issue.canonical_issue_id || issue.id;
+    const childId = otherIssueId === canonicalId ? issue.id : otherIssueId;
+
+    const res = await confirmDuplicateAndLink(
+      duplicateId,
+      canonicalId,
+      childId,
+      profileId,
+      "Confirmed duplicate civic problem clustered into canonical issue by municipal officer.",
+    );
+
+    if (!res.success) {
       if (import.meta.env.DEV) {
-        console.error("Failed to confirm duplicate", confirmError);
+        console.error("Failed to confirm duplicate", res.error);
       }
-      setActionError(`Failed to confirm duplicate: ${confirmError.message}`);
+      setActionError(`Failed to confirm duplicate: ${res.error}`);
     } else {
-      setActionMessage("Duplicate relationship confirmed.");
+      setActionMessage("Duplicate confirmed! Citizen report linked to canonical issue.");
       setRefreshNonce((v) => v + 1);
     }
     setDuplicateActionId(null);
   }
 
-  async function handleRejectDuplicate(duplicateId: string) {
+  async function handleRejectDuplicate(duplicateId: string, candidateIssueId: string) {
     if (!profileId || duplicateActionId) return;
     setDuplicateActionId(duplicateId);
     setActionError(null);
     setActionMessage(null);
 
-    const { error: rejectError } = await supabase
-      .from("issue_duplicates")
-      .update({
-        status: "REJECTED",
-        reviewed_at: new Date().toISOString(),
-        reviewed_by: profileId,
-      })
-      .eq("id", duplicateId);
+    const res = await rejectDuplicateCandidate(duplicateId, candidateIssueId, profileId, "Marked as not a duplicate by municipal officer.");
 
-    if (rejectError) {
+    if (!res.success) {
       if (import.meta.env.DEV) {
-        console.error("Failed to reject duplicate", rejectError);
+        console.error("Failed to reject duplicate", res.error);
       }
-      setActionError(`Failed to update duplicate status: ${rejectError.message}`);
+      setActionError(`Failed to update duplicate status: ${res.error}`);
     } else {
       setActionMessage("Marked as not a duplicate.");
       setRefreshNonce((v) => v + 1);
@@ -1057,6 +1085,34 @@ export function OfficerIssueDetailsPage() {
         }
       />
 
+      {/* Merged Duplicate Banner */}
+      {issue.canonical_issue_id ? (
+        <Card className="border-2 border-amber-400 bg-amber-50/95 p-4 sm:p-5 shadow-sm">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="flex items-start gap-3">
+              <ShieldAlert className="h-5 w-5 text-amber-700 shrink-0 mt-0.5" />
+              <div>
+                <h4 className="text-sm font-bold text-amber-950">
+                  Linked Duplicate Grievance
+                </h4>
+                <p className="text-xs text-amber-900 mt-0.5">
+                  This citizen grievance has been clustered into Canonical Operational Issue #
+                  <span className="font-mono font-semibold">{issue.canonical_issue_id.slice(0, 8).toUpperCase()}</span>.
+                  Operational dispatch, routing, and resolution are managed centrally on the canonical issue.
+                </p>
+              </div>
+            </div>
+            <Link
+              to={`/app/officer/issues/${issue.canonical_issue_id}`}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-600 hover:bg-amber-700 text-white text-xs font-semibold shrink-0 transition-colors"
+            >
+              <ExternalLink className="h-3.5 w-3.5" />
+              View Canonical Issue
+            </Link>
+          </div>
+        </Card>
+      ) : null}
+
       {/* Action Alerts & Flash Messages */}
       {actionMessage ? (
         <Card className="border-l-4 border-l-emerald-500 bg-emerald-50/80 p-4 text-sm font-semibold text-emerald-900 shadow-sm">
@@ -1447,6 +1503,89 @@ export function OfficerIssueDetailsPage() {
             )}
           </Card>
 
+          {/* Section: Clustered Citizen Reports Panel (Canonical Issue) */}
+          {linkedReports.length > 0 && (
+            <Card className="overflow-hidden border border-blue-200/90 bg-blue-50/30 shadow-sm">
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between border-b border-blue-200/80 bg-blue-100/40 px-5 py-4 sm:px-6">
+                <div className="flex items-center gap-2.5">
+                  <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-600 text-white font-bold text-sm">
+                    {linkedReports.length}
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <h3 className="text-base font-bold text-foreground">
+                        Clustered Citizen Reports
+                      </h3>
+                      <Badge variant="info" size="sm">
+                        {linkedReports.length} Linked {linkedReports.length === 1 ? "Grievance" : "Grievances"}
+                      </Badge>
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Multiple citizens reported this civic problem. All original reports, photos, and independent citizen verifications are preserved.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="p-5 sm:p-6 space-y-4">
+                <div className="grid gap-3.5 sm:grid-cols-2">
+                  {linkedReports.map((rep, idx) => (
+                    <div
+                      key={rep.id}
+                      className="rounded-xl border border-border/80 bg-surface/90 p-4 space-y-2.5 shadow-2xs"
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-2">
+                          <span className="flex h-5 w-5 items-center justify-center rounded-full bg-muted text-[10px] font-bold text-muted-foreground">
+                            {idx + 1}
+                          </span>
+                          <span className="text-xs font-bold text-foreground truncate max-w-[140px]">
+                            {rep.reporter_name || "Citizen Reporter"}
+                          </span>
+                        </div>
+                        <Badge variant="outline" size="sm" className="text-[10px] font-mono">
+                          {rep.id.slice(0, 8).toUpperCase()}
+                        </Badge>
+                      </div>
+
+                      <p className="text-xs text-muted-foreground line-clamp-2">
+                        {rep.description || rep.title}
+                      </p>
+
+                      {rep.images && rep.images.length > 0 && (
+                        <div className="flex items-center gap-2 overflow-x-auto py-1">
+                          {rep.images.map((img) => (
+                            <IssueImage
+                              key={img.id}
+                              src={supabase.storage.from("issue-images").getPublicUrl(img.storage_path).data.publicUrl}
+                              alt="Citizen report photo"
+                              className="h-14 w-14 rounded-lg object-cover border border-border/80 shrink-0"
+                            />
+                          ))}
+                        </div>
+                      )}
+
+                      <div className="flex items-center justify-between text-[11px] text-muted-foreground pt-1 border-t border-border/50">
+                        <span>{formatOfficerIssueDate(rep.created_at)}</span>
+                        {rep.verification ? (
+                          <Badge
+                            variant={rep.verification.result === "VERIFIED" ? "success" : "danger"}
+                            size="sm"
+                            className="text-[10px]"
+                          >
+                            {rep.verification.result === "VERIFIED" ? "Citizen Confirmed Fixed" : "Citizen: Not Fixed"}
+                          </Badge>
+                        ) : (
+                          <span className="text-muted-foreground">No verification yet</span>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </Card>
+          )}
+
           {/* Section: Potential Duplicate Issues Card */}
           <Card className="overflow-hidden border border-border/80 bg-surface/95 shadow-sm">
             <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between border-b border-border/70 bg-muted/20 px-5 py-4 sm:px-6">
@@ -1635,7 +1774,7 @@ export function OfficerIssueDetailsPage() {
                                     size="sm"
                                     variant="outline"
                                     disabled={isOperating}
-                                    onClick={() => void handleRejectDuplicate(dup.id)}
+                                    onClick={() => void handleRejectDuplicate(dup.id, dup.candidate_issue_id)}
                                     className="border-rose-200 text-rose-700 hover:bg-rose-50 text-xs h-8"
                                   >
                                     {isOperating ? (
@@ -1652,7 +1791,7 @@ export function OfficerIssueDetailsPage() {
                                   size="sm"
                                   variant="ghost"
                                   disabled={isOperating}
-                                  onClick={() => void (isConfirmed ? handleRejectDuplicate(dup.id) : handleConfirmDuplicate(dup.id))}
+                                  onClick={() => void (isConfirmed ? handleRejectDuplicate(dup.id, dup.candidate_issue_id) : handleConfirmDuplicate(dup.id))}
                                   className="text-xs text-muted-foreground hover:text-foreground h-8"
                                 >
                                   {isConfirmed ? "Mark as Not Duplicate" : "Re-mark as Confirmed"}

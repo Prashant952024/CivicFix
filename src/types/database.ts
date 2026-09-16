@@ -190,6 +190,11 @@ export interface Database {
           classification_decided_by: string | null;
           classification_decided_at: string | null;
           classification_override_reason: string | null;
+          canonical_issue_id: string | null;
+          duplicate_status: "NONE" | "POTENTIAL" | "CONFIRMED_DUPLICATE" | "KEPT_SEPARATE";
+          duplicate_confidence: "HIGH" | "MEDIUM" | "LOW" | null;
+          merged_at: string | null;
+          merged_by: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -218,6 +223,11 @@ export interface Database {
           classification_decided_by?: string | null;
           classification_decided_at?: string | null;
           classification_override_reason?: string | null;
+          canonical_issue_id?: string | null;
+          duplicate_status?: "NONE" | "POTENTIAL" | "CONFIRMED_DUPLICATE" | "KEPT_SEPARATE";
+          duplicate_confidence?: "HIGH" | "MEDIUM" | "LOW" | null;
+          merged_at?: string | null;
+          merged_by?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -246,6 +256,11 @@ export interface Database {
           classification_decided_by?: string | null;
           classification_decided_at?: string | null;
           classification_override_reason?: string | null;
+          canonical_issue_id?: string | null;
+          duplicate_status?: "NONE" | "POTENTIAL" | "CONFIRMED_DUPLICATE" | "KEPT_SEPARATE";
+          duplicate_confidence?: "HIGH" | "MEDIUM" | "LOW" | null;
+          merged_at?: string | null;
+          merged_by?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -636,6 +651,8 @@ export interface Database {
           similarity_score: number | null;
           confidence: "HIGH" | "MEDIUM" | "LOW" | null;
           matching_signals: Record<string, unknown>;
+          image_similarity_score: number | null;
+          image_signals: Json;
           detection_method: Database["public"]["Enums"]["duplicate_detection_method"];
           status: Database["public"]["Enums"]["duplicate_status"];
           reviewed_at: string | null;
@@ -651,6 +668,8 @@ export interface Database {
           similarity_score?: number | null;
           confidence?: "HIGH" | "MEDIUM" | "LOW" | null;
           matching_signals?: Record<string, unknown>;
+          image_similarity_score?: number | null;
+          image_signals?: Json;
           detection_method: Database["public"]["Enums"]["duplicate_detection_method"];
           status?: Database["public"]["Enums"]["duplicate_status"];
           reviewed_at?: string | null;
@@ -666,6 +685,8 @@ export interface Database {
           similarity_score?: number | null;
           confidence?: "HIGH" | "MEDIUM" | "LOW" | null;
           matching_signals?: Record<string, unknown>;
+          image_similarity_score?: number | null;
+          image_signals?: Json;
           detection_method?: Database["public"]["Enums"]["duplicate_detection_method"];
           status?: Database["public"]["Enums"]["duplicate_status"];
           reviewed_at?: string | null;
@@ -3980,7 +4001,9 @@ export interface Database {
           verified_at: string | null;
           occurrence_date: string;
           occurrence_month: number;
-          occurrence_season: string;
+          occurrence_season?: string;
+          citizen_report_count: number;
+          linked_issue_ids: string[];
           created_at: string;
           closed_at: string;
         };
@@ -4011,6 +4034,8 @@ export interface Database {
           occurrence_date: string;
           occurrence_month: number;
           occurrence_season?: string;
+          citizen_report_count?: number;
+          linked_issue_ids?: string[];
           created_at?: string;
           closed_at?: string;
         };
@@ -4041,6 +4066,8 @@ export interface Database {
           occurrence_date?: string;
           occurrence_month?: number;
           occurrence_season?: string;
+          citizen_report_count?: number;
+          linked_issue_ids?: string[];
           created_at?: string;
           closed_at?: string;
         };

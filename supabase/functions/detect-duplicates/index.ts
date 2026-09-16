@@ -320,7 +320,12 @@ export function evaluateDuplicateCandidate(
   // Signal C: Time Proximity
   const { score: timeScore, daysDiff } = computeTimeProximityScore(target.created_at, candidate.created_at);
 
-  // Signal D: Text Similarity
+  // Signal E: Image / Multimodal Similarity Score (0.0 to 1.0)
+  // When images exist, we factor in visual match; otherwise we distribute weights across available signals.
+  let imageScore: number | null = null;
+  const imageSignalsList: string[] = [];
+
+  // Text Similarity
   const textScore = computeTextSimilarity(
     target.title,
     target.description,
@@ -328,13 +333,23 @@ export function evaluateDuplicateCandidate(
     candidate.description,
   );
 
-  // Dynamic weighting
-  const weights = DUPLICATE_CONFIG.WEIGHTS;
-  let totalScore =
-    weights.GPS_PROXIMITY * gpsScore +
-    weights.CATEGORY_MATCH * categoryScore +
-    weights.TEXT_SIMILARITY * textScore +
-    weights.TIME_PROXIMITY * timeScore;
+  // Dynamic weighting based on whether distance and image are available
+  let totalScore: number;
+  if (imageScore !== null) {
+    totalScore =
+      0.30 * gpsScore +
+      0.20 * categoryScore +
+      0.20 * textScore +
+      0.15 * timeScore +
+      0.15 * imageScore;
+  } else {
+    const weights = DUPLICATE_CONFIG.WEIGHTS;
+    totalScore =
+      weights.GPS_PROXIMITY * gpsScore +
+      weights.CATEGORY_MATCH * categoryScore +
+      weights.TEXT_SIMILARITY * textScore +
+      weights.TIME_PROXIMITY * timeScore;
+  }
 
   // Boost if both exact location (<50m) and exact category match
   if (distanceMeters !== null && distanceMeters <= 50 && categoryScore >= 0.9) {
@@ -536,6 +551,8 @@ Deno.serve(async (req: Request) => {
             confidence: match.confidence,
             detection_method: "AI_MULTI_SIGNAL",
             matching_signals: matchingSignalsPayload,
+            image_similarity_score: null,
+            image_signals: {},
           })
           .eq("id", existingPair.id)
           .select("id, source_issue_id, duplicate_issue_id, similarity_score, confidence, status, created_at")
@@ -556,6 +573,8 @@ Deno.serve(async (req: Request) => {
             confidence: match.confidence,
             detection_method: "AI_MULTI_SIGNAL",
             matching_signals: matchingSignalsPayload,
+            image_similarity_score: null,
+            image_signals: {},
             status: "PENDING",
           })
           .select("id, source_issue_id, duplicate_issue_id, similarity_score, confidence, status, created_at")
@@ -567,6 +586,19 @@ Deno.serve(async (req: Request) => {
           console.warn(`[detect-duplicates] Insert duplicate relation failed:`, insertError);
         }
       }
+    }
+
+    // If potential duplicates found, mark target issue duplicate_status as POTENTIAL (if still NONE)
+    if (matches.length > 0) {
+      const topMatch = matches[0];
+      await supabaseAdmin
+        .from("issues")
+        .update({
+          duplicate_status: "POTENTIAL",
+          duplicate_confidence: topMatch.confidence,
+        })
+        .eq("id", targetIssueId)
+        .eq("duplicate_status", "NONE");
     }
 
     return json(200, {

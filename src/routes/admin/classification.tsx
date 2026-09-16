@@ -54,6 +54,7 @@ type IssueStatusHistoryItem = Database["public"]["Tables"]["issue_status_history
 type IssueRow = Database["public"]["Tables"]["issues"]["Row"] & {
   issue_images?: CitizenIssueImageRow[] | null;
   reporter_profile?: Pick<Database["public"]["Tables"]["profiles"]["Row"], "id" | "full_name" | "email"> | null;
+  child_issues?: Array<{ id: string }> | null;
   issue_ai_analysis?: Array<
     Database["public"]["Tables"]["issue_ai_analysis"]["Row"] & {
       complexity_factors?: ComplexityFactors | null;
@@ -226,6 +227,7 @@ export function AdminClassificationPage() {
           issue_images(id, storage_bucket, storage_path, image_type, created_at),
           reporter_profile:profiles!issues_reporter_profile_id_fkey(id, full_name, email),
           decided_by_profile:profiles!issues_classification_decided_by_fkey(id, full_name, email),
+          child_issues:issues!issues_canonical_issue_id_fkey(id),
           issue_ai_analysis(
             id,
             provider,
@@ -254,6 +256,7 @@ export function AdminClassificationPage() {
             changed_by_profile:profiles!issue_status_history_changed_by_profile_id_fkey(full_name, email)
           )
         `)
+        .is("canonical_issue_id", null)
         .order("created_at", { ascending: false });
 
       if (cancelled) return;
@@ -883,6 +886,12 @@ export function AdminClassificationPage() {
                           >
                             AI {itemAiType}
                           </Badge>
+
+                          {(issue.child_issues?.length ?? 0) > 0 && (
+                            <Badge variant="outline" size="sm" className="bg-blue-50 text-blue-700 border-blue-200 text-[10px] font-bold">
+                              +{(issue.child_issues?.length ?? 0) + 1} Reports
+                            </Badge>
+                          )}
                         </div>
                       </div>
 

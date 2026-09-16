@@ -97,6 +97,46 @@ export function ProblemOverviewSection({
           </div>
         )}
 
+        {/* Clustered Citizen Grievances */}
+        {problem.linkedReports && problem.linkedReports.length > 0 && (
+          <div className="space-y-2 rounded-xl border border-blue-200/90 bg-blue-50/40 p-3.5">
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] font-bold text-blue-950 uppercase tracking-wider flex items-center gap-1.5">
+                <span className="flex h-5 w-5 items-center justify-center rounded-full bg-blue-600 text-white text-[10px] font-bold">
+                  {problem.linkedReports.length}
+                </span>
+                Clustered Citizen Grievance Reports
+              </span>
+              <Badge variant="info" size="sm" className="text-[10px]">
+                {problem.linkedReports.length} Linked Reports
+              </Badge>
+            </div>
+            <p className="text-xs text-blue-900/80">
+              Multiple citizens have independently reported this complex systemic problem across the city.
+            </p>
+            <div className="grid gap-2 sm:grid-cols-2 pt-1">
+              {problem.linkedReports.map((child, cIdx) => (
+                <div
+                  key={child.id}
+                  className="rounded-lg border border-blue-200/80 bg-white/90 p-2.5 text-xs space-y-1 shadow-2xs"
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="font-bold text-foreground truncate max-w-[150px]">
+                      {child.reporterName || `Citizen #${cIdx + 1}`}
+                    </span>
+                    <span className="text-[10px] text-muted-foreground font-mono">
+                      #{child.id.slice(0, 8).toUpperCase()}
+                    </span>
+                  </div>
+                  <p className="text-muted-foreground text-[11px] line-clamp-2">
+                    {child.description || child.title}
+                  </p>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* 3-Column Root Cause & Scope Details */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
           <div className="p-3.5 rounded-xl border border-border/70 bg-muted/20 space-y-1">
