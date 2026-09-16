@@ -95,11 +95,11 @@ export function EvidenceAndResourcesCard({
   return (
     <div className="space-y-4">
       {/* Header & Filter */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-2 border-b border-border/70">
         <div>
           <h3 className="text-sm font-bold text-foreground flex items-center gap-2">
             <Link2 className="w-4 h-4 text-primary" />
-            <span>Deliverables, Evidence &amp; External Resources ({evidence.length})</span>
+            <span>Deliverables, Evidence &amp; Artifacts ({evidence.length})</span>
           </h3>
           <p className="text-xs text-muted-foreground">
             Verified research deliverables, repositories, datasets, and public dashboards.
@@ -108,12 +108,12 @@ export function EvidenceAndResourcesCard({
 
         <div className="flex items-center gap-2 flex-wrap">
           {/* Filter Pills */}
-          <div className="flex items-center gap-1 bg-muted/40 p-1 rounded-lg border border-border/80 text-xs">
+          <div className="flex items-center gap-1 bg-muted/40 p-1 rounded-xl border border-border/80 text-xs">
             <button
               type="button"
               onClick={() => setFilterType("ALL")}
-              className={`px-2 py-0.5 rounded-md font-semibold text-[11px] transition-colors ${
-                filterType === "ALL" ? "bg-card text-foreground shadow-xs font-bold" : "text-muted-foreground hover:text-foreground"
+              className={`px-2.5 py-1 rounded-lg font-semibold text-xs transition-colors ${
+                filterType === "ALL" ? "bg-card text-foreground shadow-2xs font-bold" : "text-muted-foreground hover:text-foreground"
               }`}
             >
               All ({evidence.length})
@@ -121,8 +121,8 @@ export function EvidenceAndResourcesCard({
             <button
               type="button"
               onClick={() => setFilterType("CODE_REPO")}
-              className={`px-2 py-0.5 rounded-md font-semibold text-[11px] transition-colors ${
-                filterType === "CODE_REPO" ? "bg-card text-foreground shadow-xs font-bold" : "text-muted-foreground hover:text-foreground"
+              className={`px-2.5 py-1 rounded-lg font-semibold text-xs transition-colors ${
+                filterType === "CODE_REPO" ? "bg-card text-foreground shadow-2xs font-bold" : "text-muted-foreground hover:text-foreground"
               }`}
             >
               Code Repos
@@ -130,8 +130,8 @@ export function EvidenceAndResourcesCard({
             <button
               type="button"
               onClick={() => setFilterType("DATASET")}
-              className={`px-2 py-0.5 rounded-md font-semibold text-[11px] transition-colors ${
-                filterType === "DATASET" ? "bg-card text-foreground shadow-xs font-bold" : "text-muted-foreground hover:text-foreground"
+              className={`px-2.5 py-1 rounded-lg font-semibold text-xs transition-colors ${
+                filterType === "DATASET" ? "bg-card text-foreground shadow-2xs font-bold" : "text-muted-foreground hover:text-foreground"
               }`}
             >
               Datasets
@@ -139,8 +139,8 @@ export function EvidenceAndResourcesCard({
             <button
               type="button"
               onClick={() => setFilterType("REPORT")}
-              className={`px-2 py-0.5 rounded-md font-semibold text-[11px] transition-colors ${
-                filterType === "REPORT" ? "bg-card text-foreground shadow-xs font-bold" : "text-muted-foreground hover:text-foreground"
+              className={`px-2.5 py-1 rounded-lg font-semibold text-xs transition-colors ${
+                filterType === "REPORT" ? "bg-card text-foreground shadow-2xs font-bold" : "text-muted-foreground hover:text-foreground"
               }`}
             >
               Reports
@@ -151,7 +151,7 @@ export function EvidenceAndResourcesCard({
             <Button
               size="sm"
               onClick={() => setModalOpen(true)}
-              className="bg-primary hover:bg-primary/90 text-primary-foreground text-xs font-bold gap-1.5 shadow-xs h-8 px-3"
+              className="bg-primary hover:bg-primary/90 text-primary-foreground text-xs font-bold gap-1.5 shadow-xs h-8 px-3.5"
             >
               <Plus className="w-3.5 h-3.5" />
               <span>Add Resource</span>
@@ -162,7 +162,7 @@ export function EvidenceAndResourcesCard({
 
       {/* ITEMS LIST */}
       {filteredItems.length === 0 ? (
-        <Card className="border-border/80">
+        <Card className="border-border/80 bg-card">
           <CardContent className="p-8">
             <EmptyState
               icon={Link2}
@@ -184,18 +184,18 @@ export function EvidenceAndResourcesCard({
             const Icon = TYPE_ICONS[item.evidence_type] || Link2;
 
             return (
-              <Card key={item.id} className="border-border/80 shadow-xs hover:border-primary/60 transition-colors">
-                <CardContent className="p-4 space-y-2.5">
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="flex items-center gap-2">
-                      <span className="p-2 rounded-lg bg-primary/10 text-primary shrink-0">
+              <Card key={item.id} className="border-border/80 shadow-xs hover:border-primary/60 transition-all bg-card">
+                <CardContent className="p-4 sm:p-5 space-y-3">
+                  <div className="flex items-start justify-between gap-2.5">
+                    <div className="flex items-center gap-2.5">
+                      <span className="p-2 rounded-xl bg-primary/10 text-primary shrink-0">
                         <Icon className="w-4 h-4" />
                       </span>
                       <div>
-                        <h4 className="font-bold text-xs text-foreground leading-snug">
+                        <h4 className="font-bold text-sm text-foreground leading-snug">
                           {item.title}
                         </h4>
-                        <Badge variant="outline" className="text-[10px] py-0 px-1.5 font-medium mt-0.5 bg-muted/30">
+                        <Badge variant="outline" className="text-[10px] py-0 px-1.5 font-semibold mt-1 bg-muted/40">
                           {item.evidence_type}
                         </Badge>
                       </div>
@@ -206,7 +206,7 @@ export function EvidenceAndResourcesCard({
                         href={item.url}
                         target="_blank"
                         rel="noreferrer"
-                        className="p-1 text-muted-foreground hover:text-primary transition-colors shrink-0"
+                        className="p-1.5 rounded-lg text-muted-foreground hover:text-primary hover:bg-muted transition-colors shrink-0"
                         title="Open external resource"
                       >
                         <ExternalLink className="w-4 h-4" />
@@ -215,25 +215,25 @@ export function EvidenceAndResourcesCard({
                   </div>
 
                   {item.description && (
-                    <p className="text-xs text-slate-600 leading-relaxed pl-8">
+                    <p className="text-xs text-muted-foreground leading-relaxed pl-10.5">
                       {item.description}
                     </p>
                   )}
 
                   {item.url && (
-                    <div className="pl-8 pt-1">
+                    <div className="pl-10.5 pt-0.5">
                       <a
                         href={item.url}
                         target="_blank"
                         rel="noreferrer"
-                        className="text-[11px] font-mono text-primary truncate block hover:underline"
+                        className="text-xs font-mono text-primary truncate block hover:underline"
                       >
                         {item.url}
                       </a>
                     </div>
                   )}
 
-                  <div className="pl-8 text-[10px] text-muted-foreground font-mono">
+                  <div className="pl-10.5 text-[11px] text-muted-foreground font-mono">
                     Recorded on {new Date(item.created_at).toLocaleDateString()}
                   </div>
                 </CardContent>
@@ -300,7 +300,7 @@ export function EvidenceAndResourcesCard({
               type="url"
               value={url}
               onChange={(e) => setUrl(e.target.value)}
-              placeholder="https://github.com/iitb-water/sensor-nodes"
+              placeholder="https://github.com/example/sensor-firmware"
               className="w-full px-3 py-2 text-xs rounded-lg border border-border bg-background text-foreground"
             />
           </div>

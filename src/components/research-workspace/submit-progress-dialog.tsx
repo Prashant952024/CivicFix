@@ -4,6 +4,7 @@ import {
   Calendar,
   Layers,
   Link2,
+  Sparkles,
   Wrench,
 } from "lucide-react";
 
@@ -85,7 +86,7 @@ export function SubmitProgressDialog({
       return;
     }
     if (!nextPlannedWork.trim()) {
-      setErrorMessage("Please specify the next planned work for the upcoming 5-day cycle.");
+      setErrorMessage("Please specify the next planned work for the upcoming cycle.");
       return;
     }
 
@@ -161,7 +162,7 @@ export function SubmitProgressDialog({
         className="space-y-4 pt-2"
       >
         {errorMessage && (
-          <div className="p-3 text-xs text-rose-900 bg-rose-50 border border-rose-200 rounded-lg">
+          <div className="p-3 text-xs text-rose-900 dark:text-rose-200 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900 rounded-xl">
             {errorMessage}
           </div>
         )}
@@ -170,7 +171,7 @@ export function SubmitProgressDialog({
         <div className="p-3.5 bg-muted/30 border border-border/70 rounded-xl space-y-2">
           <label className="text-xs font-bold text-foreground flex items-center gap-1.5">
             <Calendar className="w-3.5 h-3.5 text-primary" />
-            <span>Reporting Period (5-Day Cadence)</span>
+            <span>Reporting Period (Cadence Cycle)</span>
           </label>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
@@ -214,8 +215,9 @@ export function SubmitProgressDialog({
 
         {/* 3. CURRENT FINDINGS */}
         <div className="space-y-1.5">
-          <label className="text-xs font-bold text-foreground">
-            Current Findings / Technical Discoveries (Optional)
+          <label className="text-xs font-bold text-foreground flex items-center gap-1.5">
+            <Sparkles className="w-3.5 h-3.5 text-amber-600" />
+            <span>Current Findings / Technical Discoveries (Optional)</span>
           </label>
           <textarea
             rows={2}
@@ -228,10 +230,10 @@ export function SubmitProgressDialog({
 
         {/* 4. LINKED MILESTONE & PROGRESS */}
         {milestones.length > 0 && (
-          <div className="p-3.5 bg-sky-50/20 border border-sky-200/60 rounded-xl space-y-3">
+          <div className="p-3.5 bg-sky-50/20 dark:bg-sky-950/20 border border-sky-200/60 dark:border-sky-900/40 rounded-xl space-y-3">
             <div className="flex items-center justify-between text-xs">
               <label className="font-bold text-foreground flex items-center gap-1.5">
-                <Layers className="w-3.5 h-3.5 text-sky-600" />
+                <Layers className="w-3.5 h-3.5 text-sky-600 dark:text-sky-400" />
                 <span>Progress Milestone</span>
               </label>
               <span className="font-mono font-bold text-primary">{milestoneProgressPct}%</span>
@@ -279,7 +281,7 @@ export function SubmitProgressDialog({
         {/* 5. NEXT PLANNED WORK */}
         <div className="space-y-1.5">
           <label className="text-xs font-bold text-foreground flex items-center justify-between">
-            <span>Next Planned Work (Upcoming 5-Day Plan) *</span>
+            <span>Next Planned Work (Upcoming Operational Plan) *</span>
             <span className="text-[10px] text-muted-foreground font-normal">Required</span>
           </label>
           <textarea
@@ -287,15 +289,15 @@ export function SubmitProgressDialog({
             rows={2}
             value={nextPlannedWork}
             onChange={(e) => setNextPlannedWork(e.target.value)}
-            placeholder="Specific tasks, fabrication targets, test setups, or analyses planned for the next 5 days..."
+            placeholder="Specific tasks, fabrication targets, test setups, or analyses planned for the next cycle..."
             className="w-full px-3 py-2 text-xs rounded-lg border border-border bg-background text-foreground resize-none"
           />
         </div>
 
-        {/* 6. SUPPORT REQUIRED (FUTURE MARKETPLACE READY) */}
-        <div className="p-3.5 bg-amber-50/20 border border-amber-200/70 rounded-xl space-y-2.5">
-          <label className="text-xs font-bold text-amber-950 flex items-center gap-1.5">
-            <Wrench className="w-3.5 h-3.5 text-amber-700" />
+        {/* 6. SUPPORT REQUIRED (MARKETPLACE READY) */}
+        <div className="p-3.5 bg-amber-50/20 dark:bg-amber-950/20 border border-amber-200/70 dark:border-amber-900/40 rounded-xl space-y-2.5">
+          <label className="text-xs font-bold text-amber-950 dark:text-amber-300 flex items-center gap-1.5">
+            <Wrench className="w-3.5 h-3.5 text-amber-700 dark:text-amber-400" />
             <span>Support or Resources Required (Optional)</span>
           </label>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
@@ -304,7 +306,7 @@ export function SubmitProgressDialog({
                 type="text"
                 value={supportRequired}
                 onChange={(e) => setSupportRequired(e.target.value)}
-                placeholder="e.g. Access to municipal canal telemetry data or 20 additional soil moisture probes"
+                placeholder="e.g. Access to municipal canal telemetry data or specialized probes"
                 className="w-full px-3 py-1.5 text-xs rounded-lg border border-border bg-background text-foreground"
               />
             </div>
@@ -339,7 +341,7 @@ export function SubmitProgressDialog({
               variant="ghost"
               size="sm"
               onClick={() => setHasEvidence(!hasEvidence)}
-              className="h-7 px-2 text-xs text-primary font-semibold"
+              className="h-7 px-2 text-xs text-primary font-semibold hover:bg-muted"
             >
               {hasEvidence ? "Remove" : "+ Add Link / Evidence"}
             </Button>
@@ -411,7 +413,7 @@ export function SubmitProgressDialog({
               variant="ghost"
               size="sm"
               onClick={() => setHasBlocker(!hasBlocker)}
-              className="h-7 px-2 text-xs text-amber-700 font-semibold"
+              className="h-7 px-2 text-xs text-amber-700 dark:text-amber-400 font-semibold hover:bg-muted"
             >
               {hasBlocker ? "Remove" : "+ Report Blocker/Risk"}
             </Button>

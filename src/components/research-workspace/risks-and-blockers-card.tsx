@@ -29,10 +29,10 @@ const SEVERITY_CONFIG: Record<
   BlockerSeverity,
   { label: string; badgeClass: string }
 > = {
-  CRITICAL: { label: "Critical", badgeClass: "bg-rose-100 text-rose-900 border-rose-300 font-bold animate-pulse" },
-  HIGH: { label: "High", badgeClass: "bg-orange-100 text-orange-900 border-orange-300 font-bold" },
-  MEDIUM: { label: "Medium", badgeClass: "bg-amber-100 text-amber-900 border-amber-300 font-semibold" },
-  LOW: { label: "Low", badgeClass: "bg-slate-100 text-slate-700 border-slate-300" },
+  CRITICAL: { label: "Critical", badgeClass: "bg-rose-50 dark:bg-rose-950/50 text-rose-900 dark:text-rose-300 border-rose-300 dark:border-rose-800 font-bold animate-pulse" },
+  HIGH: { label: "High", badgeClass: "bg-orange-50 dark:bg-orange-950/50 text-orange-900 dark:text-orange-300 border-orange-300 dark:border-orange-800 font-bold" },
+  MEDIUM: { label: "Medium", badgeClass: "bg-amber-50 dark:bg-amber-950/50 text-amber-900 dark:text-amber-300 border-amber-300 dark:border-amber-800 font-semibold" },
+  LOW: { label: "Low", badgeClass: "bg-muted text-muted-foreground border-border" },
 };
 
 export function RisksAndBlockersCard({
@@ -120,13 +120,13 @@ export function RisksAndBlockersCard({
   return (
     <div className="space-y-4">
       {/* Header & Filter */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-2 border-b border-border/70">
         <div>
           <h3 className="text-sm font-bold text-foreground flex items-center gap-2">
             <ShieldAlert className="w-4 h-4 text-primary" />
             <span>Risks &amp; Blockers ({items.length})</span>
             {blockersCount > 0 && (
-              <Badge variant="danger" className="text-[10px] font-bold">
+              <Badge variant="outline" className="text-[10px] font-bold bg-rose-500 text-white border-transparent">
                 {blockersCount} Blocking
               </Badge>
             )}
@@ -138,12 +138,12 @@ export function RisksAndBlockersCard({
 
         <div className="flex items-center gap-2 flex-wrap">
           {/* Filters */}
-          <div className="flex items-center gap-1 bg-muted/40 p-1 rounded-lg border border-border/80 text-xs">
+          <div className="flex items-center gap-1 bg-muted/40 p-1 rounded-xl border border-border/80 text-xs">
             <button
               type="button"
               onClick={() => setFilterType("OPEN")}
-              className={`px-2 py-0.5 rounded-md font-semibold text-[11px] transition-colors ${
-                filterType === "OPEN" ? "bg-card text-foreground shadow-xs font-bold" : "text-muted-foreground hover:text-foreground"
+              className={`px-2.5 py-1 rounded-lg font-semibold text-xs transition-colors ${
+                filterType === "OPEN" ? "bg-card text-foreground shadow-2xs font-bold" : "text-muted-foreground hover:text-foreground"
               }`}
             >
               Open ({openCount})
@@ -151,8 +151,8 @@ export function RisksAndBlockersCard({
             <button
               type="button"
               onClick={() => setFilterType("BLOCKER")}
-              className={`px-2 py-0.5 rounded-md font-semibold text-[11px] transition-colors ${
-                filterType === "BLOCKER" ? "bg-card text-foreground shadow-xs font-bold" : "text-muted-foreground hover:text-foreground"
+              className={`px-2.5 py-1 rounded-lg font-semibold text-xs transition-colors ${
+                filterType === "BLOCKER" ? "bg-card text-foreground shadow-2xs font-bold" : "text-muted-foreground hover:text-foreground"
               }`}
             >
               Blockers
@@ -160,8 +160,8 @@ export function RisksAndBlockersCard({
             <button
               type="button"
               onClick={() => setFilterType("RISK")}
-              className={`px-2 py-0.5 rounded-md font-semibold text-[11px] transition-colors ${
-                filterType === "RISK" ? "bg-card text-foreground shadow-xs font-bold" : "text-muted-foreground hover:text-foreground"
+              className={`px-2.5 py-1 rounded-lg font-semibold text-xs transition-colors ${
+                filterType === "RISK" ? "bg-card text-foreground shadow-2xs font-bold" : "text-muted-foreground hover:text-foreground"
               }`}
             >
               Risks
@@ -169,8 +169,8 @@ export function RisksAndBlockersCard({
             <button
               type="button"
               onClick={() => setFilterType("ALL")}
-              className={`px-2 py-0.5 rounded-md font-semibold text-[11px] transition-colors ${
-                filterType === "ALL" ? "bg-card text-foreground shadow-xs font-bold" : "text-muted-foreground hover:text-foreground"
+              className={`px-2.5 py-1 rounded-lg font-semibold text-xs transition-colors ${
+                filterType === "ALL" ? "bg-card text-foreground shadow-2xs font-bold" : "text-muted-foreground hover:text-foreground"
               }`}
             >
               All ({items.length})
@@ -181,7 +181,7 @@ export function RisksAndBlockersCard({
             <Button
               size="sm"
               onClick={() => setReportModalOpen(true)}
-              className="bg-primary hover:bg-primary/90 text-primary-foreground text-xs font-bold gap-1.5 shadow-xs h-8 px-3"
+              className="bg-primary hover:bg-primary/90 text-primary-foreground text-xs font-bold gap-1.5 shadow-xs h-8 px-3.5"
             >
               <Plus className="w-3.5 h-3.5" />
               <span>Report Item</span>
@@ -192,7 +192,7 @@ export function RisksAndBlockersCard({
 
       {/* ITEMS LIST */}
       {filteredItems.length === 0 ? (
-        <Card className="border-border/80">
+        <Card className="border-border/80 bg-card">
           <CardContent className="p-8">
             <EmptyState
               icon={ShieldAlert}
@@ -210,12 +210,12 @@ export function RisksAndBlockersCard({
             return (
               <Card
                 key={item.id}
-                className={`border-border/80 transition-shadow ${
+                className={`border-border/80 transition-all bg-card ${
                   isResolved
-                    ? "bg-muted/15 opacity-75"
+                    ? "bg-muted/15 opacity-80"
                     : item.item_type === "BLOCKER"
-                    ? "border-rose-200 bg-rose-50/15"
-                    : "border-amber-200 bg-amber-50/15"
+                    ? "border-rose-300/80 dark:border-rose-800 bg-rose-50/15 dark:bg-rose-950/10 shadow-xs"
+                    : "border-amber-300/80 dark:border-amber-800 bg-amber-50/15 dark:bg-amber-950/10"
                 }`}
               >
                 <CardContent className="p-4 sm:p-5 space-y-3">
@@ -225,8 +225,8 @@ export function RisksAndBlockersCard({
                         variant="outline"
                         className={`text-[10px] font-black uppercase ${
                           item.item_type === "BLOCKER"
-                            ? "bg-rose-100 text-rose-950 border-rose-300"
-                            : "bg-amber-100 text-amber-950 border-amber-300"
+                            ? "bg-rose-100 dark:bg-rose-950 text-rose-950 dark:text-rose-300 border-rose-300 dark:border-rose-800"
+                            : "bg-amber-100 dark:bg-amber-950 text-amber-950 dark:text-amber-300 border-amber-300 dark:border-amber-800"
                         }`}
                       >
                         {item.item_type === "BLOCKER" ? "Active Blocker" : "Technical Risk"}
@@ -235,13 +235,13 @@ export function RisksAndBlockersCard({
                         {sev.label} Severity
                       </Badge>
                       {isResolved ? (
-                        <Badge className="bg-emerald-100 text-emerald-950 border-emerald-300 text-[10px] font-bold">
-                          <CheckCircle2 className="w-2.5 h-2.5 mr-1 inline text-emerald-600" />
+                        <Badge variant="outline" className="bg-emerald-50 dark:bg-emerald-950/50 text-emerald-800 dark:text-emerald-300 border-emerald-300 dark:border-emerald-800 text-[10px] font-bold">
+                          <CheckCircle2 className="w-2.5 h-2.5 mr-1 inline text-emerald-600 dark:text-emerald-400" />
                           Resolved
                         </Badge>
                       ) : (
-                        <Badge variant="outline" className="text-[10px] bg-sky-50 text-sky-900 border-sky-300 font-semibold">
-                          <Clock className="w-2.5 h-2.5 mr-1 inline text-sky-600" />
+                        <Badge variant="outline" className="text-[10px] bg-sky-50 dark:bg-sky-950/50 text-sky-900 dark:text-sky-300 border-sky-300 dark:border-sky-800 font-semibold">
+                          <Clock className="w-2.5 h-2.5 mr-1 inline text-sky-600 dark:text-sky-400" />
                           Open
                         </Badge>
                       )}
@@ -255,7 +255,7 @@ export function RisksAndBlockersCard({
                           setResolvingItem(item);
                           setResolutionNotes("");
                         }}
-                        className="h-7 px-2.5 text-xs font-semibold gap-1 text-emerald-700 hover:bg-emerald-50 self-end sm:self-center"
+                        className="h-7 px-2.5 text-xs font-semibold gap-1 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 self-end sm:self-center"
                       >
                         <CheckCircle2 className="w-3 h-3" />
                         <span>Resolve</span>
@@ -267,35 +267,35 @@ export function RisksAndBlockersCard({
                     <h4 className="font-bold text-sm text-foreground leading-snug">
                       {item.title}
                     </h4>
-                    <p className="text-xs text-slate-600 leading-relaxed mt-1">
+                    <p className="text-xs text-muted-foreground leading-relaxed mt-1">
                       {item.description}
                     </p>
                   </div>
 
                   {/* Support Requirement Tag */}
                   {item.support_required && (
-                    <div className="p-2.5 rounded-lg bg-amber-100/50 border border-amber-300/80 text-xs flex items-start gap-2">
-                      <Wrench className="w-3.5 h-3.5 text-amber-700 shrink-0 mt-0.5" />
+                    <div className="p-2.5 rounded-xl bg-amber-50/60 dark:bg-amber-950/30 border border-amber-300/80 dark:border-amber-800 text-xs flex items-start gap-2">
+                      <Wrench className="w-3.5 h-3.5 text-amber-700 dark:text-amber-400 shrink-0 mt-0.5" />
                       <div>
-                        <span className="font-bold text-amber-950">Support Requested: </span>
-                        <span className="text-amber-900">{item.support_required}</span>
+                        <span className="font-bold text-amber-950 dark:text-amber-300">Support Requested: </span>
+                        <span className="text-amber-900 dark:text-amber-200">{item.support_required}</span>
                       </div>
                     </div>
                   )}
 
                   {/* Resolution Notes (if resolved) */}
                   {isResolved && item.resolution_notes && (
-                    <div className="p-2.5 rounded-lg bg-emerald-50/60 border border-emerald-200 text-xs space-y-0.5">
-                      <span className="font-bold text-emerald-950 flex items-center gap-1">
-                        <CheckCircle2 className="w-3 h-3 text-emerald-600" /> Resolution Notes:
+                    <div className="p-2.5 rounded-xl bg-emerald-50/60 dark:bg-emerald-950/30 border border-emerald-200/80 dark:border-emerald-900/40 text-xs space-y-0.5">
+                      <span className="font-bold text-emerald-950 dark:text-emerald-300 flex items-center gap-1">
+                        <CheckCircle2 className="w-3 h-3 text-emerald-600 dark:text-emerald-400" /> Resolution Notes:
                       </span>
-                      <p className="text-emerald-900 pl-4">
+                      <p className="text-emerald-900 dark:text-emerald-200 pl-4">
                         {item.resolution_notes}
                       </p>
                     </div>
                   )}
 
-                  <div className="text-[10px] text-muted-foreground font-mono">
+                  <div className="text-[11px] text-muted-foreground font-mono">
                     Reported on {new Date(item.reported_at).toLocaleDateString()}
                     {item.resolved_at && ` • Resolved on ${new Date(item.resolved_at).toLocaleDateString()}`}
                   </div>
@@ -386,7 +386,7 @@ export function RisksAndBlockersCard({
               type="text"
               value={supportRequired}
               onChange={(e) => setSupportRequired(e.target.value)}
-              placeholder="e.g. Access to municipal water discharge meters or 15 specialized LoRa probes"
+              placeholder="e.g. Access to municipal water discharge meters or specialized probes"
               className="w-full px-3 py-2 text-xs rounded-lg border border-border bg-background text-foreground"
             />
           </div>

@@ -26,12 +26,30 @@ const STATUS_CONFIG: Record<
   ResearchMilestoneStatus,
   { label: string; badgeClass: string }
 > = {
-  NOT_STARTED: { label: "Not Started", badgeClass: "bg-slate-100 text-slate-700 border-slate-300" },
-  IN_PROGRESS: { label: "In Progress", badgeClass: "bg-sky-100 text-sky-800 border-sky-300 font-bold" },
-  COMPLETED: { label: "Completed", badgeClass: "bg-emerald-100 text-emerald-800 border-emerald-300 font-bold" },
-  BLOCKED: { label: "Blocked", badgeClass: "bg-rose-100 text-rose-800 border-rose-300 font-bold" },
-  DELAYED: { label: "Delayed", badgeClass: "bg-amber-100 text-amber-800 border-amber-300 font-bold" },
-  CANCELLED: { label: "Cancelled", badgeClass: "bg-gray-100 text-gray-500 border-gray-300" },
+  NOT_STARTED: {
+    label: "Not Started",
+    badgeClass: "bg-muted text-muted-foreground border-border",
+  },
+  IN_PROGRESS: {
+    label: "In Progress",
+    badgeClass: "bg-sky-50 dark:bg-sky-950/40 text-sky-800 dark:text-sky-300 border-sky-300 dark:border-sky-800 font-bold",
+  },
+  COMPLETED: {
+    label: "Completed",
+    badgeClass: "bg-emerald-50 dark:bg-emerald-950/40 text-emerald-800 dark:text-emerald-300 border-emerald-300 dark:border-emerald-800 font-bold",
+  },
+  BLOCKED: {
+    label: "Blocked",
+    badgeClass: "bg-rose-50 dark:bg-rose-950/40 text-rose-800 dark:text-rose-300 border-rose-300 dark:border-rose-800 font-bold",
+  },
+  DELAYED: {
+    label: "Delayed",
+    badgeClass: "bg-amber-50 dark:bg-amber-950/40 text-amber-800 dark:text-amber-300 border-amber-300 dark:border-amber-800 font-bold",
+  },
+  CANCELLED: {
+    label: "Cancelled",
+    badgeClass: "bg-muted/40 text-muted-foreground border-border",
+  },
 };
 
 export function MilestonesTracker({
@@ -79,7 +97,7 @@ export function MilestonesTracker({
 
   if (milestones.length === 0) {
     return (
-      <Card className="border-border/80">
+      <Card className="border-border/80 bg-card">
         <CardContent className="p-8">
           <EmptyState
             icon={Layers}
@@ -91,9 +109,12 @@ export function MilestonesTracker({
     );
   }
 
+  const completedCount = milestones.filter((m) => m.status === "COMPLETED").length;
+
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
+      {/* Header & Milestone Status Summary */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-2 border-b border-border/70">
         <div>
           <h3 className="text-sm font-bold text-foreground flex items-center gap-2">
             <Layers className="w-4 h-4 text-primary" />
@@ -102,6 +123,12 @@ export function MilestonesTracker({
           <p className="text-xs text-muted-foreground">
             Operational milestones derived from the approved solution blueprint.
           </p>
+        </div>
+
+        <div className="flex items-center gap-2 shrink-0">
+          <Badge variant="outline" className="text-xs font-semibold bg-muted/30">
+            {completedCount} of {milestones.length} Completed ({Math.round((completedCount / milestones.length) * 100)}%)
+          </Badge>
         </div>
       </div>
 
@@ -112,27 +139,44 @@ export function MilestonesTracker({
           const deliverablesList = Array.isArray(m.deliverables)
             ? (m.deliverables as { title?: string; name?: string }[])
             : [];
+          const isCompleted = m.status === "COMPLETED";
+          const isInProgress = m.status === "IN_PROGRESS";
+          const isBlocked = m.status === "BLOCKED";
 
           return (
             <Card
               key={m.id}
-              className={`border-border/80 transition-shadow hover:shadow-xs ${
-                m.status === "COMPLETED" ? "bg-emerald-50/20" : m.status === "IN_PROGRESS" ? "bg-sky-50/20" : ""
+              className={`border-border/80 transition-all hover:shadow-xs bg-card ${
+                isCompleted
+                  ? "border-emerald-200/70 dark:border-emerald-900/40 bg-emerald-50/15 dark:bg-emerald-950/10"
+                  : isInProgress
+                  ? "border-sky-300/80 dark:border-sky-800 bg-sky-50/15 dark:bg-sky-950/10 shadow-xs ring-1 ring-sky-400/20"
+                  : isBlocked
+                  ? "border-rose-300/80 dark:border-rose-800 bg-rose-50/15 dark:bg-rose-950/10"
+                  : ""
               }`}
             >
-              <CardContent className="p-4 sm:p-5 space-y-3">
-                {/* Header */}
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+              <CardContent className="p-4 sm:p-5 space-y-3.5">
+                {/* Header Row */}
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                   <div className="flex items-start sm:items-center gap-3">
-                    <span className="flex items-center justify-center w-7 h-7 rounded-lg bg-primary/10 text-primary font-black text-xs shrink-0 font-mono">
-                      M{m.sequence_order}
+                    <span
+                      className={`flex items-center justify-center w-8 h-8 rounded-xl font-mono font-black text-xs shrink-0 ${
+                        isCompleted
+                          ? "bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300"
+                          : isInProgress
+                          ? "bg-sky-100 dark:bg-sky-950 text-sky-700 dark:text-sky-300 ring-2 ring-sky-300/60"
+                          : "bg-muted text-muted-foreground"
+                      }`}
+                    >
+                      {isCompleted ? <CheckCircle2 className="w-4 h-4" /> : `M${m.sequence_order}`}
                     </span>
                     <div>
                       <h4 className="font-bold text-sm text-foreground leading-snug">
                         {m.title}
                       </h4>
                       {m.notes && (
-                        <p className="text-[11px] text-muted-foreground mt-0.5">
+                        <p className="text-[11px] text-muted-foreground mt-0.5 leading-relaxed">
                           {m.notes}
                         </p>
                       )}
@@ -140,7 +184,7 @@ export function MilestonesTracker({
                   </div>
 
                   <div className="flex items-center gap-2 shrink-0 self-end sm:self-center">
-                    <Badge variant="outline" className={`text-[11px] font-semibold ${cfg.badgeClass}`}>
+                    <Badge variant="outline" className={`text-xs ${cfg.badgeClass}`}>
                       {cfg.label}
                     </Badge>
                     {canEdit && (
@@ -148,7 +192,7 @@ export function MilestonesTracker({
                         variant="ghost"
                         size="sm"
                         onClick={() => handleOpenEdit(m)}
-                        className="h-7 px-2 text-xs font-semibold gap-1 text-slate-600 hover:text-slate-900"
+                        className="h-7 px-2.5 text-xs font-semibold gap-1 text-muted-foreground hover:text-foreground hover:bg-muted"
                       >
                         <Edit3 className="w-3 h-3" />
                         <span>Update</span>
@@ -159,14 +203,14 @@ export function MilestonesTracker({
 
                 {/* Description */}
                 {m.description && (
-                  <p className="text-xs text-slate-600 leading-relaxed pl-10">
+                  <p className="text-xs text-muted-foreground leading-relaxed pl-11">
                     {m.description}
                   </p>
                 )}
 
                 {/* Deliverables tags */}
                 {deliverablesList.length > 0 && (
-                  <div className="pl-10 flex items-center gap-1.5 flex-wrap">
+                  <div className="pl-11 flex items-center gap-1.5 flex-wrap">
                     <span className="text-[10px] uppercase font-bold text-muted-foreground mr-1">
                       Deliverables:
                     </span>
@@ -184,16 +228,16 @@ export function MilestonesTracker({
                 )}
 
                 {/* Progress Bar & Dates */}
-                <div className="pl-10 pt-1 space-y-1.5">
+                <div className="pl-11 pt-1 space-y-1.5">
                   <div className="flex items-center justify-between text-xs">
                     <span className="text-muted-foreground text-[11px]">
                       {m.actual_completion_date ? (
-                        <span className="text-emerald-700 font-semibold flex items-center gap-1">
+                        <span className="text-emerald-700 dark:text-emerald-400 font-semibold flex items-center gap-1">
                           <CheckCircle2 className="w-3 h-3" /> Completed on {m.actual_completion_date}
                         </span>
                       ) : m.planned_completion_date ? (
                         <span className="flex items-center gap-1">
-                          <Calendar className="w-3 h-3" /> Target: {m.planned_completion_date}
+                          <Calendar className="w-3 h-3 text-muted-foreground" /> Target: {m.planned_completion_date}
                         </span>
                       ) : (
                         <span>Milestone Progress</span>

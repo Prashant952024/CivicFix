@@ -66,12 +66,12 @@ export function ProgressUpdatesLog({
 
   if (updates.length === 0) {
     return (
-      <Card className="border-border/80">
+      <Card className="border-border/80 bg-card">
         <CardContent className="p-8">
           <EmptyState
             icon={FileText}
             title="No Progress Updates Submitted Yet"
-            description="The university research team will submit periodic structured progress reports every 5 days to report completed work, findings, and support needs."
+            description="The university research team submits periodic structured progress reports every 5 days to track milestones, technical findings, and municipal support needs."
             action={
               !isManager && onOpenSubmitModal ? (
                 <Button size="sm" onClick={onOpenSubmitModal}>
@@ -87,14 +87,14 @@ export function ProgressUpdatesLog({
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-2 border-b border-border/70">
         <div>
           <h3 className="text-sm font-bold text-foreground flex items-center gap-2">
             <FileText className="w-4 h-4 text-primary" />
             <span>Periodic Progress Reports ({updates.length})</span>
           </h3>
           <p className="text-xs text-muted-foreground">
-            Auditable 5-day cadence reports tracking milestones, evidence, and roadblocks.
+            Auditable cadence reports tracking milestones, empirical findings, and support needs.
           </p>
         </div>
 
@@ -102,8 +102,9 @@ export function ProgressUpdatesLog({
           <Button
             size="sm"
             onClick={onOpenSubmitModal}
-            className="bg-primary hover:bg-primary/90 text-primary-foreground text-xs font-bold gap-1.5 shadow-xs h-8 px-3"
+            className="bg-primary hover:bg-primary/90 text-primary-foreground text-xs font-bold gap-1.5 shadow-xs h-8 px-3.5 shrink-0 self-end sm:self-auto"
           >
+            <FileText className="w-3.5 h-3.5" />
             <span>Submit Update</span>
           </Button>
         )}
@@ -115,17 +116,17 @@ export function ProgressUpdatesLog({
           const isAcknowledged = Boolean(u.manager_acknowledged_at);
 
           return (
-            <Card key={u.id} className="border-border/80 shadow-xs overflow-hidden">
+            <Card key={u.id} className="border-border/80 shadow-xs overflow-hidden bg-card">
               <div
-                className={`h-1 ${
+                className={`h-1.5 ${
                   isAcknowledged
                     ? "bg-emerald-500"
                     : "bg-sky-500"
                 }`}
               />
-              <CardContent className="p-5 space-y-4">
+              <CardContent className="p-5 sm:p-6 space-y-4">
                 {/* Header: Period, Submitter, Sequence */}
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 pb-3 border-b border-border/70">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-border/70">
                   <div className="space-y-1">
                     <div className="flex items-center gap-2 flex-wrap">
                       <span className="font-mono text-xs font-black bg-primary/10 text-primary px-2 py-0.5 rounded-md">
@@ -133,14 +134,14 @@ export function ProgressUpdatesLog({
                       </span>
                       <span className="text-xs font-bold text-foreground flex items-center gap-1.5">
                         <Calendar className="w-3.5 h-3.5 text-muted-foreground" />
-                        Reporting Period: {u.reporting_period_start} – {u.reporting_period_end}
+                        Period: {u.reporting_period_start} – {u.reporting_period_end}
                       </span>
                     </div>
 
-                    <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
+                    <div className="flex items-center gap-2 text-[11px] text-muted-foreground flex-wrap">
                       <span className="flex items-center gap-1">
                         <User className="w-3 h-3" />
-                        Submitted by: <strong className="text-foreground">{u.submitterName || "Research Team"}</strong>
+                        Submitted by: <strong className="text-foreground font-semibold">{u.submitterName || "Research Lead"}</strong>
                       </span>
                       <span>•</span>
                       <span>{new Date(u.submitted_at).toLocaleString()}</span>
@@ -148,15 +149,15 @@ export function ProgressUpdatesLog({
                   </div>
 
                   {/* Status / Acknowledge Action */}
-                  <div className="flex items-center gap-2 self-end sm:self-center">
+                  <div className="flex items-center gap-2 shrink-0 self-end sm:self-center flex-wrap">
                     {isAcknowledged ? (
-                      <Badge className="bg-emerald-100 text-emerald-950 border-emerald-300 text-[11px] font-bold">
-                        <CheckCircle2 className="w-3 h-3 mr-1 inline text-emerald-600" />
+                      <Badge variant="outline" className="bg-emerald-50 dark:bg-emerald-950/50 text-emerald-800 dark:text-emerald-300 border-emerald-300 dark:border-emerald-800 text-xs font-bold">
+                        <CheckCircle2 className="w-3 h-3 mr-1 inline text-emerald-600 dark:text-emerald-400" />
                         Manager Acknowledged
                       </Badge>
                     ) : (
-                      <Badge className="bg-sky-100 text-sky-950 border-sky-300 text-[11px] font-semibold">
-                        <Clock className="w-3 h-3 mr-1 inline text-sky-600" />
+                      <Badge variant="outline" className="bg-sky-50 dark:bg-sky-950/50 text-sky-800 dark:text-sky-300 border-sky-300 dark:border-sky-800 text-xs font-semibold">
+                        <Clock className="w-3 h-3 mr-1 inline text-sky-600 dark:text-sky-400" />
                         Awaiting Manager Review
                       </Badge>
                     )}
@@ -165,7 +166,7 @@ export function ProgressUpdatesLog({
                       <Button
                         size="sm"
                         onClick={() => handleOpenAcknowledge(u.id)}
-                        className="bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold h-7 px-3 shadow-xs"
+                        className="bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold h-7.5 px-3 shadow-xs"
                       >
                         Acknowledge
                       </Button>
@@ -176,7 +177,7 @@ export function ProgressUpdatesLog({
                         variant="outline"
                         size="sm"
                         onClick={() => onNavigateToTab("communication")}
-                        className="h-7 px-2.5 text-xs font-semibold gap-1 text-slate-700 border-border/80 hover:bg-muted"
+                        className="h-7.5 px-2.5 text-xs font-semibold gap-1 text-muted-foreground hover:text-foreground border-border/80 hover:bg-muted"
                       >
                         <MessageSquare className="w-3 h-3" />
                         <span>Clarify</span>
@@ -186,7 +187,7 @@ export function ProgressUpdatesLog({
                 </div>
 
                 {/* Body 1: What Was Completed */}
-                <div className="space-y-1">
+                <div className="space-y-1.5">
                   <h5 className="text-[11px] uppercase font-bold text-muted-foreground tracking-wider">
                     Completed Research Activities
                   </h5>
@@ -197,12 +198,12 @@ export function ProgressUpdatesLog({
 
                 {/* Body 2: Current Findings (if present) */}
                 {u.current_findings && (
-                  <div className="space-y-1">
-                    <h5 className="text-[11px] uppercase font-bold text-muted-foreground tracking-wider flex items-center gap-1.5">
-                      <Sparkles className="w-3 h-3 text-amber-600" />
+                  <div className="space-y-1.5">
+                    <h5 className="text-[11px] uppercase font-bold text-amber-700 dark:text-amber-400 tracking-wider flex items-center gap-1.5">
+                      <Sparkles className="w-3.5 h-3.5 text-amber-600" />
                       Key Findings &amp; Technical Discoveries
                     </h5>
-                    <p className="text-xs text-foreground whitespace-pre-line leading-relaxed bg-amber-50/20 p-3 rounded-xl border border-amber-200/50">
+                    <p className="text-xs text-foreground whitespace-pre-line leading-relaxed bg-amber-50/20 dark:bg-amber-950/15 p-3 rounded-xl border border-amber-200/50 dark:border-amber-900/40">
                       {u.current_findings}
                     </p>
                   </div>
@@ -210,8 +211,8 @@ export function ProgressUpdatesLog({
 
                 {/* Milestone Progression Tag (if linked) */}
                 {u.milestone_id && (
-                  <div className="flex items-center gap-2 p-2.5 rounded-lg bg-sky-50/30 border border-sky-200/60 text-xs">
-                    <Layers className="w-3.5 h-3.5 text-sky-600 shrink-0" />
+                  <div className="flex items-center gap-2 p-2.5 rounded-lg bg-sky-50/30 dark:bg-sky-950/20 border border-sky-200/60 dark:border-sky-900/40 text-xs">
+                    <Layers className="w-3.5 h-3.5 text-sky-600 dark:text-sky-400 shrink-0" />
                     <span className="text-muted-foreground">Milestone Progressed:</span>
                     <span className="font-bold text-foreground">
                       {u.milestone_progress_pct !== null ? `${u.milestone_progress_pct}% reached` : "Active"}
@@ -220,9 +221,9 @@ export function ProgressUpdatesLog({
                 )}
 
                 {/* Body 3: Next Planned Work */}
-                <div className="space-y-1">
+                <div className="space-y-1.5">
                   <h5 className="text-[11px] uppercase font-bold text-muted-foreground tracking-wider">
-                    Next 5-Day Plan
+                    Next 5-Day Operational Plan
                   </h5>
                   <p className="text-xs text-foreground whitespace-pre-line leading-relaxed bg-muted/20 p-3 rounded-xl border border-border/50">
                     {u.next_planned_work}
@@ -231,19 +232,19 @@ export function ProgressUpdatesLog({
 
                 {/* Body 4: Support Required (if present) */}
                 {u.support_required && (
-                  <div className="p-3.5 rounded-xl border border-amber-300 bg-amber-50/40 space-y-1.5">
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs font-black uppercase text-amber-950 flex items-center gap-1.5">
-                        <Wrench className="w-3.5 h-3.5 text-amber-700" />
+                  <div className="p-3.5 rounded-xl border border-amber-300/80 dark:border-amber-800 bg-amber-50/40 dark:bg-amber-950/20 space-y-1.5">
+                    <div className="flex items-center justify-between flex-wrap gap-2">
+                      <span className="text-xs font-black uppercase text-amber-950 dark:text-amber-300 flex items-center gap-1.5">
+                        <Wrench className="w-3.5 h-3.5 text-amber-700 dark:text-amber-400" />
                         Municipal / Industry Support Required
                       </span>
                       {u.support_category && (
-                        <Badge variant="outline" className="bg-white/80 text-amber-900 border-amber-300 font-bold text-[10px]">
+                        <Badge variant="outline" className="bg-white/80 dark:bg-card text-amber-900 dark:text-amber-300 border-amber-300 dark:border-amber-800 font-bold text-[10px]">
                           Category: {u.support_category}
                         </Badge>
                       )}
                     </div>
-                    <p className="text-xs text-amber-950 leading-relaxed font-medium">
+                    <p className="text-xs text-amber-950 dark:text-amber-200 leading-relaxed font-medium">
                       {u.support_required}
                     </p>
                   </div>
@@ -253,7 +254,7 @@ export function ProgressUpdatesLog({
                 {u.evidenceItems && u.evidenceItems.length > 0 && (
                   <div className="space-y-1.5 pt-1">
                     <span className="text-[10px] uppercase font-bold text-muted-foreground block">
-                      Attached Artifacts &amp; External Links:
+                      Attached Artifacts &amp; Evidence:
                     </span>
                     <div className="flex items-center gap-2 flex-wrap">
                       {u.evidenceItems.map((ev) => (
@@ -262,7 +263,7 @@ export function ProgressUpdatesLog({
                           href={ev.url || "#"}
                           target={ev.url ? "_blank" : "_self"}
                           rel="noreferrer"
-                          className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-card border border-border text-xs font-semibold hover:border-primary transition-colors text-foreground"
+                          className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-card border border-border text-xs font-semibold hover:border-primary transition-colors text-foreground shadow-2xs"
                         >
                           <span className="text-[10px] font-mono text-muted-foreground uppercase">
                             [{ev.evidence_type}]
@@ -277,20 +278,20 @@ export function ProgressUpdatesLog({
 
                 {/* Administrative Acknowledgement Note */}
                 {isAcknowledged && (
-                  <div className="mt-3 p-3 rounded-xl bg-emerald-50/40 border border-emerald-200/80 space-y-1">
-                    <div className="flex items-center justify-between text-xs text-emerald-950">
+                  <div className="mt-3 p-3 rounded-xl bg-emerald-50/40 dark:bg-emerald-950/20 border border-emerald-200/80 dark:border-emerald-900/40 space-y-1">
+                    <div className="flex items-center justify-between text-xs text-emerald-950 dark:text-emerald-300">
                       <span className="font-bold flex items-center gap-1">
-                        <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                        <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
                         Acknowledged by {u.acknowledgingManagerName || "Innovation Manager"}
                       </span>
                       {u.manager_acknowledged_at && (
-                        <span className="text-[10px] text-emerald-900 font-mono">
+                        <span className="text-[10px] text-emerald-900 dark:text-emerald-400 font-mono">
                           {new Date(u.manager_acknowledged_at).toLocaleDateString()}
                         </span>
                       )}
                     </div>
                     {u.manager_feedback && (
-                      <p className="text-xs text-emerald-950 italic pl-4.5 pt-1">
+                      <p className="text-xs text-emerald-950 dark:text-emerald-200 italic pl-4.5 pt-1">
                         "{u.manager_feedback}"
                       </p>
                     )}
@@ -325,7 +326,7 @@ export function ProgressUpdatesLog({
               rows={4}
               value={feedbackText}
               onChange={(e) => setFeedbackText(e.target.value)}
-              placeholder="e.g. Excellent progress on the sensor bus calibration. We are coordinating with the water department for canal telemetry access."
+              placeholder="e.g. Excellent progress on the sensor bus calibration. We are coordinating with the municipal telemetry team for field access."
               className="w-full px-3 py-2 text-xs rounded-lg border border-border bg-background text-foreground resize-none"
             />
           </div>
