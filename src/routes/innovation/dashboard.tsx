@@ -1,32 +1,60 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Activity,
   AlertCircle,
   ArrowRight,
+  BookOpen,
   BrainCircuit,
   CheckCircle2,
-  ChevronRight,
   Clock,
+  FileCheck2,
   FileText,
+  Filter,
+  Flame,
+  Globe,
   GraduationCap,
   Layers,
   RefreshCw,
   Rocket,
   Search,
-  Users,
+  ShieldAlert,
+  ShieldCheck,
+  Sparkles,
+  TrendingUp,
   X,
 } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   fetchInnovationDashboardData,
   searchInnovationRecords,
+  type AttentionItem,
   type InnovationDashboardData,
   type InnovationSearchResult,
 } from "@/lib/innovation";
+
+type AttentionFilter = "ALL" | "CRITICAL" | "PROPOSALS" | "PILOTS_VALIDATIONS" | "BLOCKERS_MILESTONES" | "PROBLEMS";
+
+function getAttentionToneBadge(tone: AttentionItem["badgeTone"]) {
+  switch (tone) {
+    case "danger":
+      return "bg-rose-100 text-rose-900 border-rose-300 dark:bg-rose-950/70 dark:text-rose-200 dark:border-rose-800";
+    case "warning":
+      return "bg-amber-100 text-amber-900 border-amber-300 dark:bg-amber-950/70 dark:text-amber-200 dark:border-amber-800";
+    case "purple":
+      return "bg-purple-100 text-purple-900 border-purple-300 dark:bg-purple-950/70 dark:text-purple-200 dark:border-purple-800";
+    case "teal":
+      return "bg-teal-100 text-teal-900 border-teal-300 dark:bg-teal-950/70 dark:text-teal-200 dark:border-teal-800";
+    case "emerald":
+      return "bg-emerald-100 text-emerald-900 border-emerald-300 dark:bg-emerald-950/70 dark:text-emerald-200 dark:border-emerald-800";
+    case "info":
+    default:
+      return "bg-sky-100 text-sky-900 border-sky-300 dark:bg-sky-950/70 dark:text-sky-200 dark:border-sky-800";
+  }
+}
 
 export function InnovationDashboardPage() {
   const navigate = useNavigate();
@@ -37,6 +65,9 @@ export function InnovationDashboardPage() {
   const [error, setError] = useState<string | null>(null);
   const [refreshNonce, setRefreshNonce] = useState(0);
   const [lastRefreshedAt, setLastRefreshedAt] = useState<string | null>(null);
+
+  // Attention Center Filter
+  const [attentionFilter, setAttentionFilter] = useState<AttentionFilter>("ALL");
 
   // Global search state
   const [searchQuery, setSearchQuery] = useState("");
@@ -108,227 +139,300 @@ export function InnovationDashboardPage() {
     (searchResults.challenges.length > 0 ||
       searchResults.institutions.length > 0 ||
       searchResults.projects.length > 0 ||
-      searchResults.proposals.length > 0);
+      searchResults.proposals.length > 0 ||
+      (searchResults.knowledgeSolutions && searchResults.knowledgeSolutions.length > 0));
+
+  // Filtered attention queue items
+  const filteredAttentionItems = useMemo(() => {
+    if (!data?.actionRequired.attentionItems) return [];
+    const items = data.actionRequired.attentionItems;
+    switch (attentionFilter) {
+      case "CRITICAL":
+        return items.filter((i) => i.urgency === "CRITICAL");
+      case "PROPOSALS":
+        return items.filter((i) => i.category === "PROPOSAL");
+      case "PILOTS_VALIDATIONS":
+        return items.filter((i) => i.category === "PILOT_PLAN" || i.category === "PILOT_VALIDATION" || i.category === "DEPLOYMENT_PLAN" || i.category === "IMPACT_REPORT");
+      case "BLOCKERS_MILESTONES":
+        return items.filter((i) => i.category === "BLOCKER" || i.category === "OVERDUE_MILESTONE");
+      case "PROBLEMS":
+        return items.filter((i) => i.category === "UNFORMULATED_PROBLEM" || i.category === "INVITATION" || i.category === "REUSE_REVIEW");
+      case "ALL":
+      default:
+        return items;
+    }
+  }, [data?.actionRequired.attentionItems, attentionFilter]);
 
   return (
-    <div className="space-y-8 pb-12 max-w-7xl mx-auto px-2 sm:px-4">
-      {/* SECTION 1 — GLOBAL HEADER */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-border/80 pb-5">
-        <div>
-          <div className="flex items-center gap-2">
-            <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-foreground">
-              Innovation Management
-            </h1>
-            <Badge variant="outline" className="text-[10px] uppercase font-bold tracking-wider bg-teal-50 text-teal-800 border-teal-200">
-              Operations Center
-            </Badge>
+    <div className="space-y-8 pb-16 max-w-7xl mx-auto px-2 sm:px-4">
+      {/* ========================================================================= */}
+      {/* SECTION A — GLOBAL HEADER, WELCOME & LIVE SEARCH */}
+      {/* ========================================================================= */}
+      <div className="space-y-4 border-b border-border/80 pb-6">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div className="space-y-1">
+            <div className="flex items-center gap-2.5 flex-wrap">
+              <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-foreground">
+                Innovation Operations Center
+              </h1>
+              <Badge variant="outline" className="text-[10px] uppercase font-bold tracking-wider bg-teal-50 text-teal-800 border-teal-200 dark:bg-teal-950/70 dark:text-teal-200 dark:border-teal-800">
+                Live State Machine
+              </Badge>
+              <Badge variant="outline" className="text-[10px] font-semibold text-muted-foreground">
+                Municipal Governance
+              </Badge>
+            </div>
+            <p className="text-xs sm:text-sm text-muted-foreground max-w-3xl leading-relaxed">
+              Authoritative municipal innovation command deck: oversee complex problem lifecycles, university partnerships, research milestones, pilot validations, and deployment rollouts.
+            </p>
           </div>
-          <p className="text-xs sm:text-sm text-muted-foreground mt-1 max-w-2xl">
-            Manage complex civic challenges, institutional collaborations, research proposals and innovation projects.
-          </p>
-        </div>
 
-        <div className="flex items-center gap-2 self-start md:self-auto">
-          {lastRefreshedAt && (
-            <span className="text-[11px] text-muted-foreground mr-1 hidden sm:inline">
-              Updated {lastRefreshedAt}
-            </span>
-          )}
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setRefreshNonce((v) => v + 1)}
-            disabled={loading}
-            className="text-xs gap-1.5 h-8.5"
-          >
-            <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} />
-            <span>Refresh</span>
-          </Button>
-          <Button
-            size="sm"
-            onClick={() => goTo("/app/innovation/proposals")}
-            className="bg-primary text-primary-foreground text-xs gap-1.5 h-8.5 shadow-xs"
-          >
-            <FileText className="w-3.5 h-3.5" />
-            <span>Review Proposals</span>
-          </Button>
-        </div>
-      </div>
-
-      {/* GLOBAL SEARCH BAR */}
-      <div className="relative">
-        <div className="relative">
-          <Search className="w-4 h-4 text-muted-foreground absolute left-3.5 top-1/2 -translate-y-1/2" />
-          <input
-            type="text"
-            placeholder="Search challenges, institutions, projects, proposals..."
-            value={searchQuery}
-            onChange={(e) => {
-              setSearchQuery(e.target.value);
-              if (!e.target.value.trim()) {
-                setSearchResults(null);
-              }
-            }}
-            className="w-full pl-10 pr-10 py-3 text-sm rounded-2xl border border-border bg-card text-foreground shadow-xs focus:outline-hidden focus:ring-2 focus:ring-primary placeholder:text-muted-foreground/70"
-          />
-          {searchQuery && (
-            <button
-              type="button"
-              onClick={() => {
-                setSearchQuery("");
-                setSearchResults(null);
-              }}
-              className="absolute right-3.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+          <div className="flex items-center gap-2 self-start md:self-auto flex-wrap">
+            {lastRefreshedAt && (
+              <span className="text-[11px] text-muted-foreground mr-1 hidden sm:inline-flex items-center gap-1">
+                <Clock className="w-3 h-3 text-muted-foreground" />
+                Updated {lastRefreshedAt}
+              </span>
+            )}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setRefreshNonce((v) => v + 1)}
+              disabled={loading}
+              className="text-xs gap-1.5 h-8.5"
             >
-              <X className="w-4 h-4" />
-            </button>
-          )}
+              <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} />
+              <span>Refresh</span>
+            </Button>
+            <Button
+              size="sm"
+              onClick={() => goTo("/app/innovation/proposals")}
+              className="bg-primary text-primary-foreground text-xs gap-1.5 h-8.5 shadow-xs font-semibold"
+            >
+              <FileText className="w-3.5 h-3.5" />
+              <span>Proposals Hub</span>
+            </Button>
+            <Button
+              size="sm"
+              variant="secondary"
+              onClick={() => goTo("/app/innovation/pilots")}
+              className="text-xs gap-1.5 h-8.5 font-semibold"
+            >
+              <Rocket className="w-3.5 h-3.5" />
+              <span>Pilots Hub</span>
+            </Button>
+          </div>
         </div>
 
-        {/* Search Results Dropdown Overlay */}
-        {searchQuery.trim().length > 0 && (
-          <Card className="absolute top-full left-0 right-0 mt-2 z-50 shadow-xl border-border bg-card/95 backdrop-blur-md max-h-[70vh] overflow-y-auto">
-            <CardContent className="p-4 space-y-4">
-              <div className="flex items-center justify-between border-b border-border pb-2">
-                <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
-                  Search Results for &ldquo;{searchQuery}&rdquo;
-                </span>
-                <span className="text-[11px] text-muted-foreground">Press Escape or click outside to dismiss</span>
-              </div>
+        {/* Global Search Bar */}
+        <div className="relative">
+          <div className="relative">
+            <Search className="w-4 h-4 text-muted-foreground absolute left-3.5 top-1/2 -translate-y-1/2" />
+            <input
+              type="text"
+              placeholder="Search challenges, universities, projects, research proposals, solution knowledge..."
+              value={searchQuery}
+              onChange={(e) => {
+                setSearchQuery(e.target.value);
+                if (!e.target.value.trim()) {
+                  setSearchResults(null);
+                }
+              }}
+              className="w-full pl-10 pr-10 py-2.5 text-sm rounded-2xl border border-border bg-card text-foreground shadow-xs focus:outline-hidden focus:ring-2 focus:ring-primary placeholder:text-muted-foreground/70"
+            />
+            {searchQuery && (
+              <button
+                type="button"
+                onClick={() => {
+                  setSearchQuery("");
+                  setSearchResults(null);
+                }}
+                className="absolute right-3.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground p-1"
+                aria-label="Clear search"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            )}
+          </div>
 
-              {isSearching ? (
-                <div className="py-6 text-center text-xs text-muted-foreground">Searching innovation registry...</div>
-              ) : !hasSearchResults ? (
-                <div className="py-6 text-center text-xs text-muted-foreground">
-                  No matching challenges, institutions, projects, or proposals found.
+          {/* Search Results Dropdown Overlay */}
+          {searchQuery.trim().length > 0 && (
+            <Card className="absolute top-full left-0 right-0 mt-2 z-50 shadow-xl border-border bg-card/95 backdrop-blur-md max-h-[70vh] overflow-y-auto">
+              <CardContent className="p-4 space-y-4">
+                <div className="flex items-center justify-between border-b border-border pb-2">
+                  <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
+                    Registry Matches for &ldquo;{searchQuery}&rdquo;
+                  </span>
+                  <span className="text-[11px] text-muted-foreground">Click item to navigate</span>
                 </div>
-              ) : (
-                <div className="space-y-4">
-                  {/* Matching Proposals */}
-                  {searchResults.proposals.length > 0 && (
-                    <div className="space-y-1.5">
-                      <p className="text-[11px] font-bold uppercase tracking-wider text-primary flex items-center gap-1.5">
-                        <FileText className="w-3.5 h-3.5" /> Research Proposals ({searchResults.proposals.length})
-                      </p>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                        {searchResults.proposals.map((p) => (
-                          <div
-                            key={p.id}
-                            onClick={() => {
-                              setSearchQuery("");
-                              setSearchResults(null);
-                              goTo(`/app/innovation/proposals/${p.id}`);
-                            }}
-                            className="p-2.5 rounded-xl border border-border bg-muted/20 hover:bg-muted/50 cursor-pointer transition flex items-center justify-between gap-2"
-                          >
-                            <div className="min-w-0">
-                              <p className="text-xs font-bold text-foreground truncate">{p.title}</p>
-                              <p className="text-[10px] text-muted-foreground truncate">{p.institutionName}</p>
-                            </div>
-                            <Badge variant="outline" className="text-[9px] shrink-0 font-mono">
-                              v{p.versionNumber} • {p.status}
-                            </Badge>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
 
-                  {/* Matching Challenges */}
-                  {searchResults.challenges.length > 0 && (
-                    <div className="space-y-1.5">
-                      <p className="text-[11px] font-bold uppercase tracking-wider text-teal-700 flex items-center gap-1.5">
-                        <Rocket className="w-3.5 h-3.5" /> Innovation Challenges ({searchResults.challenges.length})
-                      </p>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                        {searchResults.challenges.map((c) => (
-                          <div
-                            key={c.id}
-                            onClick={() => {
-                              setSearchQuery("");
-                              setSearchResults(null);
-                              goTo(`/app/innovation/problems/${c.id}`);
-                            }}
-                            className="p-2.5 rounded-xl border border-border bg-muted/20 hover:bg-muted/50 cursor-pointer transition flex items-center justify-between gap-2"
-                          >
-                            <div className="min-w-0">
-                              <p className="text-xs font-bold text-foreground truncate">{c.title}</p>
-                              <p className="text-[10px] text-muted-foreground truncate">{c.category}</p>
+                {isSearching ? (
+                  <div className="py-6 text-center text-xs text-muted-foreground flex items-center justify-center gap-2">
+                    <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                    <span>Searching across innovation records...</span>
+                  </div>
+                ) : !hasSearchResults ? (
+                  <div className="py-6 text-center text-xs text-muted-foreground">
+                    No matching challenges, institutions, projects, proposals, or solutions found.
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {/* Matching Proposals */}
+                    {searchResults.proposals.length > 0 && (
+                      <div className="space-y-1.5">
+                        <p className="text-[11px] font-bold uppercase tracking-wider text-primary flex items-center gap-1.5">
+                          <FileText className="w-3.5 h-3.5" /> Research Proposals ({searchResults.proposals.length})
+                        </p>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                          {searchResults.proposals.map((p) => (
+                            <div
+                              key={p.id}
+                              onClick={() => {
+                                setSearchQuery("");
+                                setSearchResults(null);
+                                goTo(`/app/innovation/proposals/${p.id}`);
+                              }}
+                              className="p-2.5 rounded-xl border border-border bg-muted/20 hover:bg-muted/50 cursor-pointer transition flex items-center justify-between gap-2"
+                            >
+                              <div className="min-w-0">
+                                <p className="text-xs font-bold text-foreground truncate">{p.title}</p>
+                                <p className="text-[10px] text-muted-foreground truncate">{p.institutionName}</p>
+                              </div>
+                              <Badge variant="outline" className="text-[9px] shrink-0 font-mono">
+                                v{p.versionNumber} • {p.status}
+                              </Badge>
                             </div>
-                            <span className="text-[10px] font-semibold text-primary">Open →</span>
-                          </div>
-                        ))}
+                          ))}
+                        </div>
                       </div>
-                    </div>
-                  )}
+                    )}
 
-                  {/* Matching Projects */}
-                  {searchResults.projects.length > 0 && (
-                    <div className="space-y-1.5">
-                      <p className="text-[11px] font-bold uppercase tracking-wider text-indigo-700 flex items-center gap-1.5">
-                        <Layers className="w-3.5 h-3.5" /> Research Projects ({searchResults.projects.length})
-                      </p>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                        {searchResults.projects.map((proj) => (
-                          <div
-                            key={proj.id}
-                            onClick={() => {
-                              setSearchQuery("");
-                              setSearchResults(null);
-                              goTo(`/app/innovation/projects/${proj.id}`);
-                            }}
-                            className="p-2.5 rounded-xl border border-border bg-muted/20 hover:bg-muted/50 cursor-pointer transition flex items-center justify-between gap-2"
-                          >
-                            <div className="min-w-0">
-                              <p className="text-xs font-bold text-foreground truncate">{proj.title}</p>
-                              <p className="text-[10px] text-muted-foreground truncate">{proj.institutionName}</p>
+                    {/* Matching Challenges */}
+                    {searchResults.challenges.length > 0 && (
+                      <div className="space-y-1.5">
+                        <p className="text-[11px] font-bold uppercase tracking-wider text-teal-700 dark:text-teal-400 flex items-center gap-1.5">
+                          <Rocket className="w-3.5 h-3.5" /> Innovation Challenges ({searchResults.challenges.length})
+                        </p>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                          {searchResults.challenges.map((c) => (
+                            <div
+                              key={c.id}
+                              onClick={() => {
+                                setSearchQuery("");
+                                setSearchResults(null);
+                                goTo(`/app/innovation/problems/${c.id}`);
+                              }}
+                              className="p-2.5 rounded-xl border border-border bg-muted/20 hover:bg-muted/50 cursor-pointer transition flex items-center justify-between gap-2"
+                            >
+                              <div className="min-w-0">
+                                <p className="text-xs font-bold text-foreground truncate">{c.title}</p>
+                                <p className="text-[10px] text-muted-foreground truncate">{c.category}</p>
+                              </div>
+                              <span className="text-[10px] font-semibold text-primary">Open →</span>
                             </div>
-                            <span className="text-[10px] font-semibold text-primary">Open Workspace →</span>
-                          </div>
-                        ))}
+                          ))}
+                        </div>
                       </div>
-                    </div>
-                  )}
+                    )}
 
-                  {/* Matching Institutions */}
-                  {searchResults.institutions.length > 0 && (
-                    <div className="space-y-1.5">
-                      <p className="text-[11px] font-bold uppercase tracking-wider text-amber-800 flex items-center gap-1.5">
-                        <GraduationCap className="w-3.5 h-3.5" /> Accredited Institutions ({searchResults.institutions.length})
-                      </p>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                        {searchResults.institutions.map((i) => (
-                          <div
-                            key={i.id}
-                            onClick={() => {
-                              setSearchQuery("");
-                              setSearchResults(null);
-                              goTo(`/app/innovation/institutions?selected=${i.id}`);
-                            }}
-                            className="p-2.5 rounded-xl border border-border bg-muted/20 hover:bg-muted/50 cursor-pointer transition flex items-center justify-between gap-2"
-                          >
-                            <div className="min-w-0">
-                              <p className="text-xs font-bold text-foreground truncate">{i.name}</p>
-                              <p className="text-[10px] text-muted-foreground truncate">
-                                {i.city}, {i.state} {i.acronym ? `(${i.acronym})` : ""}
-                              </p>
+                    {/* Matching Projects */}
+                    {searchResults.projects.length > 0 && (
+                      <div className="space-y-1.5">
+                        <p className="text-[11px] font-bold uppercase tracking-wider text-indigo-700 dark:text-indigo-400 flex items-center gap-1.5">
+                          <Layers className="w-3.5 h-3.5" /> Research Projects ({searchResults.projects.length})
+                        </p>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                          {searchResults.projects.map((proj) => (
+                            <div
+                              key={proj.id}
+                              onClick={() => {
+                                setSearchQuery("");
+                                setSearchResults(null);
+                                goTo(`/app/innovation/projects/${proj.id}`);
+                              }}
+                              className="p-2.5 rounded-xl border border-border bg-muted/20 hover:bg-muted/50 cursor-pointer transition flex items-center justify-between gap-2"
+                            >
+                              <div className="min-w-0">
+                                <p className="text-xs font-bold text-foreground truncate">{proj.title}</p>
+                                <p className="text-[10px] text-muted-foreground truncate">{proj.institutionName}</p>
+                              </div>
+                              <span className="text-[10px] font-semibold text-primary">Workspace →</span>
                             </div>
-                            <span className="text-[10px] font-semibold text-primary">View →</span>
-                          </div>
-                        ))}
+                          ))}
+                        </div>
                       </div>
-                    </div>
-                  )}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        )}
+                    )}
+
+                    {/* Matching Institutions */}
+                    {searchResults.institutions.length > 0 && (
+                      <div className="space-y-1.5">
+                        <p className="text-[11px] font-bold uppercase tracking-wider text-amber-800 dark:text-amber-400 flex items-center gap-1.5">
+                          <GraduationCap className="w-3.5 h-3.5" /> Accredited Institutions ({searchResults.institutions.length})
+                        </p>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                          {searchResults.institutions.map((i) => (
+                            <div
+                              key={i.id}
+                              onClick={() => {
+                                setSearchQuery("");
+                                setSearchResults(null);
+                                goTo(`/app/innovation/institutions?selected=${i.id}`);
+                              }}
+                              className="p-2.5 rounded-xl border border-border bg-muted/20 hover:bg-muted/50 cursor-pointer transition flex items-center justify-between gap-2"
+                            >
+                              <div className="min-w-0">
+                                <p className="text-xs font-bold text-foreground truncate">{i.name}</p>
+                                <p className="text-[10px] text-muted-foreground truncate">
+                                  {i.city}, {i.state} {i.acronym ? `(${i.acronym})` : ""}
+                                </p>
+                              </div>
+                              <span className="text-[10px] font-semibold text-primary">View →</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Matching Knowledge Base Solutions */}
+                    {searchResults.knowledgeSolutions && searchResults.knowledgeSolutions.length > 0 && (
+                      <div className="space-y-1.5">
+                        <p className="text-[11px] font-bold uppercase tracking-wider text-emerald-700 dark:text-emerald-400 flex items-center gap-1.5">
+                          <BookOpen className="w-3.5 h-3.5" /> Knowledge Base Solutions ({searchResults.knowledgeSolutions.length})
+                        </p>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                          {searchResults.knowledgeSolutions.map((k) => (
+                            <div
+                              key={k.id}
+                              onClick={() => {
+                                setSearchQuery("");
+                                setSearchResults(null);
+                                goTo("/app/innovation/knowledge");
+                              }}
+                              className="p-2.5 rounded-xl border border-border bg-muted/20 hover:bg-muted/50 cursor-pointer transition flex items-center justify-between gap-2"
+                            >
+                              <div className="min-w-0">
+                                <p className="text-xs font-bold text-foreground truncate">{k.title}</p>
+                                <p className="text-[10px] text-muted-foreground truncate">
+                                  {k.category} • {k.universityName}
+                                </p>
+                              </div>
+                              <span className="text-[10px] font-semibold text-primary">Knowledge Hub →</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
+        </div>
       </div>
 
       {/* Error state */}
       {error && (
-        <div className="p-4 bg-rose-50 border border-rose-300 rounded-2xl text-xs text-rose-800 flex items-center justify-between gap-2">
+        <div className="p-4 bg-rose-50 border border-rose-300 rounded-2xl text-xs text-rose-800 flex items-center justify-between gap-2 dark:bg-rose-950/50 dark:border-rose-800 dark:text-rose-200">
           <div className="flex items-center gap-2">
             <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
             <span>{error}</span>
@@ -339,519 +443,454 @@ export function InnovationDashboardPage() {
         </div>
       )}
 
-      {/* SECTION 2 — "ACTION REQUIRED" (Prominent Top Priority Queue) */}
+      {/* ========================================================================= */}
+      {/* SECTION B — NEEDS YOUR ATTENTION (THE ATTENTION CENTER) */}
+      {/* ========================================================================= */}
       <section className="space-y-4">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
           <div className="flex items-center gap-2">
-            <span className="flex h-3.5 w-3.5 relative">
+            <span className="flex h-3 w-3 relative">
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75" />
-              <span className="relative inline-flex rounded-full h-3.5 w-3.5 bg-rose-500" />
+              <span className="relative inline-flex rounded-full h-3 w-3 bg-rose-500" />
             </span>
-            <h2 className="text-base sm:text-lg font-black tracking-tight text-foreground uppercase">
-              Action Required
+            <h2 className="text-base sm:text-lg font-black tracking-tight text-foreground uppercase flex items-center gap-2">
+              <span>Needs Your Attention</span>
+              <Badge variant="outline" className="font-mono text-xs px-2 py-0">
+                {data?.actionRequired.attentionItems.length ?? 0}
+              </Badge>
             </h2>
           </div>
-          <span className="text-xs font-medium text-muted-foreground">
-            Items requiring Innovation Manager decision or review
+          <span className="text-xs text-muted-foreground">
+            Authoritative Innovation Manager action items across all 10 stages
           </span>
         </div>
 
-        {/* 4 Action Cards Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          {/* 1. Research Proposals Awaiting Review (Most Urgent!) */}
+        {/* 4 Priority Headline Cards */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
+          {/* 1. Research Proposals */}
           <div
             onClick={() => goTo("/app/innovation/proposals?status=SUBMITTED")}
-            className="p-5 rounded-2xl border-2 border-sky-400/90 bg-gradient-to-br from-sky-50/90 via-sky-50/40 to-background shadow-md hover:shadow-lg transition-all cursor-pointer group flex flex-col justify-between"
+            className="p-4.5 rounded-2xl border-2 border-sky-400/90 bg-gradient-to-br from-sky-50/90 via-sky-50/30 to-background dark:from-sky-950/30 dark:via-background dark:to-background shadow-xs hover:shadow-md transition-all cursor-pointer group flex flex-col justify-between"
           >
             <div>
               <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-sky-950 uppercase tracking-wider flex items-center gap-1.5">
-                  <FileText className="w-4 h-4 text-sky-600" />
+                <span className="text-xs font-bold text-sky-950 dark:text-sky-200 uppercase tracking-wider flex items-center gap-1.5">
+                  <FileText className="w-4 h-4 text-sky-600 dark:text-sky-400" />
                   Research Proposals
                 </span>
-                <span className="h-2.5 w-2.5 rounded-full bg-sky-500 animate-pulse" />
+                <span className="h-2 w-2 rounded-full bg-sky-500 animate-pulse" />
               </div>
-              <div className="mt-3 flex items-baseline gap-2">
-                <span className="text-3xl sm:text-4xl font-black text-sky-900 tracking-tight">
+              <div className="mt-2.5 flex items-baseline gap-2">
+                <span className="text-3xl font-black text-sky-900 dark:text-sky-100 tracking-tight">
                   {loading ? "..." : data?.actionRequired.proposalsAwaitingReviewCount ?? 0}
                 </span>
-                <span className="text-xs font-bold text-sky-700">awaiting review</span>
+                <span className="text-xs font-semibold text-sky-700 dark:text-sky-300">awaiting review</span>
               </div>
               {data && data.actionRequired.resubmittedCount > 0 && (
-                <p className="text-[11px] font-semibold text-indigo-700 mt-1">
-                  Includes {data.actionRequired.resubmittedCount} resubmitted revision
+                <p className="text-[11px] font-semibold text-indigo-700 dark:text-indigo-300 mt-0.5">
+                  ★ {data.actionRequired.resubmittedCount} resubmitted revision
                 </p>
               )}
             </div>
-            <div className="mt-4 pt-3 border-t border-sky-200/80 flex items-center justify-between text-xs font-bold text-sky-700 group-hover:text-sky-900">
+            <div className="mt-3.5 pt-2.5 border-t border-sky-200/80 dark:border-sky-900/60 flex items-center justify-between text-xs font-bold text-sky-700 dark:text-sky-300 group-hover:text-sky-900 dark:group-hover:text-sky-100">
               <span>Review Proposals</span>
               <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" />
             </div>
           </div>
 
-          {/* 2. Complex Civic Problems Needing Formulation */}
+          {/* 2. Critical Blockers & Risks */}
           <div
-            onClick={() => goTo("/app/innovation/problems?stage=UNFORMULATED")}
-            className="p-5 rounded-2xl border border-amber-200/90 bg-gradient-to-br from-amber-50/70 via-background to-background shadow-xs hover:shadow-md transition-all cursor-pointer group flex flex-col justify-between"
+            onClick={() => setAttentionFilter("BLOCKERS_MILESTONES")}
+            className="p-4.5 rounded-2xl border border-rose-300/80 bg-gradient-to-br from-rose-50/80 via-background to-background dark:from-rose-950/30 dark:via-background dark:to-background shadow-xs hover:shadow-md transition-all cursor-pointer group flex flex-col justify-between"
           >
             <div>
-              <span className="text-xs font-bold text-amber-950 uppercase tracking-wider flex items-center gap-1.5">
-                <BrainCircuit className="w-4 h-4 text-amber-600" />
-                Unformulated Problems
-              </span>
-              <div className="mt-3 flex items-baseline gap-2">
-                <span className="text-3xl sm:text-4xl font-black text-amber-900 tracking-tight">
-                  {loading ? "..." : data?.actionRequired.unformulatedIssuesCount ?? 0}
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-rose-950 dark:text-rose-200 uppercase tracking-wider flex items-center gap-1.5">
+                  <ShieldAlert className="w-4 h-4 text-rose-600 dark:text-rose-400" />
+                  Execution Blockers
                 </span>
-                <span className="text-xs font-bold text-amber-700">require attention</span>
+                {(data?.actionRequired.criticalBlockersCount ?? 0) > 0 && (
+                  <Flame className="w-3.5 h-3.5 text-rose-500 animate-bounce" />
+                )}
               </div>
-              <p className="text-[11px] text-muted-foreground mt-1">
-                Admin-approved complex civic issues awaiting challenge formulation
+              <div className="mt-2.5 flex items-baseline gap-2">
+                <span className="text-3xl font-black text-rose-900 dark:text-rose-100 tracking-tight">
+                  {loading ? "..." : data?.actionRequired.criticalBlockersCount ?? 0}
+                </span>
+                <span className="text-xs font-semibold text-rose-700 dark:text-rose-300">critical / high</span>
+              </div>
+              <p className="text-[11px] text-muted-foreground mt-0.5">
+                {data?.actionRequired.overdueMilestonesCount ?? 0} research milestones overdue
               </p>
             </div>
-            <div className="mt-4 pt-3 border-t border-border flex items-center justify-between text-xs font-bold text-amber-700 group-hover:text-amber-900">
+            <div className="mt-3.5 pt-2.5 border-t border-border flex items-center justify-between text-xs font-bold text-rose-700 dark:text-rose-300 group-hover:text-rose-900 dark:group-hover:text-rose-100">
+              <span>Inspect Blockers</span>
+              <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" />
+            </div>
+          </div>
+
+          {/* 3. Pilot Validations & Scale */}
+          <div
+            onClick={() => goTo("/app/innovation/pilots")}
+            className="p-4.5 rounded-2xl border border-emerald-300/80 bg-gradient-to-br from-emerald-50/80 via-background to-background dark:from-emerald-950/30 dark:via-background dark:to-background shadow-xs hover:shadow-md transition-all cursor-pointer group flex flex-col justify-between"
+          >
+            <div>
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-emerald-950 dark:text-emerald-200 uppercase tracking-wider flex items-center gap-1.5">
+                  <FileCheck2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                  Pilot Validations
+                </span>
+              </div>
+              <div className="mt-2.5 flex items-baseline gap-2">
+                <span className="text-3xl font-black text-emerald-900 dark:text-emerald-100 tracking-tight">
+                  {loading ? "..." : data?.actionRequired.validationsAwaitingReviewCount ?? 0}
+                </span>
+                <span className="text-xs font-semibold text-emerald-700 dark:text-emerald-300">signoffs pending</span>
+              </div>
+              <p className="text-[11px] text-muted-foreground mt-0.5">
+                {data?.actionRequired.deploymentsAwaitingReviewCount ?? 0} scale authorizations pending
+              </p>
+            </div>
+            <div className="mt-3.5 pt-2.5 border-t border-border flex items-center justify-between text-xs font-bold text-emerald-700 dark:text-emerald-300 group-hover:text-emerald-900 dark:group-hover:text-emerald-100">
+              <span>Evaluate Pilots</span>
+              <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" />
+            </div>
+          </div>
+
+          {/* 4. Unformulated Complex Problems */}
+          <div
+            onClick={() => goTo("/app/innovation/problems")}
+            className="p-4.5 rounded-2xl border border-amber-300/80 bg-gradient-to-br from-amber-50/80 via-background to-background dark:from-amber-950/30 dark:via-background dark:to-background shadow-xs hover:shadow-md transition-all cursor-pointer group flex flex-col justify-between"
+          >
+            <div>
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-amber-950 dark:text-amber-200 uppercase tracking-wider flex items-center gap-1.5">
+                  <BrainCircuit className="w-4 h-4 text-amber-600 dark:text-amber-400" />
+                  Complex Problems
+                </span>
+              </div>
+              <div className="mt-2.5 flex items-baseline gap-2">
+                <span className="text-3xl font-black text-amber-900 dark:text-amber-100 tracking-tight">
+                  {loading ? "..." : data?.actionRequired.unformulatedIssuesCount ?? 0}
+                </span>
+                <span className="text-xs font-semibold text-amber-700 dark:text-amber-300">unformulated</span>
+              </div>
+              <p className="text-[11px] text-muted-foreground mt-0.5">
+                {data?.actionRequired.pendingInvitationsCount ?? 0} university match invitations pending
+              </p>
+            </div>
+            <div className="mt-3.5 pt-2.5 border-t border-border flex items-center justify-between text-xs font-bold text-amber-700 dark:text-amber-300 group-hover:text-amber-900 dark:group-hover:text-amber-100">
               <span>Formulate Challenges</span>
               <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" />
             </div>
           </div>
-
-          {/* 3. Institution Responses Pending */}
-          <div
-            onClick={() => goTo("/app/innovation/challenges")}
-            className="p-5 rounded-2xl border border-teal-200/90 bg-gradient-to-br from-teal-50/70 via-background to-background shadow-xs hover:shadow-md transition-all cursor-pointer group flex flex-col justify-between"
-          >
-            <div>
-              <span className="text-xs font-bold text-teal-950 uppercase tracking-wider flex items-center gap-1.5">
-                <GraduationCap className="w-4 h-4 text-teal-600" />
-                Institution Outreach
-              </span>
-              <div className="mt-3 flex items-baseline gap-2">
-                <span className="text-3xl sm:text-4xl font-black text-teal-900 tracking-tight">
-                  {loading ? "..." : data?.actionRequired.pendingInvitationsCount ?? 0}
-                </span>
-                <span className="text-xs font-bold text-teal-700">pending responses</span>
-              </div>
-              <p className="text-[11px] text-muted-foreground mt-1">
-                Targeted municipal matching invitations awaiting institutional decision
-              </p>
-            </div>
-            <div className="mt-4 pt-3 border-t border-border flex items-center justify-between text-xs font-bold text-teal-700 group-hover:text-teal-900">
-              <span>Inspect Outreach</span>
-              <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" />
-            </div>
-          </div>
-
-          {/* 4. Projects Requiring Attention */}
-          <div
-            onClick={() => goTo("/app/innovation/proposals")}
-            className="p-5 rounded-2xl border border-indigo-200/90 bg-gradient-to-br from-indigo-50/70 via-background to-background shadow-xs hover:shadow-md transition-all cursor-pointer group flex flex-col justify-between"
-          >
-            <div>
-              <span className="text-xs font-bold text-indigo-950 uppercase tracking-wider flex items-center gap-1.5">
-                <Layers className="w-4 h-4 text-indigo-600" />
-                Projects Needing Action
-              </span>
-              <div className="mt-3 flex items-baseline gap-2">
-                <span className="text-3xl sm:text-4xl font-black text-indigo-900 tracking-tight">
-                  {loading ? "..." : data?.actionRequired.attentionProjectsCount ?? 0}
-                </span>
-                <span className="text-xs font-bold text-indigo-700">need follow-up</span>
-              </div>
-              <p className="text-[11px] text-muted-foreground mt-1">
-                Active workspaces forming teams or revising research plans
-              </p>
-            </div>
-            <div className="mt-4 pt-3 border-t border-border flex items-center justify-between text-xs font-bold text-indigo-700 group-hover:text-indigo-900">
-              <span>View Projects</span>
-              <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" />
-            </div>
-          </div>
         </div>
 
-        {/* Dedicated Research Proposal Governance Status Strip */}
-        <div className="p-4 rounded-2xl border border-border bg-card shadow-xs space-y-3">
-          <div className="flex items-center justify-between">
+        {/* Detailed Action Item Stream with Filters */}
+        <Card className="border-border shadow-xs overflow-hidden">
+          <CardHeader className="pb-3 border-b border-border/70 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 bg-muted/10">
             <div className="flex items-center gap-2">
-              <FileText className="w-4 h-4 text-primary" />
-              <h3 className="text-xs font-bold uppercase tracking-wider text-foreground">
-                Research Proposal Governance Breakdown
-              </h3>
+              <Filter className="w-4 h-4 text-muted-foreground" />
+              <CardTitle className="text-xs font-bold uppercase tracking-wider text-foreground">
+                Action Queue ({filteredAttentionItems.length})
+              </CardTitle>
             </div>
-            <Link
-              to="/app/innovation/proposals"
-              className="text-xs font-semibold text-primary hover:underline flex items-center gap-1"
-            >
-              <span>View Proposals Hub</span>
-              <ArrowRight className="w-3 h-3" />
-            </Link>
-          </div>
 
-          <div className="grid grid-cols-2 sm:grid-cols-5 gap-2.5">
-            <button
-              type="button"
-              onClick={() => goTo("/app/innovation/proposals?status=SUBMITTED")}
-              className="p-3 rounded-xl border border-sky-200 bg-sky-50/50 hover:bg-sky-100/70 text-left transition flex items-center justify-between"
-            >
-              <div>
-                <p className="text-[10px] font-bold text-sky-900 uppercase">Awaiting Review</p>
-                <p className="text-xl font-extrabold text-sky-700 mt-0.5">
-                  {loading ? "..." : data?.proposalStatusCounts.SUBMITTED ?? 0}
-                </p>
-              </div>
-              <ChevronRight className="w-4 h-4 text-sky-400" />
-            </button>
-
-            <button
-              type="button"
-              onClick={() => goTo("/app/innovation/proposals?status=RESUBMITTED")}
-              className="p-3 rounded-xl border border-indigo-200 bg-indigo-50/50 hover:bg-indigo-100/70 text-left transition flex items-center justify-between"
-            >
-              <div>
-                <p className="text-[10px] font-bold text-indigo-900 uppercase">Resubmitted</p>
-                <p className="text-xl font-extrabold text-indigo-700 mt-0.5">
-                  {loading ? "..." : data?.proposalStatusCounts.RESUBMITTED ?? 0}
-                </p>
-              </div>
-              <ChevronRight className="w-4 h-4 text-indigo-400" />
-            </button>
-
-            <button
-              type="button"
-              onClick={() => goTo("/app/innovation/proposals?status=UNDER_REVIEW")}
-              className="p-3 rounded-xl border border-purple-200 bg-purple-50/50 hover:bg-purple-100/70 text-left transition flex items-center justify-between"
-            >
-              <div>
-                <p className="text-[10px] font-bold text-purple-900 uppercase">Under Review</p>
-                <p className="text-xl font-extrabold text-purple-700 mt-0.5">
-                  {loading ? "..." : data?.proposalStatusCounts.UNDER_REVIEW ?? 0}
-                </p>
-              </div>
-              <ChevronRight className="w-4 h-4 text-purple-400" />
-            </button>
-
-            <button
-              type="button"
-              onClick={() => goTo("/app/innovation/proposals?status=REQUESTED_REVISION")}
-              className="p-3 rounded-xl border border-orange-200 bg-orange-50/50 hover:bg-orange-100/70 text-left transition flex items-center justify-between"
-            >
-              <div>
-                <p className="text-[10px] font-bold text-orange-900 uppercase">In Revision</p>
-                <p className="text-xl font-extrabold text-orange-700 mt-0.5">
-                  {loading ? "..." : data?.proposalStatusCounts.REQUESTED_REVISION ?? 0}
-                </p>
-              </div>
-              <ChevronRight className="w-4 h-4 text-orange-400" />
-            </button>
-
-            <button
-              type="button"
-              onClick={() => goTo("/app/innovation/proposals?status=APPROVED")}
-              className="p-3 rounded-xl border border-emerald-200 bg-emerald-50/50 hover:bg-emerald-100/70 text-left transition flex items-center justify-between"
-            >
-              <div>
-                <p className="text-[10px] font-bold text-emerald-900 uppercase">Approved</p>
-                <p className="text-xl font-extrabold text-emerald-700 mt-0.5">
-                  {loading ? "..." : data?.proposalStatusCounts.APPROVED ?? 0}
-                </p>
-              </div>
-              <ChevronRight className="w-4 h-4 text-emerald-400" />
-            </button>
-          </div>
-        </div>
-      </section>
-
-      {/* SECTION — RESEARCH PROPOSALS REQUIRING ATTENTION QUEUE */}
-      <section className="space-y-4">
-        <div className="flex items-center justify-between">
-          <div>
-            <h2 className="text-base sm:text-lg font-bold text-foreground">
-              Research Proposals Requiring Attention
-            </h2>
-            <p className="text-xs text-muted-foreground">
-              Submissions ready for Innovation Manager evaluation, feedback, or approval
-            </p>
-          </div>
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={() => goTo("/app/innovation/proposals")}
-            className="text-xs"
-          >
-            View All Proposals ({data?.proposalStatusCounts.TOTAL ?? 0})
-          </Button>
-        </div>
-
-        {loading ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="h-44 rounded-2xl border border-border bg-muted/20 animate-pulse" />
-            <div className="h-44 rounded-2xl border border-border bg-muted/20 animate-pulse" />
-          </div>
-        ) : !data?.proposalsAwaitingReview || data.proposalsAwaitingReview.length === 0 ? (
-          <Card className="border-border/80 shadow-xs">
-            <CardContent className="py-10 text-center space-y-2">
-              <CheckCircle2 className="w-9 h-9 text-emerald-600 mx-auto" />
-              <h3 className="text-sm font-bold text-foreground">No Proposals Awaiting Review</h3>
-              <p className="text-xs text-muted-foreground max-w-md mx-auto">
-                You&rsquo;re all caught up! New institutional research plans will appear here immediately when submitted or resubmitted by accredited universities.
-              </p>
-              <div className="pt-2">
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => goTo("/app/innovation/proposals")}
-                  className="text-xs"
-                >
-                  View All Historical Proposals
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {data.proposalsAwaitingReview.map((item) => (
-              <Card
-                key={item.id}
-                className="border-sky-300 bg-gradient-to-br from-sky-50/40 via-background to-indigo-50/20 shadow-md hover:shadow-lg transition-all flex flex-col justify-between"
+            {/* Filter Pills */}
+            <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0">
+              <Button
+                size="sm"
+                variant={attentionFilter === "ALL" ? "default" : "outline"}
+                onClick={() => setAttentionFilter("ALL")}
+                className="text-[11px] h-7 px-2.5 rounded-lg"
               >
-                <CardContent className="p-5 space-y-3.5">
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <Badge
-                        className={
-                          item.status === "RESUBMITTED"
-                            ? "bg-indigo-100 text-indigo-900 border-indigo-300 font-bold text-[10px]"
-                            : item.status === "SUBMITTED"
-                            ? "bg-sky-100 text-sky-900 border-sky-300 font-bold text-[10px]"
-                            : "bg-purple-100 text-purple-900 border-purple-300 font-bold text-[10px]"
-                        }
-                      >
-                        {item.statusLabel}
-                      </Badge>
-                      <Badge variant="outline" className="text-[10px] font-bold">
-                        Version {item.versionNumber}
-                      </Badge>
+                All ({data?.actionRequired.attentionItems.length ?? 0})
+              </Button>
+              <Button
+                size="sm"
+                variant={attentionFilter === "CRITICAL" ? "default" : "outline"}
+                onClick={() => setAttentionFilter("CRITICAL")}
+                className="text-[11px] h-7 px-2.5 rounded-lg text-rose-700 dark:text-rose-300 border-rose-300 dark:border-rose-800"
+              >
+                Urgent ({data?.actionRequired.attentionItems.filter((i) => i.urgency === "CRITICAL").length ?? 0})
+              </Button>
+              <Button
+                size="sm"
+                variant={attentionFilter === "PROPOSALS" ? "default" : "outline"}
+                onClick={() => setAttentionFilter("PROPOSALS")}
+                className="text-[11px] h-7 px-2.5 rounded-lg"
+              >
+                Proposals ({data?.actionRequired.proposalsAwaitingReviewCount ?? 0})
+              </Button>
+              <Button
+                size="sm"
+                variant={attentionFilter === "PILOTS_VALIDATIONS" ? "default" : "outline"}
+                onClick={() => setAttentionFilter("PILOTS_VALIDATIONS")}
+                className="text-[11px] h-7 px-2.5 rounded-lg"
+              >
+                Pilots & Scale
+              </Button>
+              <Button
+                size="sm"
+                variant={attentionFilter === "BLOCKERS_MILESTONES" ? "default" : "outline"}
+                onClick={() => setAttentionFilter("BLOCKERS_MILESTONES")}
+                className="text-[11px] h-7 px-2.5 rounded-lg"
+              >
+                Blockers & Milestones
+              </Button>
+              <Button
+                size="sm"
+                variant={attentionFilter === "PROBLEMS" ? "default" : "outline"}
+                onClick={() => setAttentionFilter("PROBLEMS")}
+                className="text-[11px] h-7 px-2.5 rounded-lg"
+              >
+                Problems & Outreach
+              </Button>
+            </div>
+          </CardHeader>
+
+          <CardContent className="p-4 space-y-3">
+            {loading ? (
+              <div className="space-y-3">
+                <div className="h-16 rounded-xl bg-muted/20 animate-pulse" />
+                <div className="h-16 rounded-xl bg-muted/20 animate-pulse" />
+                <div className="h-16 rounded-xl bg-muted/20 animate-pulse" />
+              </div>
+            ) : filteredAttentionItems.length === 0 ? (
+              <div className="py-8 text-center space-y-2">
+                <CheckCircle2 className="w-8 h-8 text-emerald-600 dark:text-emerald-400 mx-auto" />
+                <p className="text-xs font-bold text-foreground">No Action Items Pending in this Filter</p>
+                <p className="text-[11px] text-muted-foreground max-w-sm mx-auto">
+                  All active innovation tracks in this category are operating smoothly.
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-2.5">
+                {filteredAttentionItems.map((item) => (
+                  <div
+                    key={item.id}
+                    className="p-3.5 rounded-xl border border-border bg-card hover:bg-muted/30 transition flex flex-col md:flex-row md:items-center justify-between gap-3"
+                  >
+                    <div className="space-y-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <Badge variant="outline" className={`text-[10px] font-bold ${getAttentionToneBadge(item.badgeTone)}`}>
+                          {item.badgeLabel}
+                        </Badge>
+                        {item.urgency === "CRITICAL" && (
+                          <Badge variant="danger" className="text-[9px] font-bold uppercase tracking-wider">
+                            Urgent
+                          </Badge>
+                        )}
+                        {item.elapsedTime && (
+                          <span className="text-[11px] text-muted-foreground flex items-center gap-1 font-mono">
+                            <Clock className="w-3 h-3" />
+                            {item.elapsedTime}
+                          </span>
+                        )}
+                      </div>
+
+                      <div>
+                        <h4 className="text-xs sm:text-sm font-bold text-foreground truncate">
+                          {item.title}
+                        </h4>
+                        <p className="text-[11px] text-muted-foreground truncate">
+                          {item.subtitle}
+                        </p>
+                      </div>
+
+                      {item.contextInfo && (
+                        <p className="text-[10px] font-medium text-primary/90 dark:text-primary/80 line-clamp-1">
+                          {item.contextInfo}
+                        </p>
+                      )}
                     </div>
 
-                    <span className="text-xs font-semibold text-sky-800 bg-sky-100/90 px-2 py-0.5 rounded-full flex items-center gap-1 shrink-0">
-                      <Clock className="w-3 h-3" />
-                      {item.elapsedWaiting}
-                    </span>
-                  </div>
-
-                  <div>
-                    <h3 className="text-base font-bold text-foreground leading-snug">
-                      {item.projectTitle}
-                    </h3>
-                    <p
-                      onClick={() => goTo(`/app/innovation/problems/${item.challengeId}`)}
-                      className="text-xs text-muted-foreground hover:text-primary mt-0.5 line-clamp-1 cursor-pointer transition-colors"
+                    <Button
+                      size="sm"
+                      onClick={() => goTo(item.route)}
+                      className="text-xs font-semibold gap-1.5 h-8 shrink-0 self-end md:self-auto bg-primary text-primary-foreground shadow-2xs"
                     >
-                      Challenge: {item.challengeTitle}
-                    </p>
+                      <span>{item.actionLabel}</span>
+                      <ArrowRight className="w-3 h-3" />
+                    </Button>
                   </div>
-
-                  <div className="grid grid-cols-2 gap-2 text-xs py-2 px-3 bg-muted/20 rounded-xl border border-border/60">
-                    <div>
-                      <span className="text-[10px] font-semibold text-muted-foreground uppercase block">
-                        Institution
-                      </span>
-                      <span className="font-semibold text-foreground truncate block">
-                        {item.institutionName}
-                      </span>
-                    </div>
-                    <div>
-                      <span className="text-[10px] font-semibold text-muted-foreground uppercase block">
-                        Project Lead
-                      </span>
-                      <span className="font-semibold text-foreground truncate block">
-                        {item.projectLeadName || "Assigned Coordinator"}
-                      </span>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center justify-between gap-2 pt-2 border-t border-border flex-wrap">
-                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                      <Users className="w-3.5 h-3.5" />
-                      <span>{item.teamSize} team members</span>
-                    </div>
-
-                    <div className="flex items-center gap-2">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => goTo(`/app/innovation/problems/${item.challengeId}`)}
-                        className="text-xs h-8 px-2.5"
-                      >
-                        <span>Problem Control Center</span>
-                      </Button>
-
-                      <Button
-                        size="sm"
-                        onClick={() => goTo(`/app/innovation/proposals/${item.id}`)}
-                        className="bg-primary text-primary-foreground text-xs gap-1.5 shadow-xs h-8 px-3 font-semibold"
-                      >
-                        <span>Review Proposal</span>
-                        <ArrowRight className="w-3.5 h-3.5" />
-                      </Button>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        )}
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
       </section>
 
-      {/* SECTION — INNOVATION PIPELINE (Data-Driven, Clickable Stages) */}
+      {/* ========================================================================= */}
+      {/* SECTION C — 10-STAGE CIVIC INNOVATION PIPELINE INTERACTIVE MAP */}
+      {/* ========================================================================= */}
       <section className="space-y-4">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
           <div>
-            <h2 className="text-base sm:text-lg font-bold text-foreground">
-              Civic Innovation Pipeline
+            <h2 className="text-base sm:text-lg font-bold text-foreground flex items-center gap-2">
+              <TrendingUp className="w-4 h-4 text-primary" />
+              <span>10-Stage Innovation Pipeline Overview</span>
             </h2>
             <p className="text-xs text-muted-foreground">
-              Live lifecycle state machine from complex citizen grievances to approved research solutions
+              End-to-end municipal state machine from citizen problem discovery to institutional knowledge reuse
             </p>
           </div>
         </div>
 
         <div className="p-4 sm:p-5 rounded-2xl border border-border bg-card shadow-xs space-y-4 overflow-x-auto">
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-9 gap-2 min-w-[760px] lg:min-w-0">
-            {/* Step 1: Complex Problems */}
+          <div className="grid grid-cols-2 sm:grid-cols-5 lg:grid-cols-10 gap-2 min-w-[900px] lg:min-w-0">
+            {/* Stage 1: Complex Problems */}
             <div
               onClick={() => goTo("/app/innovation/problems")}
               className="p-3 rounded-xl border border-border bg-muted/20 hover:bg-muted/50 cursor-pointer transition flex flex-col justify-between"
             >
-              <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
-                1. Complex Problems
+              <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider">
+                1. Problems
               </span>
-              <p className="text-2xl font-black text-foreground mt-2">
+              <p className="text-xl font-black text-foreground mt-1">
                 {loading ? "..." : data?.pipeline.complexIssuesCount ?? 0}
               </p>
               <span className="text-[10px] text-primary font-semibold mt-1">Classified →</span>
             </div>
 
-            {/* Step 2: Challenges Formulated */}
+            {/* Stage 2: Challenges Formulated */}
             <div
-              onClick={() => goTo("/app/innovation/challenges")}
+              onClick={() => goTo("/app/innovation/problems")}
               className="p-3 rounded-xl border border-border bg-muted/20 hover:bg-muted/50 cursor-pointer transition flex flex-col justify-between"
             >
-              <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
+              <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider">
                 2. Challenges
               </span>
-              <p className="text-2xl font-black text-foreground mt-2">
+              <p className="text-xl font-black text-foreground mt-1">
                 {loading ? "..." : data?.pipeline.challengesCount ?? 0}
               </p>
               <span className="text-[10px] text-primary font-semibold mt-1">Formulated →</span>
             </div>
 
-            {/* Step 3: Matching Active */}
+            {/* Stage 3: Matching Active */}
             <div
-              onClick={() => goTo("/app/innovation/challenges")}
+              onClick={() => goTo("/app/innovation/problems")}
               className="p-3 rounded-xl border border-border bg-muted/20 hover:bg-muted/50 cursor-pointer transition flex flex-col justify-between"
             >
-              <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
+              <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider">
                 3. Matching
               </span>
-              <p className="text-2xl font-black text-foreground mt-2">
+              <p className="text-xl font-black text-foreground mt-1">
                 {loading ? "..." : data?.pipeline.matchingActiveCount ?? 0}
               </p>
-              <span className="text-[10px] text-teal-700 font-semibold mt-1">AI Matched →</span>
+              <span className="text-[10px] text-teal-700 dark:text-teal-400 font-semibold mt-1">Outreach →</span>
             </div>
 
-            {/* Step 4: Invitations Pending */}
-            <div
-              onClick={() => goTo("/app/innovation/challenges")}
-              className="p-3 rounded-xl border border-border bg-muted/20 hover:bg-muted/50 cursor-pointer transition flex flex-col justify-between"
-            >
-              <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
-                4. Invitations
-              </span>
-              <p className="text-2xl font-black text-foreground mt-2">
-                {loading ? "..." : data?.pipeline.invitationsPendingCount ?? 0}
-              </p>
-              <span className="text-[10px] text-amber-700 font-semibold mt-1">Dispatched →</span>
-            </div>
-
-            {/* Step 5: Institutions Accepted */}
-            <div
-              onClick={() => goTo("/app/innovation/challenges")}
-              className="p-3 rounded-xl border border-border bg-muted/20 hover:bg-muted/50 cursor-pointer transition flex flex-col justify-between"
-            >
-              <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
-                5. Accepted
-              </span>
-              <p className="text-2xl font-black text-foreground mt-2">
-                {loading ? "..." : data?.pipeline.institutionsAcceptedCount ?? 0}
-              </p>
-              <span className="text-[10px] text-emerald-700 font-semibold mt-1">Confirmed →</span>
-            </div>
-
-            {/* Step 6: Projects Active */}
+            {/* Stage 4: Proposals Awaiting Review */}
             <div
               onClick={() => goTo("/app/innovation/proposals")}
-              className="p-3 rounded-xl border border-border bg-muted/20 hover:bg-muted/50 cursor-pointer transition flex flex-col justify-between"
+              className="p-3 rounded-xl border-2 border-sky-400 bg-sky-50/70 dark:bg-sky-950/40 hover:bg-sky-100/70 dark:hover:bg-sky-950/70 cursor-pointer transition flex flex-col justify-between shadow-2xs"
             >
-              <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
-                6. Workspaces
+              <span className="text-[9px] font-bold text-sky-950 dark:text-sky-200 uppercase tracking-wider">
+                4. Proposals
               </span>
-              <p className="text-2xl font-black text-foreground mt-2">
-                {loading ? "..." : data?.pipeline.projectsActiveCount ?? 0}
-              </p>
-              <span className="text-[10px] text-indigo-700 font-semibold mt-1">Active →</span>
-            </div>
-
-            {/* Step 7: Teams Formed */}
-            <div
-              onClick={() => goTo("/app/innovation/proposals")}
-              className="p-3 rounded-xl border border-border bg-muted/20 hover:bg-muted/50 cursor-pointer transition flex flex-col justify-between"
-            >
-              <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
-                7. Teams
-              </span>
-              <p className="text-2xl font-black text-foreground mt-2">
-                {loading ? "..." : data?.pipeline.teamsFormedCount ?? 0}
-              </p>
-              <span className="text-[10px] text-purple-700 font-semibold mt-1">Staffed →</span>
-            </div>
-
-            {/* Step 8: Proposals Awaiting Review (Prominent!) */}
-            <div
-              onClick={() => goTo("/app/innovation/proposals?status=SUBMITTED")}
-              className="p-3 rounded-xl border-2 border-sky-400 bg-sky-50/80 hover:bg-sky-100 cursor-pointer transition flex flex-col justify-between shadow-xs"
-            >
-              <span className="text-[10px] font-bold text-sky-950 uppercase tracking-wider">
-                8. Proposals
-              </span>
-              <p className="text-2xl font-black text-sky-900 mt-2">
+              <p className="text-xl font-black text-sky-900 dark:text-sky-100 mt-1">
                 {loading ? "..." : data?.pipeline.proposalsAwaitingReviewCount ?? 0}
               </p>
-              <span className="text-[10px] text-sky-700 font-bold mt-1">Awaiting Review ★</span>
+              <span className="text-[10px] text-sky-700 dark:text-sky-300 font-bold mt-1">Review ★</span>
             </div>
 
-            {/* Step 9: Proposals Approved */}
+            {/* Stage 5: Research Execution */}
             <div
-              onClick={() => goTo("/app/innovation/proposals?status=APPROVED")}
-              className="p-3 rounded-xl border border-emerald-300 bg-emerald-50/70 hover:bg-emerald-100/70 cursor-pointer transition flex flex-col justify-between"
+              onClick={() => goTo("/app/innovation/proposals")}
+              className="p-3 rounded-xl border border-border bg-muted/20 hover:bg-muted/50 cursor-pointer transition flex flex-col justify-between"
             >
-              <span className="text-[10px] font-bold text-emerald-950 uppercase tracking-wider">
-                9. Approved
+              <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider">
+                5. Research
               </span>
-              <p className="text-2xl font-black text-emerald-900 mt-2">
-                {loading ? "..." : data?.pipeline.proposalsApprovedCount ?? 0}
+              <p className="text-xl font-black text-foreground mt-1">
+                {loading ? "..." : data?.pipeline.projectsActiveCount ?? 0}
               </p>
-              <span className="text-[10px] text-emerald-700 font-bold mt-1">Approved ✓</span>
+              <span className="text-[10px] text-indigo-700 dark:text-indigo-400 font-semibold mt-1">Executing →</span>
+            </div>
+
+            {/* Stage 6: Pilot Planning */}
+            <div
+              onClick={() => goTo("/app/innovation/pilots")}
+              className="p-3 rounded-xl border border-border bg-muted/20 hover:bg-muted/50 cursor-pointer transition flex flex-col justify-between"
+            >
+              <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider">
+                6. Pilot Plan
+              </span>
+              <p className="text-xl font-black text-foreground mt-1">
+                {loading ? "..." : data?.health.activePilotsCount ?? 0}
+              </p>
+              <span className="text-[10px] text-emerald-700 dark:text-emerald-400 font-semibold mt-1">Planned →</span>
+            </div>
+
+            {/* Stage 7: Pilot Validation */}
+            <div
+              onClick={() => goTo("/app/innovation/pilots")}
+              className="p-3 rounded-xl border border-border bg-muted/20 hover:bg-muted/50 cursor-pointer transition flex flex-col justify-between"
+            >
+              <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider">
+                7. Validation
+              </span>
+              <p className="text-xl font-black text-foreground mt-1">
+                {loading ? "..." : data?.pipeline.validationsAwaitingReviewCount ?? 0}
+              </p>
+              <span className="text-[10px] text-teal-700 dark:text-teal-400 font-semibold mt-1">Evidence →</span>
+            </div>
+
+            {/* Stage 8: Deployment Ready */}
+            <div
+              onClick={() => goTo("/app/innovation/pilots")}
+              className="p-3 rounded-xl border border-border bg-muted/20 hover:bg-muted/50 cursor-pointer transition flex flex-col justify-between"
+            >
+              <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider">
+                8. Deployment
+              </span>
+              <p className="text-xl font-black text-foreground mt-1">
+                {loading ? "..." : data?.pipeline.deploymentsActiveCount ?? 0}
+              </p>
+              <span className="text-[10px] text-purple-700 dark:text-purple-400 font-semibold mt-1">Authorized →</span>
+            </div>
+
+            {/* Stage 9: Impact Monitoring */}
+            <div
+              onClick={() => goTo("/app/innovation/pilots")}
+              className="p-3 rounded-xl border border-border bg-muted/20 hover:bg-muted/50 cursor-pointer transition flex flex-col justify-between"
+            >
+              <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider">
+                9. Impact
+              </span>
+              <p className="text-xl font-black text-foreground mt-1">
+                {loading ? "..." : data?.pipeline.impactReportsPendingCount ?? 0}
+              </p>
+              <span className="text-[10px] text-blue-700 dark:text-blue-400 font-semibold mt-1">Telemetry →</span>
+            </div>
+
+            {/* Stage 10: Knowledge Hub */}
+            <div
+              onClick={() => goTo("/app/innovation/knowledge")}
+              className="p-3 rounded-xl border border-emerald-300 bg-emerald-50/70 dark:bg-emerald-950/40 hover:bg-emerald-100/70 dark:hover:bg-emerald-950/70 cursor-pointer transition flex flex-col justify-between"
+            >
+              <span className="text-[9px] font-bold text-emerald-950 dark:text-emerald-200 uppercase tracking-wider">
+                10. Knowledge
+              </span>
+              <p className="text-xl font-black text-emerald-900 dark:text-emerald-100 mt-1">
+                {loading ? "..." : data?.pipeline.knowledgeSolutionsCount ?? 0}
+              </p>
+              <span className="text-[10px] text-emerald-700 dark:text-emerald-300 font-bold mt-1">Published ✓</span>
             </div>
           </div>
         </div>
       </section>
 
-      {/* SECTION — ACTIVE COMPLEX CIVIC CHALLENGES */}
+      {/* ========================================================================= */}
+      {/* SECTION D — ACTIVE COMPLEX PROBLEMS CATALOG PREVIEW */}
+      {/* ========================================================================= */}
       <section className="space-y-4">
         <div className="flex items-center justify-between">
           <div>
-            <h2 className="text-base sm:text-lg font-bold text-foreground">
-              Active Innovation Challenges ({data?.challenges.length ?? 0})
+            <h2 className="text-base sm:text-lg font-bold text-foreground flex items-center gap-2">
+              <BrainCircuit className="w-4 h-4 text-primary" />
+              <span>Active Complex Civic Problems ({data?.challenges.length ?? 0})</span>
             </h2>
             <p className="text-xs text-muted-foreground">
               Formulated problem statements, matching outreach, and research progress
@@ -863,19 +902,20 @@ export function InnovationDashboardPage() {
             onClick={() => goTo("/app/innovation/problems")}
             className="text-xs"
           >
-            View Complex Problems Catalog
+            <span>Complex Problems Directory</span>
+            <ArrowRight className="w-3 h-3 ml-1" />
           </Button>
         </div>
 
         {loading ? (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="h-48 rounded-2xl border border-border bg-muted/20 animate-pulse" />
-            <div className="h-48 rounded-2xl border border-border bg-muted/20 animate-pulse" />
+            <div className="h-44 rounded-2xl border border-border bg-muted/20 animate-pulse" />
+            <div className="h-44 rounded-2xl border border-border bg-muted/20 animate-pulse" />
           </div>
         ) : !data?.challenges || data.challenges.length === 0 ? (
           <Card className="border-border shadow-xs">
             <CardContent className="py-8 text-center text-xs text-muted-foreground">
-              No innovation challenges have been formulated yet.
+              No active innovation challenges have been formulated yet.
             </CardContent>
           </Card>
         ) : (
@@ -890,13 +930,13 @@ export function InnovationDashboardPage() {
                     <Badge variant="outline" className="text-[10px] font-semibold">
                       {c.category}
                     </Badge>
-                    <Badge className="bg-amber-100 text-amber-900 border-amber-300 text-[10px] font-bold">
+                    <Badge className="bg-amber-100 text-amber-900 border-amber-300 dark:bg-amber-950/70 dark:text-amber-200 dark:border-amber-800 text-[10px] font-bold">
                       Complexity {c.complexityScore}/100
                     </Badge>
                   </div>
 
                   <div>
-                    <h3 className="text-base font-bold text-foreground leading-snug">
+                    <h3 className="text-sm sm:text-base font-bold text-foreground leading-snug">
                       {c.title}
                     </h3>
                     <p className="text-xs text-muted-foreground line-clamp-2 mt-1 leading-relaxed">
@@ -907,28 +947,28 @@ export function InnovationDashboardPage() {
                   {/* Stage Progress Checklist */}
                   <div className="p-2.5 rounded-xl bg-muted/30 border border-border/60 space-y-1.5">
                     <div className="flex items-center justify-between text-[11px] font-semibold text-foreground">
-                      <span>Research Progress</span>
+                      <span>Research Progression</span>
                       <span className="text-primary font-mono text-[10px]">
                         {c.proposalsCount} proposals · {c.teamsCount} teams
                       </span>
                     </div>
 
-                    <div className="flex items-center gap-1 text-[10px] text-muted-foreground flex-wrap">
-                      <span className="text-emerald-600 font-medium">✓ Formulated</span>
+                    <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground flex-wrap">
+                      <span className="text-emerald-600 dark:text-emerald-400 font-medium">✓ Formulated</span>
                       <span>·</span>
-                      <span className={c.institutionsSelectedCount > 0 ? "text-emerald-600 font-medium" : "opacity-60"}>
+                      <span className={c.institutionsSelectedCount > 0 ? "text-emerald-600 dark:text-emerald-400 font-medium" : "opacity-60"}>
                         {c.institutionsSelectedCount > 0 ? `✓ ${c.institutionsSelectedCount} Selected` : "○ Selection"}
                       </span>
                       <span>·</span>
-                      <span className={c.invitationsAcceptedCount > 0 ? "text-emerald-600 font-medium" : "opacity-60"}>
+                      <span className={c.invitationsAcceptedCount > 0 ? "text-emerald-600 dark:text-emerald-400 font-medium" : "opacity-60"}>
                         {c.invitationsAcceptedCount > 0 ? `✓ ${c.invitationsAcceptedCount} Accepted` : "○ Pending"}
                       </span>
                       <span>·</span>
-                      <span className={c.teamsCount > 0 ? "text-emerald-600 font-medium" : "opacity-60"}>
+                      <span className={c.teamsCount > 0 ? "text-emerald-600 dark:text-emerald-400 font-medium" : "opacity-60"}>
                         {c.teamsCount > 0 ? `✓ Team Formed` : "○ Team"}
                       </span>
                       <span>·</span>
-                      <span className={c.proposalsCount > 0 ? "text-sky-700 font-bold" : "opacity-60"}>
+                      <span className={c.proposalsCount > 0 ? "text-sky-700 dark:text-sky-400 font-bold" : "opacity-60"}>
                         {c.proposalsCount > 0 ? `● ${c.proposalsCount} Proposal` : "○ Proposal"}
                       </span>
                     </div>
@@ -938,16 +978,14 @@ export function InnovationDashboardPage() {
                     <span className="text-[11px] text-muted-foreground">
                       Scope: {c.geographicScope}
                     </span>
-                    <div className="flex items-center gap-2">
-                      <Button
-                        size="sm"
-                        onClick={() => goTo(`/app/innovation/problems/${c.sourceIssueId || c.id}`)}
-                        className="bg-primary text-primary-foreground text-xs gap-1 h-8 shadow-xs"
-                      >
-                        <span>Open Problem</span>
-                        <ArrowRight className="w-3.5 h-3.5" />
-                      </Button>
-                    </div>
+                    <Button
+                      size="sm"
+                      onClick={() => goTo(`/app/innovation/problems/${c.sourceIssueId || c.id}`)}
+                      className="bg-primary text-primary-foreground text-xs gap-1 h-8 shadow-xs font-semibold"
+                    >
+                      <span>Problem Control Center</span>
+                      <ArrowRight className="w-3 h-3" />
+                    </Button>
                   </div>
                 </CardContent>
               </Card>
@@ -956,15 +994,18 @@ export function InnovationDashboardPage() {
         )}
       </section>
 
-      {/* SECTION — ACTIVE RESEARCH PROJECTS & WORKSPACES */}
+      {/* ========================================================================= */}
+      {/* SECTION E — ACTIVE INNOVATION PROJECTS & WORKSPACES */}
+      {/* ========================================================================= */}
       <section className="space-y-4">
         <div className="flex items-center justify-between">
           <div>
-            <h2 className="text-base sm:text-lg font-bold text-foreground">
-              Active Research Projects ({data?.projects.length ?? 0})
+            <h2 className="text-base sm:text-lg font-bold text-foreground flex items-center gap-2">
+              <Layers className="w-4 h-4 text-primary" />
+              <span>Active Innovation Workspaces ({data?.projects.length ?? 0})</span>
             </h2>
             <p className="text-xs text-muted-foreground">
-              Institutional workspaces assembling research teams and authoring proposals
+              Institutional workspaces assembling research teams, executing milestones, and authoring proposals
             </p>
           </div>
           <Button
@@ -973,7 +1014,8 @@ export function InnovationDashboardPage() {
             onClick={() => goTo("/app/innovation/proposals")}
             className="text-xs"
           >
-            View All Workspaces
+            <span>All Workspaces</span>
+            <ArrowRight className="w-3 h-3 ml-1" />
           </Button>
         </div>
 
@@ -997,7 +1039,7 @@ export function InnovationDashboardPage() {
               >
                 <CardContent className="p-5 space-y-3">
                   <div className="flex items-start justify-between gap-2">
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 flex-wrap">
                       <Badge variant="outline" className="text-[10px] font-semibold">
                         {p.institutionName}
                       </Badge>
@@ -1005,10 +1047,10 @@ export function InnovationDashboardPage() {
                         <Badge
                           className={
                             p.proposalStatus === "APPROVED"
-                              ? "bg-emerald-100 text-emerald-900 border-emerald-300 text-[10px]"
+                              ? "bg-emerald-100 text-emerald-900 border-emerald-300 dark:bg-emerald-950/70 dark:text-emerald-200 dark:border-emerald-800 text-[10px]"
                               : p.proposalStatus === "SUBMITTED" || p.proposalStatus === "RESUBMITTED"
-                              ? "bg-sky-100 text-sky-900 border-sky-300 text-[10px] font-bold"
-                              : "bg-amber-100 text-amber-900 border-amber-300 text-[10px]"
+                              ? "bg-sky-100 text-sky-900 border-sky-300 dark:bg-sky-950/70 dark:text-sky-200 dark:border-sky-800 text-[10px] font-bold"
+                              : "bg-amber-100 text-amber-900 border-amber-300 dark:bg-amber-950/70 dark:text-amber-200 dark:border-amber-800 text-[10px]"
                           }
                         >
                           Proposal: {p.proposalStatus}
@@ -1016,6 +1058,11 @@ export function InnovationDashboardPage() {
                       ) : (
                         <Badge variant="outline" className="text-[10px] opacity-75">
                           Proposal Pending
+                        </Badge>
+                      )}
+                      {(p.openBlockersCount ?? 0) > 0 && (
+                        <Badge variant="danger" className="text-[9px] font-bold">
+                          {p.openBlockersCount} blocker
                         </Badge>
                       )}
                     </div>
@@ -1026,7 +1073,7 @@ export function InnovationDashboardPage() {
                   </div>
 
                   <div>
-                    <h3 className="text-base font-bold text-foreground leading-snug">
+                    <h3 className="text-sm sm:text-base font-bold text-foreground leading-snug">
                       {p.projectTitle}
                     </h3>
                     <p className="text-xs text-muted-foreground line-clamp-1 mt-0.5">
@@ -1047,16 +1094,16 @@ export function InnovationDashboardPage() {
                           onClick={() => goTo(`/app/innovation/proposals/${p.proposalId}`)}
                           className="text-xs text-primary h-8"
                         >
-                          View Proposal
+                          Proposal
                         </Button>
                       )}
                       <Button
                         size="sm"
                         variant="outline"
                         onClick={() => goTo(`/app/innovation/projects/${p.id}`)}
-                        className="text-xs gap-1 h-8"
+                        className="text-xs gap-1 h-8 font-semibold"
                       >
-                        <span>Open Workspace</span>
+                        <span>Workspace</span>
                         <ArrowRight className="w-3.5 h-3.5" />
                       </Button>
                     </div>
@@ -1068,20 +1115,140 @@ export function InnovationDashboardPage() {
         )}
       </section>
 
-      {/* SECTION — INSTITUTIONAL COLLABORATIONS & RECENT ACTIVITY DUAL GRID */}
+      {/* ========================================================================= */}
+      {/* SECTION F — CONCRETE OPERATIONAL HEALTH & RISK PULSE */}
+      {/* ========================================================================= */}
+      <section className="space-y-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-base sm:text-lg font-bold text-foreground flex items-center gap-2">
+              <ShieldCheck className="w-4 h-4 text-primary" />
+              <span>Concrete Operational Health & Risk Pulse</span>
+            </h2>
+            <p className="text-xs text-muted-foreground">
+              Fact-based operational metrics derived directly from real database states
+            </p>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          {/* Panel 1: Research Execution */}
+          <Card className="border-border bg-card shadow-xs">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center justify-between">
+                <span>Research Execution</span>
+                <Layers className="w-4 h-4 text-indigo-500" />
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2 text-xs">
+              <div className="flex justify-between items-center py-1 border-b border-border/60">
+                <span className="text-muted-foreground">Open Blockers</span>
+                <span className="font-bold text-foreground">
+                  {data?.health.openBlockersCount ?? 0} ({data?.health.criticalBlockersCount ?? 0} critical)
+                </span>
+              </div>
+              <div className="flex justify-between items-center py-1 border-b border-border/60">
+                <span className="text-muted-foreground">Overdue Milestones</span>
+                <span className="font-bold text-foreground">{data?.health.overdueMilestonesCount ?? 0}</span>
+              </div>
+              <div className="flex justify-between items-center py-1">
+                <span className="text-muted-foreground">Active Workspaces</span>
+                <span className="font-bold text-foreground">{data?.pipeline.projectsActiveCount ?? 0}</span>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Panel 2: Pilot Operations */}
+          <Card className="border-border bg-card shadow-xs">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center justify-between">
+                <span>Pilot Operations</span>
+                <Rocket className="w-4 h-4 text-emerald-500" />
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2 text-xs">
+              <div className="flex justify-between items-center py-1 border-b border-border/60">
+                <span className="text-muted-foreground">Active Pilot Plans</span>
+                <span className="font-bold text-foreground">{data?.health.activePilotsCount ?? 0}</span>
+              </div>
+              <div className="flex justify-between items-center py-1 border-b border-border/60">
+                <span className="text-muted-foreground">Validations Pending Signoff</span>
+                <span className="font-bold text-foreground">{data?.health.pendingValidationsCount ?? 0}</span>
+              </div>
+              <div className="flex justify-between items-center py-1">
+                <span className="text-muted-foreground">Validations Approved</span>
+                <span className="font-bold text-foreground">{data?.pipeline.validationsAwaitingReviewCount ?? 0}</span>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Panel 3: Deployment Scale */}
+          <Card className="border-border bg-card shadow-xs">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center justify-between">
+                <span>Deployment Fleet</span>
+                <Globe className="w-4 h-4 text-teal-500" />
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2 text-xs">
+              <div className="flex justify-between items-center py-1 border-b border-border/60">
+                <span className="text-muted-foreground">Active Rollouts</span>
+                <span className="font-bold text-foreground">{data?.health.activeDeploymentsCount ?? 0}</span>
+              </div>
+              <div className="flex justify-between items-center py-1 border-b border-border/60">
+                <span className="text-muted-foreground">Telemetry Reports Pending</span>
+                <span className="font-bold text-foreground">{data?.health.pendingImpactReportsCount ?? 0}</span>
+              </div>
+              <div className="flex justify-between items-center py-1">
+                <span className="text-muted-foreground">Authorizations Pending</span>
+                <span className="font-bold text-foreground">{data?.actionRequired.deploymentsAwaitingReviewCount ?? 0}</span>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Panel 4: Knowledge Reusability */}
+          <Card className="border-border bg-card shadow-xs">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center justify-between">
+                <span>Knowledge & Reuse</span>
+                <BookOpen className="w-4 h-4 text-purple-500" />
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2 text-xs">
+              <div className="flex justify-between items-center py-1 border-b border-border/60">
+                <span className="text-muted-foreground">Published Solutions</span>
+                <span className="font-bold text-foreground">{data?.health.publishedKnowledgeSolutionsCount ?? 0}</span>
+              </div>
+              <div className="flex justify-between items-center py-1 border-b border-border/60">
+                <span className="text-muted-foreground">Cross-City Reuse Reviews</span>
+                <span className="font-bold text-foreground">{data?.health.pendingReuseReviewsCount ?? 0}</span>
+              </div>
+              <div className="flex justify-between items-center py-1">
+                <span className="text-muted-foreground">Partner Universities</span>
+                <span className="font-bold text-foreground">{data?.institutions.length ?? 0}</span>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </section>
+
+      {/* ========================================================================= */}
+      {/* SECTION G & INSTITUTIONAL PARTNERSHIPS DUAL GRID */}
+      {/* ========================================================================= */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Institutional Collaborations */}
         <div className="space-y-4">
           <div className="flex items-center justify-between">
             <h2 className="text-base sm:text-lg font-bold text-foreground flex items-center gap-2">
               <GraduationCap className="w-4 h-4 text-primary" />
-              Institutional Collaborations
+              <span>Institutional Collaborations</span>
             </h2>
             <Link
               to="/app/innovation/institutions"
-              className="text-xs font-semibold text-primary hover:underline"
+              className="text-xs font-semibold text-primary hover:underline flex items-center gap-1"
             >
-              All Accredited Institutions →
+              <span>All Universities</span>
+              <ArrowRight className="w-3 h-3" />
             </Link>
           </div>
 
@@ -1098,7 +1265,7 @@ export function InnovationDashboardPage() {
                 return (
                   <div
                     key={inst.id}
-                    className="p-3.5 rounded-2xl border border-slate-200 bg-card hover:border-primary/50 hover:shadow-md transition-all flex items-center justify-between gap-3 group"
+                    className="p-3.5 rounded-2xl border border-border bg-card hover:border-primary/50 hover:shadow-xs transition-all flex items-center justify-between gap-3 group"
                   >
                     <div className="flex items-center gap-3 min-w-0">
                       <div className="w-10 h-10 rounded-xl bg-teal-700 text-white flex items-center justify-center font-black text-xs shrink-0 shadow-2xs group-hover:scale-105 transition-transform">
@@ -1106,13 +1273,13 @@ export function InnovationDashboardPage() {
                       </div>
 
                       <div className="min-w-0">
-                        <p className="text-xs font-bold text-slate-900 group-hover:text-primary transition-colors truncate">
+                        <p className="text-xs font-bold text-foreground group-hover:text-primary transition-colors truncate">
                           {inst.name} {inst.acronym ? `(${inst.acronym})` : ""}
                         </p>
-                        <p className="text-[11px] text-slate-600 font-medium truncate flex items-center gap-1.5 mt-0.5">
+                        <p className="text-[11px] text-muted-foreground font-medium truncate flex items-center gap-1.5 mt-0.5">
                           <span>{inst.city}, {inst.state}</span>
-                          <span className="text-slate-300">·</span>
-                          <span className="font-bold text-slate-900">
+                          <span>·</span>
+                          <span className="font-semibold text-foreground">
                             {inst.activeProjectsCount} active {inst.activeProjectsCount === 1 ? "project" : "projects"}
                           </span>
                         </p>
@@ -1121,12 +1288,12 @@ export function InnovationDashboardPage() {
 
                     <div className="flex items-center gap-2 shrink-0">
                       {inst.proposalsAwaitingReviewCount > 0 ? (
-                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold bg-amber-100 text-amber-950 border border-amber-300">
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold bg-amber-100 text-amber-950 border border-amber-300 dark:bg-amber-950/70 dark:text-amber-200 dark:border-amber-800">
                           <span className="w-1.5 h-1.5 rounded-full bg-amber-600 animate-pulse" />
-                          {inst.proposalsAwaitingReviewCount} awaiting review
+                          {inst.proposalsAwaitingReviewCount} review
                         </span>
                       ) : (
-                        <span className="text-[10px] font-bold text-slate-700 px-2.5 py-0.5 rounded-md bg-slate-100 border border-slate-300">
+                        <span className="text-[10px] font-semibold text-muted-foreground px-2 py-0.5 rounded-md bg-muted/30">
                           {inst.proposalsCount} proposals
                         </span>
                       )}
@@ -1134,7 +1301,7 @@ export function InnovationDashboardPage() {
                         size="sm"
                         variant="outline"
                         onClick={() => goTo(`/app/innovation/institutions?selected=${inst.id}`)}
-                        className="text-xs font-bold h-8 border-primary/40 text-primary hover:bg-primary hover:text-white rounded-xl transition"
+                        className="text-xs font-semibold h-8 rounded-xl"
                       >
                         Profile →
                       </Button>
@@ -1146,14 +1313,14 @@ export function InnovationDashboardPage() {
           </div>
         </div>
 
-        {/* Recent Operations Activity Feed */}
+        {/* SECTION G — Recent Operations Activity Stream */}
         <div className="space-y-4">
           <div className="flex items-center justify-between">
             <h2 className="text-base sm:text-lg font-bold text-foreground flex items-center gap-2">
               <Activity className="w-4 h-4 text-primary" />
-              Recent Operations Activity
+              <span>Recent Operations Activity</span>
             </h2>
-            <span className="text-xs text-muted-foreground">Live state machine audit stream</span>
+            <span className="text-xs text-muted-foreground">Audit Stream</span>
           </div>
 
           <div className="space-y-2.5">
@@ -1187,6 +1354,72 @@ export function InnovationDashboardPage() {
           </div>
         </div>
       </div>
+
+      {/* ========================================================================= */}
+      {/* SECTION H — QUICK ACTIONS & NAVIGATION DOCK */}
+      {/* ========================================================================= */}
+      <section className="space-y-4 pt-4 border-t border-border">
+        <div className="flex items-center justify-between">
+          <h2 className="text-base sm:text-lg font-bold text-foreground flex items-center gap-2">
+            <Sparkles className="w-4 h-4 text-primary" />
+            <span>Quick Navigation Dock</span>
+          </h2>
+          <span className="text-xs text-muted-foreground">Fast shortcuts to dedicated workflow hubs</span>
+        </div>
+
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+          <button
+            type="button"
+            onClick={() => goTo("/app/innovation/problems")}
+            className="p-4 rounded-2xl border border-border bg-card hover:border-primary/50 hover:shadow-xs transition text-left space-y-1.5 group"
+          >
+            <BrainCircuit className="w-5 h-5 text-amber-600 group-hover:scale-110 transition-transform" />
+            <p className="text-xs font-bold text-foreground">Complex Problems</p>
+            <p className="text-[10px] text-muted-foreground">Classify & formulate challenges</p>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => goTo("/app/innovation/proposals")}
+            className="p-4 rounded-2xl border border-border bg-card hover:border-primary/50 hover:shadow-xs transition text-left space-y-1.5 group"
+          >
+            <FileText className="w-5 h-5 text-sky-600 group-hover:scale-110 transition-transform" />
+            <p className="text-xs font-bold text-foreground">Proposals Hub</p>
+            <p className="text-[10px] text-muted-foreground">Review institutional research plans</p>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => goTo("/app/innovation/pilots")}
+            className="p-4 rounded-2xl border border-border bg-card hover:border-primary/50 hover:shadow-xs transition text-left space-y-1.5 group"
+          >
+            <Rocket className="w-5 h-5 text-emerald-600 group-hover:scale-110 transition-transform" />
+            <p className="text-xs font-bold text-foreground">Pilots & Validations</p>
+            <p className="text-[10px] text-muted-foreground">Authorize field tests & evaluations</p>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => goTo("/app/innovation/knowledge")}
+            className="p-4 rounded-2xl border border-border bg-card hover:border-primary/50 hover:shadow-xs transition text-left space-y-1.5 group"
+          >
+            <BookOpen className="w-5 h-5 text-purple-600 group-hover:scale-110 transition-transform" />
+            <p className="text-xs font-bold text-foreground">Knowledge Base</p>
+            <p className="text-[10px] text-muted-foreground">Cross-city solution reuse</p>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => goTo("/app/innovation/institutions")}
+            className="p-4 rounded-2xl border border-border bg-card hover:border-primary/50 hover:shadow-xs transition text-left space-y-1.5 group"
+          >
+            <GraduationCap className="w-5 h-5 text-teal-600 group-hover:scale-110 transition-transform" />
+            <p className="text-xs font-bold text-foreground">Universities Directory</p>
+            <p className="text-[10px] text-muted-foreground">Accredited research partners</p>
+          </button>
+        </div>
+      </section>
     </div>
   );
 }
+

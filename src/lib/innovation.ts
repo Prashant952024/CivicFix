@@ -1,6 +1,47 @@
 import { supabase } from "@/lib/supabase";
 import type { ProposalStatus } from "@/types/database";
 
+export type AttentionItemCategory =
+  | "PROPOSAL"
+  | "UNFORMULATED_PROBLEM"
+  | "INVITATION"
+  | "BLOCKER"
+  | "OVERDUE_MILESTONE"
+  | "PILOT_PLAN"
+  | "PILOT_VALIDATION"
+  | "DEPLOYMENT_PLAN"
+  | "IMPACT_REPORT"
+  | "REUSE_REVIEW";
+
+export type AttentionUrgency = "CRITICAL" | "HIGH" | "MEDIUM";
+
+export interface AttentionItem {
+  id: string;
+  category: AttentionItemCategory;
+  urgency: AttentionUrgency;
+  title: string;
+  subtitle: string;
+  contextInfo?: string;
+  badgeLabel: string;
+  badgeTone: "danger" | "warning" | "info" | "purple" | "teal" | "emerald";
+  route: string;
+  actionLabel: string;
+  timestamp?: string | null;
+  elapsedTime?: string;
+}
+
+export interface OperationalHealthSummary {
+  openBlockersCount: number;
+  criticalBlockersCount: number;
+  overdueMilestonesCount: number;
+  activePilotsCount: number;
+  pendingValidationsCount: number;
+  activeDeploymentsCount: number;
+  pendingImpactReportsCount: number;
+  publishedKnowledgeSolutionsCount: number;
+  pendingReuseReviewsCount: number;
+}
+
 export interface InnovationPipelineMetrics {
   complexIssuesCount: number;
   unformulatedIssuesCount: number;
@@ -12,6 +53,11 @@ export interface InnovationPipelineMetrics {
   teamsFormedCount: number;
   proposalsAwaitingReviewCount: number;
   proposalsApprovedCount: number;
+  pilotsActiveCount: number;
+  validationsAwaitingReviewCount: number;
+  deploymentsActiveCount: number;
+  impactReportsPendingCount: number;
+  knowledgeSolutionsCount: number;
 }
 
 export interface ProposalActionItem {
@@ -39,7 +85,14 @@ export interface ActionRequiredSummary {
   unformulatedIssuesCount: number;
   pendingInvitationsCount: number;
   attentionProjectsCount: number;
+  criticalBlockersCount: number;
+  overdueMilestonesCount: number;
+  pilotsAwaitingReviewCount: number;
+  validationsAwaitingReviewCount: number;
+  deploymentsAwaitingReviewCount: number;
+  impactReportsPendingCount: number;
   proposalsQueue: ProposalActionItem[];
+  attentionItems: AttentionItem[];
 }
 
 export interface ChallengeWithProgress {
@@ -68,6 +121,7 @@ export interface ActiveProjectSummary {
   projectTitle: string;
   projectSummary: string;
   status: string;
+  researchStage?: string | null;
   institutionId: string;
   institutionName: string;
   institutionAcronym: string | null;
@@ -78,6 +132,8 @@ export interface ActiveProjectSummary {
   proposalStatus: ProposalStatus | null;
   proposalId: string | null;
   proposalVersion: number | null;
+  openBlockersCount?: number;
+  overdueMilestonesCount?: number;
   lastActivityAt: string;
 }
 
@@ -110,6 +166,7 @@ export interface RecentActivityItem {
 export interface InnovationDashboardData {
   pipeline: InnovationPipelineMetrics;
   actionRequired: ActionRequiredSummary;
+  health: OperationalHealthSummary;
   proposalsAwaitingReview: ProposalActionItem[];
   proposalStatusCounts: {
     SUBMITTED: number;
@@ -131,6 +188,7 @@ export interface InnovationSearchResult {
   institutions: Array<{ id: string; name: string; city: string | null; state: string | null; acronym: string | null }>;
   projects: Array<{ id: string; title: string; institutionName: string; challengeTitle: string }>;
   proposals: Array<{ id: string; title: string; institutionName: string; versionNumber: number; status: string }>;
+  knowledgeSolutions?: Array<{ id: string; title: string; category: string; universityName: string }>;
 }
 
 /**
@@ -193,6 +251,14 @@ export async function fetchInnovationDashboardData(): Promise<InnovationDashboar
     proposalsRes,
     activityRes,
     institutionsRes,
+    blockersRes,
+    milestonesRes,
+    pilotPlansRes,
+    pilotValidationsRes,
+    deploymentPlansRes,
+    impactReportsRes,
+    knowledgeRes,
+    reuseReviewsRes,
   ] = await Promise.all([
     // 1. Complex issues
     supabase
@@ -220,7 +286,7 @@ export async function fetchInnovationDashboardData(): Promise<InnovationDashboar
       .from("challenge_projects")
       .select(`
         id, challenge_id, institution_id, project_title, project_summary, status,
-        project_lead_profile_id, created_at, updated_at,
+        research_stage, project_lead_profile_id, created_at, updated_at,
         institution:institutions!challenge_projects_institution_id_fkey(id, name, acronym),
         challenge:innovation_challenges!challenge_projects_challenge_id_fkey(id, title),
         lead:profiles!challenge_projects_project_lead_profile_id_fkey(id, full_name, email)
@@ -264,6 +330,47 @@ export async function fetchInnovationDashboardData(): Promise<InnovationDashboar
       .from("institutions")
       .select("id, name, official_name, city, state, acronym")
       .order("name", { ascending: true }),
+
+    // 9. Research blockers and risks
+    supabase
+      .from("research_blockers_risks")
+      .select("id, project_id, title, severity, status, created_at, support_required")
+      .eq("status", "OPEN"),
+
+    // 10. Research project milestones
+    supabase
+      .from("research_project_milestones")
+      .select("id, project_id, sequence_order, title, description, status, planned_completion_date, completion_percentage, created_at"),
+
+    // 11. Pilot plans
+    supabase
+      .from("pilot_plans")
+      .select("id, project_id, challenge_id, institution_id, title, status, created_at"),
+
+    // 12. Pilot validations
+    supabase
+      .from("pilot_validation_results")
+      .select("id, pilot_plan_id, project_id, status, final_outcome, overall_summary, submitted_at, created_at"),
+
+    // 13. Deployment plans
+    supabase
+      .from("deployment_plans")
+      .select("id, project_id, challenge_id, institution_id, title, status, created_at"),
+
+    // 14. Deployment impact reports
+    supabase
+      .from("deployment_impact_reports")
+      .select("id, deployment_plan_id, project_id, reporting_period, submitted_at, acknowledged_at, created_at"),
+
+    // 15. Complex solution knowledge base
+    supabase
+      .from("complex_solution_knowledge_base")
+      .select("id, project_id, challenge_id, solution_title, problem_title, problem_category, reusability_status, university_name, created_at"),
+
+    // 16. Solution reuse reviews
+    supabase
+      .from("complex_solution_reuse_reviews")
+      .select("id, solution_kb_id, challenge_id, decision, review_notes, created_at"),
   ]);
 
   if (issuesRes.error) throw issuesRes.error;
@@ -282,11 +389,40 @@ export async function fetchInnovationDashboardData(): Promise<InnovationDashboar
   const proposalsRaw = proposalsRes.data ?? [];
   const activityRaw = activityRes.data ?? [];
   const institutionsRaw = institutionsRes.data ?? [];
+  const blockersRaw = blockersRes.data ?? [];
+  const milestonesRaw = milestonesRes.data ?? [];
+  const pilotPlansRaw = pilotPlansRes.data ?? [];
+  const pilotValidationsRaw = pilotValidationsRes.data ?? [];
+  const deploymentPlansRaw = deploymentPlansRes.data ?? [];
+  const impactReportsRaw = impactReportsRes.data ?? [];
+  const knowledgeRaw = knowledgeRes.data ?? [];
+  const reuseReviewsRaw = reuseReviewsRes.data ?? [];
 
   // Member count mapping per project
   const memberCounts = new Map<string, number>();
   members.forEach((m) => {
     memberCounts.set(m.project_id, (memberCounts.get(m.project_id) || 0) + 1);
+  });
+
+  // Project blockers and milestones mapping
+  const projectBlockersMap = new Map<string, number>();
+  blockersRaw.forEach((b) => {
+    projectBlockersMap.set(b.project_id, (projectBlockersMap.get(b.project_id) || 0) + 1);
+  });
+
+  const nowMs = Date.now();
+  const overdueMilestones = milestonesRaw.filter((m) => {
+    if (m.status === "COMPLETED") return false;
+    if (m.status === "DELAYED") return true;
+    if (m.planned_completion_date) {
+      return new Date(m.planned_completion_date).getTime() < nowMs;
+    }
+    return false;
+  });
+
+  const projectOverdueMilestonesMap = new Map<string, number>();
+  overdueMilestones.forEach((m) => {
+    projectOverdueMilestonesMap.set(m.project_id, (projectOverdueMilestonesMap.get(m.project_id) || 0) + 1);
   });
 
   // Current proposal mapping per project
@@ -296,7 +432,7 @@ export async function fetchInnovationDashboardData(): Promise<InnovationDashboar
     projectProposalMap.set(p.project_id, p);
   });
 
-  // 1. Pipeline Metrics Calculations
+  // 1. Pipeline Metrics Calculations (10 Stages)
   const formulatedSourceIssueIds = new Set(challengesRaw.map((c) => c.source_issue_id).filter(Boolean));
   const unformulatedIssuesCount = complexIssues.filter((i) => !formulatedSourceIssueIds.has(i.id)).length;
 
@@ -329,6 +465,17 @@ export async function fetchInnovationDashboardData(): Promise<InnovationDashboar
   const proposalsAwaitingReviewCount =
     proposalStatusCounts.SUBMITTED + proposalStatusCounts.RESUBMITTED;
 
+  // Pilot & Deployment counts
+  const pilotsActiveCount = pilotPlansRaw.filter((p) => p.status === "APPROVED").length;
+  const pilotsAwaitingReviewCount = pilotPlansRaw.filter((p) => p.status === "SUBMITTED" || p.status === "UNDER_REVIEW").length;
+  const validationsAwaitingReviewCount = pilotValidationsRaw.filter((v) => v.status === "SUBMITTED" || v.status === "UNDER_REVIEW").length;
+  const deploymentsActiveCount = deploymentPlansRaw.filter((d) => d.status === "APPROVED").length;
+  const deploymentsAwaitingReviewCount = deploymentPlansRaw.filter((d) => d.status === "SUBMITTED" || d.status === "UNDER_REVIEW").length;
+  const impactReportsPendingCount = impactReportsRaw.filter((r) => !r.acknowledged_at).length;
+  const knowledgeSolutionsCount = knowledgeRaw.length;
+  const pendingReuseReviewsCount = reuseReviewsRaw.filter((r) => r.decision === "REUSE" || r.decision === "ADAPT").length;
+  const criticalBlockersCount = blockersRaw.filter((b) => b.severity === "CRITICAL" || b.severity === "HIGH").length;
+
   const pipeline: InnovationPipelineMetrics = {
     complexIssuesCount: complexIssues.length,
     unformulatedIssuesCount,
@@ -340,6 +487,11 @@ export async function fetchInnovationDashboardData(): Promise<InnovationDashboar
     teamsFormedCount,
     proposalsAwaitingReviewCount,
     proposalsApprovedCount: proposalStatusCounts.APPROVED,
+    pilotsActiveCount,
+    validationsAwaitingReviewCount,
+    deploymentsActiveCount,
+    impactReportsPendingCount,
+    knowledgeSolutionsCount,
   };
 
   // 2. Build Proposal Action Items Queue (Priority: RESUBMITTED, SUBMITTED, UNDER_REVIEW)
@@ -376,7 +528,6 @@ export async function fetchInnovationDashboardData(): Promise<InnovationDashboar
       };
     })
     .sort((a, b) => {
-      // Prioritize RESUBMITTED first, then SUBMITTED, then UNDER_REVIEW
       const priorityOrder: Record<string, number> = {
         RESUBMITTED: 1,
         SUBMITTED: 2,
@@ -391,10 +542,183 @@ export async function fetchInnovationDashboardData(): Promise<InnovationDashboar
       return new Date(b.submittedAt || 0).getTime() - new Date(a.submittedAt || 0).getTime();
     });
 
+  // Build Comprehensive Attention Items Queue
+  const attentionItems: AttentionItem[] = [];
+
+  // (A) Proposals requiring review
+  actionableProposals.forEach((p) => {
+    attentionItems.push({
+      id: `prop-${p.id}`,
+      category: "PROPOSAL",
+      urgency: p.status === "RESUBMITTED" ? "CRITICAL" : "HIGH",
+      title: p.projectTitle,
+      subtitle: `${p.institutionName} • v${p.versionNumber} ${p.statusLabel}`,
+      contextInfo: `Challenge: ${p.challengeTitle}`,
+      badgeLabel: p.status === "RESUBMITTED" ? "Proposal Resubmitted" : "Proposal Awaiting Review",
+      badgeTone: p.status === "RESUBMITTED" ? "purple" : "info",
+      route: `/app/innovation/proposals/${p.id}`,
+      actionLabel: "Review Proposal",
+      timestamp: p.submittedAt,
+      elapsedTime: p.elapsedWaiting,
+    });
+  });
+
+  // (B) Critical / High Blockers
+  blockersRaw.forEach((b) => {
+    const proj = projectsRaw.find((p) => p.id === b.project_id);
+    const isCritical = b.severity === "CRITICAL" || b.severity === "HIGH";
+    attentionItems.push({
+      id: `blk-${b.id}`,
+      category: "BLOCKER",
+      urgency: isCritical ? "CRITICAL" : "HIGH",
+      title: b.title,
+      subtitle: `${proj?.project_title || "Project"} • ${b.severity} Severity`,
+      contextInfo: b.support_required ? `Support Needed: ${b.support_required}` : undefined,
+      badgeLabel: `${b.severity} Blocker`,
+      badgeTone: "danger",
+      route: `/app/innovation/projects/${b.project_id}`,
+      actionLabel: "Resolve Blocker",
+      timestamp: b.created_at,
+      elapsedTime: formatElapsedWaitingTime(b.created_at),
+    });
+  });
+
+  // (C) Overdue Milestones
+  overdueMilestones.slice(0, 5).forEach((m) => {
+    const proj = projectsRaw.find((p) => p.id === m.project_id);
+    attentionItems.push({
+      id: `ms-${m.id}`,
+      category: "OVERDUE_MILESTONE",
+      urgency: "HIGH",
+      title: `Milestone ${m.sequence_order}: ${m.title || "Research Deliverable"}`,
+      subtitle: `${proj?.project_title || "Project"} • Overdue`,
+      contextInfo: m.planned_completion_date ? `Target: ${new Date(m.planned_completion_date).toLocaleDateString()}` : undefined,
+      badgeLabel: "Overdue Milestone",
+      badgeTone: "warning",
+      route: `/app/innovation/projects/${m.project_id}`,
+      actionLabel: "Inspect Progress",
+      timestamp: m.created_at,
+      elapsedTime: formatElapsedWaitingTime(m.created_at),
+    });
+  });
+
+  // (D) Pilot Validations awaiting signoff
+  pilotValidationsRaw
+    .filter((v) => v.status === "SUBMITTED" || v.status === "UNDER_REVIEW")
+    .forEach((v) => {
+      const plan = pilotPlansRaw.find((p) => p.id === v.pilot_plan_id);
+      attentionItems.push({
+        id: `val-${v.id}`,
+        category: "PILOT_VALIDATION",
+        urgency: "HIGH",
+        title: plan?.title || "Pilot Validation Signoff",
+        subtitle: `Outcome: ${v.final_outcome || "Validation Complete"}`,
+        contextInfo: v.overall_summary || undefined,
+        badgeLabel: "Validation Signoff Pending",
+        badgeTone: "emerald",
+        route: `/app/innovation/pilots`,
+        actionLabel: "Evaluate Validation",
+        timestamp: v.submitted_at || v.created_at,
+        elapsedTime: formatElapsedWaitingTime(v.submitted_at || v.created_at),
+      });
+    });
+
+  // (E) Pilot Plans awaiting review
+  pilotPlansRaw
+    .filter((p) => p.status === "SUBMITTED" || p.status === "UNDER_REVIEW")
+    .forEach((p) => {
+      attentionItems.push({
+        id: `plt-${p.id}`,
+        category: "PILOT_PLAN",
+        urgency: "HIGH",
+        title: p.title,
+        subtitle: "Pilot execution proposal awaiting manager authorization",
+        badgeLabel: "Pilot Plan Review",
+        badgeTone: "info",
+        route: `/app/innovation/pilots`,
+        actionLabel: "Review Pilot Plan",
+        timestamp: p.created_at,
+        elapsedTime: formatElapsedWaitingTime(p.created_at),
+      });
+    });
+
+  // (F) Deployment Plans awaiting authorization
+  deploymentPlansRaw
+    .filter((d) => d.status === "SUBMITTED" || d.status === "UNDER_REVIEW")
+    .forEach((d) => {
+      attentionItems.push({
+        id: `dep-${d.id}`,
+        category: "DEPLOYMENT_PLAN",
+        urgency: "HIGH",
+        title: d.title || "Deployment Rollout Plan",
+        subtitle: "Municipal scale-up plan awaiting manager authorization",
+        badgeLabel: "Deployment Authorization",
+        badgeTone: "teal",
+        route: `/app/innovation/projects/${d.project_id}?tab=deployment`,
+        actionLabel: "Authorize Rollout",
+        timestamp: d.created_at,
+        elapsedTime: formatElapsedWaitingTime(d.created_at),
+      });
+    });
+
+  // (G) Unacknowledged Impact Reports
+  impactReportsRaw
+    .filter((r) => !r.acknowledged_at)
+    .slice(0, 4)
+    .forEach((r) => {
+      attentionItems.push({
+        id: `imp-${r.id}`,
+        category: "IMPACT_REPORT",
+        urgency: "MEDIUM",
+        title: `Impact Report: ${r.reporting_period || "Telemetry Cycle"}`,
+        subtitle: "Submitted metrics require manager review & acknowledgement",
+        badgeLabel: "Impact Report Pending",
+        badgeTone: "info",
+        route: `/app/innovation/pilots`,
+        actionLabel: "Acknowledge Report",
+        timestamp: r.submitted_at || r.created_at,
+        elapsedTime: formatElapsedWaitingTime(r.submitted_at || r.created_at),
+      });
+    });
+
+  // (H) Unformulated Complex Problems
+  if (unformulatedIssuesCount > 0) {
+    const unformulatedList = complexIssues.filter((i) => !formulatedSourceIssueIds.has(i.id));
+    unformulatedList.slice(0, 3).forEach((issue) => {
+      attentionItems.push({
+        id: `unform-${issue.id}`,
+        category: "UNFORMULATED_PROBLEM",
+        urgency: "MEDIUM",
+        title: issue.title,
+        subtitle: `${issue.category} • Complexity ${issue.ai_complexity_score || 80}/100`,
+        contextInfo: "Classified complex issue awaiting structured challenge formulation",
+        badgeLabel: "Challenge Formulation Required",
+        badgeTone: "warning",
+        route: `/app/innovation/problems/${issue.id}`,
+        actionLabel: "Formulate Challenge",
+        timestamp: issue.created_at,
+        elapsedTime: formatElapsedWaitingTime(issue.created_at),
+      });
+    });
+  }
+
+  // Sort Attention Items (CRITICAL first, then HIGH, then MEDIUM)
+  const urgencyWeight: Record<AttentionUrgency, number> = {
+    CRITICAL: 1,
+    HIGH: 2,
+    MEDIUM: 3,
+  };
+  attentionItems.sort((a, b) => {
+    const diff = urgencyWeight[a.urgency] - urgencyWeight[b.urgency];
+    if (diff !== 0) return diff;
+    return new Date(b.timestamp || 0).getTime() - new Date(a.timestamp || 0).getTime();
+  });
+
   const attentionProjectsCount = projectsRaw.filter((p) => {
     const size = memberCounts.get(p.id) || 0;
     const prop = projectProposalMap.get(p.id);
-    return size < 2 || !prop || prop.status === "REQUESTED_REVISION";
+    const blockers = projectBlockersMap.get(p.id) || 0;
+    return size < 2 || !prop || prop.status === "REQUESTED_REVISION" || blockers > 0;
   }).length;
 
   const actionRequired: ActionRequiredSummary = {
@@ -403,7 +727,26 @@ export async function fetchInnovationDashboardData(): Promise<InnovationDashboar
     unformulatedIssuesCount,
     pendingInvitationsCount,
     attentionProjectsCount,
+    criticalBlockersCount,
+    overdueMilestonesCount: overdueMilestones.length,
+    pilotsAwaitingReviewCount,
+    validationsAwaitingReviewCount,
+    deploymentsAwaitingReviewCount,
+    impactReportsPendingCount,
     proposalsQueue: actionableProposals,
+    attentionItems,
+  };
+
+  const health: OperationalHealthSummary = {
+    openBlockersCount: blockersRaw.length,
+    criticalBlockersCount,
+    overdueMilestonesCount: overdueMilestones.length,
+    activePilotsCount: pilotsActiveCount,
+    pendingValidationsCount: validationsAwaitingReviewCount,
+    activeDeploymentsCount: deploymentsActiveCount,
+    pendingImpactReportsCount: impactReportsPendingCount,
+    publishedKnowledgeSolutionsCount: knowledgeSolutionsCount,
+    pendingReuseReviewsCount,
   };
 
   // 3. Build Challenges with Progress Breakdown
@@ -450,12 +793,15 @@ export async function fetchInnovationDashboardData(): Promise<InnovationDashboar
   // 4. Build Active Projects Summary
   const projects: ActiveProjectSummary[] = projectsRaw.map((p) => {
     const prop = projectProposalMap.get(p.id);
+    const blockers = projectBlockersMap.get(p.id) || 0;
+    const overdue = projectOverdueMilestonesMap.get(p.id) || 0;
 
     return {
       id: p.id,
       projectTitle: p.project_title,
       projectSummary: p.project_summary || "",
       status: p.status,
+      researchStage: p.research_stage,
       institutionId: p.institution_id,
       institutionName: p.institution?.name || "Institution",
       institutionAcronym: p.institution?.acronym ?? null,
@@ -466,6 +812,8 @@ export async function fetchInnovationDashboardData(): Promise<InnovationDashboar
       proposalStatus: (prop?.status as ProposalStatus) ?? null,
       proposalId: prop?.id ?? null,
       proposalVersion: prop?.version_number ?? null,
+      openBlockersCount: blockers,
+      overdueMilestonesCount: overdue,
       lastActivityAt: p.updated_at || p.created_at,
     };
   });
@@ -522,6 +870,7 @@ export async function fetchInnovationDashboardData(): Promise<InnovationDashboar
   return {
     pipeline,
     actionRequired,
+    health,
     proposalsAwaitingReview: actionableProposals,
     proposalStatusCounts,
     challenges,
@@ -532,15 +881,15 @@ export async function fetchInnovationDashboardData(): Promise<InnovationDashboar
 }
 
 /**
- * Searches across challenges, institutions, projects, and proposals in real-time
+ * Searches across challenges, institutions, projects, proposals, and knowledge solutions in real-time
  */
 export async function searchInnovationRecords(query: string): Promise<InnovationSearchResult> {
   const clean = query.trim().toLowerCase();
   if (!clean) {
-    return { challenges: [], institutions: [], projects: [], proposals: [] };
+    return { challenges: [], institutions: [], projects: [], proposals: [], knowledgeSolutions: [] };
   }
 
-  const [chalRes, instRes, projRes, propRes] = await Promise.all([
+  const [chalRes, instRes, projRes, propRes, knowRes] = await Promise.all([
     supabase
       .from("innovation_challenges")
       .select("id, title, problem_category, category, complexity_score")
@@ -569,6 +918,11 @@ export async function searchInnovationRecords(query: string): Promise<Innovation
       `)
       .eq("is_current", true)
       .limit(10),
+    supabase
+      .from("complex_solution_knowledge_base")
+      .select("id, solution_title, problem_title, problem_category, university_name")
+      .or(`solution_title.ilike.%${clean}%,problem_title.ilike.%${clean}%,problem_category.ilike.%${clean}%`)
+      .limit(5),
   ]);
 
   const challenges = (chalRes.data || []).map((c) => ({
@@ -612,11 +966,19 @@ export async function searchInnovationRecords(query: string): Promise<Innovation
     .filter((p) => p.title.toLowerCase().includes(clean) || p.institutionName.toLowerCase().includes(clean))
     .slice(0, 5);
 
+  const knowledgeSolutions = (knowRes.data || []).map((k) => ({
+    id: k.id,
+    title: k.solution_title || k.problem_title,
+    category: k.problem_category,
+    universityName: k.university_name,
+  }));
+
   return {
     challenges,
     institutions,
     projects,
     proposals,
+    knowledgeSolutions,
   };
 }
 
