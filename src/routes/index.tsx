@@ -64,6 +64,7 @@ const InnovationCollaborationsPage = lazy(() => import("@/routes/innovation/coll
 const InnovationMarketplacePage = lazy(() => import("@/routes/innovation/marketplace").then((module) => ({ default: module.InnovationMarketplacePage })));
 const InnovationPilotsPage = lazy(() => import("@/routes/innovation/pilots").then((module) => ({ default: module.InnovationPilotsPage })));
 const InnovationKnowledgePage = lazy(() => import("@/routes/innovation/knowledge").then((module) => ({ default: module.InnovationKnowledgePage })));
+const IndustryDashboardPage = lazy(() => import("@/routes/industry/dashboard").then((module) => ({ default: module.IndustryDashboardPage })));
 const IndustryMarketplacePage = lazy(() => import("@/routes/industry/marketplace").then((module) => ({ default: module.IndustryMarketplacePage })));
 const IndustryListingDetailPage = lazy(() => import("@/routes/industry/listing-detail").then((module) => ({ default: module.IndustryListingDetailPage })));
 const IndustryApplicationsPage = lazy(() => import("@/routes/industry/applications").then((module) => ({ default: module.IndustryApplicationsPage })));
@@ -370,7 +371,7 @@ export function AppRoutes() {
               </RequireRole>
             }
           >
-            <Route index element={<Navigate replace to="/app/industry/marketplace" />} />
+            <Route index element={<IndustryDashboardPage />} />
             <Route path="marketplace" element={<IndustryMarketplacePage />} />
             <Route path="marketplace/:listingId" element={<IndustryListingDetailPage />} />
             <Route path="applications" element={<IndustryApplicationsPage />} />

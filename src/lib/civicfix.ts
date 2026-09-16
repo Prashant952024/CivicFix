@@ -48,7 +48,7 @@ export const civicFixRoleConfigs: Record<CivicFixRoleCode, CivicFixRoleConfig> =
   INDUSTRY_PARTNER: {
     code: "INDUSTRY_PARTNER",
     label: "Industry Partner",
-    dashboardPath: "/app/industry/marketplace",
+    dashboardPath: "/app/industry",
   },
 };
 
@@ -141,6 +141,7 @@ export const civicFixNavItems: Record<CivicFixRoleCode, CivicFixRoleNavItem[]> =
     { label: "Notifications", path: "/app/university/notifications", description: "Matching invites and challenge updates." },
   ],
   INDUSTRY_PARTNER: [
+    { label: "Dashboard", path: "/app/industry", description: "Home overview of opportunities, applications, and contributions." },
     { label: "Marketplace", path: "/app/industry/marketplace", description: "Civic research & innovation opportunities." },
     { label: "My Applications", path: "/app/industry/applications", description: "Track submitted support applications and partnerships." },
   ],

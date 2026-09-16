@@ -3,6 +3,7 @@ import type {
   ApplicationStatus,
   IndustryOrganizationRow,
   ListingStatus,
+  OrganizationType,
   ProjectActivityType,
   ProjectSupportPartnerRow,
   ResearchSupportApplicationRow,
@@ -934,7 +935,7 @@ export async function rejectSupportApplication(input: {
 /**
  * Fetches applications submitted by a specific organization (Industry Partner view).
  */
-export async function fetchOrganizationApplications(organizationId: string) {
+export async function fetchOrganizationApplications(organizationId: string): Promise<IndustryApplicationItem[]> {
   const { data, error } = await supabase
     .from("research_support_applications")
     .select(`
@@ -958,13 +959,13 @@ export async function fetchOrganizationApplications(organizationId: string) {
     throw new Error(error.message);
   }
 
-  return data ?? [];
+  return (data as unknown as IndustryApplicationItem[]) ?? [];
 }
 
 /**
  * Fetches active partnerships for an organization.
  */
-export async function fetchOrganizationPartnerships(organizationId: string) {
+export async function fetchOrganizationPartnerships(organizationId: string): Promise<IndustryPartnershipItem[]> {
   const { data, error } = await supabase
     .from("project_support_partners")
     .select(`
@@ -986,13 +987,42 @@ export async function fetchOrganizationPartnerships(organizationId: string) {
     throw new Error(error.message);
   }
 
-  return (data ?? []).map((p: any) => ({
+  type RawPartRow = {
+    id: string;
+    project_id: string;
+    organization_id: string;
+    category?: SupportRequestCategory | null;
+    contribution_summary?: string | null;
+    notes?: string | null;
+    status?: string;
+    participation_status?: string;
+    access_scope?: string;
+    started_at?: string;
+    onboarded_at?: string;
+    created_at: string;
+    project?: { id: string; project_title?: string | null; title?: string | null; status?: string; challenge?: { title?: string | null } | null; institution?: { name: string } | null } | null;
+    request?: { id: string; title: string; category: SupportRequestCategory } | null;
+  };
+
+  return ((data as unknown as RawPartRow[]) ?? []).map((p) => ({
     ...p,
+    contribution_summary: p.contribution_summary || p.notes || "Active Support",
+    notes: p.notes ?? null,
     category: p.category ?? p.request?.category ?? "HARDWARE",
-    listing: {
-      public_title: p.request?.title ?? "Prototype Support",
-      category: p.category ?? p.request?.category ?? "HARDWARE",
-    },
+    status: p.status ?? p.participation_status ?? "ACTIVE",
+    participation_status: p.participation_status ?? p.status ?? "ACTIVE",
+    access_scope: p.access_scope ?? "SUPPORT_SPECIFIC",
+    started_at: p.started_at ?? p.onboarded_at ?? p.created_at,
+    project: p.project
+      ? {
+          id: p.project.id,
+          title: p.project.title ?? p.project.project_title ?? "Research Project",
+          project_title: p.project.project_title ?? p.project.title ?? "Research Project",
+          status: p.project.status,
+          challenge: p.project.challenge ? { title: p.project.challenge.title ?? "Innovation Challenge" } : null,
+          institution: p.project.institution ? { name: p.project.institution.name ?? "Partner Institution" } : null,
+        }
+      : null,
   }));
 }
 
@@ -1302,9 +1332,49 @@ export async function fetchInnovationContributions(): Promise<EcosystemContribut
 
   const items: EcosystemContributionItem[] = [];
 
+  type RawPartnerRes = {
+    id: string;
+    participation_status?: string;
+    access_scope?: string;
+    created_at: string;
+    organization?: { id: string; name: string; organization_type: string; verification_status: string } | null;
+    project?: {
+      id: string;
+      project_title?: string | null;
+      challenge?: { id: string; title: string } | null;
+      institution?: { name: string } | null;
+    } | null;
+    request?: {
+      id: string;
+      title: string;
+      category: SupportRequestCategory;
+      estimated_cost?: number | string | null;
+      required_by_date?: string | null;
+    } | null;
+  };
+
+  type RawAppRes = {
+    id: string;
+    status: ApplicationStatus;
+    proposal?: string | null;
+    offered_support?: string | null;
+    offered_amount?: number | string | null;
+    estimated_timeline?: string | null;
+    created_at: string;
+    organization?: { id: string; name: string; organization_type: string; verification_status: string } | null;
+    listing?: {
+      id: string;
+      listing_title: string;
+      category: SupportRequestCategory;
+      challenge?: { id: string; title: string } | null;
+      institution?: { name: string } | null;
+      project?: { id: string; project_title: string } | null;
+    } | null;
+  };
+
   // Active or confirmed partners
   if (partnersRes.data) {
-    for (const p of partnersRes.data as any[]) {
+    for (const p of (partnersRes.data as unknown as RawPartnerRes[])) {
       items.push({
         id: p.id,
         problem_title: p.project?.challenge?.title ?? "Problem Statement",
@@ -1316,7 +1386,7 @@ export async function fetchInnovationContributions(): Promise<EcosystemContribut
         category: (p.request?.category as SupportRequestCategory) ?? "HARDWARE",
         organization_id: p.organization?.id ?? "",
         organization_name: p.organization?.name ?? "Unknown Organization",
-        organization_type: p.organization?.organization_type ?? "COMPANY",
+        organization_type: (p.organization?.organization_type as OrganizationType) ?? "COMPANY",
         organization_verified: p.organization?.verification_status === "VERIFIED",
         contribution_summary: "Confirmed Partner Engagement",
         estimated_value: p.request?.estimated_cost ? Number(p.request.estimated_cost) : null,
@@ -1331,7 +1401,7 @@ export async function fetchInnovationContributions(): Promise<EcosystemContribut
 
   // Applications (in review or shortlisted)
   if (appsRes.data) {
-    for (const app of appsRes.data as any[]) {
+    for (const app of (appsRes.data as unknown as RawAppRes[])) {
       if (app.status === "ACCEPTED") continue;
       items.push({
         id: app.id,
@@ -1344,7 +1414,7 @@ export async function fetchInnovationContributions(): Promise<EcosystemContribut
         category: (app.listing?.category as SupportRequestCategory) ?? "HARDWARE",
         organization_id: app.organization?.id ?? "",
         organization_name: app.organization?.name ?? "Unknown Organization",
-        organization_type: app.organization?.organization_type ?? "COMPANY",
+        organization_type: (app.organization?.organization_type as OrganizationType) ?? "COMPANY",
         organization_verified: app.organization?.verification_status === "VERIFIED",
         contribution_summary: app.offered_support || app.proposal || "Support Application",
         estimated_value: app.offered_amount ? Number(app.offered_amount) : null,
@@ -1358,5 +1428,406 @@ export async function fetchInnovationContributions(): Promise<EcosystemContribut
   }
 
   return items;
+}
+
+export interface IndustryAttentionItem {
+  id: string;
+  category: "APPLICATION_DECISION" | "APPLICATION_UPDATE" | "PARTNERSHIP_ACTIVE" | "OPPORTUNITY_MATCH" | "VERIFICATION";
+  urgency: "CRITICAL" | "HIGH" | "MEDIUM" | "NORMAL";
+  title: string;
+  subtitle: string;
+  badgeLabel: string;
+  badgeTone: "default" | "info" | "warning" | "success" | "danger";
+  actionLabel: string;
+  actionUrl: string;
+  timestamp?: string | null;
+  elapsedTime?: string;
+}
+
+export interface IndustryApplicationItem {
+  id: string;
+  listing_id: string;
+  organization_id: string;
+  status: ApplicationStatus;
+  proposed_contribution: string;
+  estimated_value: number | null;
+  timeline: string | null;
+  review_notes: string | null;
+  acceptance_agreement_notes: string | null;
+  created_at: string;
+  updated_at?: string;
+  capabilities_summary?: string;
+  listing?: {
+    id: string;
+    public_title: string;
+    category: SupportRequestCategory;
+    public_timeline?: string | null;
+    desired_outcome?: string | null;
+    status?: ListingStatus;
+    challenge?: {
+      title?: string | null;
+    } | null;
+    institution?: {
+      name: string;
+      city?: string | null;
+    } | null;
+  } | null;
+}
+
+export interface IndustryPartnershipItem {
+  id: string;
+  project_id: string;
+  organization_id: string;
+  category: SupportRequestCategory;
+  contribution_summary: string;
+  notes: string | null;
+  status: string;
+  participation_status: string;
+  access_scope: string;
+  started_at: string;
+  onboarded_at?: string;
+  created_at: string;
+  project?: {
+    id: string;
+    project_title?: string | null;
+    title: string;
+    status?: string;
+    challenge?: {
+      title: string;
+    } | null;
+    institution?: {
+      name: string;
+    } | null;
+  } | null;
+  request?: {
+    id: string;
+    title: string;
+    category: SupportRequestCategory;
+  } | null;
+}
+
+export interface IndustryOpportunityMetrics {
+  totalOpenOpportunities: number;
+  byCategory: Record<SupportRequestCategory, number>;
+  activePartnershipsCount: number;
+  myApplicationsCount: number;
+  myAcceptedCount: number;
+  myPendingCount: number;
+  myRejectedCount: number;
+}
+
+export interface IndustryDashboardRecentActivity {
+  id: string;
+  type: "APPLICATION_SUBMITTED" | "APPLICATION_ACCEPTED" | "APPLICATION_UNDER_REVIEW" | "PARTNERSHIP_STARTED" | "LISTING_PUBLISHED";
+  title: string;
+  description: string;
+  actorName?: string;
+  timestamp: string;
+  relativeTime: string;
+  linkUrl?: string;
+  badgeTone: "default" | "info" | "warning" | "success" | "danger";
+}
+
+export interface IndustryDashboardData {
+  organization: IndustryOrganizationRow | null;
+  metrics: IndustryOpportunityMetrics;
+  attentionItems: IndustryAttentionItem[];
+  openListings: PublicMarketplaceListing[];
+  myApplications: IndustryApplicationItem[];
+  myPartnerships: IndustryPartnershipItem[];
+  recentActivity: IndustryDashboardRecentActivity[];
+}
+
+function formatRelativeTime(dateStr?: string | null): string {
+  if (!dateStr) return "";
+  const diff = Date.now() - new Date(dateStr).getTime();
+  const mins = Math.floor(diff / (1000 * 60));
+  if (mins < 1) return "just now";
+  if (mins < 60) return `${mins}m ago`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.floor(hours / 24);
+  if (days < 30) return `${days}d ago`;
+  const months = Math.floor(days / 30);
+  return `${months}mo ago`;
+}
+
+/**
+ * Resolves an IndustryOrganizationRow for a given user profile.
+ */
+export async function resolveIndustryOrganizationForUser(
+  userProfile: { id?: string; organization_id?: string | null; email?: string | null } | null
+): Promise<IndustryOrganizationRow | null> {
+  if (!userProfile) return null;
+
+  if (userProfile.organization_id) {
+    try {
+      const directOrg = await fetchIndustryOrganizationProfile(userProfile.organization_id);
+      if (directOrg) return directOrg;
+    } catch (e) {
+      console.warn("Direct org fetch failed, falling back:", e);
+    }
+  }
+
+  // Fallback 1: Query profile directly from database
+  if (userProfile.id) {
+    try {
+      const { data: dbProfile } = await supabase
+        .from("profiles")
+        .select("organization_id")
+        .eq("id", userProfile.id)
+        .maybeSingle();
+      if (dbProfile?.organization_id) {
+        const directOrg = await fetchIndustryOrganizationProfile(dbProfile.organization_id);
+        if (directOrg) return directOrg;
+      }
+    } catch (e) {
+      console.warn("Profile org lookup failed:", e);
+    }
+  }
+
+  // Fallback 2: Match by contact email in industry_organizations
+  if (userProfile.email) {
+    try {
+      const normalizedEmail = userProfile.email.trim().toLowerCase();
+      const { data: matchedOrg } = await supabase
+        .from("industry_organizations")
+        .select("*")
+        .eq("contact_email", normalizedEmail)
+        .maybeSingle();
+      if (matchedOrg) {
+        if (userProfile.id) {
+          void supabase
+            .from("profiles")
+            .update({ organization_id: matchedOrg.id, updated_at: new Date().toISOString() })
+            .eq("id", userProfile.id);
+        }
+        return matchedOrg;
+      }
+    } catch (e) {
+      console.warn("Email org lookup failed:", e);
+    }
+  }
+
+  return null;
+}
+
+/**
+ * Fetches comprehensive dashboard data for an Industry Partner.
+ */
+export async function fetchIndustryDashboardData(
+  userProfile: { id?: string; organization_id?: string | null; email?: string | null } | null
+): Promise<IndustryDashboardData> {
+  const organization = await resolveIndustryOrganizationForUser(userProfile);
+
+  const [openListings, myApplications, myPartnerships] = await Promise.all([
+    fetchMarketplaceListings(),
+    organization ? fetchOrganizationApplications(organization.id) : Promise.resolve([]),
+    organization ? fetchOrganizationPartnerships(organization.id) : Promise.resolve([]),
+  ]);
+
+  // Aggregate Category counts
+  const categoryCounts: Record<SupportRequestCategory, number> = {
+    FUNDING: 0,
+    HARDWARE: 0,
+    TECHNOLOGY: 0,
+    EXPERTISE: 0,
+    INFRASTRUCTURE: 0,
+    DATA: 0,
+    MANUFACTURING: 0,
+  };
+
+  for (const listing of openListings) {
+    if (categoryCounts[listing.category] !== undefined) {
+      categoryCounts[listing.category]++;
+    }
+  }
+
+  const myAcceptedCount = myApplications.filter((a) => a.status === "ACCEPTED").length;
+  const myPendingCount = myApplications.filter((a) =>
+    ["SUBMITTED", "UNDER_REVIEW", "SHORTLISTED", "DRAFT"].includes(a.status)
+  ).length;
+  const myRejectedCount = myApplications.filter((a) => a.status === "REJECTED").length;
+  const activePartnershipsCount = myPartnerships.filter((p) =>
+    p.participation_status === "ACTIVE" || p.status === "ACTIVE"
+  ).length;
+
+  const metrics: IndustryOpportunityMetrics = {
+    totalOpenOpportunities: openListings.length,
+    byCategory: categoryCounts,
+    activePartnershipsCount,
+    myApplicationsCount: myApplications.length,
+    myAcceptedCount,
+    myPendingCount,
+    myRejectedCount,
+  };
+
+  // Compile Attention Items
+  const attentionItems: IndustryAttentionItem[] = [];
+
+  // 1. Unverified Organization Warning
+  if (organization && organization.verification_status !== "VERIFIED") {
+    attentionItems.push({
+      id: "org-verification-pending",
+      category: "VERIFICATION",
+      urgency: "HIGH",
+      title: "Organization Verification Pending",
+      subtitle: `Your profile for ${organization.name} is currently ${organization.verification_status.replace(/_/g, " ")}. Some marketplace offers may require verification.`,
+      badgeLabel: organization.verification_status,
+      badgeTone: "warning",
+      actionLabel: "View Marketplace",
+      actionUrl: "/app/industry/marketplace",
+      timestamp: organization.created_at,
+      elapsedTime: formatRelativeTime(organization.created_at),
+    });
+  }
+
+  // 2. Accepted Applications (Require engagement / onboarding)
+  for (const app of myApplications) {
+    if (app.status === "ACCEPTED") {
+      const listingTitle = app.listing?.public_title ?? "Research Support";
+      const instName = app.listing?.institution?.name ?? "Partner University";
+      attentionItems.push({
+        id: `app-accepted-${app.id}`,
+        category: "APPLICATION_DECISION",
+        urgency: "HIGH",
+        title: `Offer Accepted: ${listingTitle}`,
+        subtitle: `${instName} has accepted your support proposal. You are now an active contributing partner!`,
+        badgeLabel: "Offer Accepted",
+        badgeTone: "success",
+        actionLabel: "View Active Partnership",
+        actionUrl: "/app/industry/applications?tab=partnerships",
+        timestamp: app.updated_at || app.created_at,
+        elapsedTime: formatRelativeTime(app.updated_at || app.created_at),
+      });
+    } else if (app.status === "SHORTLISTED") {
+      const listingTitle = app.listing?.public_title ?? "Research Support";
+      const instName = app.listing?.institution?.name ?? "Partner University";
+      attentionItems.push({
+        id: `app-shortlisted-${app.id}`,
+        category: "APPLICATION_UPDATE",
+        urgency: "MEDIUM",
+        title: `Candidate Shortlisted: ${listingTitle}`,
+        subtitle: `${instName} has shortlisted your proposal for final review.`,
+        badgeLabel: "Shortlisted",
+        badgeTone: "info",
+        actionLabel: "Track Application",
+        actionUrl: "/app/industry/applications",
+        timestamp: app.updated_at || app.created_at,
+        elapsedTime: formatRelativeTime(app.updated_at || app.created_at),
+      });
+    } else if (app.status === "UNDER_REVIEW") {
+      const listingTitle = app.listing?.public_title ?? "Research Support";
+      attentionItems.push({
+        id: `app-review-${app.id}`,
+        category: "APPLICATION_UPDATE",
+        urgency: "NORMAL",
+        title: `Under Evaluation: ${listingTitle}`,
+        subtitle: "University research team is reviewing your proposed contribution and timeline.",
+        badgeLabel: "Under Review",
+        badgeTone: "info",
+        actionLabel: "View Application",
+        actionUrl: "/app/industry/applications",
+        timestamp: app.updated_at || app.created_at,
+        elapsedTime: formatRelativeTime(app.updated_at || app.created_at),
+      });
+    }
+  }
+
+  // 3. Featured Open Opportunities (if no critical items, surface top opportunities)
+  if (attentionItems.length < 3) {
+    const topOpportunities = openListings.slice(0, 3 - attentionItems.length);
+    for (const listing of topOpportunities) {
+      attentionItems.push({
+        id: `match-${listing.id}`,
+        category: "OPPORTUNITY_MATCH",
+        urgency: "NORMAL",
+        title: `Open Opportunity: ${listing.public_title}`,
+        subtitle: `${listing.institution_name} • ${SUPPORT_CATEGORY_META[listing.category]?.label ?? listing.category}`,
+        badgeLabel: "Open Opportunity",
+        badgeTone: "default",
+        actionLabel: "View Opportunity",
+        actionUrl: `/app/industry/marketplace/${listing.id}`,
+        timestamp: listing.published_at,
+        elapsedTime: formatRelativeTime(listing.published_at),
+      });
+    }
+  }
+
+  // Compile Recent Activity
+  const activityItems: IndustryDashboardRecentActivity[] = [];
+
+  // Add applications to activity
+  for (const app of myApplications) {
+    const listingTitle = app.listing?.public_title ?? "Research Support Requirement";
+    if (app.status === "ACCEPTED") {
+      activityItems.push({
+        id: `act-app-acc-${app.id}`,
+        type: "APPLICATION_ACCEPTED",
+        title: "Support Offer Accepted",
+        description: `Your offer for "${listingTitle}" was accepted by the research team.`,
+        timestamp: app.updated_at || app.created_at,
+        relativeTime: formatRelativeTime(app.updated_at || app.created_at),
+        linkUrl: "/app/industry/applications?tab=partnerships",
+        badgeTone: "success",
+      });
+    } else {
+      activityItems.push({
+        id: `act-app-sub-${app.id}`,
+        type: "APPLICATION_SUBMITTED",
+        title: `Applied to Support Request`,
+        description: `Submitted proposal for "${listingTitle}" (${app.status}).`,
+        timestamp: app.created_at,
+        relativeTime: formatRelativeTime(app.created_at),
+        linkUrl: "/app/industry/applications",
+        badgeTone: "info",
+      });
+    }
+  }
+
+  // Add partnerships to activity
+  for (const part of myPartnerships) {
+    const projTitle = part.project?.project_title ?? "Research Project";
+    const instName = part.project?.institution?.name ?? "University";
+    activityItems.push({
+      id: `act-part-${part.id}`,
+      type: "PARTNERSHIP_STARTED",
+      title: "Active Partnership Established",
+      description: `Collaborating with ${instName} on "${projTitle}".`,
+      timestamp: part.onboarded_at || part.created_at,
+      relativeTime: formatRelativeTime(part.onboarded_at || part.created_at),
+      linkUrl: "/app/industry/applications?tab=partnerships",
+      badgeTone: "success",
+    });
+  }
+
+  // Add top open listings to activity if activity is sparse
+  if (activityItems.length < 5) {
+    for (const listing of openListings.slice(0, 5 - activityItems.length)) {
+      activityItems.push({
+        id: `act-list-${listing.id}`,
+        type: "LISTING_PUBLISHED",
+        title: "New Opportunity Published",
+        description: `${listing.institution_name} posted: "${listing.public_title}"`,
+        timestamp: listing.published_at || new Date().toISOString(),
+        relativeTime: formatRelativeTime(listing.published_at),
+        linkUrl: `/app/industry/marketplace/${listing.id}`,
+        badgeTone: "default",
+      });
+    }
+  }
+
+  // Sort activity descending
+  activityItems.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+
+  return {
+    organization,
+    metrics,
+    attentionItems,
+    openListings,
+    myApplications,
+    myPartnerships,
+    recentActivity: activityItems.slice(0, 10),
+  };
 }
 
