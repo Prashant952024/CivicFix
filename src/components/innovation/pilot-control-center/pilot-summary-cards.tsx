@@ -5,7 +5,8 @@ import {
   Clock,
   FileText,
   FlaskConical,
-  Layers,
+  Radio,
+  Rocket,
   Sparkles,
 } from "lucide-react";
 
@@ -24,17 +25,21 @@ export function PilotSummaryCards({
   onSelectStatus,
 }: PilotSummaryCardsProps) {
   const total = pilots.length;
-  const draft = pilots.filter((p) => p.status === "DRAFT").length;
   const needsReview = pilots.filter(
     (p) =>
       p.status === "SUBMITTED" ||
       p.status === "RESUBMITTED" ||
       p.status === "UNDER_REVIEW"
   ).length;
+  const activePilots = pilots.filter(
+    (p) => p.project?.research_stage === "PILOT_ACTIVE"
+  ).length;
+  const approvedReady = pilots.filter(
+    (p) => p.status === "APPROVED" && p.project?.research_stage === "PILOT_READY"
+  ).length;
   const revisionRequested = pilots.filter(
     (p) => p.status === "REQUESTED_REVISION"
   ).length;
-  const approved = pilots.filter((p) => p.status === "APPROVED").length;
 
   const cards = [
     {
@@ -45,6 +50,24 @@ export function PilotSummaryCards({
       color: "text-foreground",
       bg: "bg-card",
       border: "border-border/60",
+    },
+    {
+      id: "PILOT_ACTIVE",
+      label: "Active Pilots",
+      count: activePilots,
+      icon: Radio,
+      color: "text-emerald-500",
+      bg: "bg-emerald-500/5",
+      border: "border-emerald-500/20",
+    },
+    {
+      id: "PILOT_READY",
+      label: "Approved (Ready)",
+      count: approvedReady,
+      icon: Rocket,
+      color: "text-primary",
+      bg: "bg-primary/5",
+      border: "border-primary/20",
     },
     {
       id: "NEEDS_REVIEW",
@@ -64,24 +87,6 @@ export function PilotSummaryCards({
       bg: "bg-amber-500/5",
       border: "border-amber-500/20",
     },
-    {
-      id: "APPROVED",
-      label: "Approved (Pilot Ready)",
-      count: approved,
-      icon: CheckCircle2,
-      color: "text-emerald-500",
-      bg: "bg-emerald-500/5",
-      border: "border-emerald-500/20",
-    },
-    {
-      id: "DRAFT",
-      label: "In Draft",
-      count: draft,
-      icon: FileText,
-      color: "text-muted-foreground",
-      bg: "bg-muted/10",
-      border: "border-border/40",
-    },
   ];
 
   return (
@@ -99,12 +104,16 @@ export function PilotSummaryCards({
           >
             <CardContent className="p-3.5 flex items-center justify-between">
               <div className="space-y-0.5">
-                <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">
+                <p className="text-[11px] font-semibold text-muted-foreground">
                   {c.label}
                 </p>
-                <p className="text-xl font-bold text-foreground">{c.count}</p>
+                <p className="text-xl font-bold tracking-tight text-foreground">
+                  {c.count}
+                </p>
               </div>
-              <div className={`p-2 rounded-lg bg-background/80 border border-border/40 ${c.color}`}>
+              <div
+                className={`w-9 h-9 rounded-lg flex items-center justify-center ${c.bg} border ${c.border} ${c.color}`}
+              >
                 <Icon className="h-4 w-4" />
               </div>
             </CardContent>

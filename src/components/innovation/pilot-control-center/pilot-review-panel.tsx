@@ -35,13 +35,17 @@ import { cn } from "@/lib/utils";
 import { PilotPlanSummary } from "@/components/pilot-workspace/pilot-plan-summary";
 import { PilotReviewHistory } from "@/components/pilot-workspace/pilot-review-history";
 import { PilotSupportSummary } from "@/components/pilot-workspace/pilot-support-summary";
+import { PilotExecutionWorkspace } from "@/components/pilot-workspace/pilot-execution-workspace";
 import {
   approvePilotPlan,
+  fetchPilotExecutionData,
   rejectPilotPlan,
   requestPilotPlanRevision,
   startPilotPlanReview,
+  type PilotExecutionData,
   type PilotPlanWithDetails,
 } from "@/lib/pilot-planning";
+import type { ChallengeProjectWithDetails } from "@/lib/projects";
 
 const Label = React.forwardRef<HTMLLabelElement, React.LabelHTMLAttributes<HTMLLabelElement>>(
   ({ className, ...props }, ref) => (
@@ -83,6 +87,8 @@ export function PilotReviewPanel({
 }: PilotReviewPanelProps) {
   const [actionLoading, setActionLoading] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
+  const [executionData, setExecutionData] = useState<PilotExecutionData | null>(null);
+  const [execLoading, setExecLoading] = useState(false);
 
   // Modals for governance actions
   const [revisionModalOpen, setRevisionModalOpen] = useState(false);
@@ -93,6 +99,26 @@ export function PilotReviewPanel({
 
   const [rejectModalOpen, setRejectModalOpen] = useState(false);
   const [rejectionReason, setRejectionReason] = useState("");
+
+  const isPilotActive = pilot.project?.research_stage === "PILOT_ACTIVE";
+
+  const loadExecData = async () => {
+    if (isPilotActive) {
+      try {
+        setExecLoading(true);
+        const data = await fetchPilotExecutionData(pilot.project_id);
+        setExecutionData(data);
+      } catch (err) {
+        console.error("Failed to load execution data for manager view:", err);
+      } finally {
+        setExecLoading(false);
+      }
+    }
+  };
+
+  React.useEffect(() => {
+    void loadExecData();
+  }, [pilot.project_id, isPilotActive]);
 
   const isActionable =
     pilot.status === "SUBMITTED" ||
@@ -255,67 +281,79 @@ export function PilotReviewPanel({
         </div>
       )}
 
-      {/* Problem & University Context Banner */}
-      <Card className="border-border/60 bg-muted/20 shadow-xs">
-        <CardContent className="p-4">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
-            <div className="space-y-1">
-              <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider block">
-                Complex Civic Problem
-              </span>
-              <p className="font-bold text-foreground flex items-center gap-1.5">
-                <BrainCircuit className="h-3.5 w-3.5 text-primary shrink-0" />
-                <span className="truncate">
-                  {pilot.challenge?.source_issue?.title || pilot.challenge?.title || "Problem Context"}
-                </span>
-              </p>
-              {pilot.challenge?.source_issue?.id && (
-                <Link
-                  to={`/app/innovation/problems/${pilot.challenge.source_issue.id}`}
-                  className="text-[11px] text-primary hover:underline flex items-center gap-1"
-                >
-                  View Problem Control Center <ExternalLink className="h-3 w-3" />
-                </Link>
-              )}
-            </div>
+      {/* If Active, Show Live Pilot Execution Workspace */}
+      {isPilotActive && executionData ? (
+        <PilotExecutionWorkspace
+          project={pilot.project as any}
+          executionData={executionData}
+          onRefresh={loadExecData}
+          isManager={true}
+        />
+      ) : (
+        <>
+          {/* Problem & University Context Banner */}
+          <Card className="border-border/60 bg-muted/20 shadow-xs">
+            <CardContent className="p-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
+                <div className="space-y-1">
+                  <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider block">
+                    Complex Civic Problem
+                  </span>
+                  <p className="font-bold text-foreground flex items-center gap-1.5">
+                    <BrainCircuit className="h-3.5 w-3.5 text-primary shrink-0" />
+                    <span className="truncate">
+                      {pilot.challenge?.source_issue?.title || pilot.challenge?.title || "Problem Context"}
+                    </span>
+                  </p>
+                  {pilot.challenge?.source_issue?.id && (
+                    <Link
+                      to={`/app/innovation/problems/${pilot.challenge.source_issue.id}`}
+                      className="text-[11px] text-primary hover:underline flex items-center gap-1"
+                    >
+                      View Problem Control Center <ExternalLink className="h-3 w-3" />
+                    </Link>
+                  )}
+                </div>
 
-            <div className="space-y-1">
-              <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider block">
-                University / Institution
-              </span>
-              <p className="font-bold text-foreground flex items-center gap-1.5">
-                <GraduationCap className="h-3.5 w-3.5 text-primary shrink-0" />
-                <span>{pilot.institution?.name}</span>
-              </p>
-              <p className="text-[11px] text-muted-foreground">
-                {pilot.institution?.city}, {pilot.institution?.state}
-              </p>
-            </div>
+                <div className="space-y-1">
+                  <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider block">
+                    University / Institution
+                  </span>
+                  <p className="font-bold text-foreground flex items-center gap-1.5">
+                    <GraduationCap className="h-3.5 w-3.5 text-primary shrink-0" />
+                    <span>{pilot.institution?.name}</span>
+                  </p>
+                  <p className="text-[11px] text-muted-foreground">
+                    {pilot.institution?.city}, {pilot.institution?.state}
+                  </p>
+                </div>
 
-            <div className="space-y-1">
-              <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider block">
-                Research Project & Stage
-              </span>
-              <p className="font-bold text-foreground truncate">
-                {pilot.project?.project_title}
-              </p>
-              <Badge variant="outline" className="text-[10px] font-mono mt-0.5">
-                Stage: {pilot.project?.research_stage}
-              </Badge>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+                <div className="space-y-1">
+                  <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider block">
+                    Research Project & Stage
+                  </span>
+                  <p className="font-bold text-foreground truncate">
+                    {pilot.project?.project_title}
+                  </p>
+                  <Badge variant="outline" className="text-[10px] font-mono mt-0.5">
+                    Stage: {pilot.project?.research_stage}
+                  </Badge>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
 
-      {/* Pilot Plan Full Details */}
-      <PilotPlanSummary plan={pilot} />
+          {/* Pilot Plan Full Details */}
+          <PilotPlanSummary plan={pilot} />
 
-      {/* Supporting Partners */}
-      <PilotSupportSummary partners={pilot.support_partners} />
+          {/* Supporting Partners */}
+          <PilotSupportSummary partners={pilot.support_partners} />
 
-      {/* Revision History */}
-      {pilot.revisions && pilot.revisions.length > 0 && (
-        <PilotReviewHistory revisions={pilot.revisions} />
+          {/* Revision History */}
+          {pilot.revisions && pilot.revisions.length > 0 && (
+            <PilotReviewHistory revisions={pilot.revisions} />
+          )}
+        </>
       )}
 
       {/* Request Revision Modal */}

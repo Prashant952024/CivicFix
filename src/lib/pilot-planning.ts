@@ -27,6 +27,27 @@ export type {
 type ChallengeRow = Database["public"]["Tables"]["innovation_challenges"]["Row"];
 type ProfileRow = Database["public"]["Tables"]["profiles"]["Row"];
 
+async function getCurrentProfile(): Promise<{ id: string; institution_id?: string | null } | null> {
+  const { data: authData } = await supabase.auth.getUser();
+  if (!authData?.user) {
+    const { data: profiles } = await supabase.from("profiles").select("id, institution_id").limit(1);
+    return profiles && profiles.length > 0 ? profiles[0] : null;
+  }
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("id, institution_id")
+    .eq("id", authData.user.id)
+    .maybeSingle();
+  if (profile) return profile;
+
+  const { data: clerkProfile } = await supabase
+    .from("profiles")
+    .select("id, institution_id")
+    .eq("clerk_user_id", authData.user.id)
+    .maybeSingle();
+  return clerkProfile || { id: authData.user.id };
+}
+
 export const PILOT_ENVIRONMENT_META: Record<
   PilotEnvironmentType,
   { label: string; description: string; icon: string }
@@ -142,7 +163,7 @@ export interface PilotPlanWithDetails extends PilotPlanRow {
   > | null;
   project?: Pick<
     ChallengeProjectRow,
-    "id" | "project_title" | "project_summary" | "status" | "research_stage" | "project_lead_profile_id"
+    "id" | "project_title" | "project_summary" | "status" | "research_stage" | "project_lead_profile_id" | "update_cadence_days" | "institution_id"
   > | null;
   created_by_profile?: Pick<ProfileRow, "id" | "full_name" | "email"> | null;
   reviewed_by_profile?: Pick<ProfileRow, "id" | "full_name" | "email"> | null;
@@ -234,7 +255,9 @@ export async function fetchPilotPlanByProjectId(
         project_summary,
         status,
         research_stage,
-        project_lead_profile_id
+        project_lead_profile_id,
+        update_cadence_days,
+        institution_id
       ),
       created_by_profile:profiles!pilot_plans_created_by_fkey(id, full_name, email),
       reviewed_by_profile:profiles!pilot_plans_reviewed_by_fkey(id, full_name, email),
@@ -330,7 +353,9 @@ export async function fetchPilotPlanById(
         project_summary,
         status,
         research_stage,
-        project_lead_profile_id
+        project_lead_profile_id,
+        update_cadence_days,
+        institution_id
       ),
       created_by_profile:profiles!pilot_plans_created_by_fkey(id, full_name, email),
       reviewed_by_profile:profiles!pilot_plans_reviewed_by_fkey(id, full_name, email),
@@ -964,7 +989,9 @@ export async function fetchInnovationManagerPilots(filters?: {
         project_summary,
         status,
         research_stage,
-        project_lead_profile_id
+        project_lead_profile_id,
+        update_cadence_days,
+        institution_id
       ),
       created_by_profile:profiles!pilot_plans_created_by_fkey(id, full_name, email),
       reviewed_by_profile:profiles!pilot_plans_reviewed_by_fkey(id, full_name, email),
@@ -1004,6 +1031,614 @@ export async function fetchInnovationManagerPilots(filters?: {
   return list;
 }
 
+// =============================================================================
+// PHASE 3E-2: PILOT EXECUTION & PROGRESS TRACKING SERVICE LAYER
+// =============================================================================
+
+export interface PilotExecutionMetrics {
+  stage: "PILOT_READY" | "PILOT_ACTIVE" | "VALIDATION" | "COMPLETED";
+  startedAt: string | null;
+  plannedStartDate: string;
+  plannedEndDate: string;
+  totalPlannedDays: number;
+  daysElapsed: number;
+  daysRemaining: number;
+  isPastPlannedEnd: boolean;
+  timelineProgressPct: number;
+  
+  // Cadence & Progress Updates
+  updateCadenceDays: number;
+  lastUpdateDate: string | null;
+  nextUpdateDueDate: string | null;
+  isUpdateDue: boolean;
+  isUpdateOverdue: boolean;
+  daysOverdue: number;
+  totalUpdatesCount: number;
+  unacknowledgedUpdatesCount: number;
+
+  // Milestones
+  totalMilestones: number;
+  completedMilestones: number;
+  inProgressMilestones: number;
+  blockedMilestones: number;
+  milestoneCompletionPct: number;
+
+  // Risks & Blockers
+  openBlockersCount: number;
+  criticalBlockersCount: number;
+  highBlockersCount: number;
+  openRisksCount: number;
+
+  // Supporting Partners
+  activePartnersCount: number;
+
+  // Manager Attention Flags
+  requiresAttention: boolean;
+  attentionReasons: string[];
+}
+
+export interface PilotExecutionData {
+  plan: PilotPlanWithDetails;
+  metrics: PilotExecutionMetrics;
+  milestones: any[];
+  progressUpdates: any[];
+  evidence: any[];
+  blockers: any[];
+  supportPartners: any[];
+  activity: any[];
+}
+
+/**
+ * Calculate dynamic execution metrics from real database entities
+ */
+export function calculateExecutionMetrics(
+  plan: PilotPlanWithDetails,
+  cadenceDays: number = 5,
+  milestones: any[] = [],
+  updates: any[] = [],
+  blockers: any[] = []
+): PilotExecutionMetrics {
+  const stage = (plan.project?.research_stage as any) || "PILOT_READY";
+  const startedAt = plan.pilot_started_at || null;
+  
+  const now = new Date();
+  const startDate = startedAt ? new Date(startedAt) : new Date(plan.planned_start_date);
+  const endDate = new Date(plan.planned_end_date);
+  
+  const totalPlannedDays = Math.max(
+    1,
+    Math.round((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24))
+  );
+
+  let daysElapsed = 0;
+  let daysRemaining = totalPlannedDays;
+  let isPastPlannedEnd = false;
+  let timelineProgressPct = 0;
+
+  if (startedAt && stage === "PILOT_ACTIVE") {
+    daysElapsed = Math.max(
+      0,
+      Math.round((now.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24))
+    );
+    daysRemaining = Math.round((endDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+    isPastPlannedEnd = daysRemaining < 0;
+    timelineProgressPct = Math.min(100, Math.max(0, Math.round((daysElapsed / totalPlannedDays) * 100)));
+  }
+
+  // Updates & Cadence calculations
+  const sortedUpdates = [...updates].sort(
+    (a, b) => new Date(b.submitted_at || b.created_at).getTime() - new Date(a.submitted_at || a.created_at).getTime()
+  );
+  const latestUpdate = sortedUpdates[0] || null;
+  const lastUpdateDate = latestUpdate ? latestUpdate.submitted_at || latestUpdate.created_at : null;
+
+  let nextUpdateDueDate: string | null = null;
+  let isUpdateDue = false;
+  let isUpdateOverdue = false;
+  let daysOverdue = 0;
+
+  if (stage === "PILOT_ACTIVE") {
+    const baseDate = lastUpdateDate ? new Date(lastUpdateDate) : startDate;
+    const dueDate = new Date(baseDate.getTime() + cadenceDays * 24 * 60 * 60 * 1000);
+    nextUpdateDueDate = dueDate.toISOString().split("T")[0];
+
+    const diffDays = Math.round((now.getTime() - dueDate.getTime()) / (1000 * 60 * 60 * 24));
+    if (diffDays >= 0) {
+      isUpdateDue = true;
+      if (diffDays > 0) {
+        isUpdateOverdue = true;
+        daysOverdue = diffDays;
+      }
+    }
+  }
+
+  const unacknowledgedUpdatesCount = updates.filter((u) => !u.manager_acknowledged_at).length;
+
+  // Milestones
+  const totalMilestones = milestones.length;
+  const completedMilestones = milestones.filter((m) => m.status === "COMPLETED").length;
+  const inProgressMilestones = milestones.filter((m) => m.status === "IN_PROGRESS").length;
+  const blockedMilestones = milestones.filter((m) => m.status === "BLOCKED").length;
+  const milestoneCompletionPct = totalMilestones > 0 ? Math.round((completedMilestones / totalMilestones) * 100) : 0;
+
+  // Risks & Blockers
+  const openBlockers = blockers.filter((b) => b.item_type === "BLOCKER" && b.status !== "RESOLVED");
+  const criticalBlockersCount = openBlockers.filter((b) => b.severity === "CRITICAL").length;
+  const highBlockersCount = openBlockers.filter((b) => b.severity === "HIGH").length;
+  const openBlockersCount = openBlockers.length;
+
+  const openRisks = blockers.filter((b) => b.item_type === "RISK" && b.status !== "RESOLVED");
+  const openRisksCount = openRisks.length;
+
+  // Supporting partners
+  const activePartnersCount = (plan.support_partners || []).filter(
+    (p: any) => p.participation_status === "ACTIVE"
+  ).length;
+
+  // Attention reasons
+  const attentionReasons: string[] = [];
+  if (isUpdateOverdue) {
+    attentionReasons.push(`Progress update overdue by ${daysOverdue} day${daysOverdue > 1 ? "s" : ""}`);
+  }
+  if (criticalBlockersCount > 0) {
+    attentionReasons.push(`${criticalBlockersCount} critical blocker${criticalBlockersCount > 1 ? "s" : ""} reported`);
+  }
+  if (highBlockersCount > 0) {
+    attentionReasons.push(`${highBlockersCount} high-severity blocker${highBlockersCount > 1 ? "s" : ""}`);
+  }
+  if (isPastPlannedEnd) {
+    attentionReasons.push("Planned pilot end date has passed");
+  }
+
+  return {
+    stage,
+    startedAt,
+    plannedStartDate: plan.planned_start_date,
+    plannedEndDate: plan.planned_end_date,
+    totalPlannedDays,
+    daysElapsed,
+    daysRemaining,
+    isPastPlannedEnd,
+    timelineProgressPct,
+    updateCadenceDays: cadenceDays,
+    lastUpdateDate,
+    nextUpdateDueDate,
+    isUpdateDue,
+    isUpdateOverdue,
+    daysOverdue,
+    totalUpdatesCount: updates.length,
+    unacknowledgedUpdatesCount,
+    totalMilestones,
+    completedMilestones,
+    inProgressMilestones,
+    blockedMilestones,
+    milestoneCompletionPct,
+    openBlockersCount,
+    criticalBlockersCount,
+    highBlockersCount,
+    openRisksCount,
+    activePartnersCount,
+    requiresAttention: attentionReasons.length > 0,
+    attentionReasons,
+  };
+}
+
+/**
+ * Start Pilot Execution (University Project Lead action)
+ * Transitions project from PILOT_READY -> PILOT_ACTIVE
+ */
+export async function startPilot(projectId: string): Promise<void> {
+  const profile = await getCurrentProfile();
+  if (!profile) {
+    throw new Error("You must be signed in to start pilot execution.");
+  }
+
+  // 1. Fetch project and verify lead / institution authorization
+  const { data: project, error: projErr } = await supabase
+    .from("challenge_projects")
+    .select("id, institution_id, project_lead_profile_id, research_stage, project_title")
+    .eq("id", projectId)
+    .single();
+
+  if (projErr || !project) {
+    throw new Error("Project not found.");
+  }
+
+  if (profile.institution_id && profile.institution_id !== project.institution_id) {
+    throw new Error("You do not have permission to start a pilot for another university's project.");
+  }
+
+  // 2. Fetch pilot plan and check APPROVED status
+  const { data: plan, error: planErr } = await supabase
+    .from("pilot_plans")
+    .select("id, status, title, planned_start_date, planned_end_date")
+    .eq("project_id", projectId)
+    .maybeSingle();
+
+  if (planErr || !plan) {
+    throw new Error("No pilot plan found for this project.");
+  }
+
+  if (plan.status !== "APPROVED") {
+    throw new Error(`Pilot plan must be APPROVED before starting execution (current status: ${plan.status}).`);
+  }
+
+  const startedAt = new Date().toISOString();
+
+  // 3. Update pilot_plans with execution start timestamp
+  const { error: planUpdateErr } = await supabase
+    .from("pilot_plans")
+    .update({
+      pilot_started_at: startedAt,
+      pilot_started_by: profile.id,
+      updated_at: startedAt,
+    })
+    .eq("id", plan.id);
+
+  if (planUpdateErr) {
+    console.error("Error updating pilot plan start timestamp:", planUpdateErr);
+    throw planUpdateErr;
+  }
+
+  // 4. Update challenge_projects research_stage to PILOT_ACTIVE
+  const { error: projUpdateErr } = await supabase
+    .from("challenge_projects")
+    .update({
+      research_stage: "PILOT_ACTIVE",
+      updated_at: startedAt,
+    })
+    .eq("id", projectId);
+
+  if (projUpdateErr) {
+    console.error("Error transitioning project to PILOT_ACTIVE:", projUpdateErr);
+    throw projUpdateErr;
+  }
+
+  // 5. Append PILOT_STARTED activity record
+  await logPilotActivity(
+    projectId,
+    profile.id,
+    "PILOT_STARTED",
+    `Real-world pilot execution officially started for "${plan.title}". Project stage advanced to PILOT_ACTIVE.`,
+    {
+      pilot_plan_id: plan.id,
+      started_at: startedAt,
+      planned_start_date: plan.planned_start_date,
+      planned_end_date: plan.planned_end_date,
+    }
+  );
+}
+
+/**
+ * Fetch full pilot execution data (plan, milestones, progress updates, evidence, blockers, activity)
+ */
+export async function fetchPilotExecutionData(projectId: string): Promise<PilotExecutionData> {
+  const plan = await fetchPilotPlanByProjectId(projectId);
+  if (!plan) {
+    throw new Error("Pilot plan not found for project.");
+  }
+
+  const [milestonesRes, updatesRes, evidenceRes, blockersRes, activityRes] = await Promise.all([
+    supabase
+      .from("research_project_milestones")
+      .select("*")
+      .eq("project_id", projectId)
+      .order("sequence_order", { ascending: true }),
+    supabase
+      .from("research_progress_updates")
+      .select(`
+        *,
+        submitter:profiles!research_progress_updates_submitted_by_fkey(id, full_name, email),
+        manager:profiles!research_progress_updates_manager_acknowledged_by_fkey(id, full_name, email),
+        milestone:research_project_milestones!research_progress_updates_milestone_id_fkey(id, title)
+      `)
+      .eq("project_id", projectId)
+      .order("submitted_at", { ascending: false }),
+    supabase
+      .from("research_evidence")
+      .select(`
+        *,
+        uploader:profiles!research_evidence_uploaded_by_fkey(id, full_name, email),
+        milestone:research_project_milestones!research_evidence_milestone_id_fkey(id, title)
+      `)
+      .eq("project_id", projectId)
+      .order("created_at", { ascending: false }),
+    supabase
+      .from("research_blockers_risks")
+      .select(`
+        *,
+        reporter:profiles!research_blockers_risks_reported_by_fkey(id, full_name, email),
+        resolver:profiles!research_blockers_risks_resolved_by_fkey(id, full_name, email)
+      `)
+      .eq("project_id", projectId)
+      .order("created_at", { ascending: false }),
+    supabase
+      .from("challenge_project_activity")
+      .select(`
+        *,
+        actor:profiles!challenge_project_activity_actor_profile_id_fkey(id, full_name, email)
+      `)
+      .eq("project_id", projectId)
+      .order("created_at", { ascending: false })
+      .limit(30),
+  ]);
+
+  const milestones = milestonesRes.data || [];
+  const progressUpdates = updatesRes.data || [];
+  const evidence = evidenceRes.data || [];
+  const blockers = blockersRes.data || [];
+  const activity = activityRes.data || [];
+  const supportPartners = plan.support_partners || [];
+
+  const cadenceDays = plan.project?.update_cadence_days || 5;
+  const metrics = calculateExecutionMetrics(plan, cadenceDays, milestones, progressUpdates, blockers);
+
+  return {
+    plan,
+    metrics,
+    milestones,
+    progressUpdates,
+    evidence,
+    blockers,
+    supportPartners,
+    activity,
+  };
+}
+
+/**
+ * Submit Pilot Progress Update
+ */
+export async function submitPilotProgressUpdate(input: {
+  projectId: string;
+  reportingPeriodStart: string;
+  reportingPeriodEnd: string;
+  summaryCompleted: string;
+  currentFindings?: string;
+  milestoneId?: string;
+  milestoneProgressPct?: number;
+  nextPlannedWork: string;
+  supportRequired?: string;
+  supportCategory?: string;
+}): Promise<void> {
+  const profile = await getCurrentProfile();
+  if (!profile) throw new Error("You must be signed in to submit a progress update.");
+
+  const { data, error } = await supabase
+    .from("research_progress_updates")
+    .insert({
+      project_id: input.projectId,
+      reporting_period_start: input.reportingPeriodStart,
+      reporting_period_end: input.reportingPeriodEnd,
+      summary_completed: input.summaryCompleted,
+      current_findings: input.currentFindings || null,
+      milestone_id: input.milestoneId || null,
+      milestone_progress_pct: input.milestoneProgressPct ?? null,
+      next_planned_work: input.nextPlannedWork,
+      support_required: input.supportRequired || null,
+      support_category: (input.supportCategory as any) || null,
+      submitted_by: profile.id,
+    })
+    .select()
+    .single();
+
+  if (error) {
+    console.error("Error submitting pilot progress update:", error);
+    throw error;
+  }
+
+  await logPilotActivity(
+    input.projectId,
+    profile.id,
+    "PROGRESS_UPDATE_SUBMITTED",
+    `Pilot progress update submitted: "${input.summaryCompleted.slice(0, 80)}..."`,
+    { update_id: data.id }
+  );
+}
+
+/**
+ * Acknowledge Pilot Progress Update (Innovation Manager action)
+ */
+export async function acknowledgePilotProgressUpdate(
+  projectId: string,
+  updateId: string,
+  managerFeedback?: string
+): Promise<void> {
+  const profile = await getCurrentProfile();
+  if (!profile) throw new Error("You must be signed in to acknowledge updates.");
+
+  const now = new Date().toISOString();
+  const { error } = await supabase
+    .from("research_progress_updates")
+    .update({
+      manager_acknowledged_at: now,
+      manager_acknowledged_by: profile.id,
+      manager_feedback: managerFeedback || null,
+      updated_at: now,
+    })
+    .eq("id", updateId);
+
+  if (error) {
+    console.error("Error acknowledging progress update:", error);
+    throw error;
+  }
+
+  await logPilotActivity(
+    projectId,
+    profile.id,
+    "PROGRESS_UPDATE_ACKNOWLEDGED",
+    `Innovation Manager acknowledged pilot progress update${managerFeedback ? " with feedback notes" : ""}.`,
+    { update_id: updateId, feedback: managerFeedback }
+  );
+}
+
+/**
+ * Add Pilot Evidence Item
+ */
+export async function addPilotEvidence(input: {
+  projectId: string;
+  title: string;
+  evidenceType: string;
+  url?: string;
+  filePath?: string;
+  description?: string;
+  milestoneId?: string;
+  progressUpdateId?: string;
+}): Promise<void> {
+  const profile = await getCurrentProfile();
+  if (!profile) throw new Error("You must be signed in to attach evidence.");
+
+  const { data, error } = await supabase
+    .from("research_evidence")
+    .insert({
+      project_id: input.projectId,
+      title: input.title,
+      evidence_type: input.evidenceType as any,
+      url: input.url || null,
+      file_path: input.filePath || null,
+      description: input.description || null,
+      milestone_id: input.milestoneId || null,
+      progress_update_id: input.progressUpdateId || null,
+      uploaded_by: profile.id,
+    })
+    .select()
+    .single();
+
+  if (error) {
+    console.error("Error adding pilot evidence:", error);
+    throw error;
+  }
+
+  await logPilotActivity(
+    input.projectId,
+    profile.id,
+    "PILOT_EVIDENCE_ADDED",
+    `New pilot evidence uploaded: "${input.title}" (${input.evidenceType})`,
+    { evidence_id: data.id, evidence_type: input.evidenceType }
+  );
+}
+
+/**
+ * Report Pilot Risk / Blocker
+ */
+export async function reportPilotBlocker(input: {
+  projectId: string;
+  itemType: "BLOCKER" | "RISK";
+  title: string;
+  description: string;
+  severity: "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
+  impact?: string;
+  mitigationPlan?: string;
+}): Promise<void> {
+  const profile = await getCurrentProfile();
+  if (!profile) throw new Error("You must be signed in to report a blocker/risk.");
+
+  const { data, error } = await supabase
+    .from("research_blockers_risks")
+    .insert({
+      project_id: input.projectId,
+      item_type: input.itemType,
+      title: input.title,
+      description: input.description,
+      severity: input.severity,
+      support_required: input.mitigationPlan || input.impact || null,
+      status: "OPEN",
+      reported_by: profile.id,
+    })
+    .select()
+    .single();
+
+  if (error) {
+    console.error("Error reporting blocker/risk:", error);
+    throw error;
+  }
+
+  const actType = input.itemType === "BLOCKER" ? "PILOT_BLOCKER_REPORTED" : "RISK_REPORTED";
+  await logPilotActivity(
+    input.projectId,
+    profile.id,
+    actType,
+    `Reported ${input.severity} ${input.itemType.toLowerCase()}: "${input.title}"`,
+    { item_id: data.id, severity: input.severity }
+  );
+}
+
+/**
+ * Resolve Pilot Blocker / Risk
+ */
+export async function resolvePilotBlocker(
+  projectId: string,
+  itemId: string,
+  resolutionNotes?: string
+): Promise<void> {
+  const profile = await getCurrentProfile();
+  if (!profile) throw new Error("You must be signed in to resolve a blocker.");
+
+  const now = new Date().toISOString();
+  const { error } = await supabase
+    .from("research_blockers_risks")
+    .update({
+      status: "RESOLVED",
+      resolution_notes: resolutionNotes || null,
+      resolved_at: now,
+      updated_at: now,
+    })
+    .eq("id", itemId);
+
+  if (error) {
+    console.error("Error resolving blocker:", error);
+    throw error;
+  }
+
+  await logPilotActivity(
+    projectId,
+    profile.id,
+    "PILOT_BLOCKER_RESOLVED",
+    `Resolved pilot blocker: ${resolutionNotes ? `"${resolutionNotes}"` : "Resolution recorded."}`,
+    { item_id: itemId }
+  );
+}
+
+/**
+ * Update Pilot Milestone Status & Progress
+ */
+export async function updatePilotMilestone(input: {
+  projectId: string;
+  milestoneId: string;
+  status: "NOT_STARTED" | "IN_PROGRESS" | "COMPLETED" | "BLOCKED" | "DELAYED" | "CANCELLED";
+  completionPercentage?: number;
+  notes?: string;
+}): Promise<void> {
+  const profile = await getCurrentProfile();
+  if (!profile) throw new Error("You must be signed in to update a milestone.");
+
+  const now = new Date().toISOString();
+  const isCompleted = input.status === "COMPLETED";
+
+  const { error } = await supabase
+    .from("research_project_milestones")
+    .update({
+      status: input.status,
+      completion_percentage: input.completionPercentage ?? (isCompleted ? 100 : undefined),
+      actual_completion_date: isCompleted ? now.split("T")[0] : null,
+      notes: input.notes || null,
+      updated_at: now,
+    })
+    .eq("id", input.milestoneId);
+
+  if (error) {
+    console.error("Error updating milestone:", error);
+    throw error;
+  }
+
+  await logPilotActivity(
+    input.projectId,
+    profile.id,
+    "PILOT_MILESTONE_UPDATED",
+    `Updated milestone status to ${input.status} (${input.completionPercentage ?? (isCompleted ? 100 : 0)}%)`,
+    { milestone_id: input.milestoneId, status: input.status }
+  );
+}
+
 /**
  * Log activity helper
  */
@@ -1026,3 +1661,4 @@ async function logPilotActivity(
     console.warn("Failed to log pilot activity:", err);
   }
 }
+

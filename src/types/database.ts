@@ -1790,7 +1790,12 @@ export interface Database {
             | "PILOT_REVISION_REQUESTED"
             | "PILOT_RESUBMITTED"
             | "PILOT_APPROVED"
-            | "PILOT_REJECTED";
+            | "PILOT_REJECTED"
+            | "PILOT_STARTED"
+            | "PILOT_MILESTONE_UPDATED"
+            | "PILOT_EVIDENCE_ADDED"
+            | "PILOT_BLOCKER_REPORTED"
+            | "PILOT_BLOCKER_RESOLVED";
           description: string;
           metadata: Json;
           created_at: string;
@@ -1846,7 +1851,12 @@ export interface Database {
             | "PILOT_REVISION_REQUESTED"
             | "PILOT_RESUBMITTED"
             | "PILOT_APPROVED"
-            | "PILOT_REJECTED";
+            | "PILOT_REJECTED"
+            | "PILOT_STARTED"
+            | "PILOT_MILESTONE_UPDATED"
+            | "PILOT_EVIDENCE_ADDED"
+            | "PILOT_BLOCKER_REPORTED"
+            | "PILOT_BLOCKER_RESOLVED";
           description: string;
           metadata?: Json;
           created_at?: string;
@@ -1902,7 +1912,12 @@ export interface Database {
             | "PILOT_REVISION_REQUESTED"
             | "PILOT_RESUBMITTED"
             | "PILOT_APPROVED"
-            | "PILOT_REJECTED";
+            | "PILOT_REJECTED"
+            | "PILOT_STARTED"
+            | "PILOT_MILESTONE_UPDATED"
+            | "PILOT_EVIDENCE_ADDED"
+            | "PILOT_BLOCKER_REPORTED"
+            | "PILOT_BLOCKER_RESOLVED";
           description?: string;
           metadata?: Json;
           created_at?: string;
@@ -2905,6 +2920,8 @@ export interface Database {
           rejection_reason: string | null;
           revision_requested_at: string | null;
           revision_feedback: string | null;
+          pilot_started_at: string | null;
+          pilot_started_by: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -2947,6 +2964,8 @@ export interface Database {
           rejection_reason?: string | null;
           revision_requested_at?: string | null;
           revision_feedback?: string | null;
+          pilot_started_at?: string | null;
+          pilot_started_by?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -2989,6 +3008,8 @@ export interface Database {
           rejection_reason?: string | null;
           revision_requested_at?: string | null;
           revision_feedback?: string | null;
+          pilot_started_at?: string | null;
+          pilot_started_by?: string | null;
           created_at?: string;
           updated_at?: string;
         };

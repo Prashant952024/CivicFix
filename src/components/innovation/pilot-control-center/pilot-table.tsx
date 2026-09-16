@@ -11,6 +11,7 @@ import {
   GraduationCap,
   Layers,
   MapPin,
+  Radio,
   Sparkles,
 } from "lucide-react";
 import { Link } from "react-router-dom";
@@ -144,12 +145,29 @@ export function PilotTable({ pilots, onSelectPilot }: PilotTableProps) {
                   {/* Governance Status */}
                   <td className="py-3 px-4">
                     <div className="space-y-1">
-                      <Badge
-                        variant={statusMeta.badgeTone}
-                        className="text-[10px] uppercase font-bold tracking-wide"
-                      >
-                        {statusMeta.label}
-                      </Badge>
+                      {pilot.project?.research_stage === "PILOT_ACTIVE" ? (
+                        <Badge
+                          variant="emerald"
+                          className="text-[10px] uppercase font-bold tracking-wide flex items-center gap-1"
+                        >
+                          <Radio className="h-2.5 w-2.5 animate-pulse" />
+                          PILOT ACTIVE
+                        </Badge>
+                      ) : pilot.project?.research_stage === "PILOT_READY" ? (
+                        <Badge
+                          variant="teal"
+                          className="text-[10px] uppercase font-bold tracking-wide"
+                        >
+                          PILOT READY
+                        </Badge>
+                      ) : (
+                        <Badge
+                          variant={statusMeta.badgeTone}
+                          className="text-[10px] uppercase font-bold tracking-wide"
+                        >
+                          {statusMeta.label}
+                        </Badge>
+                      )}
                       {pilot.submitted_at && (
                         <p className="text-[10px] text-muted-foreground flex items-center gap-1">
                           <Clock className="h-2.5 w-2.5" />
@@ -179,7 +197,11 @@ export function PilotTable({ pilots, onSelectPilot }: PilotTableProps) {
                       onClick={() => onSelectPilot(pilot)}
                       className="text-xs h-7 gap-1 font-semibold"
                     >
-                      {isActionable ? "Review Plan" : "View Dossier"}
+                      {pilot.project?.research_stage === "PILOT_ACTIVE"
+                        ? "Monitor Execution"
+                        : isActionable
+                        ? "Review Plan"
+                        : "View Dossier"}
                       <ArrowRight className="h-3 w-3" />
                     </Button>
                   </td>

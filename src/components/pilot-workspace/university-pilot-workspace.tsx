@@ -13,6 +13,7 @@ import {
   Lock,
   Plus,
   RefreshCw,
+  Rocket,
   Send,
   ShieldAlert,
   ShieldCheck,
@@ -32,12 +33,17 @@ import { PilotReadinessCard } from "@/components/pilot-workspace/pilot-readiness
 import { PilotReviewHistory } from "@/components/pilot-workspace/pilot-review-history";
 import { PilotReviewStatus } from "@/components/pilot-workspace/pilot-review-status";
 import { PilotSupportSummary } from "@/components/pilot-workspace/pilot-support-summary";
+import { StartPilotDialog } from "@/components/pilot-workspace/start-pilot-dialog";
+import { PilotExecutionWorkspace } from "@/components/pilot-workspace/pilot-execution-workspace";
 import {
+  fetchPilotExecutionData,
   fetchPilotPlanByProjectId,
   fetchPilotReadiness,
   resubmitPilotPlan,
   savePilotPlanDraft,
+  startPilot,
   submitPilotPlan,
+  type PilotExecutionData,
   type PilotPlanInput,
   type PilotPlanWithDetails,
   type PilotReadinessStatus,
@@ -60,12 +66,15 @@ export function UniversityPilotWorkspace({
   const projectId = project.id;
 
   const [plan, setPlan] = useState<PilotPlanWithDetails | null>(null);
+  const [executionData, setExecutionData] = useState<PilotExecutionData | null>(null);
   const [readiness, setReadiness] = useState<PilotReadinessStatus | null>(null);
   const [activity, setActivity] = useState<ChallengeProjectActivityWithActor[]>([]);
   const [loading, setLoading] = useState(true);
   const [isEditing, setIsEditing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [startPilotOpen, setStartPilotOpen] = useState(false);
+  const [startingPilot, setStartingPilot] = useState(false);
   const [feedbackMsg, setFeedbackMsg] = useState<{ type: "success" | "error"; message: string } | null>(
     null
   );
@@ -74,14 +83,22 @@ export function UniversityPilotWorkspace({
     try {
       setLoading(true);
       setFeedbackMsg(null);
-      const [planData, readinessData, activityData] = await Promise.all([
-        fetchPilotPlanByProjectId(projectId),
-        fetchPilotReadiness(projectId),
-        fetchProjectActivity(projectId),
-      ]);
-      setPlan(planData);
-      setReadiness(readinessData);
-      setActivity(activityData);
+      
+      const isPilotActive = project.research_stage === "PILOT_ACTIVE";
+      if (isPilotActive) {
+        const exec = await fetchPilotExecutionData(projectId);
+        setExecutionData(exec);
+        setPlan(exec.plan);
+      } else {
+        const [planData, readinessData, activityData] = await Promise.all([
+          fetchPilotPlanByProjectId(projectId),
+          fetchPilotReadiness(projectId),
+          fetchProjectActivity(projectId),
+        ]);
+        setPlan(planData);
+        setReadiness(readinessData);
+        setActivity(activityData);
+      }
     } catch (err: any) {
       console.error("Failed to load pilot workspace data:", err);
       setFeedbackMsg({
@@ -177,11 +194,69 @@ export function UniversityPilotWorkspace({
     }
   };
 
+  const handleStartPilotConfirm = async () => {
+    try {
+      setStartingPilot(true);
+      setFeedbackMsg(null);
+      await startPilot(projectId);
+      setStartPilotOpen(false);
+      setFeedbackMsg({
+        type: "success",
+        message: "Pilot execution officially started! Project stage is now PILOT_ACTIVE.",
+      });
+      onRefreshProject?.();
+      await loadData();
+    } catch (err: any) {
+      setFeedbackMsg({
+        type: "error",
+        message: err.message || "Failed to start pilot execution.",
+      });
+    } finally {
+      setStartingPilot(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex flex-col items-center justify-center py-16 text-muted-foreground gap-3">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
         <p className="text-sm font-medium">Loading pilot governance workspace...</p>
+      </div>
+    );
+  }
+
+  // Active Pilot Execution Workspace Branch
+  if (project.research_stage === "PILOT_ACTIVE" && executionData) {
+    return (
+      <div className="space-y-6">
+        {feedbackMsg && (
+          <div
+            className={cn(
+              "p-3 rounded-lg border flex items-center gap-3 text-xs",
+              feedbackMsg.type === "success"
+                ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
+                : "border-destructive/30 bg-destructive/10 text-destructive"
+            )}
+          >
+            {feedbackMsg.type === "success" ? (
+              <CheckCircle2 className="h-4 w-4 shrink-0" />
+            ) : (
+              <AlertCircle className="h-4 w-4 shrink-0" />
+            )}
+            <div>
+              <span className="font-bold block">
+                {feedbackMsg.type === "success" ? "Action Completed" : "Error"}
+              </span>
+              <span>{feedbackMsg.message}</span>
+            </div>
+          </div>
+        )}
+
+        <PilotExecutionWorkspace
+          project={project}
+          executionData={executionData}
+          onRefresh={loadData}
+        />
       </div>
     );
   }
@@ -239,6 +314,35 @@ export function UniversityPilotWorkspace({
             </span>
             <span>{feedbackMsg.message}</span>
           </div>
+        </div>
+      )}
+
+      {/* Ready to Start Pilot Banner */}
+      {project.research_stage === "PILOT_READY" && plan?.status === "APPROVED" && (
+        <div className="p-4 rounded-lg bg-gradient-to-r from-emerald-500/15 via-emerald-500/5 to-transparent border border-emerald-500/30 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs">
+          <div className="space-y-1">
+            <div className="flex items-center gap-2">
+              <Badge variant="emerald" className="text-[10px] font-bold">
+                PILOT READY
+              </Badge>
+              <Badge variant="outline" className="text-[10px]">
+                GOVERNANCE APPROVED
+              </Badge>
+            </div>
+            <h4 className="text-sm font-bold text-foreground">
+              Pilot Plan Approved — Ready for Real-World Field Operations
+            </h4>
+            <p className="text-xs text-muted-foreground">
+              Your testbed environment, structured KPIs, and safety containment plans have been officially approved. You can now launch field testing.
+            </p>
+          </div>
+          <Button
+            onClick={() => setStartPilotOpen(true)}
+            className="text-xs bg-emerald-600 hover:bg-emerald-700 text-white font-bold gap-1.5 shrink-0 shadow-sm"
+          >
+            <Rocket className="h-4 w-4" />
+            Start Pilot Execution
+          </Button>
         </div>
       )}
 
@@ -368,6 +472,17 @@ export function UniversityPilotWorkspace({
           <PilotActivity activity={activity} />
         </div>
       ) : null}
+
+      {/* Start Pilot Confirmation Dialog */}
+      {plan && (
+        <StartPilotDialog
+          open={startPilotOpen}
+          onClose={() => setStartPilotOpen(false)}
+          onConfirm={handleStartPilotConfirm}
+          plan={plan}
+          loading={startingPilot}
+        />
+      )}
     </div>
   );
 }
