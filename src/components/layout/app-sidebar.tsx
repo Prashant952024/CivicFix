@@ -17,6 +17,7 @@ import {
   X,
   FileText,
   BrainCircuit,
+  FlaskConical,
   Handshake,
   Store,
 } from "lucide-react";
@@ -49,6 +50,7 @@ type NavIconKey =
   | "challenges"
   | "institutions"
   | "proposals"
+  | "pilots"
   | "problems"
   | "collaborations"
   | "marketplace"
@@ -60,6 +62,7 @@ const navIcons: Record<NavIconKey, ComponentType<{ className?: string; "aria-hid
   issues: ClipboardList,
   problems: BrainCircuit,
   collaborations: Handshake,
+  pilots: FlaskConical,
   marketplace: Store,
   applications: ClipboardCheck,
   report: SquarePen,
@@ -79,6 +82,7 @@ const navIcons: Record<NavIconKey, ComponentType<{ className?: string; "aria-hid
 
 function getNavIcon(item: CivicFixRoleNavItem) {
   const lowered = item.path.toLowerCase();
+  if (lowered.includes("pilot")) return navIcons.pilots;
   if (lowered.includes("marketplace")) return navIcons.marketplace;
   if (lowered.includes("applications")) return navIcons.applications;
   if (lowered.includes("collaboration")) return navIcons.collaborations;
@@ -121,6 +125,7 @@ export function AppSidebar({ roleCode, mobileOpen, onClose }: AppSidebarProps) {
   const navItems = civicFixNavItems[roleCode];
 
   const [proposalsNeedingReview, setProposalsNeedingReview] = useState<number>(0);
+  const [pilotsNeedingReview, setPilotsNeedingReview] = useState<number>(0);
   const [unreadNotifications, setUnreadNotifications] = useState<number>(0);
 
   useEffect(() => {
@@ -129,14 +134,21 @@ export function AppSidebar({ roleCode, mobileOpen, onClose }: AppSidebarProps) {
     async function loadSidebarBadges() {
       if (roleCode === "INNOVATION_MANAGER") {
         try {
-          const { count: propCount } = await supabase
-            .from("research_proposals")
-            .select("id", { count: "exact", head: true })
-            .in("status", ["SUBMITTED", "RESUBMITTED"])
-            .eq("is_current", true);
+          const [propRes, pilotRes] = await Promise.all([
+            supabase
+              .from("research_proposals")
+              .select("id", { count: "exact", head: true })
+              .in("status", ["SUBMITTED", "RESUBMITTED"])
+              .eq("is_current", true),
+            supabase
+              .from("pilot_plans")
+              .select("id", { count: "exact", head: true })
+              .in("status", ["SUBMITTED", "RESUBMITTED", "UNDER_REVIEW"]),
+          ]);
 
-          if (!cancelled && typeof propCount === "number") {
-            setProposalsNeedingReview(propCount);
+          if (!cancelled) {
+            if (typeof propRes.count === "number") setProposalsNeedingReview(propRes.count);
+            if (typeof pilotRes.count === "number") setPilotsNeedingReview(pilotRes.count);
           }
         } catch {
           // ignore error
@@ -249,6 +261,9 @@ export function AppSidebar({ roleCode, mobileOpen, onClose }: AppSidebarProps) {
 
             if ((item.path.includes("/proposals") || item.path.includes("/collaborations")) && proposalsNeedingReview > 0) {
               badgeCount = proposalsNeedingReview;
+              badgeClass = "bg-amber-500 text-amber-950 font-bold animate-pulse";
+            } else if (item.path.includes("/pilots") && pilotsNeedingReview > 0) {
+              badgeCount = pilotsNeedingReview;
               badgeClass = "bg-amber-500 text-amber-950 font-bold animate-pulse";
             } else if (item.path.includes("/notifications") && unreadNotifications > 0) {
               badgeCount = unreadNotifications;

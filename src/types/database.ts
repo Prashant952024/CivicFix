@@ -1782,7 +1782,15 @@ export interface Database {
             | "SUPPORT_APPLICATION_ACCEPTED"
             | "SUPPORT_APPLICATION_REJECTED"
             | "SUPPORT_PARTNER_SELECTED"
-            | "SUPPORT_REQUEST_FULFILLED";
+            | "SUPPORT_REQUEST_FULFILLED"
+            | "PILOT_PLAN_CREATED"
+            | "PILOT_PLAN_UPDATED"
+            | "PILOT_PLAN_SUBMITTED"
+            | "PILOT_REVIEW_STARTED"
+            | "PILOT_REVISION_REQUESTED"
+            | "PILOT_RESUBMITTED"
+            | "PILOT_APPROVED"
+            | "PILOT_REJECTED";
           description: string;
           metadata: Json;
           created_at: string;
@@ -1830,7 +1838,15 @@ export interface Database {
             | "SUPPORT_APPLICATION_ACCEPTED"
             | "SUPPORT_APPLICATION_REJECTED"
             | "SUPPORT_PARTNER_SELECTED"
-            | "SUPPORT_REQUEST_FULFILLED";
+            | "SUPPORT_REQUEST_FULFILLED"
+            | "PILOT_PLAN_CREATED"
+            | "PILOT_PLAN_UPDATED"
+            | "PILOT_PLAN_SUBMITTED"
+            | "PILOT_REVIEW_STARTED"
+            | "PILOT_REVISION_REQUESTED"
+            | "PILOT_RESUBMITTED"
+            | "PILOT_APPROVED"
+            | "PILOT_REJECTED";
           description: string;
           metadata?: Json;
           created_at?: string;
@@ -1878,7 +1894,15 @@ export interface Database {
             | "SUPPORT_APPLICATION_ACCEPTED"
             | "SUPPORT_APPLICATION_REJECTED"
             | "SUPPORT_PARTNER_SELECTED"
-            | "SUPPORT_REQUEST_FULFILLED";
+            | "SUPPORT_REQUEST_FULFILLED"
+            | "PILOT_PLAN_CREATED"
+            | "PILOT_PLAN_UPDATED"
+            | "PILOT_PLAN_SUBMITTED"
+            | "PILOT_REVIEW_STARTED"
+            | "PILOT_REVISION_REQUESTED"
+            | "PILOT_RESUBMITTED"
+            | "PILOT_APPROVED"
+            | "PILOT_REJECTED";
           description?: string;
           metadata?: Json;
           created_at?: string;
@@ -2841,6 +2865,264 @@ export interface Database {
           },
         ];
       };
+      pilot_plans: {
+        Row: {
+          id: string;
+          project_id: string;
+          challenge_id: string;
+          institution_id: string;
+          created_by: string;
+          title: string;
+          summary: string;
+          objective: string;
+          research_hypothesis: string;
+          test_environment_type: PilotEnvironmentType;
+          test_environment_description: string;
+          location_description: string;
+          planned_start_date: string;
+          planned_end_date: string;
+          estimated_duration_days: number;
+          baseline_description: string;
+          baseline_metrics: Json;
+          kpis: Json;
+          success_criteria: string;
+          participant_description: string | null;
+          participant_count: number;
+          participant_selection_method: string | null;
+          risk_and_safety_considerations: string;
+          risk_mitigation_plan: string;
+          ethical_considerations: string | null;
+          version: number;
+          status: PilotPlanStatus;
+          submitted_at: string | null;
+          reviewed_at: string | null;
+          reviewed_by: string | null;
+          approved_at: string | null;
+          approved_by: string | null;
+          approval_notes: string | null;
+          rejected_at: string | null;
+          rejected_by: string | null;
+          rejection_reason: string | null;
+          revision_requested_at: string | null;
+          revision_feedback: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          project_id: string;
+          challenge_id: string;
+          institution_id: string;
+          created_by: string;
+          title: string;
+          summary: string;
+          objective: string;
+          research_hypothesis: string;
+          test_environment_type?: PilotEnvironmentType;
+          test_environment_description: string;
+          location_description: string;
+          planned_start_date: string;
+          planned_end_date: string;
+          estimated_duration_days?: number;
+          baseline_description: string;
+          baseline_metrics?: Json;
+          kpis?: Json;
+          success_criteria: string;
+          participant_description?: string | null;
+          participant_count?: number;
+          participant_selection_method?: string | null;
+          risk_and_safety_considerations: string;
+          risk_mitigation_plan: string;
+          ethical_considerations?: string | null;
+          version?: number;
+          status?: PilotPlanStatus;
+          submitted_at?: string | null;
+          reviewed_at?: string | null;
+          reviewed_by?: string | null;
+          approved_at?: string | null;
+          approved_by?: string | null;
+          approval_notes?: string | null;
+          rejected_at?: string | null;
+          rejected_by?: string | null;
+          rejection_reason?: string | null;
+          revision_requested_at?: string | null;
+          revision_feedback?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          project_id?: string;
+          challenge_id?: string;
+          institution_id?: string;
+          created_by?: string;
+          title?: string;
+          summary?: string;
+          objective?: string;
+          research_hypothesis?: string;
+          test_environment_type?: PilotEnvironmentType;
+          test_environment_description?: string;
+          location_description?: string;
+          planned_start_date?: string;
+          planned_end_date?: string;
+          estimated_duration_days?: number;
+          baseline_description?: string;
+          baseline_metrics?: Json;
+          kpis?: Json;
+          success_criteria?: string;
+          participant_description?: string | null;
+          participant_count?: number;
+          participant_selection_method?: string | null;
+          risk_and_safety_considerations?: string;
+          risk_mitigation_plan?: string;
+          ethical_considerations?: string | null;
+          version?: number;
+          status?: PilotPlanStatus;
+          submitted_at?: string | null;
+          reviewed_at?: string | null;
+          reviewed_by?: string | null;
+          approved_at?: string | null;
+          approved_by?: string | null;
+          approval_notes?: string | null;
+          rejected_at?: string | null;
+          rejected_by?: string | null;
+          rejection_reason?: string | null;
+          revision_requested_at?: string | null;
+          revision_feedback?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "pilot_plans_project_id_fkey";
+            columns: ["project_id"];
+            isOneToOne: true;
+            referencedRelation: "challenge_projects";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "pilot_plans_challenge_id_fkey";
+            columns: ["challenge_id"];
+            isOneToOne: false;
+            referencedRelation: "innovation_challenges";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "pilot_plans_institution_id_fkey";
+            columns: ["institution_id"];
+            isOneToOne: false;
+            referencedRelation: "institutions";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      pilot_plan_revisions: {
+        Row: {
+          id: string;
+          pilot_plan_id: string;
+          version: number;
+          title: string;
+          summary: string;
+          objective: string;
+          research_hypothesis: string;
+          test_environment_type: string;
+          test_environment_description: string;
+          location_description: string;
+          planned_start_date: string;
+          planned_end_date: string;
+          estimated_duration_days: number;
+          baseline_description: string;
+          baseline_metrics: Json;
+          kpis: Json;
+          success_criteria: string;
+          participant_description: string | null;
+          participant_count: number;
+          participant_selection_method: string | null;
+          risk_and_safety_considerations: string;
+          risk_mitigation_plan: string;
+          ethical_considerations: string | null;
+          status: string;
+          submitted_by: string | null;
+          submitted_at: string;
+          feedback: string | null;
+          reviewed_by: string | null;
+          reviewed_at: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          pilot_plan_id: string;
+          version: number;
+          title: string;
+          summary: string;
+          objective: string;
+          research_hypothesis: string;
+          test_environment_type: string;
+          test_environment_description: string;
+          location_description: string;
+          planned_start_date: string;
+          planned_end_date: string;
+          estimated_duration_days: number;
+          baseline_description: string;
+          baseline_metrics?: Json;
+          kpis?: Json;
+          success_criteria: string;
+          participant_description?: string | null;
+          participant_count?: number;
+          participant_selection_method?: string | null;
+          risk_and_safety_considerations: string;
+          risk_mitigation_plan: string;
+          ethical_considerations?: string | null;
+          status: string;
+          submitted_by?: string | null;
+          submitted_at?: string;
+          feedback?: string | null;
+          reviewed_by?: string | null;
+          reviewed_at?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          pilot_plan_id?: string;
+          version?: number;
+          title?: string;
+          summary?: string;
+          objective?: string;
+          research_hypothesis?: string;
+          test_environment_type?: string;
+          test_environment_description?: string;
+          location_description?: string;
+          planned_start_date?: string;
+          planned_end_date?: string;
+          estimated_duration_days?: number;
+          baseline_description?: string;
+          baseline_metrics?: Json;
+          kpis?: Json;
+          success_criteria?: string;
+          participant_description?: string | null;
+          participant_count?: number;
+          participant_selection_method?: string | null;
+          risk_and_safety_considerations?: string;
+          risk_mitigation_plan?: string;
+          ethical_considerations?: string | null;
+          status?: string;
+          submitted_by?: string | null;
+          submitted_at?: string;
+          feedback?: string | null;
+          reviewed_by?: string | null;
+          reviewed_at?: string | null;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "pilot_plan_revisions_pilot_plan_id_fkey";
+            columns: ["pilot_plan_id"];
+            isOneToOne: false;
+            referencedRelation: "pilot_plans";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
     };
     Views: Record<string, never>;
     Functions: Record<string, never>;
@@ -3072,5 +3354,53 @@ export type ResearchSupportApplicationUpdate = Database["public"]["Tables"]["res
 export type ProjectSupportPartnerRow = Database["public"]["Tables"]["project_support_partners"]["Row"];
 export type ProjectSupportPartnerInsert = Database["public"]["Tables"]["project_support_partners"]["Insert"];
 export type ProjectSupportPartnerUpdate = Database["public"]["Tables"]["project_support_partners"]["Update"];
+
+export type PilotPlanStatus =
+  | "DRAFT"
+  | "SUBMITTED"
+  | "UNDER_REVIEW"
+  | "REQUESTED_REVISION"
+  | "RESUBMITTED"
+  | "APPROVED"
+  | "REJECTED";
+
+export type PilotEnvironmentType =
+  | "LAB"
+  | "CAMPUS"
+  | "FIELD_SITE"
+  | "AGRICULTURAL_SITE"
+  | "PARTNER_SITE"
+  | "INDUSTRIAL_SITE"
+  | "COMMUNITY_SITE"
+  | "PUBLIC_ENVIRONMENT"
+  | "DIGITAL_ENVIRONMENT"
+  | "SIMULATION"
+  | "OTHER";
+
+export interface PilotKPI {
+  id: string;
+  name: string;
+  description: string;
+  measurement_method: string;
+  baseline_value: string;
+  target_value: string;
+  unit: string;
+}
+
+export interface PilotRisk {
+  id: string;
+  risk: string;
+  severity: "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
+  mitigation: string;
+}
+
+export type PilotPlanRow = Database["public"]["Tables"]["pilot_plans"]["Row"];
+export type PilotPlanInsert = Database["public"]["Tables"]["pilot_plans"]["Insert"];
+export type PilotPlanUpdate = Database["public"]["Tables"]["pilot_plans"]["Update"];
+
+export type PilotPlanRevisionRow = Database["public"]["Tables"]["pilot_plan_revisions"]["Row"];
+export type PilotPlanRevisionInsert = Database["public"]["Tables"]["pilot_plan_revisions"]["Insert"];
+export type PilotPlanRevisionUpdate = Database["public"]["Tables"]["pilot_plan_revisions"]["Update"];
+
 
 

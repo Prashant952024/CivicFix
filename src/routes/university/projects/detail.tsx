@@ -24,7 +24,7 @@ import {
   LayoutGrid,
   List,
 } from "lucide-react";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 
 import { useAppSession } from "@/auth/app-session";
 import { Badge } from "@/components/ui/badge";
@@ -33,6 +33,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog } from "@/components/ui/dialog";
 import { EmptyState } from "@/components/ui/empty-state";
 import { ResearchPrototypeWorkspace } from "@/components/research-workspace/research-prototype-workspace";
+import { UniversityPilotWorkspace } from "@/components/pilot-workspace/university-pilot-workspace";
 import { TeamMemberCard } from "@/components/projects/team-member-card";
 import { TeamMemberTable } from "@/components/projects/team-member-table";
 import { TeamMemberProfileDialog } from "@/components/projects/team-member-profile-dialog";
@@ -62,6 +63,7 @@ import type { ProjectMemberRole, ProjectMemberType, ProjectWorkspaceStatus } fro
 
 export function UniversityProjectDetailPage() {
   const { projectId } = useParams<{ projectId: string }>();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { profile, roleCode } = useAppSession();
   const navigate = useNavigate();
 
@@ -70,7 +72,22 @@ export function UniversityProjectDetailPage() {
   const [activity, setActivity] = useState<ChallengeProjectActivityWithActor[]>([]);
   const [currentProposal, setCurrentProposal] = useState<ResearchProposalWithDetails | null>(null);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<"team" | "proposal" | "research" | "challenge" | "activity">("team");
+
+  const rawTab = searchParams.get("tab") as "team" | "proposal" | "research" | "pilot" | "challenge" | "activity" | null;
+  const [activeTab, setActiveTabState] = useState<"team" | "proposal" | "research" | "pilot" | "challenge" | "activity">(
+    rawTab && ["team", "proposal", "research", "pilot", "challenge", "activity"].includes(rawTab)
+      ? rawTab
+      : "team"
+  );
+
+  const setActiveTab = (tab: "team" | "proposal" | "research" | "pilot" | "challenge" | "activity") => {
+    setActiveTabState(tab);
+    setSearchParams((prev) => {
+      const p = new URLSearchParams(prev);
+      p.set("tab", tab);
+      return p;
+    }, { replace: true });
+  };
 
   // Notifications
   const [actionSuccess, setActionSuccess] = useState<string | null>(null);
@@ -911,6 +928,30 @@ export function UniversityProjectDetailPage() {
           )}
         </button>
         <button
+          onClick={() => setActiveTab("pilot")}
+          className={`pb-2.5 flex items-center gap-1.5 transition-colors border-b-2 ${
+            activeTab === "pilot"
+              ? "border-primary text-primary"
+              : "border-transparent text-muted-foreground hover:text-foreground"
+          }`}
+        >
+          <Sparkles className="w-3.5 h-3.5 text-primary" />
+          Pilot Planning
+          {project?.research_stage === "PILOT_READY" ? (
+            <Badge className="bg-emerald-100 text-emerald-800 border-emerald-300 font-bold text-[9px] px-1 py-0 ml-1">
+              Pilot Ready
+            </Badge>
+          ) : currentProposal?.status === "APPROVED" ? (
+            <Badge className="bg-primary/10 text-primary border-primary/20 font-bold text-[9px] px-1 py-0 ml-1">
+              Planning
+            </Badge>
+          ) : (
+            <Badge variant="outline" className="text-[9px] px-1 py-0 ml-1 text-muted-foreground">
+              Locked
+            </Badge>
+          )}
+        </button>
+        <button
           onClick={() => setActiveTab("challenge")}
           className={`pb-2.5 flex items-center gap-1.5 transition-colors border-b-2 ${
             activeTab === "challenge"
@@ -1477,6 +1518,16 @@ export function UniversityProjectDetailPage() {
             onNavigateToTab={(t) => {
               if (t === "proposal") setActiveTab("proposal");
             }}
+          />
+        </div>
+      )}
+
+      {/* Tab: Pilot Planning & Governance Workspace */}
+      {activeTab === "pilot" && project && (
+        <div className="space-y-4">
+          <UniversityPilotWorkspace
+            project={project}
+            onRefreshProject={() => setRefreshNonce((n) => n + 1)}
           />
         </div>
       )}

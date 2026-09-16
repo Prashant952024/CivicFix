@@ -24,6 +24,7 @@ import { UniversityActivity } from "@/components/innovation/problem-control-cent
 import { UniversityCommunication } from "@/components/innovation/problem-control-center/workspace/university-communication";
 import { UniversityHelpRequests } from "@/components/innovation/problem-control-center/workspace/university-help-requests";
 import { UniversityOverview } from "@/components/innovation/problem-control-center/workspace/university-overview";
+import { UniversityPilotView } from "@/components/innovation/problem-control-center/workspace/university-pilot-view";
 import { UniversityProgress } from "@/components/innovation/problem-control-center/workspace/university-progress";
 import { UniversityProposal } from "@/components/innovation/problem-control-center/workspace/university-proposal";
 import { UniversityTeam } from "@/components/innovation/problem-control-center/workspace/university-team";
@@ -36,6 +37,7 @@ export type UniversityWorkspaceTab =
   | "team"
   | "proposal"
   | "research"
+  | "pilot"
   | "communication"
   | "updates"
   | "help"
@@ -389,6 +391,50 @@ export function UniversityWorkspace({
             )}
           </Button>
 
+          {/* TAB: PILOT PLANNING */}
+          <Button
+            size="sm"
+            variant={activeTab === "pilot" ? "default" : "ghost"}
+            onClick={() => handleTabChange("pilot")}
+            className={`text-xs font-semibold gap-1.5 h-8.5 px-3 rounded-xl transition shrink-0 ${
+              activeTab === "pilot" ? "shadow-xs font-bold" : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            <FlaskConical className="w-3.5 h-3.5" />
+            <span>Pilot Planning</span>
+            {institution.researchStage === "PILOT_READY" ? (
+              <Badge
+                className={`text-[9px] ml-0.5 px-1.5 py-0 ${
+                  activeTab === "pilot"
+                    ? "bg-white/20 text-primary-foreground border-transparent"
+                    : "bg-emerald-100 text-emerald-800 border-emerald-300 font-bold"
+                }`}
+              >
+                Pilot Ready
+              </Badge>
+            ) : isApproved ? (
+              <Badge
+                className={`text-[9px] ml-0.5 px-1.5 py-0 ${
+                  activeTab === "pilot"
+                    ? "bg-white/20 text-primary-foreground border-transparent"
+                    : "bg-sky-100 text-sky-800 border-sky-300 font-medium"
+                }`}
+              >
+                Planning
+              </Badge>
+            ) : (
+              <Badge
+                className={`text-[9px] ml-0.5 px-1.5 py-0 ${
+                  activeTab === "pilot"
+                    ? "bg-white/20 text-primary-foreground border-transparent"
+                    : "bg-muted text-muted-foreground"
+                }`}
+              >
+                Locked
+              </Badge>
+            )}
+          </Button>
+
           {/* TAB 6: COMMUNICATION */}
           <Button
             size="sm"
@@ -485,6 +531,10 @@ export function UniversityWorkspace({
             isManager={true}
             onNavigateToTab={(t) => handleTabChange(t as UniversityWorkspaceTab)}
           />
+        )}
+
+        {activeTab === "pilot" && (
+          <UniversityPilotView institution={institution} />
         )}
 
         {activeTab === "communication" && (
