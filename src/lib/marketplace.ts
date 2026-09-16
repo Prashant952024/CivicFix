@@ -1013,7 +1013,7 @@ export async function fetchInnovationMarketplaceOverview() {
     supabase.from("research_support_listings").select("id, status, category, applications_count"),
     supabase.from("research_support_applications").select("id, status"),
     supabase.from("project_support_partners").select("id, participation_status, category"),
-    supabase.from("industry_organizations").select("id, name, organization_type, verification_status"),
+    supabase.from("industry_organizations").select("*"),
   ]);
 
   const requests = requestsRes.data ?? [];

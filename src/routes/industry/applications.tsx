@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   Building2,
   CheckCircle2,
@@ -86,9 +86,9 @@ export function IndustryApplicationsPage() {
   const [applications, setApplications] = useState<OrganizationApplicationItem[]>([]);
   const [partnerships, setPartnerships] = useState<OrganizationPartnershipItem[]>([]);
 
-  async function resolveOrganization(currentProfile: typeof profile): Promise<IndustryOrganizationRow | null> {
+  const resolveOrganization = useCallback(async (currentProfile: typeof profile): Promise<IndustryOrganizationRow | null> => {
     if (!currentProfile) return null;
-    let orgId = currentProfile.organization_id;
+    const orgId = currentProfile.organization_id;
     if (orgId) {
       try {
         const directOrg = await fetchIndustryOrganizationProfile(orgId);
@@ -129,7 +129,7 @@ export function IndustryApplicationsPage() {
             .from("profiles")
             .update({ organization_id: matchedOrg.id, updated_at: new Date().toISOString() })
             .eq("id", currentProfile.id);
-          return matchedOrg as IndustryOrganizationRow;
+          return matchedOrg;
         }
       } catch (e) {
         console.warn("Email org lookup failed:", e);
@@ -137,9 +137,9 @@ export function IndustryApplicationsPage() {
     }
 
     return null;
-  }
+  }, []);
 
-  async function loadData() {
+  const loadData = useCallback(async () => {
     setLoading(true);
     try {
       const org = await resolveOrganization(profile);
@@ -158,7 +158,7 @@ export function IndustryApplicationsPage() {
     } finally {
       setLoading(false);
     }
-  }
+  }, [profile, resolveOrganization]);
 
   useEffect(() => {
     let isMounted = true;
@@ -189,7 +189,7 @@ export function IndustryApplicationsPage() {
     return () => {
       isMounted = false;
     };
-  }, [profile?.id, profile?.organization_id, profile?.email]);
+  }, [profile, resolveOrganization]);
 
   if (!organization && !loading) {
     return (
@@ -217,9 +217,9 @@ export function IndustryApplicationsPage() {
   }
 
   return (
-    <div className="space-y-6 pb-12">
+    <div className="space-y-6 pb-12 max-w-7xl mx-auto">
       <PageHeader
-        title="My Applications & Partnerships"
+        title="My Applications &amp; Partnerships"
         description={`Organization: ${organization?.name ?? "Industry Partner"} • Track candidate offers, review notes, and active research partnerships.`}
       >
         <div className="flex items-center gap-2">
@@ -236,7 +236,7 @@ export function IndustryApplicationsPage() {
           <Button
             size="sm"
             onClick={() => { void navigate("/app/industry/marketplace"); }}
-            className="text-xs h-8 gap-1.5"
+            className="text-xs h-8 gap-1.5 shadow-xs"
           >
             <Store className="w-3.5 h-3.5" />
             <span>Browse Opportunities</span>
@@ -342,8 +342,8 @@ export function IndustryApplicationsPage() {
 
                       {/* Clarification notes if requested by university */}
                       {app.review_notes && (
-                        <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg text-xs text-amber-950 space-y-1">
-                          <div className="font-bold flex items-center gap-1 text-amber-900">
+                        <div className="p-3 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/50 rounded-lg text-xs text-amber-950 dark:text-amber-200 space-y-1">
+                          <div className="font-bold flex items-center gap-1 text-amber-900 dark:text-amber-300">
                             <HelpCircle className="w-3.5 h-3.5 text-amber-600" />
                             <span>University Clarification Note</span>
                           </div>
@@ -353,8 +353,8 @@ export function IndustryApplicationsPage() {
 
                       {/* Acceptance notes if accepted */}
                       {app.acceptance_agreement_notes && (
-                        <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-lg text-xs text-emerald-950 space-y-1">
-                          <div className="font-bold flex items-center gap-1 text-emerald-900">
+                        <div className="p-3 bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800/50 rounded-lg text-xs text-emerald-950 dark:text-emerald-200 space-y-1">
+                          <div className="font-bold flex items-center gap-1 text-emerald-900 dark:text-emerald-300">
                             <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
                             <span>Partnership Agreement &amp; Delivery Scope</span>
                           </div>
@@ -388,7 +388,7 @@ export function IndustryApplicationsPage() {
           {partnerships.length === 0 ? (
             <Card className="border-border/80">
               <CardContent className="p-12 text-center space-y-3 max-w-md mx-auto">
-                <span className="p-3 rounded-xl bg-emerald-100 text-emerald-800 inline-flex">
+                <span className="p-3 rounded-xl bg-emerald-100 dark:bg-emerald-900/50 text-emerald-800 dark:text-emerald-300 inline-flex">
                   <Handshake className="w-6 h-6" />
                 </span>
                 <p className="text-sm font-bold text-foreground">No Active Partnerships Yet</p>
@@ -400,11 +400,11 @@ export function IndustryApplicationsPage() {
           ) : (
             <div className="grid grid-cols-1 gap-3">
               {partnerships.map((p) => (
-                <Card key={p.id} className="border-emerald-200 bg-emerald-50/20 shadow-xs">
+                <Card key={p.id} className="border-emerald-200 dark:border-emerald-800/60 bg-emerald-50/30 dark:bg-emerald-950/20 shadow-xs">
                   <CardContent className="p-5 space-y-3">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
-                        <span className="p-1.5 rounded-lg bg-emerald-100 text-emerald-800">
+                        <span className="p-1.5 rounded-lg bg-emerald-100 dark:bg-emerald-900/60 text-emerald-800 dark:text-emerald-300">
                           <Building2 className="w-4 h-4" />
                         </span>
                         <div>
@@ -421,7 +421,7 @@ export function IndustryApplicationsPage() {
                       </Badge>
                     </div>
 
-                    <div className="p-3 bg-white/80 border border-emerald-200 rounded-lg text-xs space-y-1">
+                    <div className="p-3 bg-background border border-border/80 rounded-lg text-xs space-y-1">
                       <span className="text-muted-foreground text-[11px] font-semibold block">
                         Deliverables &amp; Support Summary:
                       </span>
@@ -431,7 +431,7 @@ export function IndustryApplicationsPage() {
                     </div>
 
                     {p.notes && (
-                      <div className="text-xs text-emerald-900 leading-relaxed pl-1">
+                      <div className="text-xs text-foreground/80 leading-relaxed pl-1">
                         <strong>Lab Notes:</strong> {p.notes}
                       </div>
                     )}

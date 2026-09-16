@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   ArrowLeft,
   Building2,
@@ -55,9 +55,9 @@ export function IndustryListingDetailPage() {
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
 
-  async function resolveOrganization(currentProfile: typeof profile): Promise<IndustryOrganizationRow | null> {
+  const resolveOrganization = useCallback(async (currentProfile: typeof profile): Promise<IndustryOrganizationRow | null> => {
     if (!currentProfile) return null;
-    let orgId = currentProfile.organization_id;
+    const orgId = currentProfile.organization_id;
     if (orgId) {
       try {
         const directOrg = await fetchIndustryOrganizationProfile(orgId);
@@ -98,7 +98,7 @@ export function IndustryListingDetailPage() {
             .from("profiles")
             .update({ organization_id: matchedOrg.id, updated_at: new Date().toISOString() })
             .eq("id", currentProfile.id);
-          return matchedOrg as IndustryOrganizationRow;
+          return matchedOrg;
         }
       } catch (e) {
         console.warn("Email org lookup failed:", e);
@@ -106,9 +106,9 @@ export function IndustryListingDetailPage() {
     }
 
     return null;
-  }
+  }, []);
 
-  async function loadData() {
+  const loadData = useCallback(async () => {
     if (!listingId) return;
     setLoading(true);
     setError(null);
@@ -126,7 +126,7 @@ export function IndustryListingDetailPage() {
     } finally {
       setLoading(false);
     }
-  }
+  }, [listingId, profile, resolveOrganization]);
 
   useEffect(() => {
     let isMounted = true;
@@ -157,7 +157,7 @@ export function IndustryListingDetailPage() {
     return () => {
       isMounted = false;
     };
-  }, [listingId, profile?.id, profile?.organization_id, profile?.email]);
+  }, [listingId, profile, resolveOrganization]);
 
   async function handleApplySubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -374,14 +374,14 @@ export function IndustryListingDetailPage() {
             </CardContent>
           </Card>
 
-          {/* Controlled Privacy Notice */}
+          {/* Controlled Disclosure & Privacy Notice */}
           <Card className="border-border/60 bg-muted/20">
             <CardContent className="p-4 flex items-start gap-3">
               <Info className="w-4 h-4 text-muted-foreground shrink-0 mt-0.5" />
               <div className="text-xs text-muted-foreground space-y-0.5">
-                <span className="font-semibold text-foreground block">Engagement Rules &amp; Scope</span>
+                <span className="font-semibold text-foreground block">Controlled Disclosure &amp; Engagement Scope</span>
                 <p className="leading-relaxed">
-                  Support accepted by the university grants a scoped, non-exclusive collaboration role (<code>SUPPORT_SPECIFIC</code>). It does not convey ownership over university intellectual property or raw citizen telemetry.
+                  All listings operate under platform controlled disclosure standards. Support accepted by the university grants a scoped, non-exclusive collaboration role (<code>SUPPORT_SPECIFIC</code>). It does not convey ownership over university intellectual property or raw citizen telemetry.
                 </p>
               </div>
             </CardContent>

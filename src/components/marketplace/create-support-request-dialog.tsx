@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Dialog } from "@/components/ui/dialog";
 import {
@@ -11,7 +11,7 @@ import type {
   SupportRequestCategory,
   SupportRequestPriority,
 } from "@/types/database";
-import { AlertCircle, CheckCircle2, FileText, Loader2, Sparkles } from "lucide-react";
+import { AlertCircle, CheckCircle2, Loader2, Sparkles } from "lucide-react";
 
 interface CreateSupportRequestDialogProps {
   open: boolean;
@@ -54,20 +54,18 @@ export function CreateSupportRequestDialog({
   const [error, setError] = useState<string | null>(null);
 
   // Selected project for Global University Mode
-  const [selectedProjectId, setSelectedProjectId] = useState<string>(propProjectId || "");
-
-  useEffect(() => {
-    if (propProjectId) {
-      setSelectedProjectId(propProjectId);
-    } else if (eligibleProjects && eligibleProjects.length > 0 && !selectedProjectId) {
-      // Default to first project with approved proposal if available
+  const [selectedProjectId, setSelectedProjectId] = useState<string>(() => {
+    if (propProjectId) return propProjectId;
+    if (eligibleProjects && eligibleProjects.length > 0) {
       const approved = eligibleProjects.find((p) => p.has_approved_proposal);
-      setSelectedProjectId(approved ? approved.id : eligibleProjects[0].id);
+      return approved ? approved.id : eligibleProjects[0].id;
     }
-  }, [propProjectId, eligibleProjects, selectedProjectId]);
+    return "";
+  });
 
-  const activeProject = eligibleProjects?.find((p) => p.id === selectedProjectId);
-  const activeProjectId = propProjectId || selectedProjectId;
+  const effectiveProjectId = propProjectId || selectedProjectId || (eligibleProjects && eligibleProjects.length > 0 ? (eligibleProjects.find((p) => p.has_approved_proposal)?.id ?? eligibleProjects[0].id) : "");
+  const activeProject = eligibleProjects?.find((p) => p.id === effectiveProjectId);
+  const activeProjectId = effectiveProjectId;
   const activeChallengeId = propChallengeId || activeProject?.challenge_id || "";
   const activeInstitutionId = propInstitutionId || activeProject?.institution_id || "";
   const availableMilestones = propMilestones || activeProject?.milestones || [];

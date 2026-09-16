@@ -98,8 +98,8 @@ export function InnovationMarketplacePage() {
         fetchInnovationContributions(),
       ]);
       setMetrics(data.metrics);
-      setRequests(data.requests as unknown as JoinedRequestItem[]);
-      setOrganizations(data.organizations as IndustryOrganizationRow[]);
+      setRequests(data.requests);
+      setOrganizations(data.organizations);
       setPartners(data.partners as unknown as OverviewPartner[]);
       setContributions(contribs);
     } catch (err: unknown) {
@@ -120,8 +120,8 @@ export function InnovationMarketplacePage() {
         ]);
         if (!isMounted) return;
         setMetrics(data.metrics);
-        setRequests(data.requests as unknown as JoinedRequestItem[]);
-        setOrganizations(data.organizations as IndustryOrganizationRow[]);
+        setRequests(data.requests);
+        setOrganizations(data.organizations);
         setPartners(data.partners as unknown as OverviewPartner[]);
         setContributions(contribs);
       } catch (err: unknown) {
@@ -178,7 +178,7 @@ export function InnovationMarketplacePage() {
   });
 
   return (
-    <div className="space-y-6 pb-12">
+    <div className="space-y-6 pb-12 max-w-7xl mx-auto">
       <PageHeader
         title="Innovation Marketplace Control Center"
         description="Monitor research support requirements across university projects, govern marketplace listings, and verify industry partner organizations."
@@ -213,33 +213,33 @@ export function InnovationMarketplacePage() {
           </CardContent>
         </Card>
 
-        <Card className="border-emerald-200/80 bg-emerald-50/20 shadow-xs">
+        <Card className="border-emerald-200/80 dark:border-emerald-800/50 bg-emerald-50/30 dark:bg-emerald-950/20 shadow-xs">
           <CardContent className="p-4 space-y-1">
-            <span className="text-emerald-700 text-[11px] font-medium uppercase tracking-wider block">
+            <span className="text-emerald-700 dark:text-emerald-400 text-[11px] font-medium uppercase tracking-wider block">
               Open Listings
             </span>
-            <div className="text-2xl font-bold text-emerald-950">{metrics.publishedListings}</div>
-            <div className="text-[10px] text-emerald-800">Published to public</div>
+            <div className="text-2xl font-bold text-emerald-950 dark:text-emerald-100">{metrics.publishedListings}</div>
+            <div className="text-[10px] text-emerald-800 dark:text-emerald-300">Published to public</div>
           </CardContent>
         </Card>
 
-        <Card className="border-blue-200/80 bg-blue-50/20 shadow-xs">
+        <Card className="border-blue-200/80 dark:border-blue-800/50 bg-blue-50/30 dark:bg-blue-950/20 shadow-xs">
           <CardContent className="p-4 space-y-1">
-            <span className="text-blue-700 text-[11px] font-medium uppercase tracking-wider block">
+            <span className="text-blue-700 dark:text-blue-400 text-[11px] font-medium uppercase tracking-wider block">
               Offers Received
             </span>
-            <div className="text-2xl font-bold text-blue-950">{metrics.totalApplications}</div>
-            <div className="text-[10px] text-blue-800">From industry candidates</div>
+            <div className="text-2xl font-bold text-blue-950 dark:text-blue-100">{metrics.totalApplications}</div>
+            <div className="text-[10px] text-blue-800 dark:text-blue-300">From industry candidates</div>
           </CardContent>
         </Card>
 
-        <Card className="border-indigo-200/80 bg-indigo-50/20 shadow-xs">
+        <Card className="border-indigo-200/80 dark:border-indigo-800/50 bg-indigo-50/30 dark:bg-indigo-950/20 shadow-xs">
           <CardContent className="p-4 space-y-1">
-            <span className="text-indigo-700 text-[11px] font-medium uppercase tracking-wider block">
+            <span className="text-indigo-700 dark:text-indigo-400 text-[11px] font-medium uppercase tracking-wider block">
               Active Partners
             </span>
-            <div className="text-2xl font-bold text-indigo-950">{metrics.activePartnerships}</div>
-            <div className="text-[10px] text-indigo-800">Onboarded &amp; deployed</div>
+            <div className="text-2xl font-bold text-indigo-950 dark:text-indigo-100">{metrics.activePartnerships}</div>
+            <div className="text-[10px] text-indigo-800 dark:text-indigo-300">Onboarded &amp; deployed</div>
           </CardContent>
         </Card>
 
@@ -253,13 +253,13 @@ export function InnovationMarketplacePage() {
           </CardContent>
         </Card>
 
-        <Card className="border-amber-200/80 bg-amber-50/20 shadow-xs">
+        <Card className="border-amber-200/80 dark:border-amber-800/50 bg-amber-50/30 dark:bg-amber-950/20 shadow-xs">
           <CardContent className="p-4 space-y-1">
-            <span className="text-amber-700 text-[11px] font-medium uppercase tracking-wider block">
+            <span className="text-amber-700 dark:text-amber-400 text-[11px] font-medium uppercase tracking-wider block">
               Pending Orgs
             </span>
-            <div className="text-2xl font-bold text-amber-950">{metrics.pendingOrganizations}</div>
-            <div className="text-[10px] text-amber-800">Awaiting verification</div>
+            <div className="text-2xl font-bold text-amber-950 dark:text-amber-100">{metrics.pendingOrganizations}</div>
+            <div className="text-[10px] text-amber-800 dark:text-amber-300">Awaiting verification</div>
           </CardContent>
         </Card>
       </div>

@@ -18,7 +18,6 @@ import {
   type UniversityMarketplaceApplicationItem,
   type UniversityMarketplaceRequestItem,
 } from "@/lib/marketplace";
-import type { SupportRequestCategory, SupportRequestStatus } from "@/types/database";
 import {
   AlertCircle,
   Building2,
@@ -36,8 +35,6 @@ import {
   RefreshCw,
   Search,
   ShieldCheck,
-  Sparkles,
-  Users,
 } from "lucide-react";
 
 export default function UniversityMarketplacePage() {
@@ -97,8 +94,36 @@ export default function UniversityMarketplacePage() {
   }, [institutionId]);
 
   useEffect(() => {
-    void loadData();
-  }, [loadData]);
+    let isMounted = true;
+    async function init() {
+      if (!institutionId) {
+        if (isMounted) setLoading(false);
+        return;
+      }
+      try {
+        const data = await fetchUniversityMarketplaceData(institutionId);
+        if (isMounted) {
+          setMetrics(data.metrics);
+          setRequests(data.requests);
+          setEligibleProjects(data.eligibleProjects);
+          setAllApplications(data.allApplications ?? []);
+        }
+      } catch (err: unknown) {
+        if (isMounted) {
+          console.error("Failed to load university marketplace data:", err);
+          setError(err instanceof Error ? err.message : "Failed to load marketplace data.");
+        }
+      } finally {
+        if (isMounted) {
+          setLoading(false);
+        }
+      }
+    }
+    void init();
+    return () => {
+      isMounted = false;
+    };
+  }, [institutionId]);
 
   // Filtered requests
   const filteredRequests = useMemo(() => {
@@ -435,11 +460,11 @@ export default function UniversityMarketplacePage() {
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {filteredRequests.map((req) => {
-                const categoryMeta = SUPPORT_CATEGORY_META[req.category as SupportRequestCategory] ?? {
+                const categoryMeta = SUPPORT_CATEGORY_META[req.category] ?? {
                   label: req.category,
                   badgeTone: "default",
                 };
-                const statusMeta = REQUEST_STATUS_META[req.status as SupportRequestStatus] ?? {
+                const statusMeta = REQUEST_STATUS_META[req.status] ?? {
                   label: req.status,
                   badgeTone: "default",
                 };

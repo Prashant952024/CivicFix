@@ -110,11 +110,21 @@ export function IndustryMarketplacePage() {
       }
     : null;
 
+  // Category counts
+  const categoryCounts = CATEGORIES.reduce((acc, cat) => {
+    if (cat.value === "ALL") {
+      acc[cat.value] = listings.length;
+    } else {
+      acc[cat.value] = listings.filter((l) => l.category === cat.value).length;
+    }
+    return acc;
+  }, {} as Record<string, number>);
+
   return (
-    <div className="space-y-6 pb-12">
+    <div className="space-y-6 pb-12 max-w-7xl mx-auto">
       <PageHeader
-        title="Research & Innovation Marketplace"
-        description="Discover civic innovation challenges from accredited universities seeking specialized hardware, compute, funding, and technical advisory."
+        title="Research &amp; Innovation Marketplace"
+        description="Discover civic innovation challenges from accredited universities seeking specialized hardware, compute, funding, data, and technical advisory."
       >
         <div className="flex items-center gap-2">
           <Button
@@ -130,10 +140,10 @@ export function IndustryMarketplacePage() {
           <Button
             size="sm"
             onClick={() => { void navigate("/app/industry/applications"); }}
-            className="text-xs h-8 gap-1.5"
+            className="text-xs h-8 gap-1.5 shadow-xs"
           >
             <Handshake className="w-3.5 h-3.5" />
-            <span>My Applications</span>
+            <span>My Applications &amp; Partnerships</span>
           </Button>
         </div>
       </PageHeader>
@@ -176,17 +186,62 @@ export function IndustryMarketplacePage() {
         </div>
       )}
 
+      {/* 3 Overview Metric Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <Card className="border-border/80 bg-card shadow-xs">
+          <CardContent className="p-4 flex items-center gap-3">
+            <div className="p-2.5 rounded-lg bg-blue-500/10 text-blue-600 dark:text-blue-400">
+              <Store className="w-5 h-5" />
+            </div>
+            <div>
+              <div className="text-2xl font-bold text-foreground">
+                {loading ? "-" : listings.length}
+              </div>
+              <div className="text-xs text-muted-foreground font-medium">Open Support Opportunities</div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="border-border/80 bg-card shadow-xs">
+          <CardContent className="p-4 flex items-center gap-3">
+            <div className="p-2.5 rounded-lg bg-indigo-500/10 text-indigo-600 dark:text-indigo-400">
+              <Sparkles className="w-5 h-5" />
+            </div>
+            <div>
+              <div className="text-2xl font-bold text-foreground">
+                {loading ? "-" : new Set(listings.map((l) => l.institution_id)).size}
+              </div>
+              <div className="text-xs text-muted-foreground font-medium">Accredited Research Universities</div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="border-border/80 bg-card shadow-xs">
+          <CardContent className="p-4 flex items-center gap-3">
+            <div className="p-2.5 rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
+              <ShieldCheck className="w-5 h-5" />
+            </div>
+            <div>
+              <div className="text-2xl font-bold text-foreground">
+                {loading ? "-" : new Set(listings.map((l) => l.category)).size}
+              </div>
+              <div className="text-xs text-muted-foreground font-medium">Active Support Categories</div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
       {/* Controlled Disclosure Notice */}
-      <Card className="border-blue-200/80 bg-blue-50/30">
+      <Card className="border-blue-200/80 dark:border-blue-800/60 bg-blue-50/40 dark:bg-blue-950/20">
         <CardContent className="p-4">
           <div className="flex items-start gap-3">
-            <span className="p-2 rounded-lg bg-blue-100 text-blue-900 shrink-0">
+            <span className="p-2 rounded-lg bg-blue-100 dark:bg-blue-900/50 text-blue-900 dark:text-blue-300 shrink-0">
               <ShieldCheck className="w-4 h-4" />
             </span>
-            <div className="space-y-0.5 text-xs text-blue-950">
+            <div className="space-y-0.5 text-xs text-blue-950 dark:text-blue-200">
               <span className="font-bold block">Controlled Disclosure &amp; Verified Partnership</span>
-              <p className="text-blue-900/90 leading-relaxed">
-                All marketplace listings are moderated and backed by approved university research projects. Detailed proprietary methodologies, codebases, and student team internal discussions remain strictly confidential.
+              <p className="text-blue-900/90 dark:text-blue-300/90 leading-relaxed">
+                All marketplace listings are moderated and backed by approved university research projects. Detailed proprietary lab datasets, private codebases, and student team internal discussions remain strictly confidential.
               </p>
             </div>
           </div>
@@ -213,20 +268,28 @@ export function IndustryMarketplacePage() {
 
         {/* Category Pills */}
         <div className="flex items-center gap-1.5 overflow-x-auto pb-1">
-          {CATEGORIES.map((cat) => (
-            <button
-              key={cat.value}
-              type="button"
-              onClick={() => setSelectedCategory(cat.value)}
-              className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all whitespace-nowrap ${
-                selectedCategory === cat.value
-                  ? "bg-primary text-primary-foreground font-semibold shadow-xs"
-                  : "bg-muted text-muted-foreground hover:bg-muted/80"
-              }`}
-            >
-              {cat.label}
-            </button>
-          ))}
+          {CATEGORIES.map((cat) => {
+            const count = categoryCounts[cat.value] ?? 0;
+            return (
+              <button
+                key={cat.value}
+                type="button"
+                onClick={() => setSelectedCategory(cat.value)}
+                className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all whitespace-nowrap flex items-center gap-1.5 ${
+                  selectedCategory === cat.value
+                    ? "bg-primary text-primary-foreground font-semibold shadow-xs"
+                    : "bg-muted text-muted-foreground hover:bg-muted/80"
+                }`}
+              >
+                <span>{cat.label}</span>
+                <span className={`text-[10px] px-1.5 py-0.2 rounded-full ${
+                  selectedCategory === cat.value ? "bg-white/20 text-white" : "bg-background/80 text-muted-foreground"
+                }`}>
+                  {count}
+                </span>
+              </button>
+            );
+          })}
         </div>
       </div>
 
@@ -286,6 +349,14 @@ export function IndustryMarketplacePage() {
                     <p className="text-xs text-muted-foreground line-clamp-3 leading-relaxed">
                       {item.public_summary}
                     </p>
+
+                    {/* Specifications / Deliverable preview */}
+                    {item.public_specification && (
+                      <div className="p-2 rounded-md bg-muted/40 text-[11px] text-muted-foreground line-clamp-1 border border-border/50">
+                        <span className="font-medium text-foreground">Spec: </span>
+                        {item.public_specification}
+                      </div>
+                    )}
                   </div>
 
                   {/* Footer metadata */}
