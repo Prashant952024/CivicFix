@@ -2,15 +2,10 @@ import React from "react";
 import {
   ArrowRight,
   BrainCircuit,
-  Calendar,
   Clock,
-  ExternalLink,
-  Eye,
   FileCheck,
   FlaskConical,
   GraduationCap,
-  Layers,
-  MapPin,
   Radio,
   Sparkles,
 } from "lucide-react";
@@ -92,7 +87,7 @@ export function PilotTable({ pilots, onSelectPilot }: PilotTableProps) {
                         </Badge>
                         {Array.isArray(pilot.kpis) && (
                           <span className="text-[10px] text-muted-foreground">
-                            {(pilot.kpis as any[]).length} KPIs
+                            {pilot.kpis.length} KPIs
                           </span>
                         )}
                       </div>

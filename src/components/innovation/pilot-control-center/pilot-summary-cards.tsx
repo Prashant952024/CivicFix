@@ -3,11 +3,9 @@ import {
   AlertTriangle,
   CheckCircle2,
   Clock,
-  FileText,
   FlaskConical,
   Radio,
   Rocket,
-  Sparkles,
 } from "lucide-react";
 
 import { Card, CardContent } from "@/components/ui/card";

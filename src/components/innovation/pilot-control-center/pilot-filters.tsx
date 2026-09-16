@@ -1,14 +1,9 @@
 import React from "react";
-import { Filter, Search, X } from "lucide-react";
+import { Search, X } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import {
-  PILOT_ENVIRONMENT_META,
-  PILOT_STATUS_META,
-  type PilotEnvironmentType,
-  type PilotPlanStatus,
-} from "@/lib/pilot-planning";
+import { PILOT_ENVIRONMENT_META } from "@/lib/pilot-planning";
 
 interface PilotFiltersProps {
   searchQuery: string;

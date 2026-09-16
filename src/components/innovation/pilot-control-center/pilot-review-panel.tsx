@@ -1,35 +1,23 @@
 import React, { useState } from "react";
 import {
   AlertCircle,
-  AlertTriangle,
   ArrowLeft,
   BrainCircuit,
-  Building,
-  Calendar,
   CheckCircle2,
   Clock,
   ExternalLink,
-  FileCheck,
-  FileText,
   FlaskConical,
   GraduationCap,
-  Layers,
   Loader2,
-  MapPin,
   MessageSquare,
   Send,
-  ShieldAlert,
-  ShieldCheck,
-  Target,
-  Users,
-  X,
   XCircle,
 } from "lucide-react";
 import { Link } from "react-router-dom";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Dialog } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 import { PilotPlanSummary } from "@/components/pilot-workspace/pilot-plan-summary";
@@ -88,7 +76,7 @@ export function PilotReviewPanel({
   const [actionLoading, setActionLoading] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
   const [executionData, setExecutionData] = useState<PilotExecutionData | null>(null);
-  const [execLoading, setExecLoading] = useState(false);
+  const [, setExecLoading] = useState(false);
 
   // Modals for governance actions
   const [revisionModalOpen, setRevisionModalOpen] = useState(false);
@@ -102,23 +90,31 @@ export function PilotReviewPanel({
 
   const isPilotActiveOrValidating = ["PILOT_ACTIVE", "VALIDATION", "DEPLOYMENT_READY", "DEPLOYMENT_ACTIVE", "IMPACT_MONITORING", "COMPLETED"].includes(pilot.project?.research_stage || "");
 
-  const loadExecData = async () => {
+  const loadExecData = React.useCallback(async () => {
     if (isPilotActiveOrValidating) {
       try {
         setExecLoading(true);
         const data = await fetchPilotExecutionData(pilot.project_id);
         setExecutionData(data);
-      } catch (err) {
+      } catch (err: unknown) {
         console.error("Failed to load execution data for manager view:", err);
       } finally {
         setExecLoading(false);
       }
     }
-  };
+  }, [pilot.project_id, isPilotActiveOrValidating]);
 
   React.useEffect(() => {
-    void loadExecData();
-  }, [pilot.project_id, isPilotActiveOrValidating]);
+    let isMounted = true;
+    void (async () => {
+      if (isMounted) {
+        await loadExecData();
+      }
+    })();
+    return () => {
+      isMounted = false;
+    };
+  }, [loadExecData]);
 
   const isActionable =
     pilot.status === "SUBMITTED" ||
@@ -131,8 +127,9 @@ export function PilotReviewPanel({
       setActionError(null);
       await startPilotPlanReview(pilot.id, pilot.project_id);
       await onRefresh();
-    } catch (err: any) {
-      setActionError(err.message || "Failed to mark pilot plan as under review.");
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Failed to mark pilot plan as under review.";
+      setActionError(msg);
     } finally {
       setActionLoading(false);
     }
@@ -150,8 +147,9 @@ export function PilotReviewPanel({
       setRevisionModalOpen(false);
       setRevisionFeedback("");
       await onRefresh();
-    } catch (err: any) {
-      setActionError(err.message || "Failed to request revisions.");
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Failed to request revisions.";
+      setActionError(msg);
     } finally {
       setActionLoading(false);
     }
@@ -165,8 +163,9 @@ export function PilotReviewPanel({
       setApproveModalOpen(false);
       setApprovalNotes("");
       await onRefresh();
-    } catch (err: any) {
-      setActionError(err.message || "Failed to approve pilot plan.");
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Failed to approve pilot plan.";
+      setActionError(msg);
     } finally {
       setActionLoading(false);
     }
@@ -184,8 +183,9 @@ export function PilotReviewPanel({
       setRejectModalOpen(false);
       setRejectionReason("");
       await onRefresh();
-    } catch (err: any) {
-      setActionError(err.message || "Failed to reject pilot plan.");
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Failed to reject pilot plan.";
+      setActionError(msg);
     } finally {
       setActionLoading(false);
     }
@@ -221,7 +221,9 @@ export function PilotReviewPanel({
             <Button
               size="sm"
               variant="outline"
-              onClick={handleStartReview}
+              onClick={() => {
+                void handleStartReview();
+              }}
               disabled={actionLoading}
               className="text-xs h-8 gap-1.5"
             >
@@ -284,7 +286,7 @@ export function PilotReviewPanel({
       {/* If Active or Validating, Show Live Pilot Execution Workspace */}
       {isPilotActiveOrValidating && executionData ? (
         <PilotExecutionWorkspace
-          project={pilot.project as any}
+          project={pilot.project as unknown as ChallengeProjectWithDetails}
           executionData={executionData}
           onRefresh={loadExecData}
           isManager={true}
@@ -393,7 +395,9 @@ export function PilotReviewPanel({
             </Button>
             <Button
               size="sm"
-              onClick={handleRequestRevision}
+              onClick={() => {
+                void handleRequestRevision();
+              }}
               disabled={actionLoading || revisionFeedback.trim().length < 10}
               className="text-xs bg-amber-600 hover:bg-amber-700 text-white font-bold gap-1.5"
             >
@@ -450,7 +454,9 @@ export function PilotReviewPanel({
             </Button>
             <Button
               size="sm"
-              onClick={handleApprove}
+              onClick={() => {
+                void handleApprove();
+              }}
               disabled={actionLoading}
               className="text-xs bg-emerald-600 hover:bg-emerald-700 text-white font-bold gap-1.5"
             >
@@ -499,7 +505,9 @@ export function PilotReviewPanel({
             <Button
               size="sm"
               variant="destructive"
-              onClick={handleReject}
+              onClick={() => {
+                void handleReject();
+              }}
               disabled={actionLoading || rejectionReason.trim().length < 10}
               className="text-xs font-bold gap-1.5"
             >

@@ -1,12 +1,9 @@
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import {
   AlertCircle,
-  Clock,
-  FileCheck,
   FlaskConical,
   Loader2,
   RefreshCw,
-  Sparkles,
 } from "lucide-react";
 import { useSearchParams } from "react-router-dom";
 
@@ -36,7 +33,7 @@ export function PilotControlCenter() {
   const [statusFilter, setStatusFilter] = useState("ALL");
   const [environmentFilter, setEnvironmentFilter] = useState("ALL");
 
-  const loadPilots = async (isBackground = false) => {
+  const loadPilots = useCallback(async (isBackground = false) => {
     try {
       if (isBackground) setRefreshing(true);
       else setLoading(true);
@@ -58,18 +55,27 @@ export function PilotControlCenter() {
           setSelectedPilot(detailed || found);
         }
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("Failed to load pilots:", err);
-      setError(err.message || "Failed to load pilot plans.");
+      const msg = err instanceof Error ? err.message : "Failed to load pilot plans.";
+      setError(msg);
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
-  };
+  }, [statusFilter, environmentFilter, searchQuery, pilotIdParam]);
 
   useEffect(() => {
-    void loadPilots();
-  }, [statusFilter, environmentFilter, searchQuery]);
+    let isMounted = true;
+    void (async () => {
+      if (isMounted) {
+        await loadPilots();
+      }
+    })();
+    return () => {
+      isMounted = false;
+    };
+  }, [loadPilots]);
 
   const handleSelectPilot = async (pilot: PilotPlanWithDetails) => {
     try {
@@ -81,8 +87,9 @@ export function PilotControlCenter() {
         p.set("pilotId", pilot.id);
         return p;
       });
-    } catch (err: any) {
-      setError(err.message || "Failed to load pilot plan details.");
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Failed to load pilot plan details.";
+      setError(msg);
     } finally {
       setLoading(false);
     }
@@ -174,7 +181,12 @@ export function PilotControlCenter() {
               <p className="text-sm font-medium">Loading pilot governance directory...</p>
             </div>
           ) : (
-            <PilotTable pilots={pilots} onSelectPilot={handleSelectPilot} />
+            <PilotTable
+              pilots={pilots}
+              onSelectPilot={(pilot) => {
+                void handleSelectPilot(pilot);
+              }}
+            />
           )}
         </>
       )}
