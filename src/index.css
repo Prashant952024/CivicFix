@@ -185,5 +185,148 @@
   .page-container-wide {
     @apply mx-auto w-full max-w-7xl;
   }
+
+  /* ────────────────────────────────────────────────────────────────────────────
+   * STANDARDIZED TYPOGRAPHY TOKENS (Phase 2)
+   * ──────────────────────────────────────────────────────────────────────────── */
+
+  /* Display / Hero Titles */
+  .text-display {
+    @apply text-3xl sm:text-4xl font-extrabold tracking-tight leading-tight text-foreground;
+  }
+
+  /* Page Titles */
+  .text-page-title {
+    @apply text-2xl sm:text-3xl font-bold tracking-tight leading-tight text-foreground;
+  }
+
+  /* Section Headings */
+  .text-section-title {
+    @apply text-lg sm:text-xl font-bold leading-snug tracking-tight text-foreground;
+  }
+
+  /* Card Headings */
+  .text-card-title {
+    @apply text-base sm:text-lg font-semibold leading-snug tracking-tight text-foreground;
+  }
+
+  /* Labels & Micro-headers */
+  .text-label {
+    @apply text-xs sm:text-sm font-semibold tracking-wider text-muted-foreground;
+  }
+
+  /* Body Content */
+  .text-body {
+    @apply text-sm sm:text-base leading-relaxed text-foreground;
+  }
+
+  /* Long-form Prose / Descriptions / Blockers / Proposals */
+  .text-prose-body {
+    @apply text-sm sm:text-base leading-relaxed text-foreground/90;
+  }
+
+  /* Metadata / Captions / Timestamps */
+  .text-meta {
+    @apply text-[11px] sm:text-xs font-medium text-muted-foreground;
+  }
+
+  /* Numeric Stat Values */
+  .text-stat-number {
+    @apply text-2xl sm:text-3xl font-bold tabular-nums tracking-tight text-foreground;
+  }
+
+  /* Stat Descriptors */
+  .text-stat-label {
+    @apply text-[11px] sm:text-xs font-semibold uppercase tracking-wider text-muted-foreground;
+  }
+
+  /* ────────────────────────────────────────────────────────────────────────────
+   * INTERACTIVE POLISH & MICRO-INTERACTION TOKENS (Phase 3)
+   * ──────────────────────────────────────────────────────────────────────────── */
+
+  /* Interactive Clickable Cards */
+  .interactive-card {
+    @apply transition-all duration-200 ease-out hover:-translate-y-0.5 hover:shadow-lg hover:shadow-teal-950/8 hover:border-teal-200/80 active:translate-y-0 active:scale-[0.99] cursor-pointer;
+  }
+
+  /* Interactive Table / List Rows */
+  .interactive-row {
+    @apply transition-colors duration-150 ease-out hover:bg-teal-50/60 dark:hover:bg-teal-950/20 cursor-pointer;
+  }
+
+  /* Interactive Navigation / Tabs */
+  .interactive-tab {
+    @apply transition-all duration-150 ease-out active:scale-[0.98] select-none cursor-pointer;
+  }
+
+  /* Interactive Evidence Image Zoom Frame */
+  .interactive-image-container {
+    @apply relative overflow-hidden;
+  }
+
+  .interactive-image-zoom {
+    @apply transition-transform duration-200 ease-out group-hover:scale-[1.03];
+  }
+
+  /* ────────────────────────────────────────────────────────────────────────────
+   * SEMANTIC WORKFLOW COLOR TOKENS (Phase 4)
+   * ──────────────────────────────────────────────────────────────────────────── */
+
+  /* Civic Workflow Surface & Accents (Emerald / Teal) */
+  .surface-civic {
+    @apply border-teal-200/80 bg-teal-50/40 dark:border-teal-900/60 dark:bg-teal-950/20 text-teal-950 dark:text-teal-100;
+  }
+  .icon-container-civic {
+    @apply rounded-xl border border-teal-200/80 bg-teal-50 p-2.5 text-teal-700 shadow-xs dark:border-teal-800/80 dark:bg-teal-950/60 dark:text-teal-300;
+  }
+
+  /* Innovation Workflow Surface & Accents (Indigo / Violet) */
+  .surface-innovation {
+    @apply border-indigo-200/80 bg-indigo-50/40 dark:border-indigo-900/60 dark:bg-indigo-950/20 text-indigo-950 dark:text-indigo-100;
+  }
+  .icon-container-innovation {
+    @apply rounded-xl border border-indigo-200/80 bg-indigo-50 p-2.5 text-indigo-700 shadow-xs dark:border-indigo-800/80 dark:bg-indigo-950/60 dark:text-indigo-300;
+  }
+
+  /* Research Workflow Surface & Accents (Sky / Blue) */
+  .surface-research {
+    @apply border-sky-200/80 bg-sky-50/40 dark:border-sky-900/60 dark:bg-sky-950/20 text-sky-950 dark:text-sky-100;
+  }
+  .icon-container-research {
+    @apply rounded-xl border border-sky-200/80 bg-sky-50 p-2.5 text-sky-700 shadow-xs dark:border-sky-800/80 dark:bg-sky-950/60 dark:text-sky-300;
+  }
+
+  /* Attention / Review Surface & Accents (Amber) */
+  .surface-attention {
+    @apply border-amber-200/80 bg-amber-50/50 dark:border-amber-900/60 dark:bg-amber-950/20 text-amber-950 dark:text-amber-100;
+  }
+  .icon-container-attention {
+    @apply rounded-xl border border-amber-200/80 bg-amber-50 p-2.5 text-amber-700 shadow-xs dark:border-amber-800/80 dark:bg-amber-950/60 dark:text-amber-300;
+  }
+
+  /* Critical / Blocker Surface & Accents (Rose / Red) */
+  .surface-critical {
+    @apply border-rose-200/80 bg-rose-50/50 dark:border-rose-900/60 dark:bg-rose-950/20 text-rose-950 dark:text-rose-100;
+  }
+  .icon-container-critical {
+    @apply rounded-xl border border-rose-200/80 bg-rose-50 p-2.5 text-rose-700 shadow-xs dark:border-rose-800/80 dark:bg-rose-950/60 dark:text-rose-300;
+  }
 }
+
+/* ────────────────────────────────────────────────────────────────────────────
+ * MOTION ACCESSIBILITY (Phase 3)
+ * ──────────────────────────────────────────────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  ::before,
+  ::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+    transform: none !important;
+  }
+}
+
+
 

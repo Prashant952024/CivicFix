@@ -36,7 +36,7 @@ export function UniversityCard({
 
   return (
     <Card
-      className={`rounded-2xl border transition-all duration-200 shadow-sm hover:shadow-md flex flex-col justify-between ${
+      className={`rounded-2xl border transition-all duration-200 ease-out shadow-sm hover:shadow-md hover:-translate-y-0.5 flex flex-col justify-between ${
         isApproved
           ? "border-emerald-300 bg-gradient-to-br from-emerald-50/20 via-background to-background"
           : needsReview

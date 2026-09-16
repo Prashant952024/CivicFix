@@ -309,6 +309,7 @@ export function UniversityChallengesPage() {
     <div className="space-y-6">
       {/* Header */}
       <PageHeader
+        variant="research"
         tag="Innovation Challenges"
         title="Civic Innovation Challenges"
         description="Review targeted municipal challenge invitations dispatched to your institution and explore open civic research problems."

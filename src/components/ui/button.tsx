@@ -4,11 +4,19 @@ import { Slot } from "@radix-ui/react-slot";
 import { cn } from "@/lib/utils";
 
 const buttonBaseClassName =
-  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl text-sm font-medium transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:pointer-events-none disabled:opacity-50 hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.98] select-none touch-manipulation cursor-pointer [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0";
+  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl text-sm font-medium transition-all duration-150 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:pointer-events-none disabled:opacity-50 disabled:transform-none hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.98] select-none touch-manipulation cursor-pointer [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0";
 
 const buttonVariantClassNames = {
   default:
     "bg-gradient-to-r from-[#0f766e] via-[#0284c7] to-[#059669] text-primary-foreground shadow-md shadow-teal-950/15 hover:from-[#0b6159] hover:via-[#0369a1] hover:to-[#047857] hover:shadow-lg hover:shadow-teal-950/20",
+  civic:
+    "bg-gradient-to-r from-[#0f766e] via-[#0284c7] to-[#059669] text-primary-foreground shadow-md shadow-teal-950/15 hover:from-[#0b6159] hover:via-[#0369a1] hover:to-[#047857] hover:shadow-lg hover:shadow-teal-950/20",
+  innovation:
+    "bg-gradient-to-r from-[#4f46e5] via-[#6366f1] to-[#7c3aed] text-white shadow-md shadow-indigo-950/15 hover:from-[#4338ca] hover:via-[#4f46e5] hover:to-[#6d28d9] hover:shadow-lg hover:shadow-indigo-950/20",
+  research:
+    "bg-gradient-to-r from-[#0284c7] via-[#0369a1] to-[#2563eb] text-white shadow-md shadow-sky-950/15 hover:from-[#0369a1] hover:via-[#075985] hover:to-[#1d4ed8] hover:shadow-lg hover:shadow-sky-950/20",
+  attention:
+    "bg-gradient-to-r from-[#d97706] to-[#b45309] text-white shadow-md shadow-amber-950/15 hover:from-[#b45309] hover:to-[#92400e] hover:shadow-lg hover:shadow-amber-950/20",
   destructive:
     "bg-gradient-to-r from-[#e11d48] to-[#dc2626] text-white shadow-sm shadow-red-950/15 hover:from-[#be123c] hover:to-[#b91c1c] hover:shadow-md hover:shadow-red-950/20",
   outline:

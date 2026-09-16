@@ -54,6 +54,7 @@ export function RecentIssueCard({
             alt={issue.title}
             brokenLabel="Image unavailable"
             className="h-44 sm:h-full w-full object-cover"
+            imageClassName="transition-transform duration-200 ease-out group-hover:scale-[1.03]"
             emptyLabel="No image attached"
             src={thumbnailUrl}
             variant="card"

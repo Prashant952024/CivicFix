@@ -167,6 +167,7 @@ export function InnovationProblemsPage() {
     <div className="space-y-6">
       {/* Header */}
       <PageHeader
+        variant="innovation"
         title="Complex Civic Problems"
         description="Primary operational console for managing complex civic challenges, multi-institutional research partnerships, and proposal governance."
         backHref="/app/innovation"

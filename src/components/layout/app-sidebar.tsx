@@ -282,7 +282,7 @@ export function AppSidebar({ roleCode, mobileOpen, onClose }: AppSidebarProps) {
                 <NavLink
                   className={({ isActive }) =>
                     [
-                      "flex items-center gap-3 rounded-xl px-3.5 py-3 text-sm font-medium transition-all duration-200 min-h-[44px]",
+                      "flex items-center gap-3 rounded-xl px-3.5 py-3 text-sm font-medium transition-all duration-150 ease-out min-h-[44px] select-none active:scale-[0.99]",
                       isActive || (isProblemsItem && isProblemsActive)
                         ? "border border-teal-200/90 bg-gradient-to-r from-[#0f766e]/12 via-[#0284c7]/10 to-[#059669]/10 text-[#0f5f59] shadow-sm shadow-teal-950/5 font-semibold"
                         : "text-muted-foreground hover:bg-teal-50/70 hover:text-foreground",
