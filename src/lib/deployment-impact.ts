@@ -3,13 +3,9 @@ import type {
   Database,
   DeploymentPlanRow,
   DeploymentPlanInsert,
-  DeploymentPlanUpdate,
   DeploymentImpactMetricRow,
   DeploymentImpactMetricInsert,
-  DeploymentImpactMetricUpdate,
   DeploymentImpactReportRow,
-  DeploymentImpactReportInsert,
-  DeploymentImpactReportUpdate,
   DeploymentPlanRevisionRow,
   DeploymentPlanStatus,
   DeploymentDecision,
@@ -940,6 +936,12 @@ export async function approveDeploymentPlan(
     throw error;
   }
 
+  // Advance project research stage to DEPLOYMENT_READY
+  await supabase
+    .from("challenge_projects")
+    .update({ research_stage: "DEPLOYMENT_READY" })
+    .eq("id", projectId);
+
   // Log Activity
   await logDeploymentActivity(
     projectId,
@@ -1022,6 +1024,12 @@ export async function startDeploymentExecution(
     console.error("Failed to start deployment execution:", error);
     throw error;
   }
+
+  // Advance project research stage to DEPLOYMENT_ACTIVE
+  await supabase
+    .from("challenge_projects")
+    .update({ research_stage: "DEPLOYMENT_ACTIVE" })
+    .eq("id", projectId);
 
   // Log Activity
   await logDeploymentActivity(

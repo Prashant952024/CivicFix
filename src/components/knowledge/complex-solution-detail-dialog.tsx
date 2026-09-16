@@ -4,21 +4,16 @@ import {
   Award,
   BookOpen,
   BrainCircuit,
-  Building2,
   CheckCircle2,
   Cpu,
   ExternalLink,
-  FileCheck,
   GraduationCap,
   Layers,
-  MapPin,
   Repeat,
   Rocket,
   ShieldCheck,
   Tag,
-  Users,
   Wrench,
-  X,
 } from "lucide-react";
 import { Link } from "react-router-dom";
 
@@ -60,6 +55,20 @@ export function ComplexSolutionDetailDialog({
               <Badge variant="outline" className="bg-emerald-500/10 text-emerald-700 border-emerald-300/40 font-semibold">
                 {solution.problem_category}
               </Badge>
+              {solution.reusability_status && (
+                <Badge
+                  variant={
+                    solution.reusability_status === "ACTIVE_REUSABLE"
+                      ? "success"
+                      : solution.reusability_status === "NEEDS_ADAPTATION"
+                      ? "warning"
+                      : "outline"
+                  }
+                  className="text-[10px] font-bold"
+                >
+                  {solution.reusability_status.replace(/_/g, " ")}
+                </Badge>
+              )}
               <span className="inline-flex items-center gap-1 text-xs font-semibold text-foreground">
                 <GraduationCap className="h-3.5 w-3.5 text-indigo-600" />
                 {solution.university_name}
