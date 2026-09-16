@@ -7,6 +7,7 @@ import {
   Building2,
   CheckCircle2,
   Cpu,
+  ExternalLink,
   FileCheck,
   GraduationCap,
   Layers,
@@ -53,21 +54,38 @@ export function ComplexSolutionDetailDialog({
     <Dialog open={open} onClose={onClose} maxWidth="2xl" className="max-w-4xl p-6">
       <div className="space-y-6">
         {/* Header Badges & Title */}
-        <div className="space-y-2">
-          <div className="flex items-center gap-2 flex-wrap">
-            <Badge variant="outline" className="bg-emerald-500/10 text-emerald-700 border-emerald-300/40">
-              {solution.problem_category}
-            </Badge>
-            <span className="inline-flex items-center gap-1 text-xs font-medium text-muted-foreground">
-              <GraduationCap className="h-3.5 w-3.5 text-indigo-600" />
-              {solution.university_name}
-            </span>
-            {solution.reuse_count > 0 && (
-              <Badge variant="info" className="gap-1 text-[11px]">
-                <Repeat className="h-3 w-3" /> {solution.reuse_count} Reuses Recorded
+        <div className="space-y-3 pb-2 border-b border-border/60">
+          <div className="flex items-center gap-2 flex-wrap justify-between">
+            <div className="flex items-center gap-2 flex-wrap">
+              <Badge variant="outline" className="bg-emerald-500/10 text-emerald-700 border-emerald-300/40 font-semibold">
+                {solution.problem_category}
               </Badge>
-            )}
+              <span className="inline-flex items-center gap-1 text-xs font-semibold text-foreground">
+                <GraduationCap className="h-3.5 w-3.5 text-indigo-600" />
+                {solution.university_name}
+              </span>
+              {solution.reuse_count > 0 && (
+                <Badge variant="info" className="gap-1 text-[11px]">
+                  <Repeat className="h-3 w-3" /> {solution.reuse_count} Reuses Recorded
+                </Badge>
+              )}
+            </div>
+
+            {/* Lineage Jump Buttons */}
+            <div className="flex items-center gap-2">
+              <Button asChild size="sm" variant="outline" className="h-7 text-[11px] px-2.5 rounded-lg border-border/70 text-foreground gap-1">
+                <Link to={`/app/innovation/challenges/${solution.challenge_id}`}>
+                  View Challenge <ExternalLink className="h-3 w-3" />
+                </Link>
+              </Button>
+              <Button asChild size="sm" variant="outline" className="h-7 text-[11px] px-2.5 rounded-lg border-border/70 text-foreground gap-1">
+                <Link to={`/app/innovation/projects/${solution.project_id}`}>
+                  Project Workspace <ExternalLink className="h-3 w-3" />
+                </Link>
+              </Button>
+            </div>
           </div>
+
           <h2 className="text-xl font-bold text-foreground sm:text-2xl">
             {solution.solution_title}
           </h2>

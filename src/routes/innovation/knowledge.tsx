@@ -43,7 +43,6 @@ export function InnovationKnowledgePage() {
   const [complexDetailOpen, setComplexDetailOpen] = useState(false);
 
   async function loadAllData() {
-    setLoading(true);
     try {
       const [cRes, sRes, pRes, prRes] = await Promise.all([
         fetchComplexSolutions(),

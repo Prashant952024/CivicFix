@@ -18,6 +18,7 @@ import { Link } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { SimpleSolutionDetailDialog } from "@/components/preventive/simple-solution-detail-dialog";
 import type { SimpleSolutionKnowledgeBaseRow } from "@/types/database";
 
 interface SimpleSolutionCatalogProps {
@@ -167,17 +168,34 @@ export function SimpleSolutionCatalog({
                     {afterImgs.length > 0 && <span className="text-emerald-700 font-medium">{afterImgs.length} After</span>}
                   </div>
 
-                  <Button asChild size="sm" variant="ghost" className="h-7 text-[11px] px-2 text-foreground">
-                    <Link to={`/app/officer/issues/${solution.source_issue_id}`}>
-                      Inspect Source <ExternalLink className="h-3 w-3 ml-1" />
-                    </Link>
-                  </Button>
+                  <div className="flex items-center gap-1.5">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="h-7 text-[11px] px-2.5 rounded-lg border-emerald-500/30 text-emerald-800 hover:bg-emerald-50 dark:text-emerald-300 dark:hover:bg-emerald-950/40"
+                      onClick={() => setSelectedSolution(solution)}
+                    >
+                      Inspect Lineage
+                    </Button>
+                    <Button asChild size="sm" variant="ghost" className="h-7 text-[11px] px-2 text-foreground">
+                      <Link to={`/app/officer/issues/${solution.source_issue_id}`}>
+                        Source <ExternalLink className="h-3 w-3 ml-1" />
+                      </Link>
+                    </Button>
+                  </div>
                 </div>
               </Card>
             );
           })}
         </div>
       )}
+
+      {/* Detail Dialog */}
+      <SimpleSolutionDetailDialog
+        solution={selectedSolution}
+        open={!!selectedSolution}
+        onClose={() => setSelectedSolution(null)}
+      />
     </div>
   );
 }
