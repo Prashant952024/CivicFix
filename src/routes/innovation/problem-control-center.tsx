@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import {
   AlertCircle,
   BookOpen,
+  BrainCircuit,
   Building2,
   Clock,
   GraduationCap,
@@ -10,6 +11,7 @@ import {
 } from "lucide-react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 
+import { useAppSession } from "@/auth/app-session";
 import { Button } from "@/components/ui/button";
 import { Dialog } from "@/components/ui/dialog";
 import { PageHeader } from "@/components/ui/page-header";
@@ -20,6 +22,7 @@ import { ProblemFormulationSection } from "@/components/innovation/problem-contr
 import { ProblemOverviewSection } from "@/components/innovation/problem-control-center/overview/problem-overview-section";
 import { ProblemHeader } from "@/components/innovation/problem-control-center/problem-header";
 import { RecommendationEngine } from "@/components/innovation/problem-control-center/recommendation/recommendation-engine";
+import { ExistingSolutionMatcher } from "@/components/knowledge/existing-solution-matcher";
 import { UniversityCollaborations } from "@/components/innovation/problem-control-center/universities/university-collaborations";
 import type { UniversityWorkspaceTab } from "@/components/innovation/problem-control-center/workspace/university-workspace";
 import {
@@ -31,11 +34,13 @@ import {
 export type PrimaryProblemView =
   | "overview"
   | "formulation"
+  | "existing-solutions"
   | "recommendation"
   | "collaborations"
   | "activity";
 
 export function InnovationProblemControlCenterPage() {
+  const { profile } = useAppSession();
   const { problemId } = useParams<{ problemId: string }>();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -282,6 +287,11 @@ export function InnovationProblemControlCenterPage() {
       badgeVariant: challenge && challenge.status !== "DRAFT" ? "success" : "warning",
     },
     {
+      id: "existing-solutions",
+      label: "Existing Solutions",
+      icon: BrainCircuit,
+    },
+    {
       id: "recommendation",
       label: "Recommendation Engine",
       icon: GraduationCap,
@@ -382,6 +392,17 @@ export function InnovationProblemControlCenterPage() {
             problem={problem}
             onRefresh={() => setRefreshNonce((v) => v + 1)}
             onNavigateToRecommendation={handleOpenRecommendationEngine}
+          />
+        </div>
+      )}
+
+      {activePrimaryTab === "existing-solutions" && (
+        <div>
+          <ExistingSolutionMatcher
+            challengeId={challenge?.id || problem.id}
+            challengeTitle={challenge?.title || problem.title}
+            currentUserProfileId={profile?.id}
+            onProceedToNewResearch={() => handlePrimaryTabChange("recommendation")}
           />
         </div>
       )}

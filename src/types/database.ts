@@ -1823,7 +1823,18 @@ export interface Database {
             | "DEPLOYMENT_STARTED"
             | "IMPACT_REPORT_SUBMITTED"
             | "IMPACT_REPORT_ACKNOWLEDGED"
-            | "IMPACT_METRIC_UPDATED";
+            | "IMPACT_METRIC_UPDATED"
+            | "SOLUTION_KNOWLEDGE_CREATED"
+            | "SOLUTION_MARKED_REUSABLE"
+            | "SOLUTION_ARCHIVED"
+            | "SOLUTION_MATCH_DETECTED"
+            | "SOLUTION_REUSE_REVIEWED"
+            | "SOLUTION_REUSE_APPROVED"
+            | "SOLUTION_ADAPTATION_REQUESTED"
+            | "RECURRENCE_PATTERN_DETECTED"
+            | "PREVENTIVE_RECOMMENDATION_CREATED"
+            | "PREVENTIVE_RECOMMENDATION_ACKNOWLEDGED"
+            | "PREVENTIVE_RECOMMENDATION_DISMISSED";
           description: string;
           metadata: Json;
           created_at: string;
@@ -1903,7 +1914,18 @@ export interface Database {
             | "DEPLOYMENT_STARTED"
             | "IMPACT_REPORT_SUBMITTED"
             | "IMPACT_REPORT_ACKNOWLEDGED"
-            | "IMPACT_METRIC_UPDATED";
+            | "IMPACT_METRIC_UPDATED"
+            | "SOLUTION_KNOWLEDGE_CREATED"
+            | "SOLUTION_MARKED_REUSABLE"
+            | "SOLUTION_ARCHIVED"
+            | "SOLUTION_MATCH_DETECTED"
+            | "SOLUTION_REUSE_REVIEWED"
+            | "SOLUTION_REUSE_APPROVED"
+            | "SOLUTION_ADAPTATION_REQUESTED"
+            | "RECURRENCE_PATTERN_DETECTED"
+            | "PREVENTIVE_RECOMMENDATION_CREATED"
+            | "PREVENTIVE_RECOMMENDATION_ACKNOWLEDGED"
+            | "PREVENTIVE_RECOMMENDATION_DISMISSED";
           description: string;
           metadata?: Json;
           created_at?: string;
@@ -1983,7 +2005,18 @@ export interface Database {
             | "DEPLOYMENT_STARTED"
             | "IMPACT_REPORT_SUBMITTED"
             | "IMPACT_REPORT_ACKNOWLEDGED"
-            | "IMPACT_METRIC_UPDATED";
+            | "IMPACT_METRIC_UPDATED"
+            | "SOLUTION_KNOWLEDGE_CREATED"
+            | "SOLUTION_MARKED_REUSABLE"
+            | "SOLUTION_ARCHIVED"
+            | "SOLUTION_MATCH_DETECTED"
+            | "SOLUTION_REUSE_REVIEWED"
+            | "SOLUTION_REUSE_APPROVED"
+            | "SOLUTION_ADAPTATION_REQUESTED"
+            | "RECURRENCE_PATTERN_DETECTED"
+            | "PREVENTIVE_RECOMMENDATION_CREATED"
+            | "PREVENTIVE_RECOMMENDATION_ACKNOWLEDGED"
+            | "PREVENTIVE_RECOMMENDATION_DISMISSED";
           description?: string;
           metadata?: Json;
           created_at?: string;
@@ -3920,6 +3953,433 @@ export interface Database {
           },
         ];
       };
+      simple_solution_knowledge_base: {
+        Row: {
+          id: string;
+          source_issue_id: string;
+          category: string;
+          title: string;
+          description: string;
+          location_text: string | null;
+          address_text: string | null;
+          latitude: number | null;
+          longitude: number | null;
+          area_name: string;
+          department_id: string | null;
+          department_name: string | null;
+          identified_root_cause: string | null;
+          contributing_factors: string[];
+          resolution_summary: string;
+          resolution_method: string | null;
+          materials_used: string[];
+          resolution_duration_hours: number | null;
+          before_evidence_images: Json;
+          after_evidence_images: Json;
+          citizen_verification_id: string | null;
+          citizen_feedback: string | null;
+          verified_at: string | null;
+          occurrence_date: string;
+          occurrence_month: number;
+          occurrence_season: string;
+          created_at: string;
+          closed_at: string;
+        };
+        Insert: {
+          id?: string;
+          source_issue_id: string;
+          category: string;
+          title: string;
+          description: string;
+          location_text?: string | null;
+          address_text?: string | null;
+          latitude?: number | null;
+          longitude?: number | null;
+          area_name: string;
+          department_id?: string | null;
+          department_name?: string | null;
+          identified_root_cause?: string | null;
+          contributing_factors?: string[];
+          resolution_summary: string;
+          resolution_method?: string | null;
+          materials_used?: string[];
+          resolution_duration_hours?: number | null;
+          before_evidence_images?: Json;
+          after_evidence_images?: Json;
+          citizen_verification_id?: string | null;
+          citizen_feedback?: string | null;
+          verified_at?: string | null;
+          occurrence_date: string;
+          occurrence_month: number;
+          occurrence_season?: string;
+          created_at?: string;
+          closed_at?: string;
+        };
+        Update: {
+          id?: string;
+          source_issue_id?: string;
+          category?: string;
+          title?: string;
+          description?: string;
+          location_text?: string | null;
+          address_text?: string | null;
+          latitude?: number | null;
+          longitude?: number | null;
+          area_name?: string;
+          department_id?: string | null;
+          department_name?: string | null;
+          identified_root_cause?: string | null;
+          contributing_factors?: string[];
+          resolution_summary?: string;
+          resolution_method?: string | null;
+          materials_used?: string[];
+          resolution_duration_hours?: number | null;
+          before_evidence_images?: Json;
+          after_evidence_images?: Json;
+          citizen_verification_id?: string | null;
+          citizen_feedback?: string | null;
+          verified_at?: string | null;
+          occurrence_date?: string;
+          occurrence_month?: number;
+          occurrence_season?: string;
+          created_at?: string;
+          closed_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "simple_solution_knowledge_base_source_issue_id_fkey";
+            columns: ["source_issue_id"];
+            isOneToOne: true;
+            referencedRelation: "issues";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "simple_solution_knowledge_base_department_id_fkey";
+            columns: ["department_id"];
+            isOneToOne: false;
+            referencedRelation: "departments";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      complex_solution_knowledge_base: {
+        Row: {
+          id: string;
+          challenge_id: string;
+          project_id: string;
+          institution_id: string;
+          source_issue_id: string | null;
+          problem_title: string;
+          problem_statement: string;
+          problem_category: string;
+          root_cause: string | null;
+          affected_population: string | null;
+          geographic_context: string | null;
+          university_name: string;
+          research_objective: string | null;
+          methodology: string | null;
+          technical_approach: string | null;
+          solution_title: string;
+          solution_summary: string;
+          technologies_used: string[];
+          required_infrastructure: string[];
+          required_expertise: string[];
+          pilot_plan_id: string | null;
+          validation_result_id: string | null;
+          validation_kpis_summary: Json;
+          final_validation_outcome: string | null;
+          deployment_plan_id: string | null;
+          deployment_impact_summary: string | null;
+          applicable_categories: string[];
+          environmental_constraints: string | null;
+          known_limitations: string | null;
+          adaptation_requirements: string | null;
+          reusability_status: "ELIGIBLE" | "ACTIVE_REUSABLE" | "NEEDS_ADAPTATION" | "SUPERSEDED" | "ARCHIVED";
+          evidence_links: Json;
+          reuse_count: number;
+          created_at: string;
+          closed_at: string;
+        };
+        Insert: {
+          id?: string;
+          challenge_id: string;
+          project_id: string;
+          institution_id: string;
+          source_issue_id?: string | null;
+          problem_title: string;
+          problem_statement: string;
+          problem_category: string;
+          root_cause?: string | null;
+          affected_population?: string | null;
+          geographic_context?: string | null;
+          university_name: string;
+          research_objective?: string | null;
+          methodology?: string | null;
+          technical_approach?: string | null;
+          solution_title: string;
+          solution_summary: string;
+          technologies_used?: string[];
+          required_infrastructure?: string[];
+          required_expertise?: string[];
+          pilot_plan_id?: string | null;
+          validation_result_id?: string | null;
+          validation_kpis_summary?: Json;
+          final_validation_outcome?: string | null;
+          deployment_plan_id?: string | null;
+          deployment_impact_summary?: string | null;
+          applicable_categories?: string[];
+          environmental_constraints?: string | null;
+          known_limitations?: string | null;
+          adaptation_requirements?: string | null;
+          reusability_status?: "ELIGIBLE" | "ACTIVE_REUSABLE" | "NEEDS_ADAPTATION" | "SUPERSEDED" | "ARCHIVED";
+          evidence_links?: Json;
+          reuse_count?: number;
+          created_at?: string;
+          closed_at?: string;
+        };
+        Update: {
+          id?: string;
+          challenge_id?: string;
+          project_id?: string;
+          institution_id?: string;
+          source_issue_id?: string | null;
+          problem_title?: string;
+          problem_statement?: string;
+          problem_category?: string;
+          root_cause?: string | null;
+          affected_population?: string | null;
+          geographic_context?: string | null;
+          university_name?: string;
+          research_objective?: string | null;
+          methodology?: string | null;
+          technical_approach?: string | null;
+          solution_title?: string;
+          solution_summary?: string;
+          technologies_used?: string[];
+          required_infrastructure?: string[];
+          required_expertise?: string[];
+          pilot_plan_id?: string | null;
+          validation_result_id?: string | null;
+          validation_kpis_summary?: Json;
+          final_validation_outcome?: string | null;
+          deployment_plan_id?: string | null;
+          deployment_impact_summary?: string | null;
+          applicable_categories?: string[];
+          environmental_constraints?: string | null;
+          known_limitations?: string | null;
+          adaptation_requirements?: string | null;
+          reusability_status?: "ELIGIBLE" | "ACTIVE_REUSABLE" | "NEEDS_ADAPTATION" | "SUPERSEDED" | "ARCHIVED";
+          evidence_links?: Json;
+          reuse_count?: number;
+          created_at?: string;
+          closed_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "complex_solution_knowledge_base_challenge_id_fkey";
+            columns: ["challenge_id"];
+            isOneToOne: false;
+            referencedRelation: "innovation_challenges";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "complex_solution_knowledge_base_project_id_fkey";
+            columns: ["project_id"];
+            isOneToOne: true;
+            referencedRelation: "challenge_projects";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "complex_solution_knowledge_base_institution_id_fkey";
+            columns: ["institution_id"];
+            isOneToOne: false;
+            referencedRelation: "institutions";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      simple_issue_recurrence_patterns: {
+        Row: {
+          id: string;
+          area_name: string;
+          category: string;
+          pattern_description: string;
+          occurrence_count: number;
+          first_observed_at: string;
+          last_observed_at: string;
+          seasonal_window: string | null;
+          common_root_causes: string[];
+          common_resolution_methods: string[];
+          historical_issue_ids: string[];
+          confidence: "LOW" | "MEDIUM" | "HIGH";
+          status: "ACTIVE" | "MONITORED" | "RESOLVED";
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          area_name: string;
+          category: string;
+          pattern_description: string;
+          occurrence_count: number;
+          first_observed_at: string;
+          last_observed_at: string;
+          seasonal_window?: string | null;
+          common_root_causes?: string[];
+          common_resolution_methods?: string[];
+          historical_issue_ids?: string[];
+          confidence?: "LOW" | "MEDIUM" | "HIGH";
+          status?: "ACTIVE" | "MONITORED" | "RESOLVED";
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          area_name?: string;
+          category?: string;
+          pattern_description?: string;
+          occurrence_count?: number;
+          first_observed_at?: string;
+          last_observed_at?: string;
+          seasonal_window?: string | null;
+          common_root_causes?: string[];
+          common_resolution_methods?: string[];
+          historical_issue_ids?: string[];
+          confidence?: "LOW" | "MEDIUM" | "HIGH";
+          status?: "ACTIVE" | "MONITORED" | "RESOLVED";
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
+      preventive_recommendations: {
+        Row: {
+          id: string;
+          pattern_id: string | null;
+          area_name: string;
+          category: string;
+          department_id: string | null;
+          department_name: string | null;
+          occurrence_count: number;
+          seasonal_timing: string | null;
+          title: string;
+          recommended_action: string;
+          justification: string;
+          historical_issue_ids: string[];
+          status: "NEW" | "UNDER_REVIEW" | "ACKNOWLEDGED" | "ACTIONED" | "DISMISSED";
+          reviewed_by: string | null;
+          reviewed_at: string | null;
+          review_notes: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          pattern_id?: string | null;
+          area_name: string;
+          category: string;
+          department_id?: string | null;
+          department_name?: string | null;
+          occurrence_count: number;
+          seasonal_timing?: string | null;
+          title: string;
+          recommended_action: string;
+          justification: string;
+          historical_issue_ids?: string[];
+          status?: "NEW" | "UNDER_REVIEW" | "ACKNOWLEDGED" | "ACTIONED" | "DISMISSED";
+          reviewed_by?: string | null;
+          reviewed_at?: string | null;
+          review_notes?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          pattern_id?: string | null;
+          area_name?: string;
+          category?: string;
+          department_id?: string | null;
+          department_name?: string | null;
+          occurrence_count?: number;
+          seasonal_timing?: string | null;
+          title?: string;
+          recommended_action?: string;
+          justification?: string;
+          historical_issue_ids?: string[];
+          status?: "NEW" | "UNDER_REVIEW" | "ACKNOWLEDGED" | "ACTIONED" | "DISMISSED";
+          reviewed_by?: string | null;
+          reviewed_at?: string | null;
+          review_notes?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "preventive_recommendations_pattern_id_fkey";
+            columns: ["pattern_id"];
+            isOneToOne: false;
+            referencedRelation: "simple_issue_recurrence_patterns";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "preventive_recommendations_department_id_fkey";
+            columns: ["department_id"];
+            isOneToOne: false;
+            referencedRelation: "departments";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      complex_solution_reuse_reviews: {
+        Row: {
+          id: string;
+          challenge_id: string;
+          solution_kb_id: string;
+          decision: "REUSE" | "ADAPT" | "NEW_RESEARCH";
+          match_scores: Json;
+          review_notes: string;
+          decision_by: string;
+          decided_at: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          challenge_id: string;
+          solution_kb_id: string;
+          decision: "REUSE" | "ADAPT" | "NEW_RESEARCH";
+          match_scores?: Json;
+          review_notes: string;
+          decision_by: string;
+          decided_at?: string;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          challenge_id?: string;
+          solution_kb_id?: string;
+          decision?: "REUSE" | "ADAPT" | "NEW_RESEARCH";
+          match_scores?: Json;
+          review_notes?: string;
+          decision_by?: string;
+          decided_at?: string;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "complex_solution_reuse_reviews_challenge_id_fkey";
+            columns: ["challenge_id"];
+            isOneToOne: false;
+            referencedRelation: "innovation_challenges";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "complex_solution_reuse_reviews_solution_kb_id_fkey";
+            columns: ["solution_kb_id"];
+            isOneToOne: false;
+            referencedRelation: "complex_solution_knowledge_base";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
     };
     Views: Record<string, never>;
     Functions: Record<string, never>;
@@ -4290,6 +4750,42 @@ export type DeploymentPlanRevisionRow = Database["public"]["Tables"]["deployment
 export type DeploymentPlanRevisionInsert = Database["public"]["Tables"]["deployment_plan_revisions"]["Insert"];
 export type DeploymentPlanRevisionUpdate = Database["public"]["Tables"]["deployment_plan_revisions"]["Update"];
 
+export type SimpleSolutionKnowledgeBaseRow = Database["public"]["Tables"]["simple_solution_knowledge_base"]["Row"];
+export type SimpleSolutionKnowledgeBaseInsert = Database["public"]["Tables"]["simple_solution_knowledge_base"]["Insert"];
+export type SimpleSolutionKnowledgeBaseUpdate = Database["public"]["Tables"]["simple_solution_knowledge_base"]["Update"];
 
+export type ComplexSolutionKnowledgeBaseRow = Database["public"]["Tables"]["complex_solution_knowledge_base"]["Row"];
+export type ComplexSolutionKnowledgeBaseInsert = Database["public"]["Tables"]["complex_solution_knowledge_base"]["Insert"];
+export type ComplexSolutionKnowledgeBaseUpdate = Database["public"]["Tables"]["complex_solution_knowledge_base"]["Update"];
+export type ComplexSolutionReusabilityStatus = ComplexSolutionKnowledgeBaseRow["reusability_status"];
 
+export type SimpleIssueRecurrencePatternRow = Database["public"]["Tables"]["simple_issue_recurrence_patterns"]["Row"];
+export type SimpleIssueRecurrencePatternInsert = Database["public"]["Tables"]["simple_issue_recurrence_patterns"]["Insert"];
+export type SimpleIssueRecurrencePatternUpdate = Database["public"]["Tables"]["simple_issue_recurrence_patterns"]["Update"];
 
+export type PreventiveRecommendationRow = Database["public"]["Tables"]["preventive_recommendations"]["Row"];
+export type PreventiveRecommendationInsert = Database["public"]["Tables"]["preventive_recommendations"]["Insert"];
+export type PreventiveRecommendationUpdate = Database["public"]["Tables"]["preventive_recommendations"]["Update"];
+export type PreventiveRecommendationStatus = PreventiveRecommendationRow["status"];
+
+export type ComplexSolutionReuseReviewRow = Database["public"]["Tables"]["complex_solution_reuse_reviews"]["Row"];
+export type ComplexSolutionReuseReviewInsert = Database["public"]["Tables"]["complex_solution_reuse_reviews"]["Insert"];
+export type ComplexSolutionReuseReviewUpdate = Database["public"]["Tables"]["complex_solution_reuse_reviews"]["Update"];
+export type ComplexSolutionReuseDecision = ComplexSolutionReuseReviewRow["decision"];
+
+export interface SolutionMatchScorecard {
+  semantic_relevance: "HIGH" | "MEDIUM" | "LOW";
+  root_cause_compatibility: "HIGH" | "MEDIUM" | "LOW";
+  technology_compatibility: "HIGH" | "MEDIUM" | "LOW";
+  deployment_compatibility: "HIGH" | "MEDIUM" | "LOW";
+  overall_applicability: "HIGH" | "MEDIUM" | "LOW";
+  key_strengths: string[];
+  known_limitations: string[];
+  adaptation_requirements: string[];
+  reasoning: string;
+}
+
+export interface SolutionMatchResult {
+  solution: ComplexSolutionKnowledgeBaseRow;
+  scorecard: SolutionMatchScorecard;
+}

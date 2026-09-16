@@ -17,6 +17,7 @@ import { useAppSession } from "@/auth/app-session";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { PreventiveRecommendationsCard } from "@/components/preventive/preventive-recommendations-card";
 import {
   formatOfficerIssueDateTime,
   getOfficerIssueSeverityLabel,
@@ -290,6 +291,11 @@ export function OfficerDashboardPage() {
             );
           })}
         </div>
+      </section>
+
+      {/* Preventive Maintenance Recommendations */}
+      <section aria-label="Preventive maintenance intelligence">
+        <PreventiveRecommendationsCard currentUserProfileId={profileId} />
       </section>
 
       {/* NEEDS ATTENTION SECTION (Most Important Section for Officer) */}

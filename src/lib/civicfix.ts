@@ -126,6 +126,7 @@ export const civicFixNavItems: Record<CivicFixRoleCode, CivicFixRoleNavItem[]> =
   INNOVATION_MANAGER: [
     { label: "Dashboard", path: "/app/innovation", description: "Innovation command center & metrics." },
     { label: "Complex Problems", path: "/app/innovation/problems", description: "Primary control catalog of complex civic problems." },
+    { label: "Solution Knowledge", path: "/app/innovation/knowledge", description: "Persistent solution knowledge & preventive intelligence." },
     { label: "University Collaborations", path: "/app/innovation/collaborations", description: "Global directory of university partnerships and workspaces." },
     { label: "Pilot Control Center", path: "/app/innovation/pilots", description: "Review and govern real-world university pilot plans." },
     { label: "Innovation Marketplace", path: "/app/innovation/marketplace", description: "Monitor, review, and govern research support requirements." },

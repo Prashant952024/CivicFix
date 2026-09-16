@@ -17,9 +17,10 @@ import {
   X,
   FileText,
   BrainCircuit,
+  Store,
+  BookOpen,
   FlaskConical,
   Handshake,
-  Store,
 } from "lucide-react";
 import { NavLink, useLocation } from "react-router-dom";
 
@@ -55,6 +56,7 @@ type NavIconKey =
   | "collaborations"
   | "marketplace"
   | "applications"
+  | "knowledge"
   | "profile";
 
 const navIcons: Record<NavIconKey, ComponentType<{ className?: string; "aria-hidden"?: boolean }>> = {
@@ -65,6 +67,7 @@ const navIcons: Record<NavIconKey, ComponentType<{ className?: string; "aria-hid
   pilots: FlaskConical,
   marketplace: Store,
   applications: ClipboardCheck,
+  knowledge: BookOpen,
   report: SquarePen,
   assigned: ClipboardCheck,
   notifications: Bell,
@@ -82,6 +85,7 @@ const navIcons: Record<NavIconKey, ComponentType<{ className?: string; "aria-hid
 
 function getNavIcon(item: CivicFixRoleNavItem) {
   const lowered = item.path.toLowerCase();
+  if (lowered.includes("knowledge")) return navIcons.knowledge;
   if (lowered.includes("pilot")) return navIcons.pilots;
   if (lowered.includes("marketplace")) return navIcons.marketplace;
   if (lowered.includes("applications")) return navIcons.applications;

@@ -63,6 +63,7 @@ const InnovationUniversityWorkspacePage = lazy(() => import("@/routes/innovation
 const InnovationCollaborationsPage = lazy(() => import("@/routes/innovation/collaborations").then((module) => ({ default: module.InnovationCollaborationsPage })));
 const InnovationMarketplacePage = lazy(() => import("@/routes/innovation/marketplace").then((module) => ({ default: module.InnovationMarketplacePage })));
 const InnovationPilotsPage = lazy(() => import("@/routes/innovation/pilots").then((module) => ({ default: module.InnovationPilotsPage })));
+const InnovationKnowledgePage = lazy(() => import("@/routes/innovation/knowledge").then((module) => ({ default: module.InnovationKnowledgePage })));
 const IndustryMarketplacePage = lazy(() => import("@/routes/industry/marketplace").then((module) => ({ default: module.IndustryMarketplacePage })));
 const IndustryListingDetailPage = lazy(() => import("@/routes/industry/listing-detail").then((module) => ({ default: module.IndustryListingDetailPage })));
 const IndustryApplicationsPage = lazy(() => import("@/routes/industry/applications").then((module) => ({ default: module.IndustryApplicationsPage })));
@@ -323,6 +324,7 @@ export function AppRoutes() {
             <Route path="problems" element={<InnovationProblemsPage />} />
             <Route path="problems/:problemId" element={<InnovationProblemControlCenterPage />} />
             <Route path="problems/:problemId/universities/:institutionId" element={<InnovationUniversityWorkspacePage />} />
+            <Route path="knowledge" element={<InnovationKnowledgePage />} />
             <Route path="collaborations" element={<InnovationCollaborationsPage />} />
             <Route path="pilots" element={<InnovationPilotsPage />} />
             <Route path="pilots/:pilotId" element={<InnovationPilotsPage />} />

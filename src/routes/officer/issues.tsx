@@ -21,6 +21,7 @@ import { Card } from "@/components/ui/card";
 import { Dialog } from "@/components/ui/dialog";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PageHeader } from "@/components/ui/page-header";
+import { PreventiveRecommendationsCard } from "@/components/preventive/preventive-recommendations-card";
 import {
   formatOfficerAssignmentSummary,
   formatOfficerIssueDateTime,
@@ -305,6 +306,9 @@ export function OfficerIssuesPage() {
           </Card>
         </div>
       </section>
+
+      {/* Preventive Maintenance Intelligence */}
+      <PreventiveRecommendationsCard currentUserProfileId={profile?.id} compact={true} />
 
       {/* Search & Filters Bar */}
       <Card className="p-4 sm:p-5">
