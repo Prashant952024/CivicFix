@@ -352,6 +352,9 @@ export function UniversityPilotWorkspace({
         projectName={project.project_title}
         institutionName={project.institution?.name}
         problemTitle={project.challenge?.title}
+        canStartPilot={project.research_stage === "PILOT_READY" && plan?.status === "APPROVED"}
+        onStartPilot={() => setStartPilotOpen(true)}
+        onContinuePlan={() => setIsEditing(true)}
       />
 
       {/* 2. Pilot Readiness Verification Strip */}
