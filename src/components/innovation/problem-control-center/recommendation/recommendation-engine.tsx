@@ -4,6 +4,7 @@ import {
   CheckCircle2,
   CheckSquare,
   ExternalLink,
+  GraduationCap,
   Loader2,
   RefreshCw,
   Send,
@@ -12,12 +13,12 @@ import {
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
+import { useAppSession } from "@/auth/app-session";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Dialog } from "@/components/ui/dialog";
 import { EmptyState } from "@/components/ui/empty-state";
-import { useAppSession } from "@/auth/app-session";
 import { confirmInstitutionSelections, runInstitutionMatching } from "@/lib/matching";
 import { sendInstitutionInvitations } from "@/lib/outreach";
 import type { ProblemControlCenterData } from "@/lib/innovation";
@@ -146,7 +147,7 @@ export function RecommendationEngine({
         if (onNavigateToCollaborations) {
           onNavigateToCollaborations();
         }
-      }, 1200);
+      }, 1000);
     } catch (err: unknown) {
       setInvitationError(
         err instanceof Error ? err.message : "Failed to dispatch invitations."
@@ -161,12 +162,12 @@ export function RecommendationEngine({
       {/* 1. SECTION TITLE & HEADER */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-2 border-b border-border/80">
         <div>
-          <h2 className="text-lg sm:text-xl font-black text-foreground flex items-center gap-2">
-            <Sparkles className="w-5 h-5 text-teal-700 shrink-0" />
-            <span>Recommendation Engine</span>
+          <h2 className="text-lg sm:text-xl font-extrabold text-foreground flex items-center gap-2">
+            <GraduationCap className="w-5 h-5 text-primary shrink-0" />
+            <span>Institution Recommendation &amp; Matching Engine</span>
           </h2>
           <p className="text-xs text-muted-foreground">
-            Find and screen accredited universities, research centers, and laboratories across India
+            Multi-vector screening of accredited universities, research institutes, and specialized laboratories across India
           </p>
         </div>
 
@@ -200,11 +201,12 @@ export function RecommendationEngine({
           {challenge && (
             <Button
               size="sm"
+              variant="innovation"
               onClick={() => {
                 void handleRunMatching();
               }}
               disabled={reRunning}
-              className="bg-teal-700 hover:bg-teal-800 text-white text-xs font-bold gap-1.5 shadow-xs h-8.5 px-3.5"
+              className="text-xs font-bold gap-1.5 shadow-xs h-8.5 px-3.5"
             >
               {reRunning ? (
                 <>
@@ -233,40 +235,50 @@ export function RecommendationEngine({
         <CardContent className="p-4 sm:p-5">
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
             <div>
-              <span className="text-[10px] uppercase font-bold text-muted-foreground block">
-                Evaluated Institutions
+              <span className="text-stat-label block">
+                Evaluated Registry Pool
               </span>
-              <span className="text-sm font-black text-foreground block mt-0.5">
-                {matching.eligibleCount > 0
-                  ? `${matching.eligibleCount} Registry Candidates`
-                  : "Registry Seed Pool"}
+              <span className="text-stat-number text-foreground block mt-0.5">
+                {matching.eligibleCount}
               </span>
-            </div>
-
-            <div>
-              <span className="text-[10px] uppercase font-bold text-muted-foreground block">
-                Qualified Recommendations
-              </span>
-              <span className="text-sm font-black text-teal-800 block mt-0.5">
-                {matching.matchesCount} Recommended
+              <span className="text-meta text-muted-foreground block truncate">
+                Candidate institutions screened
               </span>
             </div>
 
             <div>
-              <span className="text-[10px] uppercase font-bold text-muted-foreground block">
+              <span className="text-stat-label block">
+                Qualified Matches
+              </span>
+              <span className="text-stat-number text-teal-800 block mt-0.5">
+                {matching.matchesCount}
+              </span>
+              <span className="text-meta text-teal-900 font-semibold block truncate">
+                Ranked recommendations
+              </span>
+            </div>
+
+            <div>
+              <span className="text-stat-label block">
                 Evaluation Algorithm
               </span>
-              <span className="text-xs font-semibold text-foreground block mt-0.5 truncate">
+              <span className="text-xs font-bold text-foreground block mt-1.5 truncate">
                 {matching.modelUsed || "CivicFix 10D Multi-Vector Engine"}
+              </span>
+              <span className="text-meta text-muted-foreground block truncate">
+                Domain, labs, &amp; publications
               </span>
             </div>
 
             <div>
-              <span className="text-[10px] uppercase font-bold text-muted-foreground block">
+              <span className="text-stat-label block">
                 Screening Timestamp
               </span>
-              <span className="text-xs font-semibold text-foreground block mt-0.5">
+              <span className="text-xs font-bold text-foreground block mt-1.5 truncate">
                 {matching.lastRunAt ? new Date(matching.lastRunAt).toLocaleString() : "Awaiting Initial Run"}
+              </span>
+              <span className="text-meta text-muted-foreground block truncate">
+                Live screening cache
               </span>
             </div>
           </div>
@@ -296,14 +308,14 @@ export function RecommendationEngine({
       ) : (
         <div className="space-y-4">
           {/* Top Selection Ribbon */}
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-card p-3.5 rounded-xl border border-border shadow-xs text-xs">
-            <div className="flex items-center gap-3">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-card p-3.5 rounded-xl border border-border/80 shadow-xs text-xs">
+            <div className="flex items-center gap-3 flex-wrap">
               <div className="flex items-center gap-1.5 flex-wrap">
                 <Button
                   size="sm"
                   variant="outline"
                   onClick={handleSelectTop5}
-                  className="h-7 px-2.5 text-xs text-teal-800 border-teal-300 bg-teal-50/60 hover:bg-teal-100 font-semibold gap-1"
+                  className="h-7.5 px-2.5 text-xs text-teal-800 border-teal-300 bg-teal-50/60 hover:bg-teal-100 font-semibold gap-1"
                 >
                   <Sparkles className="w-3.5 h-3.5 text-teal-700" />
                   <span>Select Top 5</span>
@@ -312,16 +324,16 @@ export function RecommendationEngine({
                   size="sm"
                   variant="ghost"
                   onClick={handleSelectAll}
-                  className="h-7 px-2 text-xs text-muted-foreground hover:text-foreground gap-1"
+                  className="h-7.5 px-2.5 text-xs text-muted-foreground hover:text-foreground gap-1"
                 >
-                  <CheckSquare className="w-3.5 h-3.5 text-teal-700" />
+                  <CheckSquare className="w-3.5 h-3.5 text-primary" />
                   <span>Select All ({matching.topMatches.length})</span>
                 </Button>
                 <Button
                   size="sm"
                   variant="ghost"
                   onClick={handleDeselectAll}
-                  className="h-7 px-2 text-xs text-muted-foreground hover:text-foreground gap-1"
+                  className="h-7.5 px-2.5 text-xs text-muted-foreground hover:text-foreground gap-1"
                 >
                   <Square className="w-3.5 h-3.5" />
                   <span>Deselect All</span>
@@ -351,15 +363,15 @@ export function RecommendationEngine({
           {/* Top 5 Recommended Spotlight Header */}
           <div className="pt-2 pb-1 flex flex-col sm:flex-row sm:items-center justify-between gap-1">
             <div className="flex items-center gap-2">
-              <Sparkles className="w-4 h-4 text-teal-700" />
-              <h3 className="font-bold text-slate-900 text-sm">
-                Top 5 Recommended Institutions
+              <Sparkles className="w-4 h-4 text-primary" />
+              <h3 className="font-bold text-foreground text-sm">
+                Top Recommended Institutions
               </h3>
-              <Badge className="bg-teal-100 text-teal-900 border-teal-300 text-[10px] font-bold">
+              <Badge variant="research" size="sm" className="font-bold text-[10px]">
                 AI Multi-Vector Rank #1–#5
               </Badge>
             </div>
-            <span className="text-[11px] text-slate-500">
+            <span className="text-[11px] text-muted-foreground">
               Evaluated across 10-dimensional domain and capability criteria
             </span>
           </div>
@@ -373,12 +385,12 @@ export function RecommendationEngine({
               return (
                 <div key={m.institutionId} className="space-y-3">
                   {idx === 5 && (
-                    <div className="pt-4 pb-1 border-t border-slate-200 flex items-center justify-between">
-                      <h4 className="font-bold text-slate-700 text-xs uppercase tracking-wider">
+                    <div className="pt-4 pb-1 border-t border-border flex items-center justify-between">
+                      <h4 className="font-bold text-muted-foreground text-xs uppercase tracking-wider">
                         Additional Qualified Candidates ({matching.topMatches.length - 5})
                       </h4>
-                      <span className="text-[11px] text-slate-500">
-                        Eligible for selection and invitation
+                      <span className="text-[11px] text-muted-foreground">
+                        Eligible for selection and outreach
                       </span>
                     </div>
                   )}
@@ -386,9 +398,9 @@ export function RecommendationEngine({
                   <Card
                     className={`border transition-all duration-150 ${
                       isChecked
-                        ? "border-teal-400 bg-teal-50/20 shadow-xs"
+                        ? "border-teal-400 bg-teal-50/20 shadow-xs ring-1 ring-teal-400/40"
                         : isTop5
-                        ? "border-teal-200/90 bg-white hover:border-teal-300 shadow-2xs"
+                        ? "border-teal-200/90 bg-card hover:border-teal-300 shadow-2xs"
                         : "border-border/80 bg-card hover:bg-muted/10"
                     }`}
                   >
@@ -399,8 +411,9 @@ export function RecommendationEngine({
                           <button
                             type="button"
                             onClick={() => toggleSelect(m.institutionId)}
-                            className="mt-0.5 text-muted-foreground hover:text-primary transition shrink-0"
+                            className="mt-0.5 text-muted-foreground hover:text-primary transition shrink-0 cursor-pointer"
                             title={isChecked ? "Deselect" : "Select"}
+                            aria-label={isChecked ? `Deselect ${m.institutionName}` : `Select ${m.institutionName}`}
                           >
                             {isChecked ? (
                               <CheckSquare className="w-5 h-5 text-teal-700" />
@@ -421,106 +434,106 @@ export function RecommendationEngine({
                                 {m.institutionName}
                               </span>
                               {isTop5 && (
-                                <Badge className="bg-gradient-to-r from-teal-700 to-teal-800 text-white text-[10px] font-bold px-2 py-0.5 shadow-2xs">
+                                <Badge variant="research" size="sm" className="font-bold text-[10px] px-2 py-0.5">
                                   Top 5 Spotlight
                                 </Badge>
                               )}
                               {m.institutionAcronym && (
-                                <Badge variant="outline" className="text-[10px] font-semibold">
+                                <Badge variant="outline" size="sm" className="font-semibold">
                                   {m.institutionAcronym}
                                 </Badge>
                               )}
-                            {m.recommendedRole && (
-                              <Badge variant="info" className="text-[10px]">
-                                {m.recommendedRole}
-                              </Badge>
-                            )}
-                            {m.isSelected && (
-                              <Badge className="bg-emerald-100 text-emerald-900 border-emerald-300 text-[10px] font-bold">
-                                Selected
-                              </Badge>
-                            )}
-                            {m.invitationStatus && (
-                              <Badge variant="outline" className="text-[10px] font-mono">
-                                Invite: {m.invitationStatus}
-                              </Badge>
+                              {m.recommendedRole && (
+                                <Badge variant="info" size="sm" className="text-[10px]">
+                                  {m.recommendedRole}
+                                </Badge>
+                              )}
+                              {m.isSelected && (
+                                <Badge variant="civic" size="sm" className="text-[10px] font-bold">
+                                  Selected
+                                </Badge>
+                              )}
+                              {m.invitationStatus && (
+                                <Badge variant="outline" size="sm" className="font-mono text-[10px]">
+                                  Invite: {m.invitationStatus}
+                                </Badge>
+                              )}
+                            </div>
+
+                            {/* Strengths */}
+                            {m.topStrengths && m.topStrengths.length > 0 && (
+                              <div className="flex items-center gap-1.5 flex-wrap pt-0.5">
+                                <span className="text-[10px] font-bold text-muted-foreground uppercase">
+                                  Strengths:
+                                </span>
+                                {m.topStrengths.map((str, sIdx) => (
+                                  <span
+                                    key={sIdx}
+                                    className="inline-block px-2 py-0.5 rounded-md bg-muted/50 border border-border/70 text-[10px] text-foreground font-medium"
+                                  >
+                                    {str}
+                                  </span>
+                                ))}
+                              </div>
                             )}
                           </div>
+                        </div>
 
-                          {/* Strengths */}
-                          {m.topStrengths && m.topStrengths.length > 0 && (
-                            <div className="flex items-center gap-1.5 flex-wrap pt-0.5">
-                              <span className="text-[10px] font-bold text-muted-foreground uppercase">
-                                Strengths:
-                              </span>
-                              {m.topStrengths.map((str, idx) => (
-                                <span
-                                  key={idx}
-                                  className="inline-block px-1.5 py-0.5 rounded bg-muted/40 text-[10px] text-muted-foreground font-medium"
-                                >
-                                  {str}
-                                </span>
-                              ))}
-                            </div>
-                          )}
+                        {/* Right: Scores & Actions */}
+                        <div className="flex items-center justify-between md:justify-end gap-5 shrink-0 pt-2 md:pt-0 border-t md:border-t-0 border-border/60">
+                          {/* Overall Score */}
+                          <div className="text-center md:text-right">
+                            <span className="text-[10px] font-bold text-muted-foreground uppercase block">
+                              Overall Match
+                            </span>
+                            <span className="text-base font-black text-teal-800 block">
+                              {Math.round(m.overallScore * 100)}%
+                            </span>
+                          </div>
+
+                          {/* Semantic Fit */}
+                          <div className="text-center md:text-right">
+                            <span className="text-[10px] font-bold text-muted-foreground uppercase block">
+                              Semantic Fit
+                            </span>
+                            <span className="text-xs font-semibold text-foreground block">
+                              {Math.round(m.aiSemanticScore * 100)}%
+                            </span>
+                          </div>
+
+                          {/* Actions */}
+                          <div className="flex items-center gap-1.5">
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => onInspectInstitutionById(m.institutionId)}
+                              className="h-8 px-2.5 text-xs text-primary font-bold hover:bg-primary/10 gap-1"
+                            >
+                              <Building2 className="w-3.5 h-3.5" />
+                              <span>Inspect</span>
+                            </Button>
+
+                            <Button
+                              size="sm"
+                              variant={isChecked ? "outline" : "default"}
+                              onClick={() => toggleSelect(m.institutionId)}
+                              className={`h-8 px-3 text-xs font-bold gap-1 ${
+                                isChecked
+                                  ? "text-muted-foreground border-border"
+                                  : "bg-primary text-primary-foreground"
+                              }`}
+                            >
+                              {isChecked ? "Remove" : "Select"}
+                            </Button>
+                          </div>
                         </div>
                       </div>
-
-                      {/* Right: Scores & Actions */}
-                      <div className="flex items-center justify-between md:justify-end gap-5 shrink-0 pt-2 md:pt-0 border-t md:border-t-0 border-border/60">
-                        {/* Overall Score */}
-                        <div className="text-center md:text-right">
-                          <span className="text-[10px] font-bold text-muted-foreground uppercase block">
-                            Overall Match
-                          </span>
-                          <span className="text-base font-black text-teal-800 block">
-                            {Math.round(m.overallScore * 100)}%
-                          </span>
-                        </div>
-
-                        {/* Semantic Fit */}
-                        <div className="text-center md:text-right">
-                          <span className="text-[10px] font-bold text-muted-foreground uppercase block">
-                            Semantic Fit
-                          </span>
-                          <span className="text-xs font-semibold text-foreground block">
-                            {Math.round(m.aiSemanticScore * 100)}%
-                          </span>
-                        </div>
-
-                        {/* Actions */}
-                        <div className="flex items-center gap-1.5">
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            onClick={() => onInspectInstitutionById(m.institutionId)}
-                            className="h-8 px-2 text-xs text-primary font-bold hover:bg-primary/10 gap-1"
-                          >
-                            <Building2 className="w-3.5 h-3.5" />
-                            <span>Inspect</span>
-                          </Button>
-
-                          <Button
-                            size="sm"
-                            variant={isChecked ? "outline" : "default"}
-                            onClick={() => toggleSelect(m.institutionId)}
-                            className={`h-8 px-3 text-xs font-bold gap-1 ${
-                              isChecked
-                                ? "text-muted-foreground"
-                                : "bg-primary text-primary-foreground"
-                            }`}
-                          >
-                            {isChecked ? "Remove" : "Select"}
-                          </Button>
-                        </div>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
-            );
-          })}
-        </div>
+                    </CardContent>
+                  </Card>
+                </div>
+              );
+            })}
+          </div>
         </div>
       )}
 
@@ -537,7 +550,7 @@ export function RecommendationEngine({
               <span>Dispatch Challenge Collaboration Invitations</span>
             </h3>
             <p className="text-xs text-muted-foreground">
-              Send formal municipal invitations to {selectedIds.size} selected research institutions.
+              Send formal municipal outreach invitations to {selectedIds.size} selected research institution(s).
             </p>
           </div>
 
@@ -549,7 +562,7 @@ export function RecommendationEngine({
               rows={3}
               value={invitationMessage}
               onChange={(e) => setInvitationMessage(e.target.value)}
-              className="w-full p-2.5 bg-muted/20 border border-border rounded-xl text-xs focus:outline-hidden focus:ring-2 focus:ring-primary/20 text-foreground resize-none"
+              className="w-full p-2.5 bg-muted/20 border border-input rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-primary/30 text-foreground resize-none"
             />
           </div>
 

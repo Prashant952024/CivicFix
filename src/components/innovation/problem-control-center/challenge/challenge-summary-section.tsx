@@ -73,11 +73,9 @@ export function ChallengeSummarySection({
               <span>Formulated Innovation Challenge: {challenge.title}</span>
             </CardTitle>
             <Badge
-              className={
-                challenge.status === "APPROVED"
-                  ? "bg-emerald-100 text-emerald-900 border-emerald-300 text-xs font-bold"
-                  : "bg-teal-100 text-teal-900 border-teal-300 text-xs font-bold"
-              }
+              variant={challenge.status === "APPROVED" ? "civic" : "innovation"}
+              size="sm"
+              className="font-bold text-xs"
             >
               Status: {challenge.status}
             </Badge>
@@ -103,8 +101,9 @@ export function ChallengeSummarySection({
           {onNavigateToRecommendation && (
             <Button
               size="sm"
+              variant="innovation"
               onClick={onNavigateToRecommendation}
-              className="bg-teal-700 hover:bg-teal-800 text-white text-xs font-bold gap-1.5 h-8 px-3"
+              className="text-xs font-bold gap-1.5 h-8 px-3"
             >
               <Rocket className="w-3.5 h-3.5" />
               <span>Recommendation Engine &rarr;</span>
@@ -128,7 +127,7 @@ export function ChallengeSummarySection({
         {/* Objectives */}
         {challenge.objectives && challenge.objectives.length > 0 && (
           <div className="space-y-1.5">
-            <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider block flex items-center gap-1">
+            <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1">
               <Target className="w-3 h-3 text-primary" />
               <span>Challenge Objectives</span>
             </span>
@@ -152,7 +151,7 @@ export function ChallengeSummarySection({
             <div className="flex items-center gap-1.5 flex-wrap">
               {challenge.requiredDomains && challenge.requiredDomains.length > 0 ? (
                 challenge.requiredDomains.map((dom, idx) => (
-                  <Badge key={idx} variant="info" className="text-[9px]">
+                  <Badge key={idx} variant="research" size="sm">
                     {dom}
                   </Badge>
                 ))

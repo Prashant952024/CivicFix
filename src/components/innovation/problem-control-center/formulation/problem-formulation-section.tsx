@@ -1,9 +1,12 @@
 import { useState } from "react";
 import {
   AlertCircle,
+  BrainCircuit,
   CheckCircle2,
   Edit3,
   ExternalLink,
+  Lightbulb,
+  MapPin,
   Plus,
   Rocket,
   Save,
@@ -56,10 +59,13 @@ export function ProblemFormulationSection({
   const [problemStatement, setProblemStatement] = useState(challenge?.problemStatement || "");
   const [rootCause, setRootCause] = useState(challenge?.rootCause || problem.approvedRootCause || "");
   const [affectedPopulation, setAffectedPopulation] = useState(challenge?.affectedPopulation || "");
-  const [geographicScope, setGeographicScope] = useState(challenge?.geographicScope || problem.geographicScope || "Citywide");
+  const [geographicScope, setGeographicScope] = useState(
+    challenge?.geographicScope || problem.geographicScope || "Citywide"
+  );
   const [objectives, setObjectives] = useState<string[]>(challenge?.objectives || []);
   const [newObjective, setNewObjective] = useState("");
   const [expectedOutcomes, setExpectedOutcomes] = useState<string[]>(challenge?.expectedOutcomes || []);
+  const [newOutcome, setNewOutcome] = useState("");
   const [requiredDomains, setRequiredDomains] = useState<string[]>(challenge?.requiredDomains || []);
   const [newDomain, setNewDomain] = useState("");
   const [potentialTech, setPotentialTech] = useState<string[]>(challenge?.potentialTechnologies || []);
@@ -123,7 +129,7 @@ export function ProblemFormulationSection({
         throw new Error(resData.error || "Failed to formulate challenge with AI.");
       }
 
-      setActionSuccess("AI Formulation successfully generated and saved as draft.");
+      setActionSuccess("AI Formulation successfully synthesized and saved as draft.");
       onRefresh();
     } catch (err: unknown) {
       console.error("Error generating challenge formulation:", err);
@@ -204,7 +210,7 @@ export function ProblemFormulationSection({
       if (onNavigateToRecommendation) {
         setTimeout(() => {
           onNavigateToRecommendation();
-        }, 1200);
+        }, 1000);
       }
     } catch (err: unknown) {
       console.error("Error approving formulation:", err);
@@ -214,7 +220,7 @@ export function ProblemFormulationSection({
     }
   };
 
-  // Tag list helper
+  // Tag list helpers
   const addTag = (val: string, list: string[], setList: (l: string[]) => void, clear: () => void) => {
     const trimmed = val.trim();
     if (trimmed && !list.includes(trimmed)) {
@@ -230,472 +236,582 @@ export function ProblemFormulationSection({
   // 1. UNFORMULATED STATE
   if (!challenge) {
     return (
-      <Card className="border border-amber-300/80 bg-gradient-to-br from-amber-50/60 via-white to-amber-50/30 shadow-xs">
-        <CardContent className="p-6 space-y-4">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <div className="space-y-1">
+      <div className="space-y-6">
+        {/* Source Problem Dossier Strip */}
+        <Card className="border-border/90 bg-card shadow-xs">
+          <CardHeader className="pb-3 border-b border-border/70">
+            <div className="flex items-center justify-between gap-2 flex-wrap">
+              <CardTitle className="text-sm font-bold text-foreground flex items-center gap-2">
+                <Lightbulb className="w-4 h-4 text-amber-500" aria-hidden="true" />
+                <span>Source Civic Problem Dossier</span>
+              </CardTitle>
               <div className="flex items-center gap-2">
-                <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
-                <span className="text-[11px] font-bold uppercase tracking-wider text-amber-900">
-                  Step 2: AI Problem Formulation Required
-                </span>
+                <Badge variant="outline" size="sm">
+                  {problem.category}
+                </Badge>
+                <Badge variant="attention" size="sm">
+                  {problem.aiComplexityScore !== null ? `Complexity: ${problem.aiComplexityScore}/100` : "Complexity: Evaluation Pending"}
+                </Badge>
               </div>
-              <h3 className="text-base sm:text-lg font-bold text-slate-900">
-                Formulate Municipal Innovation Challenge
-              </h3>
-              <p className="text-xs text-slate-600 max-w-2xl leading-relaxed">
-                Transform this citizen grievance into a rigorous municipal innovation challenge with clear root-cause hypotheses, research objectives, expected deliverables, and academic domain requirements.
-              </p>
+            </div>
+          </CardHeader>
+          <CardContent className="p-4 sm:p-5 space-y-3 text-xs">
+            <div className="flex items-center gap-1.5 text-muted-foreground">
+              <MapPin className="w-3.5 h-3.5 text-primary shrink-0" />
+              <span className="font-semibold text-foreground">
+                {problem.addressText || problem.locationText || "Municipal Area"}
+              </span>
+              <span>•</span>
+              <span>Reported {new Date(problem.createdAt).toLocaleDateString()}</span>
+            </div>
+            <div className="p-3.5 rounded-xl bg-muted/20 border border-border/70 text-foreground whitespace-pre-line leading-relaxed">
+              {problem.description}
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* AI Formulation Call to Action Banner */}
+        <Card className="border-indigo-300/80 bg-gradient-to-br from-indigo-50/70 via-background to-teal-50/40 shadow-xs">
+          <CardContent className="p-6 space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div className="space-y-1.5 flex-1 min-w-0">
+                <div className="flex items-center gap-2">
+                  <span className="w-2.5 h-2.5 rounded-full bg-indigo-600 animate-ping" />
+                  <Badge variant="innovation" size="sm">
+                    Step 2: Innovation Challenge Formulation Required
+                  </Badge>
+                </div>
+                <h3 className="text-lg font-bold text-foreground">
+                  Formulate Structured Innovation Challenge
+                </h3>
+                <p className="text-xs text-muted-foreground leading-relaxed max-w-2xl">
+                  Synthesize citizen field grievances into a rigorous municipal challenge with testable root causes, 
+                  research objectives, expected pilot outcomes, and multidisciplinary domain criteria.
+                </p>
+              </div>
+
+              <Button
+                size="sm"
+                onClick={() => { void handleGenerateWithAi(); }}
+                disabled={generating}
+                className="bg-primary hover:bg-primary/90 text-primary-foreground font-bold gap-2 text-xs h-10 px-5 shadow-xs shrink-0"
+              >
+                <Sparkles className={`w-4 h-4 ${generating ? "animate-spin" : ""}`} />
+                <span>{generating ? "Synthesizing with AI..." : "Formulate with AI"}</span>
+              </Button>
             </div>
 
-            <Button
-              size="sm"
-              onClick={() => { void handleGenerateWithAi(); }}
-              disabled={generating}
-              className="bg-teal-700 hover:bg-teal-800 text-white font-bold gap-2 text-xs h-10 px-4 shadow-sm shrink-0"
-            >
-              <Sparkles className={`w-4 h-4 ${generating ? "animate-spin" : ""}`} />
-              <span>{generating ? "Synthesizing with AI..." : "Formulate with AI"}</span>
-            </Button>
-          </div>
-
-          {generationError && (
-            <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl text-rose-800 text-xs flex items-center gap-2">
-              <AlertCircle className="w-4 h-4 shrink-0 text-rose-600" />
-              <span>{generationError}</span>
-            </div>
-          )}
-
-          {/* Quick preview of Citizen Context */}
-          <div className="p-4 bg-white/80 rounded-xl border border-amber-200/60 text-xs space-y-2">
-            <div className="font-semibold text-slate-800">Source Grievance Dossier:</div>
-            <div className="text-slate-600 italic">"{problem.description}"</div>
-            {problem.approvedRootCause && (
-              <div className="text-slate-700 pt-1">
-                <span className="font-semibold text-slate-900">Classified Root Cause: </span>
-                {problem.approvedRootCause}
+            {generationError && (
+              <div className="p-3 bg-rose-50 border border-rose-300 rounded-xl text-rose-800 text-xs flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 shrink-0 text-rose-600" />
+                <span>{generationError}</span>
               </div>
             )}
-          </div>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      </div>
     );
   }
 
   const isApproved = challenge.status === "APPROVED";
 
   return (
-    <Card className="border border-slate-200/90 bg-white shadow-xs">
-      {/* Header */}
-      <CardHeader className="pb-4 border-b border-slate-100 flex flex-col md:flex-row md:items-center justify-between gap-3">
-        <div>
-          <div className="flex items-center gap-2 flex-wrap">
-            <Rocket className="w-4.5 h-4.5 text-teal-700 shrink-0" />
-            <CardTitle className="text-base font-bold text-slate-900">
-              Problem Formulation: {isEditing ? "Editing Formulation" : challenge.title}
-            </CardTitle>
-            {isApproved ? (
-              <Badge className="bg-emerald-100 text-emerald-900 border-emerald-300 text-xs font-bold gap-1">
-                <CheckCircle2 className="w-3 h-3 text-emerald-700" />
-                Formulation Approved
+    <div className="space-y-6">
+      {/* 1. CHALLENGE FORMULATION CARD */}
+      <Card className="border-border/90 bg-card shadow-xs overflow-hidden">
+        {/* Header */}
+        <CardHeader className="p-5 sm:p-6 pb-4 border-b border-border/70 flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div className="space-y-1.5 flex-1 min-w-0">
+            <div className="flex items-center gap-2 flex-wrap">
+              <Rocket className="w-4.5 h-4.5 text-primary shrink-0" />
+              <CardTitle className="text-lg font-extrabold text-foreground tracking-tight">
+                {isEditing ? "Editing Challenge Formulation" : challenge.title}
+              </CardTitle>
+              {isApproved ? (
+                <Badge variant="civic" size="sm" className="gap-1 font-bold">
+                  <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                  <span>Formulation Approved</span>
+                </Badge>
+              ) : (
+                <Badge variant="attention" size="sm" className="gap-1 font-bold">
+                  <span className="w-1.5 h-1.5 rounded-full bg-amber-600 animate-pulse" />
+                  <span>Draft Formulation</span>
+                </Badge>
+              )}
+              <Badge variant="outline" size="sm">
+                {challenge.category}
               </Badge>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Official municipal scope and technical specifications for university research partnerships.
+            </p>
+          </div>
+
+          {/* Action Buttons */}
+          <div className="flex items-center gap-2 flex-wrap shrink-0">
+            {isEditing ? (
+              <>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={handleCancelEditing}
+                  disabled={saving}
+                  className="text-xs h-8.5"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  size="sm"
+                  onClick={() => { void handleSaveDraft(); }}
+                  disabled={saving}
+                  className="bg-primary text-primary-foreground text-xs font-bold gap-1.5 h-8.5 px-4"
+                >
+                  <Save className="w-3.5 h-3.5" />
+                  <span>{saving ? "Saving..." : "Save Draft"}</span>
+                </Button>
+              </>
             ) : (
-              <Badge className="bg-amber-100 text-amber-900 border-amber-300 text-xs font-bold gap-1">
-                <span className="w-1.5 h-1.5 rounded-full bg-amber-600" />
-                Draft Formulation
-              </Badge>
+              <>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={handleStartEditing}
+                  className="text-xs font-bold gap-1.5 h-8.5"
+                >
+                  <Edit3 className="w-3.5 h-3.5" />
+                  <span>Edit Formulation</span>
+                </Button>
+
+                {!isApproved ? (
+                  <Button
+                    size="sm"
+                    onClick={() => setConfirmApproveOpen(true)}
+                    className="bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold gap-1.5 h-8.5 px-3.5 shadow-xs"
+                  >
+                    <ShieldCheck className="w-3.5 h-3.5" />
+                    <span>Approve Formulation</span>
+                  </Button>
+                ) : onNavigateToRecommendation ? (
+                  <Button
+                    size="sm"
+                    variant="innovation"
+                    onClick={onNavigateToRecommendation}
+                    className="text-xs font-bold gap-1.5 h-8.5 px-4"
+                  >
+                    <Rocket className="w-3.5 h-3.5" />
+                    <span>Recommendation Engine &rarr;</span>
+                  </Button>
+                ) : null}
+
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => void navigate(`/app/innovation/challenges/${challenge.id}`)}
+                  className="text-xs font-semibold gap-1 text-muted-foreground hover:text-foreground h-8.5"
+                >
+                  <span>Full Console</span>
+                  <ExternalLink className="w-3 h-3" />
+                </Button>
+              </>
             )}
-            <Badge variant="outline" className="text-[10px] text-slate-500">
-              {challenge.category}
+          </div>
+        </CardHeader>
+
+        {/* Action alerts */}
+        {actionSuccess && (
+          <div className="mx-6 mt-4 p-3 bg-emerald-50 border border-emerald-300 rounded-xl text-emerald-900 text-xs flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+              <span className="font-semibold">{actionSuccess}</span>
+            </div>
+            <button type="button" onClick={() => setActionSuccess(null)} className="cursor-pointer">
+              <X className="w-3.5 h-3.5 text-emerald-700" />
+            </button>
+          </div>
+        )}
+
+        {actionError && (
+          <div className="mx-6 mt-4 p-3 bg-rose-50 border border-rose-300 rounded-xl text-rose-900 text-xs flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
+              <span className="font-semibold">{actionError}</span>
+            </div>
+            <button type="button" onClick={() => setActionError(null)} className="cursor-pointer">
+              <X className="w-3.5 h-3.5 text-rose-700" />
+            </button>
+          </div>
+        )}
+
+        {/* AI Advisory & Governance Banner when in Draft mode */}
+        {!isApproved && !isEditing && (
+          <div className="mx-6 mt-4 p-3.5 rounded-xl border border-indigo-200/90 bg-indigo-50/40 text-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="flex items-center gap-2.5">
+              <BrainCircuit className="w-4.5 h-4.5 text-indigo-700 shrink-0" />
+              <div>
+                <span className="font-bold text-indigo-950 block">
+                  AI-Generated Formulation Draft • Human Review Required
+                </span>
+                <span className="text-indigo-900/80 text-[11px]">
+                  AI proposes problem parameters and objectives; Innovation Manager review and approval are authoritative.
+                </span>
+              </div>
+            </div>
+            <Badge variant="innovation" size="sm" className="shrink-0">
+              Advisory Draft
             </Badge>
           </div>
-          <p className="mt-1 text-xs text-slate-500">
-            Authoritative municipal scope and specifications for academic university collaboration.
-          </p>
-        </div>
+        )}
 
-        {/* Header Action Buttons */}
-        <div className="flex items-center gap-2 flex-wrap">
+        <CardContent className="p-6 space-y-6 text-xs">
           {isEditing ? (
-            <>
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={handleCancelEditing}
-                disabled={saving}
-                className="text-xs h-8"
-              >
-                Cancel
-              </Button>
-              <Button
-                size="sm"
-                onClick={() => { void handleSaveDraft(); }}
-                disabled={saving}
-                className="bg-teal-700 hover:bg-teal-800 text-white text-xs font-semibold gap-1.5 h-8"
-              >
-                <Save className="w-3.5 h-3.5" />
-                <span>{saving ? "Saving..." : "Save Draft"}</span>
-              </Button>
-            </>
-          ) : (
-            <>
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={handleStartEditing}
-                className="text-xs font-semibold gap-1.5 h-8"
-              >
-                <Edit3 className="w-3.5 h-3.5" />
-                <span>Edit Formulation</span>
-              </Button>
+            /* ========================================================================= */
+            /* EDIT MODE FORM                                                            */
+            /* ========================================================================= */
+            <div className="space-y-6">
+              {/* Group 1: Problem Scope */}
+              <div className="space-y-3 p-4 rounded-xl border border-border/80 bg-muted/10">
+                <span className="text-section-header block">1. Problem Scope &amp; Target Context</span>
 
-              {!isApproved ? (
-                <Button
-                  size="sm"
-                  onClick={() => setConfirmApproveOpen(true)}
-                  className="bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold gap-1.5 h-8"
-                >
-                  <ShieldCheck className="w-3.5 h-3.5" />
-                  <span>Approve Formulation</span>
-                </Button>
-              ) : onNavigateToRecommendation ? (
-                <Button
-                  size="sm"
-                  onClick={onNavigateToRecommendation}
-                  className="bg-teal-700 hover:bg-teal-800 text-white text-xs font-bold gap-1.5 h-8 px-3"
-                >
-                  <Rocket className="w-3.5 h-3.5" />
-                  <span>Recommendation Engine &rarr;</span>
-                </Button>
-              ) : null}
+                <div>
+                  <label className="font-bold text-foreground block mb-1">Challenge Title *</label>
+                  <input
+                    type="text"
+                    value={title}
+                    onChange={(e) => setTitle(e.target.value)}
+                    placeholder="e.g. Predictive Urban Hydrology & Drain Congestion Modeling..."
+                    className="w-full rounded-xl border border-input bg-background px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary"
+                  />
+                </div>
 
-              <Button
-                size="sm"
-                variant="ghost"
-                onClick={() => void navigate(`/app/innovation/challenges/${challenge.id}`)}
-                className="text-xs font-medium gap-1 text-slate-600 hover:text-slate-900 h-8"
-              >
-                <span>Full Console</span>
-                <ExternalLink className="w-3 h-3" />
-              </Button>
-            </>
-          )}
-        </div>
-      </CardHeader>
-
-      {/* Action alerts */}
-      {actionSuccess && (
-        <div className="mx-6 mt-4 p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-emerald-800 text-xs flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-            <span>{actionSuccess}</span>
-          </div>
-          <button onClick={() => setActionSuccess(null)}>
-            <X className="w-3.5 h-3.5 text-emerald-600" />
-          </button>
-        </div>
-      )}
-
-      {actionError && (
-        <div className="mx-6 mt-4 p-3 bg-rose-50 border border-rose-200 rounded-xl text-rose-800 text-xs flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
-            <span>{actionError}</span>
-          </div>
-          <button onClick={() => setActionError(null)}>
-            <X className="w-3.5 h-3.5 text-rose-600" />
-          </button>
-        </div>
-      )}
-
-      <CardContent className="p-6 space-y-5 text-xs">
-        {isEditing ? (
-          /* EDIT MODE FORM */
-          <div className="space-y-4">
-            <div>
-              <label className="font-semibold text-slate-700 block mb-1">Challenge Title</label>
-              <input
-                type="text"
-                value={title}
-                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setTitle(e.target.value)}
-                placeholder="e.g. Predictive Urban Hydrology Modeling..."
-                className="w-full rounded-xl border border-slate-200 bg-background px-3 py-2 text-xs focus:outline-none focus:ring-1 focus:ring-teal-700"
-              />
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="font-semibold text-slate-700 block mb-1">Problem Statement</label>
-                <textarea
-                  rows={4}
-                  value={problemStatement}
-                  onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setProblemStatement(e.target.value)}
-                  placeholder="Comprehensive technical statement of the municipal challenge..."
-                  className="w-full rounded-xl border border-slate-200 bg-background p-3 text-xs focus:outline-none focus:ring-1 focus:ring-teal-700"
-                />
-              </div>
-
-              <div>
-                <label className="font-semibold text-slate-700 block mb-1">Root Cause Hypothesis</label>
-                <textarea
-                  rows={4}
-                  value={rootCause}
-                  onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setRootCause(e.target.value)}
-                  placeholder="Systemic, infrastructural, or hydrological root cause..."
-                  className="w-full rounded-xl border border-slate-200 bg-background p-3 text-xs focus:outline-none focus:ring-1 focus:ring-teal-700"
-                />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="font-semibold text-slate-700 block mb-1">Affected Population</label>
-                <input
-                  type="text"
-                  value={affectedPopulation}
-                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => setAffectedPopulation(e.target.value)}
-                  placeholder="e.g. 85,000 residents in flood-prone wards..."
-                  className="w-full rounded-xl border border-slate-200 bg-background px-3 py-2 text-xs focus:outline-none focus:ring-1 focus:ring-teal-700"
-                />
-              </div>
-
-              <div>
-                <label className="font-semibold text-slate-700 block mb-1">Geographic Scope</label>
-                <input
-                  type="text"
-                  value={geographicScope}
-                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => setGeographicScope(e.target.value)}
-                  placeholder="e.g. Citywide / Zone 4"
-                  className="w-full rounded-xl border border-slate-200 bg-background px-3 py-2 text-xs focus:outline-none focus:ring-1 focus:ring-teal-700"
-                />
-              </div>
-            </div>
-
-            {/* Objectives */}
-            <div className="space-y-2">
-              <label className="font-semibold text-slate-700 block">Challenge Objectives</label>
-              <div className="flex gap-2">
-                <input
-                  type="text"
-                  value={newObjective}
-                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => setNewObjective(e.target.value)}
-                  placeholder="Add specific research objective..."
-                  className="flex-1 rounded-xl border border-slate-200 bg-background px-3 py-2 text-xs focus:outline-none focus:ring-1 focus:ring-teal-700"
-                  onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>) => {
-                    if (e.key === "Enter") {
-                      e.preventDefault();
-                      addTag(newObjective, objectives, setObjectives, () => setNewObjective(""));
-                    }
-                  }}
-                />
-                <Button
-                  size="sm"
-                  type="button"
-                  variant="outline"
-                  onClick={() => addTag(newObjective, objectives, setObjectives, () => setNewObjective(""))}
-                  className="text-xs"
-                >
-                  <Plus className="w-3.5 h-3.5" />
-                </Button>
-              </div>
-              <div className="space-y-1 mt-1">
-                {objectives.map((obj, i) => (
-                  <div key={i} className="flex items-center justify-between p-2 bg-slate-50 rounded-lg border border-slate-200 text-xs">
-                    <span>{obj}</span>
-                    <button type="button" onClick={() => removeTag(i, objectives, setObjectives)}>
-                      <Trash2 className="w-3.5 h-3.5 text-rose-500 hover:text-rose-700" />
-                    </button>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="font-bold text-foreground block mb-1">Problem Statement *</label>
+                    <textarea
+                      rows={4}
+                      value={problemStatement}
+                      onChange={(e) => setProblemStatement(e.target.value)}
+                      placeholder="Comprehensive technical statement of the civic challenge..."
+                      className="w-full rounded-xl border border-input bg-background p-3 text-xs focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary"
+                    />
                   </div>
-                ))}
-              </div>
-            </div>
 
-            {/* Required Domains & Technologies */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <label className="font-semibold text-slate-700 block">Required Academic Domains</label>
-                <div className="flex gap-2">
-                  <input
-                    type="text"
-                    value={newDomain}
-                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => setNewDomain(e.target.value)}
-                    placeholder="e.g. Hydrology, Remote Sensing..."
-                    className="flex-1 rounded-xl border border-slate-200 bg-background px-3 py-2 text-xs focus:outline-none focus:ring-1 focus:ring-teal-700"
-                    onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>) => {
-                      if (e.key === "Enter") {
-                        e.preventDefault();
-                        addTag(newDomain, requiredDomains, setRequiredDomains, () => setNewDomain(""));
-                      }
-                    }}
-                  />
-                  <Button
-                    size="sm"
-                    type="button"
-                    variant="outline"
-                    onClick={() => addTag(newDomain, requiredDomains, setRequiredDomains, () => setNewDomain(""))}
-                    className="text-xs"
-                  >
-                    <Plus className="w-3.5 h-3.5" />
-                  </Button>
+                  <div>
+                    <label className="font-bold text-foreground block mb-1">Root Cause Hypothesis</label>
+                    <textarea
+                      rows={4}
+                      value={rootCause}
+                      onChange={(e) => setRootCause(e.target.value)}
+                      placeholder="Systemic, infrastructural, or hydrological root cause..."
+                      className="w-full rounded-xl border border-input bg-background p-3 text-xs focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary"
+                    />
+                  </div>
                 </div>
-                <div className="flex flex-wrap gap-1.5 mt-1">
-                  {requiredDomains.map((dom, i) => (
-                    <Badge key={i} variant="default" className="gap-1 text-xs">
-                      {dom}
-                      <button type="button" onClick={() => removeTag(i, requiredDomains, setRequiredDomains)}>
-                        <X className="w-3 h-3" />
-                      </button>
-                    </Badge>
-                  ))}
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="font-bold text-foreground block mb-1">Affected Population</label>
+                    <input
+                      type="text"
+                      value={affectedPopulation}
+                      onChange={(e) => setAffectedPopulation(e.target.value)}
+                      placeholder="e.g. 85,000 residents in flood-prone wards..."
+                      className="w-full rounded-xl border border-input bg-background px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="font-bold text-foreground block mb-1">Geographic Scope</label>
+                    <input
+                      type="text"
+                      value={geographicScope}
+                      onChange={(e) => setGeographicScope(e.target.value)}
+                      placeholder="e.g. Citywide / Zone 4 Ward Cluster"
+                      className="w-full rounded-xl border border-input bg-background px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary"
+                    />
+                  </div>
                 </div>
               </div>
 
-              <div className="space-y-2">
-                <label className="font-semibold text-slate-700 block">Potential Technologies</label>
-                <div className="flex gap-2">
-                  <input
-                    type="text"
-                    value={newTech}
-                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => setNewTech(e.target.value)}
-                    placeholder="e.g. IoT Flow Sensors, GIS Mapping..."
-                    className="flex-1 rounded-xl border border-slate-200 bg-background px-3 py-2 text-xs focus:outline-none focus:ring-1 focus:ring-teal-700"
-                    onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>) => {
-                      if (e.key === "Enter") {
-                        e.preventDefault();
-                        addTag(newTech, potentialTech, setPotentialTech, () => setNewTech(""));
-                      }
-                    }}
-                  />
-                  <Button
-                    size="sm"
-                    type="button"
-                    variant="outline"
-                    onClick={() => addTag(newTech, potentialTech, setPotentialTech, () => setNewTech(""))}
-                    className="text-xs"
-                  >
-                    <Plus className="w-3.5 h-3.5" />
-                  </Button>
-                </div>
-                <div className="flex flex-wrap gap-1.5 mt-1">
-                  {potentialTech.map((tech, i) => (
-                    <Badge key={i} variant="outline" className="gap-1 text-xs">
-                      {tech}
-                      <button type="button" onClick={() => removeTag(i, potentialTech, setPotentialTech)}>
-                        <X className="w-3 h-3" />
-                      </button>
-                    </Badge>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </div>
-        ) : (
-          /* VIEW MODE */
-          <div className="space-y-5">
-            {/* Statement & Root Cause */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="p-4 bg-slate-50/80 rounded-xl border border-slate-200/80 space-y-1">
-                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">
-                  Problem Statement
-                </span>
-                <p className="text-slate-800 leading-relaxed">{challenge.problemStatement}</p>
-              </div>
+              {/* Group 2: Research Objectives & Expected Outcomes */}
+              <div className="space-y-4 p-4 rounded-xl border border-border/80 bg-muted/10">
+                <span className="text-section-header block">2. Research Objectives &amp; Pilot Deliverables</span>
 
-              <div className="p-4 bg-slate-50/80 rounded-xl border border-slate-200/80 space-y-1">
-                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">
-                  Root Cause Hypothesis
-                </span>
-                <p className="text-slate-800 leading-relaxed">
-                  {challenge.rootCause || problem.approvedRootCause || "Root cause identified through municipal GIS and engineering analysis."}
-                </p>
-              </div>
-            </div>
-
-            {/* Scope & Population */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-              <div className="p-3 bg-white rounded-xl border border-slate-200 shadow-2xs">
-                <span className="text-[10px] text-slate-500 block">Geographic Scope</span>
-                <span className="font-semibold text-slate-900 text-xs block mt-0.5">{challenge.geographicScope}</span>
-              </div>
-              <div className="p-3 bg-white rounded-xl border border-slate-200 shadow-2xs">
-                <span className="text-[10px] text-slate-500 block">Complexity Score</span>
-                <span className="font-bold text-teal-800 text-xs block mt-0.5">{challenge.complexityScore}/100</span>
-              </div>
-              <div className="p-3 bg-white rounded-xl border border-slate-200 shadow-2xs">
-                <span className="text-[10px] text-slate-500 block">Affected Population</span>
-                <span className="font-semibold text-slate-900 text-xs block mt-0.5">{challenge.affectedPopulation || "Civic Commuters & Residents"}</span>
-              </div>
-              <div className="p-3 bg-white rounded-xl border border-slate-200 shadow-2xs">
-                <span className="text-[10px] text-slate-500 block">Formulation State</span>
-                <span className="font-bold text-emerald-800 text-xs block mt-0.5">{challenge.status}</span>
-              </div>
-            </div>
-
-            {/* Objectives */}
-            {challenge.objectives && challenge.objectives.length > 0 && (
-              <div className="space-y-1.5">
-                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1">
-                  <Target className="w-3.5 h-3.5 text-teal-700" />
-                  <span>Research & Engineering Objectives</span>
-                </span>
-                <ul className="list-disc list-inside space-y-1 text-slate-700 bg-slate-50/60 p-3.5 rounded-xl border border-slate-200/80">
-                  {challenge.objectives.map((obj, i) => (
-                    <li key={i} className="leading-relaxed">{obj}</li>
-                  ))}
-                </ul>
-              </div>
-            )}
-
-            {/* Expected Outcomes */}
-            {challenge.expectedOutcomes && challenge.expectedOutcomes.length > 0 && (
-              <div className="space-y-1.5">
-                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">
-                  Expected Pilot Deliverables & Outcomes
-                </span>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                  {challenge.expectedOutcomes.map((out, i) => (
-                    <div key={i} className="p-2.5 bg-teal-50/50 rounded-lg border border-teal-200/60 text-teal-900 text-xs flex items-start gap-2">
-                      <CheckCircle2 className="w-3.5 h-3.5 text-teal-700 shrink-0 mt-0.5" />
-                      <span>{out}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Required Academic Domains & Technologies */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-1">
-              <div className="space-y-2">
-                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">
-                  Required Academic Domains
-                </span>
-                <div className="flex flex-wrap gap-1.5">
-                  {challenge.requiredDomains.map((dom, i) => (
-                    <Badge key={i} className="bg-slate-100 text-slate-800 border-slate-300 font-semibold text-xs">
-                      {dom}
-                    </Badge>
-                  ))}
-                </div>
-              </div>
-
-              {challenge.potentialTechnologies && challenge.potentialTechnologies.length > 0 && (
+                {/* Objectives */}
                 <div className="space-y-2">
-                  <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">
-                    Potential Technologies & Tools
+                  <label className="font-bold text-foreground block">Research &amp; Engineering Objectives</label>
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={newObjective}
+                      onChange={(e) => setNewObjective(e.target.value)}
+                      placeholder="Add specific research objective..."
+                      className="flex-1 rounded-xl border border-input bg-background px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-primary/40"
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          e.preventDefault();
+                          addTag(newObjective, objectives, setObjectives, () => setNewObjective(""));
+                        }
+                      }}
+                    />
+                    <Button
+                      size="sm"
+                      type="button"
+                      variant="outline"
+                      onClick={() => addTag(newObjective, objectives, setObjectives, () => setNewObjective(""))}
+                      className="text-xs"
+                    >
+                      <Plus className="w-3.5 h-3.5" />
+                      <span>Add</span>
+                    </Button>
+                  </div>
+                  <div className="space-y-1 mt-1">
+                    {objectives.map((obj, i) => (
+                      <div key={i} className="flex items-center justify-between p-2 bg-background rounded-lg border border-border text-xs">
+                        <span>{obj}</span>
+                        <button type="button" onClick={() => removeTag(i, objectives, setObjectives)} className="cursor-pointer">
+                          <Trash2 className="w-3.5 h-3.5 text-rose-500 hover:text-rose-700" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Expected Outcomes */}
+                <div className="space-y-2">
+                  <label className="font-bold text-foreground block">Expected Pilot Deliverables</label>
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={newOutcome}
+                      onChange={(e) => setNewOutcome(e.target.value)}
+                      placeholder="Add expected outcome / deliverable..."
+                      className="flex-1 rounded-xl border border-input bg-background px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-primary/40"
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          e.preventDefault();
+                          addTag(newOutcome, expectedOutcomes, setExpectedOutcomes, () => setNewOutcome(""));
+                        }
+                      }}
+                    />
+                    <Button
+                      size="sm"
+                      type="button"
+                      variant="outline"
+                      onClick={() => addTag(newOutcome, expectedOutcomes, setExpectedOutcomes, () => setNewOutcome(""))}
+                      className="text-xs"
+                    >
+                      <Plus className="w-3.5 h-3.5" />
+                      <span>Add</span>
+                    </Button>
+                  </div>
+                  <div className="space-y-1 mt-1">
+                    {expectedOutcomes.map((out, i) => (
+                      <div key={i} className="flex items-center justify-between p-2 bg-background rounded-lg border border-border text-xs">
+                        <span>{out}</span>
+                        <button type="button" onClick={() => removeTag(i, expectedOutcomes, setExpectedOutcomes)} className="cursor-pointer">
+                          <Trash2 className="w-3.5 h-3.5 text-rose-500 hover:text-rose-700" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              {/* Group 3: Academic Domains & Technologies */}
+              <div className="space-y-4 p-4 rounded-xl border border-border/80 bg-muted/10">
+                <span className="text-section-header block">3. Multi-Disciplinary Domain &amp; Technical Criteria</span>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {/* Domains */}
+                  <div className="space-y-2">
+                    <label className="font-bold text-foreground block">Required Academic Domains</label>
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        value={newDomain}
+                        onChange={(e) => setNewDomain(e.target.value)}
+                        placeholder="e.g. Hydrology, Remote Sensing..."
+                        className="flex-1 rounded-xl border border-input bg-background px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-primary/40"
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") {
+                            e.preventDefault();
+                            addTag(newDomain, requiredDomains, setRequiredDomains, () => setNewDomain(""));
+                          }
+                        }}
+                      />
+                      <Button
+                        size="sm"
+                        type="button"
+                        variant="outline"
+                        onClick={() => addTag(newDomain, requiredDomains, setRequiredDomains, () => setNewDomain(""))}
+                        className="text-xs"
+                      >
+                        <Plus className="w-3.5 h-3.5" />
+                      </Button>
+                    </div>
+                    <div className="flex flex-wrap gap-1.5 mt-1">
+                      {requiredDomains.map((dom, i) => (
+                        <Badge key={i} variant="default" className="gap-1 text-xs">
+                          {dom}
+                          <button type="button" onClick={() => removeTag(i, requiredDomains, setRequiredDomains)} className="cursor-pointer">
+                            <X className="w-3 h-3" />
+                          </button>
+                        </Badge>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Technologies */}
+                  <div className="space-y-2">
+                    <label className="font-bold text-foreground block">Potential Technologies</label>
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        value={newTech}
+                        onChange={(e) => setNewTech(e.target.value)}
+                        placeholder="e.g. IoT Flow Sensors, GIS Mapping..."
+                        className="flex-1 rounded-xl border border-input bg-background px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-primary/40"
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") {
+                            e.preventDefault();
+                            addTag(newTech, potentialTech, setPotentialTech, () => setNewTech(""));
+                          }
+                        }}
+                      />
+                      <Button
+                        size="sm"
+                        type="button"
+                        variant="outline"
+                        onClick={() => addTag(newTech, potentialTech, setPotentialTech, () => setNewTech(""))}
+                        className="text-xs"
+                      >
+                        <Plus className="w-3.5 h-3.5" />
+                      </Button>
+                    </div>
+                    <div className="flex flex-wrap gap-1.5 mt-1">
+                      {potentialTech.map((tech, i) => (
+                        <Badge key={i} variant="outline" className="gap-1 text-xs">
+                          {tech}
+                          <button type="button" onClick={() => removeTag(i, potentialTech, setPotentialTech)} className="cursor-pointer">
+                            <X className="w-3 h-3" />
+                          </button>
+                        </Badge>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          ) : (
+            /* ========================================================================= */
+            /* VIEW MODE                                                                 */
+            /* ========================================================================= */
+            <div className="space-y-5">
+              {/* Problem Statement & Root Cause */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="p-4 bg-muted/20 rounded-xl border border-border/80 space-y-1.5">
+                  <span className="text-stat-label block">
+                    Problem Statement
                   </span>
-                  <div className="flex flex-wrap gap-1.5">
-                    {challenge.potentialTechnologies.map((tech, i) => (
-                      <Badge key={i} variant="outline" className="text-slate-700 text-xs">
-                        {tech}
-                      </Badge>
+                  <p className="text-body text-foreground leading-relaxed">{challenge.problemStatement}</p>
+                </div>
+
+                <div className="p-4 bg-muted/20 rounded-xl border border-border/80 space-y-1.5">
+                  <span className="text-stat-label block">
+                    Root Cause Hypothesis
+                  </span>
+                  <p className="text-body text-foreground leading-relaxed">
+                    {challenge.rootCause || problem.approvedRootCause || "Root cause identified through municipal GIS and engineering analysis."}
+                  </p>
+                </div>
+              </div>
+
+              {/* 4-KPI Overview Strip */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                <div className="p-3.5 bg-card rounded-xl border border-border/80 shadow-2xs">
+                  <span className="text-stat-label block">Geographic Scope</span>
+                  <span className="font-semibold text-foreground text-xs block mt-0.5">{challenge.geographicScope}</span>
+                </div>
+                <div className="p-3.5 bg-card rounded-xl border border-border/80 shadow-2xs">
+                  <span className="text-stat-label block">Complexity Score</span>
+                  <span className="font-bold text-teal-800 text-xs block mt-0.5">{challenge.complexityScore}/100</span>
+                </div>
+                <div className="p-3.5 bg-card rounded-xl border border-border/80 shadow-2xs">
+                  <span className="text-stat-label block">Affected Population</span>
+                  <span className="font-semibold text-foreground text-xs block mt-0.5">{challenge.affectedPopulation || "Civic Commuters & Residents"}</span>
+                </div>
+                <div className="p-3.5 bg-card rounded-xl border border-border/80 shadow-2xs">
+                  <span className="text-stat-label block">Formulation State</span>
+                  <span className="font-bold text-emerald-800 text-xs block mt-0.5">{challenge.status}</span>
+                </div>
+              </div>
+
+              {/* Research Objectives */}
+              {challenge.objectives && challenge.objectives.length > 0 && (
+                <div className="space-y-2">
+                  <span className="text-stat-label flex items-center gap-1.5">
+                    <Target className="w-3.5 h-3.5 text-primary" />
+                    <span>Research &amp; Engineering Objectives</span>
+                  </span>
+                  <ul className="list-disc list-inside space-y-1.5 text-foreground bg-muted/20 p-4 rounded-xl border border-border/80 leading-relaxed">
+                    {challenge.objectives.map((obj, i) => (
+                      <li key={i}>{obj}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              {/* Expected Pilot Deliverables */}
+              {challenge.expectedOutcomes && challenge.expectedOutcomes.length > 0 && (
+                <div className="space-y-2">
+                  <span className="text-stat-label block">
+                    Expected Pilot Deliverables &amp; Outcomes
+                  </span>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                    {challenge.expectedOutcomes.map((out, i) => (
+                      <div key={i} className="p-3 bg-teal-50/50 rounded-xl border border-teal-200/80 text-teal-950 text-xs flex items-start gap-2.5 shadow-2xs">
+                        <CheckCircle2 className="w-4 h-4 text-teal-700 shrink-0 mt-0.5" />
+                        <span className="leading-relaxed font-medium">{out}</span>
+                      </div>
                     ))}
                   </div>
                 </div>
               )}
+
+              {/* Required Academic Domains & Technologies */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-1">
+                <div className="space-y-2">
+                  <span className="text-stat-label block">
+                    Required Academic Domains
+                  </span>
+                  <div className="flex flex-wrap gap-1.5">
+                    {challenge.requiredDomains.map((dom, i) => (
+                      <Badge key={i} variant="research" size="sm">
+                        {dom}
+                      </Badge>
+                    ))}
+                  </div>
+                </div>
+
+                {challenge.potentialTechnologies && challenge.potentialTechnologies.length > 0 && (
+                  <div className="space-y-2">
+                    <span className="text-stat-label block">
+                      Potential Technologies &amp; Tools
+                    </span>
+                    <div className="flex flex-wrap gap-1.5">
+                      {challenge.potentialTechnologies.map((tech, i) => (
+                        <Badge key={i} variant="outline" size="sm">
+                          {tech}
+                        </Badge>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
-          </div>
-        )}
-      </CardContent>
+          )}
+        </CardContent>
+      </Card>
 
       {/* APPROVE CONFIRMATION MODAL */}
       <Dialog
@@ -709,16 +825,17 @@ export function ProblemFormulationSection({
               <ShieldCheck className="w-5 h-5" />
             </div>
             <div>
-              <h3 className="font-bold text-slate-900 text-base">Approve Problem Formulation</h3>
-              <p className="text-xs text-slate-500">Authoritative sign-off as Innovation Manager</p>
+              <h3 className="font-bold text-foreground text-base">Approve Problem Formulation</h3>
+              <p className="text-xs text-muted-foreground">Authoritative sign-off as Innovation Manager</p>
             </div>
           </div>
 
-          <p className="text-xs text-slate-600 leading-relaxed">
-            By approving this formulation, you certify that the problem statement, objectives, and academic criteria are sound. This will activate the <strong>Recommendation Engine</strong> to screen and match accredited universities against these specific domains.
+          <p className="text-xs text-muted-foreground leading-relaxed">
+            By approving this formulation, you certify that the problem statement, objectives, and academic criteria are sound. 
+            This will activate the <strong>Recommendation Engine</strong> to screen and match accredited universities against these specific domains.
           </p>
 
-          <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-xs text-emerald-900 font-medium">
+          <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-xs text-emerald-900 font-semibold">
             Challenge: {challenge.title}
           </div>
 
@@ -743,6 +860,6 @@ export function ProblemFormulationSection({
           </div>
         </div>
       </Dialog>
-    </Card>
+    </div>
   );
 }

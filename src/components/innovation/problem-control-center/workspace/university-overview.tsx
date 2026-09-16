@@ -42,12 +42,12 @@ export function UniversityOverview({
             Invitation
           </span>
           <p
-            className={`text-base font-black mt-1 ${
+            className={`text-base font-extrabold mt-1 ${
               isAccepted
-                ? "text-emerald-700"
+                ? "text-emerald-700 dark:text-emerald-400"
                 : institution.invitationStatus === "DECLINED"
-                ? "text-rose-700"
-                : "text-amber-800"
+                ? "text-rose-700 dark:text-rose-400"
+                : "text-amber-800 dark:text-amber-400"
             }`}
           >
             {institution.invitationStatus || "Selected"}
@@ -61,7 +61,7 @@ export function UniversityOverview({
           <span className="text-[10px] font-bold text-muted-foreground uppercase block">
             Project
           </span>
-          <p className="text-base font-black text-foreground mt-1">
+          <p className="text-base font-extrabold text-foreground mt-1">
             {institution.projectId ? (institution.projectStatus || "Active") : "Not Started"}
           </p>
           <span className="text-[10px] text-muted-foreground block truncate">
@@ -69,11 +69,27 @@ export function UniversityOverview({
           </span>
         </div>
 
-        <div className="p-3.5 rounded-2xl border border-border bg-card shadow-xs">
-          <span className="text-[10px] font-bold text-muted-foreground uppercase block">
-            Research Team
-          </span>
-          <p className="text-base font-black text-foreground mt-1">
+        <div
+          onClick={() => {
+            if (onNavigateToTab) {
+              onNavigateToTab("team");
+            }
+          }}
+          className={`p-3.5 rounded-2xl border bg-card shadow-xs transition ${
+            onNavigateToTab
+              ? "cursor-pointer hover:border-primary/60 hover:bg-primary/5 group"
+              : "border-border"
+          }`}
+        >
+          <div className="flex items-center justify-between">
+            <span className="text-[10px] font-bold text-muted-foreground uppercase block">
+              Research Team
+            </span>
+            {onNavigateToTab && (
+              <ArrowRight className="w-3 h-3 text-muted-foreground group-hover:text-primary transition-transform group-hover:translate-x-0.5" />
+            )}
+          </div>
+          <p className="text-base font-extrabold text-foreground mt-1">
             {institution.teamMembersCount} Members
           </p>
           <span className="text-[10px] text-muted-foreground block truncate">
@@ -93,9 +109,9 @@ export function UniversityOverview({
               : "border-border"
           } ${
             isApproved
-              ? "border-emerald-300/80 bg-emerald-50/20"
+              ? "border-emerald-300/80 dark:border-emerald-800 bg-emerald-50/20 dark:bg-emerald-950/20"
               : institution.proposalStatus === "SUBMITTED"
-              ? "border-sky-300/80 bg-sky-50/20"
+              ? "border-sky-300/80 dark:border-sky-800 bg-sky-50/20 dark:bg-sky-950/20"
               : "border-border"
           }`}
         >
@@ -108,11 +124,11 @@ export function UniversityOverview({
             )}
           </div>
           <p
-            className={`text-base font-black mt-1 ${
+            className={`text-base font-extrabold mt-1 ${
               isApproved
-                ? "text-emerald-700"
+                ? "text-emerald-700 dark:text-emerald-400"
                 : institution.proposalStatus === "SUBMITTED"
-                ? "text-sky-700"
+                ? "text-sky-700 dark:text-sky-400"
                 : "text-foreground"
             }`}
           >
@@ -123,11 +139,27 @@ export function UniversityOverview({
           </span>
         </div>
 
-        <div className="p-3.5 rounded-2xl border border-border bg-card shadow-xs col-span-2 sm:col-span-1">
-          <span className="text-[10px] font-bold text-muted-foreground uppercase block">
-            Help Requests
-          </span>
-          <p className="text-base font-black text-foreground mt-1">
+        <div
+          onClick={() => {
+            if (onNavigateToTab) {
+              onNavigateToTab("help");
+            }
+          }}
+          className={`p-3.5 rounded-2xl border bg-card shadow-xs transition col-span-2 sm:col-span-1 ${
+            onNavigateToTab
+              ? "cursor-pointer hover:border-primary/60 hover:bg-primary/5 group"
+              : "border-border"
+          }`}
+        >
+          <div className="flex items-center justify-between">
+            <span className="text-[10px] font-bold text-muted-foreground uppercase block">
+              Help Requests
+            </span>
+            {onNavigateToTab && (
+              <ArrowRight className="w-3 h-3 text-muted-foreground group-hover:text-primary transition-transform group-hover:translate-x-0.5" />
+            )}
+          </div>
+          <p className="text-base font-extrabold text-foreground mt-1">
             0 Open
           </p>
           <span className="text-[10px] text-muted-foreground block">
@@ -139,11 +171,11 @@ export function UniversityOverview({
       {/* DEDICATED RESEARCH PROPOSAL & TECHNICAL BLUEPRINT SHOWCASE */}
       {hasProposal && (
         <Card
-          className={`border-2 transition-all shadow-sm overflow-hidden ${
+          className={`border transition-all shadow-xs overflow-hidden ${
             isApproved
-              ? "border-emerald-400/80 bg-gradient-to-br from-emerald-50/60 via-background to-background"
+              ? "border-emerald-400/80 dark:border-emerald-800 bg-gradient-to-br from-emerald-50/60 via-background to-background dark:from-emerald-950/30 dark:via-background dark:to-background"
               : institution.proposalStatus === "SUBMITTED"
-              ? "border-sky-400/80 bg-gradient-to-br from-sky-50/60 via-background to-background"
+              ? "border-sky-400/80 dark:border-sky-800 bg-gradient-to-br from-sky-50/60 via-background to-background dark:from-sky-950/30 dark:via-background dark:to-background"
               : "border-border bg-card"
           }`}
         >
@@ -159,7 +191,7 @@ export function UniversityOverview({
               <div className="space-y-1">
                 <div className="flex items-center gap-2 flex-wrap">
                   <FileText className="w-4 h-4 text-primary" />
-                  <h3 className="text-base font-black text-foreground tracking-tight">
+                  <h3 className="text-base font-extrabold text-foreground tracking-tight">
                     Research Proposal &amp; Technical Blueprint
                   </h3>
                   <Badge
@@ -190,7 +222,7 @@ export function UniversityOverview({
                 <Button
                   size="sm"
                   onClick={() => onNavigateToTab("proposal")}
-                  className={`text-xs font-bold gap-1.5 shadow-sm shrink-0 h-9 px-4 ${
+                  className={`text-xs font-bold gap-1.5 shadow-xs shrink-0 h-9 px-4 ${
                     isApproved
                       ? "bg-emerald-700 hover:bg-emerald-800 text-white"
                       : "bg-primary hover:bg-primary/90 text-primary-foreground"
@@ -285,16 +317,16 @@ export function UniversityOverview({
           </div>
 
           <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-2 text-center text-[10px] font-semibold">
-            <div className="p-2 rounded-xl bg-emerald-100 text-emerald-900 border border-emerald-300">
+            <div className="p-2 rounded-xl bg-emerald-100 text-emerald-900 border border-emerald-300 dark:bg-emerald-950/50 dark:text-emerald-300 dark:border-emerald-800">
               ✓ Selected
             </div>
-            <div className="p-2 rounded-xl bg-emerald-100 text-emerald-900 border border-emerald-300">
+            <div className="p-2 rounded-xl bg-emerald-100 text-emerald-900 border border-emerald-300 dark:bg-emerald-950/50 dark:text-emerald-300 dark:border-emerald-800">
               ✓ Invited
             </div>
             <div
               className={`p-2 rounded-xl border ${
                 isAccepted
-                  ? "bg-emerald-100 text-emerald-900 border-emerald-300"
+                  ? "bg-emerald-100 text-emerald-900 border-emerald-300 dark:bg-emerald-950/50 dark:text-emerald-300 dark:border-emerald-800"
                   : "bg-muted text-muted-foreground border-border"
               }`}
             >
@@ -303,7 +335,7 @@ export function UniversityOverview({
             <div
               className={`p-2 rounded-xl border ${
                 institution.projectId
-                  ? "bg-emerald-100 text-emerald-900 border-emerald-300"
+                  ? "bg-emerald-100 text-emerald-900 border-emerald-300 dark:bg-emerald-950/50 dark:text-emerald-300 dark:border-emerald-800"
                   : "bg-muted text-muted-foreground border-border"
               }`}
             >
@@ -312,7 +344,7 @@ export function UniversityOverview({
             <div
               className={`p-2 rounded-xl border ${
                 institution.teamMembersCount >= 2
-                  ? "bg-emerald-100 text-emerald-900 border-emerald-300"
+                  ? "bg-emerald-100 text-emerald-900 border-emerald-300 dark:bg-emerald-950/50 dark:text-emerald-300 dark:border-emerald-800"
                   : "bg-muted text-muted-foreground border-border"
               }`}
             >
@@ -323,7 +355,7 @@ export function UniversityOverview({
                 isApproved
                   ? "bg-emerald-600 text-white font-bold border-emerald-700"
                   : hasProposal
-                  ? "bg-sky-100 text-sky-950 font-bold border-sky-300"
+                  ? "bg-sky-100 text-sky-950 dark:bg-sky-950/50 dark:text-sky-300 font-bold border-sky-300 dark:border-sky-800"
                   : "bg-muted text-muted-foreground border-border"
               }`}
             >
@@ -341,16 +373,16 @@ export function UniversityOverview({
 
       {/* 3. MATCH EVIDENCE & WHY RECOMMENDED */}
       {institution.matchEvidence && (
-        <Card className="border-border bg-gradient-to-br from-teal-50/30 via-background to-background shadow-xs">
+        <Card className="border-border bg-gradient-to-br from-teal-50/30 via-background to-background dark:from-teal-950/20 dark:via-background dark:to-background shadow-xs">
           <CardContent className="p-5 space-y-4">
             <div className="flex items-center justify-between flex-wrap gap-2">
               <div className="flex items-center gap-2">
-                <Sparkles className="w-4 h-4 text-teal-700" />
+                <Sparkles className="w-4 h-4 text-teal-700 dark:text-teal-400" />
                 <h4 className="text-sm font-bold text-foreground">
                   AI Recommendation &amp; Match Alignment on This Problem
                 </h4>
               </div>
-              <Badge className="bg-teal-100 text-teal-900 border-teal-300 text-[10px] font-bold">
+              <Badge className="bg-teal-100 text-teal-900 border-teal-300 dark:bg-teal-950/50 dark:text-teal-300 dark:border-teal-800 text-[10px] font-bold">
                 Rank #{institution.matchEvidence.rank} · {Math.round(institution.matchEvidence.overallScore * 100)}% Match
               </Badge>
             </div>
@@ -365,7 +397,7 @@ export function UniversityOverview({
                 <span className="text-[10px] font-bold text-muted-foreground uppercase block">
                   Overall Score
                 </span>
-                <span className="text-sm font-black text-teal-900">
+                <span className="text-sm font-black text-teal-900 dark:text-teal-300">
                   {Math.round(institution.matchEvidence.overallScore * 100)}%
                 </span>
               </div>
@@ -397,8 +429,8 @@ export function UniversityOverview({
 
             {/* Strengths & Gaps */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-2">
-              <div className="p-3 rounded-xl border border-emerald-200 bg-emerald-50/30 space-y-1">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-900 block">
+              <div className="p-3 rounded-xl border border-emerald-200 dark:border-emerald-800 bg-emerald-50/30 dark:bg-emerald-950/20 space-y-1">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-900 dark:text-emerald-300 block">
                   Key Institutional Strengths
                 </span>
                 <div className="flex items-center gap-1.5 flex-wrap">
@@ -406,7 +438,7 @@ export function UniversityOverview({
                     institution.matchEvidence.topStrengths.map((str, idx) => (
                       <span
                         key={idx}
-                        className="inline-block px-2 py-0.5 rounded-md bg-white/80 border border-emerald-200 text-[10px] font-semibold text-emerald-950"
+                        className="inline-block px-2 py-0.5 rounded-md bg-white/80 dark:bg-card border border-emerald-200 dark:border-emerald-800 text-[10px] font-semibold text-emerald-950 dark:text-emerald-300"
                       >
                         {str}
                       </span>
@@ -417,8 +449,8 @@ export function UniversityOverview({
                 </div>
               </div>
 
-              <div className="p-3 rounded-xl border border-amber-200 bg-amber-50/30 space-y-1">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-amber-900 block">
+              <div className="p-3 rounded-xl border border-amber-200 dark:border-amber-800 bg-amber-50/30 dark:bg-amber-950/20 space-y-1">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-amber-900 dark:text-amber-300 block">
                   Identified Gaps / Co-Development Areas
                 </span>
                 <div className="flex items-center gap-1.5 flex-wrap">
@@ -426,7 +458,7 @@ export function UniversityOverview({
                     institution.matchEvidence.gaps.map((gap, idx) => (
                       <span
                         key={idx}
-                        className="inline-block px-2 py-0.5 rounded-md bg-white/80 border border-amber-200 text-[10px] font-medium text-amber-950"
+                        className="inline-block px-2 py-0.5 rounded-md bg-white/80 dark:bg-card border border-amber-200 dark:border-amber-800 text-[10px] font-medium text-amber-950 dark:text-amber-300"
                       >
                         {gap}
                       </span>

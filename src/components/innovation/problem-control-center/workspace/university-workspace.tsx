@@ -136,8 +136,8 @@ export function UniversityWorkspace({
       )}
 
       {/* 2. DEDICATED UNIVERSITY WORKSPACE HERO HEADER */}
-      <Card className="border-border/90 bg-card shadow-sm overflow-hidden">
-        <div className="h-2 bg-gradient-to-r from-teal-600 via-sky-600 to-indigo-600" />
+      <Card className="border-border/90 bg-card shadow-xs overflow-hidden">
+        <div className="h-1.5 bg-gradient-to-r from-teal-600 via-sky-600 to-indigo-600" />
         <CardContent className="p-5 sm:p-6 space-y-4">
           <div className="flex flex-col lg:flex-row lg:items-start justify-between gap-4">
             <div className="space-y-2 flex-1 min-w-0">
@@ -154,12 +154,12 @@ export function UniversityWorkspace({
                 <Badge
                   className={
                     isApproved
-                      ? "bg-emerald-100 text-emerald-950 border-emerald-300 font-bold text-xs"
+                      ? "bg-emerald-100 text-emerald-950 border-emerald-300 dark:bg-emerald-950/50 dark:text-emerald-300 dark:border-emerald-800 font-bold text-xs"
                       : needsReview
-                      ? "bg-sky-100 text-sky-950 border-sky-300 font-bold text-xs animate-pulse"
+                      ? "bg-sky-100 text-sky-950 border-sky-300 dark:bg-sky-950/50 dark:text-sky-300 dark:border-sky-800 font-bold text-xs animate-pulse"
                       : isAccepted
-                      ? "bg-teal-100 text-teal-950 border-teal-300 font-bold text-xs"
-                      : "bg-amber-100 text-amber-950 border-amber-300 font-semibold text-xs"
+                      ? "bg-teal-100 text-teal-950 border-teal-300 dark:bg-teal-950/50 dark:text-teal-300 dark:border-teal-800 font-bold text-xs"
+                      : "bg-amber-100 text-amber-950 border-amber-300 dark:bg-amber-950/50 dark:text-amber-300 dark:border-amber-800 font-semibold text-xs"
                   }
                 >
                   Stage: {institution.lifecycleLabel}
@@ -177,7 +177,7 @@ export function UniversityWorkspace({
                   </span>
                 </div>
 
-                <h1 className="text-xl sm:text-2xl lg:text-3xl font-black text-foreground tracking-tight leading-snug">
+                <h1 className="text-xl sm:text-2xl lg:text-3xl font-extrabold text-foreground tracking-tight leading-snug">
                   {institution.institutionName}
                   {institution.city ? ` (${institution.city})` : ""}
                 </h1>
@@ -227,17 +227,17 @@ export function UniversityWorkspace({
 
       {/* 3. ACTION REQUIRED BANNER (SPECIFIC TO THIS UNIVERSITY) */}
       {needsReview && institution.proposalId && (
-        <div className="p-4 rounded-2xl border-2 border-sky-400 bg-gradient-to-r from-sky-50 via-indigo-50/40 to-background shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div className="p-4 rounded-2xl border border-sky-400 dark:border-sky-800 bg-gradient-to-r from-sky-50 via-indigo-50/40 to-background dark:from-sky-950/40 dark:via-indigo-950/20 dark:to-background shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div className="flex items-center gap-2.5">
             <span className="flex h-3 w-3 relative shrink-0">
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-sky-400 opacity-75" />
               <span className="relative inline-flex rounded-full h-3 w-3 bg-sky-500" />
             </span>
             <div className="space-y-0.5">
-              <span className="text-xs font-black uppercase tracking-wider text-sky-950 block">
+              <span className="text-xs font-extrabold uppercase tracking-wider text-sky-950 dark:text-sky-200 block">
                 Action Required on {institution.institutionName}'s Deliverable
               </span>
-              <p className="text-xs text-sky-900">
+              <p className="text-xs text-sky-900 dark:text-sky-300">
                 Research Proposal v{institution.proposalVersion || 1} has been submitted for administrative evaluation.
               </p>
             </div>
@@ -256,14 +256,14 @@ export function UniversityWorkspace({
 
       {/* 3b. APPROVED PROPOSAL SUCCESS BANNER */}
       {isApproved && institution.proposalId && (
-        <div className="p-4 rounded-2xl border-2 border-emerald-400 bg-gradient-to-r from-emerald-50 via-teal-50/40 to-background shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div className="p-4 rounded-2xl border border-emerald-400 dark:border-emerald-800 bg-gradient-to-r from-emerald-50 via-teal-50/40 to-background dark:from-emerald-950/40 dark:via-teal-950/20 dark:to-background shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div className="flex items-center gap-2.5">
-            <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />
+            <CheckCircle2 className="w-5 h-5 text-emerald-600 dark:text-emerald-400 shrink-0" />
             <div className="space-y-0.5">
-              <span className="text-xs font-black uppercase tracking-wider text-emerald-950 block">
+              <span className="text-xs font-extrabold uppercase tracking-wider text-emerald-950 dark:text-emerald-200 block">
                 Approved Solution Blueprint for {institution.institutionName}
               </span>
-              <p className="text-xs text-emerald-900">
+              <p className="text-xs text-emerald-900 dark:text-emerald-300">
                 Research Proposal v{institution.proposalVersion || 1} has been reviewed, approved, and authorized for municipal co-development.
               </p>
             </div>

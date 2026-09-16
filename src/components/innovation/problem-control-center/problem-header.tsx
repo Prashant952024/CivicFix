@@ -91,56 +91,59 @@ export function ProblemHeader({
 
       {/* 2. CANONICAL PROBLEM HERO CARD */}
       <Card className="border-border/90 bg-card shadow-sm overflow-hidden">
-        <div className="h-2 bg-gradient-to-r from-teal-600 via-sky-600 to-indigo-600" />
+        <div className="h-2 bg-gradient-to-r from-teal-600 via-indigo-600 to-sky-600" />
         <CardContent className="p-5 sm:p-6 space-y-4">
           <div className="flex flex-col lg:flex-row lg:items-start justify-between gap-4">
             <div className="space-y-2.5 flex-1 min-w-0">
               {/* Category & Status Badges */}
               <div className="flex items-center gap-2 flex-wrap">
-                <Badge variant="outline" className="text-xs font-semibold bg-muted/30">
+                <Badge variant="outline" size="sm" className="bg-muted/30">
                   {problem.category}
                 </Badge>
-                <Badge variant="info" className="text-xs">
+                <Badge variant="research" size="sm">
                   {problem.geographicScope}
                 </Badge>
-                <Badge className="bg-amber-100 text-amber-950 border-amber-300 font-bold text-xs">
+                <Badge variant="attention" size="sm">
                   COMPLEX • {stats.complexityScore}/100
                 </Badge>
                 {problem.complexityConfidence !== null && (
-                  <Badge variant="outline" className="text-[10px] text-muted-foreground font-mono">
+                  <Badge variant="outline" size="sm" className="font-mono">
                     Confidence: {Math.round(problem.complexityConfidence * 100)}%
                   </Badge>
                 )}
                 {challenge ? (
                   <Badge
-                    className={
+                    variant={
                       ["APPROVED", "INVITATIONS_SENT", "OPEN_FOR_PROPOSALS", "ACTIVE", "PILOT_ACTIVE", "SOLVED"].includes(challenge.status)
-                        ? "bg-emerald-100 text-emerald-900 border-emerald-300 text-xs font-bold"
-                        : "bg-teal-100 text-teal-900 border-teal-300 text-xs font-bold"
+                        ? "civic"
+                        : "innovation"
                     }
+                    size="sm"
                   >
-                    Challenge {challenge.status.replace(/_/g, " ")}
+                    Challenge: {challenge.status.replace(/_/g, " ")}
                   </Badge>
                 ) : (
-                  <Badge variant="outline" className="text-xs text-amber-700 border-amber-300">
+                  <Badge variant="attention" size="sm">
                     Needs Formulation
                   </Badge>
                 )}
               </div>
 
               {/* Problem Title */}
-              <h1 className="text-xl sm:text-2xl lg:text-3xl font-black text-foreground tracking-tight leading-snug">
+              <h1 className="text-2xl sm:text-3xl font-extrabold text-foreground tracking-tight leading-snug break-words">
                 {problem.title}
               </h1>
 
               {/* Problem ID and challenge title */}
               <div className="flex items-center gap-3 text-xs text-muted-foreground flex-wrap">
-                <span className="font-mono text-[11px]">ID: {problem.id}</span>
+                <span className="font-mono text-[11px] bg-muted/40 px-2 py-0.5 rounded-md border border-border/60">
+                  ID: {problem.id}
+                </span>
                 {challenge?.title && (
                   <>
-                    <span>•</span>
-                    <span className="text-primary font-semibold flex items-center gap-1">
-                      <Rocket className="w-3.5 h-3.5 text-primary" />
+                    <span className="text-muted-foreground/60">•</span>
+                    <span className="text-indigo-800 dark:text-indigo-300 font-semibold flex items-center gap-1">
+                      <Rocket className="w-3.5 h-3.5 text-indigo-600 shrink-0" aria-hidden="true" />
                       <span>Formulation: {challenge.title}</span>
                     </span>
                   </>
@@ -148,8 +151,8 @@ export function ProblemHeader({
               </div>
             </div>
 
-            {/* PRIMARY ACTION: RECOMMENDATION ENGINE */}
-            <div className="flex items-center gap-2 flex-wrap shrink-0">
+            {/* PRIMARY ACTION: DYNAMICALLY DERIVED */}
+            <div className="flex items-center gap-2 flex-wrap shrink-0 pt-1 lg:pt-0">
               {challenge ? (
                 <>
                   <Button
@@ -160,16 +163,17 @@ export function ProblemHeader({
                     }}
                     className="text-xs font-medium gap-1.5 h-9"
                   >
-                    <BookOpen className="w-3.5 h-3.5" />
+                    <BookOpen className="w-3.5 h-3.5" aria-hidden="true" />
                     <span>View Challenge</span>
                   </Button>
 
                   <Button
                     size="sm"
+                    variant="innovation"
                     onClick={onOpenRecommendationEngine}
-                    className="bg-teal-700 hover:bg-teal-800 text-white text-xs font-bold gap-1.5 shadow-sm h-9 px-4"
+                    className="text-xs font-bold gap-1.5 h-9 px-4"
                   >
-                    <GraduationCap className="w-4 h-4" />
+                    <GraduationCap className="w-4 h-4" aria-hidden="true" />
                     <span>
                       {matchingRunAt ? "Open Recommendation Engine" : "Recommendation Engine"}
                     </span>
@@ -178,6 +182,7 @@ export function ProblemHeader({
               ) : (
                 <Button
                   size="sm"
+                  variant="innovation"
                   onClick={() => {
                     if (onOpenFormulation) {
                       onOpenFormulation();
@@ -185,9 +190,9 @@ export function ProblemHeader({
                       void navigate(`/app/innovation/issues/${problem.id}`);
                     }
                   }}
-                  className="bg-primary hover:bg-primary/90 text-primary-foreground text-xs font-bold gap-1.5 shadow-sm h-9 px-4"
+                  className="text-xs font-bold gap-1.5 h-9 px-4"
                 >
-                  <Sparkles className="w-3.5 h-3.5" />
+                  <Sparkles className="w-3.5 h-3.5" aria-hidden="true" />
                   <span>Formulate Challenge</span>
                 </Button>
               )}
@@ -197,7 +202,7 @@ export function ProblemHeader({
           {/* Quick Problem Metadata Strip */}
           <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 pt-3 border-t border-border/70 text-xs">
             <div className="space-y-0.5">
-              <span className="text-[10px] uppercase font-bold text-muted-foreground block">
+              <span className="text-stat-label block">
                 Administrative Classification
               </span>
               <span className="font-semibold text-foreground truncate block">
@@ -206,8 +211,8 @@ export function ProblemHeader({
             </div>
 
             <div className="space-y-0.5">
-              <span className="text-[10px] uppercase font-bold text-muted-foreground block flex items-center gap-1">
-                <MapPin className="w-2.5 h-2.5" />
+              <span className="text-stat-label flex items-center gap-1">
+                <MapPin className="w-2.5 h-2.5 text-primary shrink-0" aria-hidden="true" />
                 <span>Location &amp; City</span>
               </span>
               <span className="font-semibold text-foreground truncate block">
@@ -216,8 +221,8 @@ export function ProblemHeader({
             </div>
 
             <div className="space-y-0.5">
-              <span className="text-[10px] uppercase font-bold text-muted-foreground block flex items-center gap-1">
-                <User className="w-2.5 h-2.5" />
+              <span className="text-stat-label flex items-center gap-1">
+                <User className="w-2.5 h-2.5 text-primary shrink-0" aria-hidden="true" />
                 <span>Report Origin</span>
               </span>
               <span className="font-semibold text-foreground truncate block">
@@ -226,8 +231,8 @@ export function ProblemHeader({
             </div>
 
             <div className="space-y-0.5">
-              <span className="text-[10px] uppercase font-bold text-muted-foreground block flex items-center gap-1">
-                <CheckCircle2 className="w-2.5 h-2.5" />
+              <span className="text-stat-label flex items-center gap-1">
+                <CheckCircle2 className="w-2.5 h-2.5 text-primary shrink-0" aria-hidden="true" />
                 <span>Challenge Status</span>
               </span>
               <span className="font-semibold text-foreground truncate block">
@@ -245,8 +250,8 @@ export function ProblemHeader({
                 stats.proposalsApprovedCount > 0 ? "cursor-pointer group" : ""
               }`}
             >
-              <span className="text-[10px] uppercase font-bold text-muted-foreground block flex items-center gap-1">
-                <GraduationCap className="w-2.5 h-2.5 text-primary" />
+              <span className="text-stat-label flex items-center gap-1">
+                <GraduationCap className="w-2.5 h-2.5 text-primary shrink-0" aria-hidden="true" />
                 <span>Research Solutions</span>
               </span>
               <span

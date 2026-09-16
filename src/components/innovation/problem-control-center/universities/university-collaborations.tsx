@@ -156,19 +156,19 @@ export function UniversityCollaborations({
   return (
     <div className="space-y-6">
       {/* 1. PROMINENT UNIVERSITY COLLABORATION SELECTOR / DROPDOWN */}
-      <div className="p-4 sm:p-5 rounded-2xl border-2 border-primary/20 bg-gradient-to-r from-primary/5 via-sky-500/5 to-transparent flex flex-col md:flex-row md:items-center justify-between gap-4 shadow-xs">
+      <div className="p-4 sm:p-5 rounded-2xl border border-primary/20 bg-gradient-to-r from-primary/5 via-sky-500/5 to-transparent flex flex-col md:flex-row md:items-center justify-between gap-4 shadow-xs">
         <div className="space-y-1">
           <div className="flex items-center gap-2 flex-wrap">
             <GraduationCap className="w-5 h-5 text-primary" />
-            <span className="font-black text-sm uppercase tracking-wider text-foreground">
+            <span className="font-extrabold text-sm uppercase tracking-wider text-foreground">
               University Collaboration
             </span>
-            <Badge className="bg-primary/10 text-primary border-primary/30 text-[10px] font-bold">
+            <Badge variant="outline" className="bg-primary/10 text-primary border-primary/30 text-[10px] font-bold">
               {institutions.length} Participating
             </Badge>
             {currentSelectedTrack && (
-              <Badge className="bg-emerald-100 text-emerald-900 border-emerald-300 text-[10px] font-bold">
-                Active Workspace: {currentSelectedTrack.institutionName}
+              <Badge variant="outline" className="bg-emerald-50 text-emerald-800 border-emerald-300 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800 text-[10px] font-bold">
+                Active: {currentSelectedTrack.institutionName}
                 {currentSelectedTrack.city ? ` (${currentSelectedTrack.city})` : ""}
               </Badge>
             )}
@@ -187,7 +187,7 @@ export function UniversityCollaborations({
                 const val = e.target.value;
                 onSelectInstitution(val === "all" ? "all" : val);
               }}
-              className="text-xs font-bold bg-background border-2 border-primary/40 hover:border-primary rounded-xl pl-3.5 pr-8 py-2 text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 shadow-xs cursor-pointer appearance-none min-w-[260px] sm:min-w-[320px] max-w-full"
+              className="text-xs font-bold bg-background border border-primary/40 hover:border-primary rounded-xl pl-3.5 pr-8 py-2 text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 shadow-xs cursor-pointer appearance-none min-w-[260px] sm:min-w-[320px] max-w-full transition-colors"
             >
               <option value="all">
                 📂 All Collaborations Directory ({institutions.length} Institutions)
@@ -217,7 +217,7 @@ export function UniversityCollaborations({
 
       {/* 2. EMBEDDED SELECTED UNIVERSITY WORKSPACE */}
       {currentSelectedTrack ? (
-        <div className="pt-2">
+        <div className="pt-1">
           <UniversityWorkspace
             problem={problem}
             challenge={challenge}
@@ -247,7 +247,7 @@ export function UniversityCollaborations({
                 size="sm"
                 variant={filter === "ALL" ? "default" : "outline"}
                 onClick={() => setFilter("ALL")}
-                className="text-xs h-7 px-2.5"
+                className="text-xs h-7.5 px-2.5 rounded-lg"
               >
                 All ({institutions.length})
               </Button>
@@ -255,7 +255,7 @@ export function UniversityCollaborations({
                 size="sm"
                 variant={filter === "ACCEPTED" ? "default" : "outline"}
                 onClick={() => setFilter("ACCEPTED")}
-                className="text-xs h-7 px-2.5"
+                className="text-xs h-7.5 px-2.5 rounded-lg"
               >
                 Accepted ({acceptedCount})
               </Button>
@@ -263,7 +263,7 @@ export function UniversityCollaborations({
                 size="sm"
                 variant={filter === "INVITED" ? "default" : "outline"}
                 onClick={() => setFilter("INVITED")}
-                className="text-xs h-7 px-2.5"
+                className="text-xs h-7.5 px-2.5 rounded-lg"
               >
                 Invited ({invitedCount})
               </Button>
@@ -271,7 +271,7 @@ export function UniversityCollaborations({
                 size="sm"
                 variant={filter === "PROPOSALS" ? "default" : "outline"}
                 onClick={() => setFilter("PROPOSALS")}
-                className="text-xs h-7 px-2.5"
+                className="text-xs h-7.5 px-2.5 rounded-lg"
               >
                 Proposals ({proposalsCount})
               </Button>
@@ -279,76 +279,76 @@ export function UniversityCollaborations({
                 size="sm"
                 variant={filter === "APPROVED" ? "default" : "outline"}
                 onClick={() => setFilter("APPROVED")}
-                className="text-xs h-7 px-2.5"
+                className="text-xs h-7.5 px-2.5 rounded-lg"
               >
                 Approved ({approvedCount})
               </Button>
             </div>
           </div>
 
-          {/* Search Filter */}
-          {institutions.length > 2 && (
-            <div className="relative max-w-sm">
-              <Search className="w-3.5 h-3.5 text-muted-foreground absolute left-3 top-1/2 -translate-y-1/2" />
-              <input
-                type="text"
-                placeholder="Search university, PI, or city..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-9 pr-3 py-1.5 text-xs bg-muted/30 rounded-xl border border-border focus:outline-hidden focus:ring-2 focus:ring-primary/20 placeholder:text-muted-foreground"
-              />
-            </div>
-          )}
-
-          {/* Institutions Grid */}
-          {institutions.length === 0 ? (
-            <EmptyState
-              title="No University Collaborations Dispatched Yet"
-              description="Use the Recommendation Engine above to screen suitable institutions and send research collaboration invitations."
-              action={
-                <Button
-                  onClick={onOpenRecommendationEngine}
-                  className="bg-primary text-primary-foreground text-xs gap-1.5"
-                >
-                  <Sparkles className="w-3.5 h-3.5" />
-                  <span>Open Recommendation Engine</span>
-                </Button>
-              }
-            />
-          ) : filteredInstitutions.length === 0 ? (
-            <EmptyState
-              title="No Collaborations Match Filter"
-              description="No participating institutions match your selected filter."
-              action={
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => {
-                    setFilter("ALL");
-                    setSearchQuery("");
-                  }}
-                >
-                  Show All Collaborations
-                </Button>
-              }
-            />
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {filteredInstitutions.map((track) => (
-                <UniversityCard
-                  key={track.institutionId}
-                  track={track}
-                  onOpenWorkspace={(institutionId, tab) => {
-                    onSelectInstitution(institutionId);
-                    if (tab && onTabChange) {
-                      onTabChange(tab);
-                    }
-                  }}
-                  onInspectProfile={onInspectProfile}
+            {/* Search Filter */}
+            {institutions.length > 2 && (
+              <div className="relative max-w-sm">
+                <Search className="w-3.5 h-3.5 text-muted-foreground absolute left-3 top-1/2 -translate-y-1/2" />
+                <input
+                  type="text"
+                  placeholder="Search university, PI, or city..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full pl-9 pr-3 py-1.5 text-xs bg-muted/30 rounded-xl border border-border focus:outline-hidden focus:ring-2 focus:ring-primary/20 placeholder:text-muted-foreground"
                 />
-              ))}
-            </div>
-          )}
+              </div>
+            )}
+
+            {/* Institutions Grid */}
+            {institutions.length === 0 ? (
+              <EmptyState
+                title="No University Collaborations Dispatched Yet"
+                description="Use the Recommendation Engine above to screen suitable institutions and send research collaboration invitations."
+                action={
+                  <Button
+                    onClick={onOpenRecommendationEngine}
+                    className="bg-primary text-primary-foreground text-xs gap-1.5"
+                  >
+                    <Sparkles className="w-3.5 h-3.5" />
+                    <span>Open Recommendation Engine</span>
+                  </Button>
+                }
+              />
+            ) : filteredInstitutions.length === 0 ? (
+              <EmptyState
+                title="No Collaborations Match Filter"
+                description="No participating institutions match your selected filter."
+                action={
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      setFilter("ALL");
+                      setSearchQuery("");
+                    }}
+                  >
+                    Show All Collaborations
+                  </Button>
+                }
+              />
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {filteredInstitutions.map((track) => (
+                  <UniversityCard
+                    key={track.institutionId}
+                    track={track}
+                    onOpenWorkspace={(institutionId, tab) => {
+                      onSelectInstitution(institutionId);
+                      if (tab && onTabChange) {
+                        onTabChange(tab);
+                      }
+                    }}
+                    onInspectProfile={onInspectProfile}
+                  />
+                ))}
+              </div>
+            )}
         </div>
       )}
     </div>

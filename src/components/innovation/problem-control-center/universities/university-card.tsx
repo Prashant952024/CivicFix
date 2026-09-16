@@ -36,11 +36,11 @@ export function UniversityCard({
 
   return (
     <Card
-      className={`rounded-2xl border transition-all duration-200 ease-out shadow-sm hover:shadow-md hover:-translate-y-0.5 flex flex-col justify-between ${
+      className={`rounded-2xl border transition-all duration-200 ease-out shadow-xs hover:shadow-md flex flex-col justify-between ${
         isApproved
-          ? "border-emerald-300 bg-gradient-to-br from-emerald-50/20 via-background to-background"
+          ? "border-emerald-300 dark:border-emerald-800 bg-gradient-to-br from-emerald-50/30 via-background to-background"
           : needsReview
-          ? "border-sky-300 bg-gradient-to-br from-sky-50/25 via-background to-background"
+          ? "border-sky-300 dark:border-sky-800 bg-gradient-to-br from-sky-50/30 via-background to-background"
           : isAccepted
           ? "border-border/90 bg-card"
           : "border-border/70 bg-muted/10"
@@ -82,12 +82,12 @@ export function UniversityCard({
           <Badge
             className={
               isApproved
-                ? "bg-emerald-100 text-emerald-900 border-emerald-300 text-[10px] font-bold shrink-0"
+                ? "bg-emerald-100 text-emerald-900 border-emerald-300 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800 text-[10px] font-bold shrink-0"
                 : needsReview
-                ? "bg-sky-100 text-sky-900 border-sky-300 text-[10px] font-bold shrink-0 animate-pulse"
+                ? "bg-sky-100 text-sky-900 border-sky-300 dark:bg-sky-950/40 dark:text-sky-300 dark:border-sky-800 text-[10px] font-bold shrink-0 animate-pulse"
                 : isAccepted
-                ? "bg-teal-100 text-teal-900 border-teal-300 text-[10px] font-bold shrink-0"
-                : "bg-amber-100 text-amber-900 border-amber-300 text-[10px] font-semibold shrink-0"
+                ? "bg-teal-100 text-teal-900 border-teal-300 dark:bg-teal-950/40 dark:text-teal-300 dark:border-teal-800 text-[10px] font-bold shrink-0"
+                : "bg-amber-100 text-amber-900 border-amber-300 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800 text-[10px] font-semibold shrink-0"
             }
           >
             {track.lifecycleLabel}
@@ -103,10 +103,10 @@ export function UniversityCard({
             <span
               className={`font-semibold ${
                 isAccepted
-                  ? "text-emerald-700"
+                  ? "text-emerald-700 dark:text-emerald-400"
                   : track.invitationStatus === "DECLINED"
-                  ? "text-rose-700"
-                  : "text-amber-800"
+                  ? "text-rose-700 dark:text-rose-400"
+                  : "text-amber-800 dark:text-amber-400"
               }`}
             >
               {track.invitationStatus ? track.invitationStatus : "Selected"}
@@ -138,9 +138,9 @@ export function UniversityCard({
             <span
               className={`font-semibold truncate block ${
                 isApproved
-                  ? "text-emerald-700 font-bold"
+                  ? "text-emerald-700 dark:text-emerald-400 font-bold"
                   : needsReview
-                  ? "text-sky-700 font-bold"
+                  ? "text-sky-700 dark:text-sky-400 font-bold"
                   : "text-foreground"
               }`}
             >
@@ -157,13 +157,13 @@ export function UniversityCard({
           </div>
 
           <div className="grid grid-cols-5 gap-1 text-center font-semibold">
-            <div className="p-1 rounded bg-emerald-100 text-emerald-900">
+            <div className="p-1 rounded bg-emerald-100 text-emerald-900 dark:bg-emerald-950/50 dark:text-emerald-300">
               ✓ Invited
             </div>
             <div
               className={`p-1 rounded ${
                 isAccepted
-                  ? "bg-emerald-100 text-emerald-900"
+                  ? "bg-emerald-100 text-emerald-900 dark:bg-emerald-950/50 dark:text-emerald-300"
                   : "bg-muted text-muted-foreground"
               }`}
             >
@@ -172,7 +172,7 @@ export function UniversityCard({
             <div
               className={`p-1 rounded ${
                 track.projectId
-                  ? "bg-emerald-100 text-emerald-900"
+                  ? "bg-emerald-100 text-emerald-900 dark:bg-emerald-950/50 dark:text-emerald-300"
                   : "bg-muted text-muted-foreground"
               }`}
             >
@@ -183,7 +183,7 @@ export function UniversityCard({
                 isApproved
                   ? "bg-emerald-600 text-white font-bold"
                   : hasProposal
-                  ? "bg-sky-100 text-sky-900 font-bold"
+                  ? "bg-sky-100 text-sky-900 dark:bg-sky-950/50 dark:text-sky-300 font-bold"
                   : "bg-muted text-muted-foreground"
               }`}
             >
@@ -239,7 +239,7 @@ export function UniversityCard({
                 size="sm"
                 variant="outline"
                 onClick={() => onOpenWorkspace(track.institutionId, "proposal")}
-                className="text-emerald-800 border-emerald-300 hover:bg-emerald-100/60 text-xs font-bold gap-1 h-8 px-3 shadow-xs"
+                className="text-emerald-800 dark:text-emerald-300 border-emerald-300 dark:border-emerald-700 hover:bg-emerald-100/60 dark:hover:bg-emerald-950/40 text-xs font-bold gap-1 h-8 px-3 shadow-xs"
               >
                 <span>Approved Proposal</span>
                 <ArrowRight className="w-3 h-3" />
