@@ -1,31 +1,19 @@
 import React, { useState } from "react";
 import {
   AlertCircle,
-  AlertTriangle,
-  ArrowRight,
-  BarChart3,
-  BrainCircuit,
   CheckCircle2,
   Clock,
   Edit3,
-  ExternalLink,
   FileCheck,
-  FileText,
   FlaskConical,
-  GraduationCap,
   History,
-  Layers,
   Loader2,
   Lock,
   MessageSquare,
-  Package,
   Plus,
   Radio,
-  RefreshCw,
   Rocket,
   Send,
-  ShieldAlert,
-  ShieldCheck,
   Sparkles,
   TrendingUp,
   XCircle,
@@ -33,7 +21,7 @@ import {
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Dialog } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 
@@ -71,7 +59,6 @@ import {
   type DeploymentImpactReportInput,
   type DeploymentImpactMetricRow,
   DEPLOYMENT_STATUS_META,
-  DEPLOYMENT_DECISION_META,
   saveDeploymentPlanDraft,
   submitDeploymentPlan,
   startDeploymentPlanReview,
@@ -190,8 +177,9 @@ export function PilotDeploymentWorkspace({
       setIsEditingPlan(false);
       setActionSuccess("Deployment plan draft saved successfully.");
       await onRefresh();
-    } catch (err: any) {
-      setActionError(err.message || "Failed to save deployment draft.");
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Failed to save deployment draft.";
+      setActionError(msg);
       throw err;
     } finally {
       setActionLoading(false);
@@ -212,8 +200,9 @@ export function PilotDeploymentWorkspace({
       }
       setIsEditingPlan(false);
       await onRefresh();
-    } catch (err: any) {
-      setActionError(err.message || "Failed to submit deployment plan.");
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Failed to submit deployment plan.";
+      setActionError(msg);
       throw err;
     } finally {
       setActionLoading(false);
@@ -229,8 +218,9 @@ export function PilotDeploymentWorkspace({
       setStartDeployModalOpen(false);
       setActionSuccess("Large-scale deployment initiated successfully! Research stage advanced to DEPLOYMENT_ACTIVE.");
       await onRefresh();
-    } catch (err: any) {
-      setActionError(err.message || "Failed to start deployment execution.");
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Failed to start deployment execution.";
+      setActionError(msg);
     } finally {
       setActionLoading(false);
     }
@@ -245,8 +235,9 @@ export function PilotDeploymentWorkspace({
       await startDeploymentPlanReview(deployment.id, project.id);
       setActionSuccess("Deployment plan marked UNDER_REVIEW.");
       await onRefresh();
-    } catch (err: any) {
-      setActionError(err.message || "Failed to start review.");
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Failed to start review.";
+      setActionError(msg);
     } finally {
       setActionLoading(false);
     }
@@ -265,8 +256,9 @@ export function PilotDeploymentWorkspace({
       setRevisionFeedback("");
       setActionSuccess("Changes requested on deployment plan. University team notified.");
       await onRefresh();
-    } catch (err: any) {
-      setActionError(err.message || "Failed to request changes.");
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Failed to request changes.";
+      setActionError(msg);
     } finally {
       setActionLoading(false);
     }
@@ -282,8 +274,9 @@ export function PilotDeploymentWorkspace({
       setApprovalNotes("");
       setActionSuccess("Scale-up plan approved! Solution is now DEPLOYMENT_READY.");
       await onRefresh();
-    } catch (err: any) {
-      setActionError(err.message || "Failed to approve deployment plan.");
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Failed to approve deployment plan.";
+      setActionError(msg);
     } finally {
       setActionLoading(false);
     }
@@ -302,8 +295,9 @@ export function PilotDeploymentWorkspace({
       setRejectionReason("");
       setActionSuccess("Deployment plan rejected.");
       await onRefresh();
-    } catch (err: any) {
-      setActionError(err.message || "Failed to reject deployment plan.");
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Failed to reject deployment plan.";
+      setActionError(msg);
     } finally {
       setActionLoading(false);
     }
@@ -415,7 +409,9 @@ export function PilotDeploymentWorkspace({
                   <Button
                     size="sm"
                     variant="outline"
-                    onClick={handleStartReview}
+                    onClick={() => {
+                      void handleStartReview();
+                    }}
                     disabled={actionLoading}
                     className="text-xs h-8 gap-1.5"
                   >
@@ -657,7 +653,9 @@ export function PilotDeploymentWorkspace({
             </Button>
             <Button
               size="sm"
-              onClick={handleRequestRevision}
+              onClick={() => {
+                void handleRequestRevision();
+              }}
               disabled={actionLoading || revisionFeedback.trim().length < 10}
               className="text-xs bg-amber-600 hover:bg-amber-700 text-white font-bold gap-1.5"
             >
@@ -709,7 +707,9 @@ export function PilotDeploymentWorkspace({
             </Button>
             <Button
               size="sm"
-              onClick={handleApprove}
+              onClick={() => {
+                void handleApprove();
+              }}
               disabled={actionLoading}
               className="text-xs font-bold gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white"
             >
@@ -755,7 +755,9 @@ export function PilotDeploymentWorkspace({
             <Button
               size="sm"
               variant="destructive"
-              onClick={handleReject}
+              onClick={() => {
+                void handleReject();
+              }}
               disabled={actionLoading || rejectionReason.trim().length < 10}
               className="text-xs font-bold gap-1.5"
             >
@@ -796,7 +798,9 @@ export function PilotDeploymentWorkspace({
             </Button>
             <Button
               size="sm"
-              onClick={handleStartDeployment}
+              onClick={() => {
+                void handleStartDeployment();
+              }}
               disabled={actionLoading}
               className="text-xs font-bold gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white"
             >

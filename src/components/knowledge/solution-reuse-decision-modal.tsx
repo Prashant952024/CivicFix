@@ -1,7 +1,6 @@
 import { useState } from "react";
 import {
   AlertCircle,
-  ArrowRight,
   BrainCircuit,
   CheckCircle2,
   GraduationCap,
@@ -9,7 +8,6 @@ import {
   Repeat,
   Sparkles,
   Wrench,
-  X,
 } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
@@ -85,16 +83,28 @@ export function SolutionReuseDecisionModal({
           </p>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-6">
+        <form
+          onSubmit={(e) => {
+            void handleSubmit(e);
+          }}
+          className="space-y-6"
+        >
             {/* Candidate Solution Card */}
             <div className="rounded-2xl border border-border/70 bg-surface-elevated/40 p-4 space-y-2">
               <div className="flex items-center justify-between">
                 <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
                   Matched Historical Solution
                 </span>
-                <Badge variant="outline" className="text-xs">
-                  {solution.problem_category}
-                </Badge>
+                <div className="flex items-center gap-2">
+                  {scorecard && (
+                    <Badge variant="outline" className="text-xs font-semibold">
+                      Applicability: {scorecard.overall_applicability}
+                    </Badge>
+                  )}
+                  <Badge variant="outline" className="text-xs">
+                    {solution.problem_category}
+                  </Badge>
+                </div>
               </div>
               <h4 className="text-sm font-semibold text-foreground">{solution.solution_title}</h4>
               <p className="text-xs text-muted-foreground font-medium flex items-center gap-1">

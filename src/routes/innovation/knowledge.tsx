@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import {
   BrainCircuit,
   CheckCircle2,
@@ -42,8 +42,9 @@ export function InnovationKnowledgePage() {
   const [selectedComplexSol, setSelectedComplexSol] = useState<ComplexSolutionKnowledgeBaseRow | null>(null);
   const [complexDetailOpen, setComplexDetailOpen] = useState(false);
 
-  async function loadAllData() {
+  const loadAllData = useCallback(async () => {
     try {
+      setLoading(true);
       const [cRes, sRes, pRes, prRes] = await Promise.all([
         fetchComplexSolutions(),
         fetchSimpleSolutions(),
@@ -54,16 +55,24 @@ export function InnovationKnowledgePage() {
       setSimpleSolutions(sRes);
       setRecurrencePatterns(pRes);
       setPreventiveRecs(prRes);
-    } catch (err) {
+    } catch (err: unknown) {
       if (import.meta.env.DEV) console.error("Error loading knowledge hub data:", err);
     } finally {
       setLoading(false);
     }
-  }
+  }, []);
 
   useEffect(() => {
-    void loadAllData();
-  }, []);
+    let isMounted = true;
+    void (async () => {
+      if (isMounted) {
+        await loadAllData();
+      }
+    })();
+    return () => {
+      isMounted = false;
+    };
+  }, [loadAllData]);
 
   return (
     <div className="space-y-6 pb-12">

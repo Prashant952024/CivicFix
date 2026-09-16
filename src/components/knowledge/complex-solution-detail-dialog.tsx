@@ -31,6 +31,13 @@ interface ComplexSolutionDetailDialogProps {
 
 type DetailTab = "overview" | "research" | "validation" | "deployment" | "reusability";
 
+interface KpiSummaryItem {
+  metric_name?: string;
+  baseline_value?: string;
+  target_value?: string;
+  observed_value?: string;
+}
+
 export function ComplexSolutionDetailDialog({
   solution,
   open,
@@ -41,9 +48,11 @@ export function ComplexSolutionDetailDialog({
 
   if (!solution) return null;
 
-  const kpiList = Array.isArray(solution.validation_kpis_summary)
-    ? (solution.validation_kpis_summary as any[])
-    : [];
+  const kpiList = (
+    Array.isArray(solution.validation_kpis_summary)
+      ? solution.validation_kpis_summary
+      : []
+  ) as KpiSummaryItem[];
 
   return (
     <Dialog open={open} onClose={onClose} maxWidth="2xl" className="max-w-4xl p-6">
@@ -285,7 +294,7 @@ export function ComplexSolutionDetailDialog({
                   </h3>
                   {kpiList.length > 0 ? (
                     <div className="grid gap-3 sm:grid-cols-2">
-                      {kpiList.map((kpi: any, idx: number) => (
+                      {kpiList.map((kpi, idx) => (
                         <div
                           key={idx}
                           className="rounded-xl border border-border/70 bg-surface-elevated/40 p-3.5 space-y-1"

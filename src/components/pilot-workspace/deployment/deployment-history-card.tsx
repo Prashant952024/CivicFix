@@ -1,11 +1,8 @@
 import React from "react";
 import {
   Clock,
-  FileText,
   History,
   MessageSquare,
-  Sparkles,
-  User,
 } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";

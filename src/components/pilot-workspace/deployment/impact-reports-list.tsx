@@ -3,16 +3,11 @@ import {
   AlertCircle,
   Calendar,
   CheckCircle2,
-  Clock,
-  ExternalLink,
   FileText,
   Loader2,
-  Paperclip,
   Plus,
   Send,
-  Sparkles,
   TrendingUp,
-  User,
 } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
@@ -85,7 +80,6 @@ interface ImpactReportsListProps {
 export function ImpactReportsList({
   reports,
   metrics,
-  evidenceList = [],
   onSubmitReport,
   onAcknowledgeReport,
   isManager = false,
@@ -98,10 +92,12 @@ export function ImpactReportsList({
 
   // Report Form States
   const [reportingPeriod, setReportingPeriod] = useState("Month 1-3 Post-Launch Impact");
-  const [periodStartDate, setPeriodStartDate] = useState(
-    new Date(Date.now() - 90 * 86400000).toISOString().split("T")[0]
-  );
-  const [periodEndDate, setPeriodEndDate] = useState(new Date().toISOString().split("T")[0]);
+  const [periodStartDate, setPeriodStartDate] = useState(() => {
+    const d = new Date();
+    d.setDate(d.getDate() - 90);
+    return d.toISOString().split("T")[0];
+  });
+  const [periodEndDate, setPeriodEndDate] = useState(() => new Date().toISOString().split("T")[0]);
   const [keyFindings, setKeyFindings] = useState("");
   const [deploymentProgressSummary, setDeploymentProgressSummary] = useState("");
   const [unexpectedEffects, setUnexpectedEffects] = useState("");
@@ -116,7 +112,7 @@ export function ImpactReportsList({
       status: ImpactMetricStatus;
       notes?: string;
     }>
-  >(
+  >(() =>
     metrics.map((m) => ({
       metric_id: m.id,
       metric_name: m.metric_name,
@@ -143,9 +139,13 @@ export function ImpactReportsList({
     setSubmitModalOpen(true);
   };
 
-  const handleUpdateMetricVal = (index: number, field: string, value: any) => {
+  const handleUpdateMetricVal = (index: number, field: "observed_value" | "status" | "notes", value: string) => {
     const updated = [...metricMeasurements];
-    updated[index] = { ...updated[index], [field]: value };
+    if (field === "status") {
+      updated[index] = { ...updated[index], status: value as ImpactMetricStatus };
+    } else {
+      updated[index] = { ...updated[index], [field]: value };
+    }
     setMetricMeasurements(updated);
   };
 
@@ -180,8 +180,9 @@ export function ImpactReportsList({
       setEmergingRisks("");
       setCorrectiveActions("");
       setNextSteps("");
-    } catch (err: any) {
-      setActionError(err.message || "Failed to submit impact report.");
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Failed to submit impact report.";
+      setActionError(msg);
     } finally {
       setActionLoading(false);
     }
@@ -202,8 +203,9 @@ export function ImpactReportsList({
       await onAcknowledgeReport(selectedReportForAck.id, ackNotes);
       setAckModalOpen(false);
       setSelectedReportForAck(null);
-    } catch (err: any) {
-      setActionError(err.message || "Failed to acknowledge impact report.");
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Failed to acknowledge impact report.";
+      setActionError(msg);
     } finally {
       setActionLoading(false);
     }
@@ -312,7 +314,12 @@ export function ImpactReportsList({
                       Reported Metric Measurements
                     </span>
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
-                      {report.metric_measurements.map((m: any, idx: number) => (
+                      {(report.metric_measurements as Array<{
+                        metric_name?: string;
+                        observed_value?: string;
+                        status?: string;
+                        notes?: string;
+                      }>).map((m, idx: number) => (
                         <div
                           key={idx}
                           className="p-2.5 rounded border border-border/40 bg-muted/10 space-y-1"
@@ -381,7 +388,12 @@ export function ImpactReportsList({
         description="Document observed civic impact measurements, progress milestones, and unexpected field effects."
         maxWidth="lg"
       >
-        <form onSubmit={handleSubmitReport} className="space-y-4 pt-2 text-xs">
+        <form
+          onSubmit={(e) => {
+            void handleSubmitReport(e);
+          }}
+          className="space-y-4 pt-2 text-xs"
+        >
           {actionError && (
             <div className="p-3 rounded-lg bg-destructive/10 border border-destructive/20 text-xs text-destructive flex items-start gap-2">
               <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
@@ -592,7 +604,9 @@ export function ImpactReportsList({
             <Button
               type="button"
               size="sm"
-              onClick={handleConfirmAck}
+              onClick={() => {
+                void handleConfirmAck();
+              }}
               disabled={actionLoading}
               className="text-xs font-bold gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white"
             >

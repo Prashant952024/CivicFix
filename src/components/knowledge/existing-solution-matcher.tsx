@@ -1,21 +1,17 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import {
-  AlertTriangle,
   ArrowRight,
-  Award,
   BrainCircuit,
   CheckCircle2,
-  Cpu,
   ExternalLink,
   GraduationCap,
-  Info,
-  Layers,
   Loader2,
   RefreshCw,
   Repeat,
   ShieldCheck,
   Sparkles,
   Wrench,
+  AlertCircle,
 } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
@@ -59,7 +55,8 @@ export function ExistingSolutionMatcher({
   const [decisionModalOpen, setDecisionModalOpen] = useState(false);
   const [activeMatchForDecision, setActiveMatchForDecision] = useState<SolutionMatchResult | null>(null);
 
-  async function loadData() {
+  const loadData = useCallback(async () => {
+    if (!challengeId) return;
     setLoading(true);
     setError(null);
     try {
@@ -75,13 +72,19 @@ export function ExistingSolutionMatcher({
     } finally {
       setLoading(false);
     }
-  }
+  }, [challengeId]);
 
   useEffect(() => {
-    if (challengeId) {
-      void loadData();
-    }
-  }, [challengeId]);
+    let mounted = true;
+    void (async () => {
+      if (mounted) {
+        await loadData();
+      }
+    })();
+    return () => {
+      mounted = false;
+    };
+  }, [loadData]);
 
   async function handleDecisionSubmit(
     decision: ComplexSolutionReuseDecision,
@@ -138,7 +141,9 @@ export function ExistingSolutionMatcher({
           <Button
             size="sm"
             variant="ghost"
-            onClick={() => loadData()}
+            onClick={() => {
+              void loadData();
+            }}
             className="gap-1.5 text-xs text-muted-foreground hover:text-foreground"
           >
             <RefreshCw className="h-3.5 w-3.5" /> Re-scan
@@ -150,6 +155,13 @@ export function ExistingSolutionMatcher({
           final governance decisions belong strictly to the Innovation Manager.
         </p>
       </div>
+
+      {error && (
+        <div className="p-3.5 rounded-2xl bg-destructive/10 border border-destructive/20 text-xs text-destructive flex items-start gap-2">
+          <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
+          <p>{error}</p>
+        </div>
+      )}
 
       {/* Past Reviews Banner if any */}
       {pastReviews.length > 0 && (

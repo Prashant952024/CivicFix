@@ -1,15 +1,9 @@
 import React, { useState } from "react";
 import {
   AlertCircle,
-  AlertTriangle,
-  CheckCircle2,
   Cpu,
-  DollarSign,
-  Globe,
-  HardHat,
   Layers,
   Loader2,
-  Minus,
   Package,
   Plus,
   Rocket,
@@ -18,8 +12,6 @@ import {
   ShieldAlert,
   Sparkles,
   Trash2,
-  Users,
-  Wrench,
 } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
@@ -105,12 +97,15 @@ export function ScaleUpPlanForm({
   const [scaleMultiplier, setScaleMultiplier] = useState(deployment.scale_multiplier || "10x scale rollout");
 
   // Timeline states
-  const [plannedStartDate, setPlannedStartDate] = useState(
-    deployment.planned_start_date || new Date().toISOString().split("T")[0]
-  );
-  const [plannedEndDate, setPlannedEndDate] = useState(
-    deployment.planned_end_date || new Date(Date.now() + 180 * 86400000).toISOString().split("T")[0]
-  );
+  const [plannedStartDate, setPlannedStartDate] = useState(() => {
+    return deployment.planned_start_date || new Date().toISOString().split("T")[0];
+  });
+  const [plannedEndDate, setPlannedEndDate] = useState(() => {
+    if (deployment.planned_end_date) return deployment.planned_end_date;
+    const d = new Date();
+    d.setDate(d.getDate() + 180);
+    return d.toISOString().split("T")[0];
+  });
   const [estimatedDurationDays, setEstimatedDurationDays] = useState<number>(
     deployment.estimated_duration_days || 180
   );
@@ -134,7 +129,7 @@ export function ScaleUpPlanForm({
   // Phased Rollout states
   const [phases, setPhases] = useState<DeploymentPhaseItem[]>(
     Array.isArray(deployment.deployment_phases) && deployment.deployment_phases.length > 0
-      ? (deployment.deployment_phases as DeploymentPhaseItem[])
+      ? deployment.deployment_phases
       : [
           {
             id: "phase-1",
@@ -162,36 +157,37 @@ export function ScaleUpPlanForm({
       status?: ImpactMetricStatus;
       notes?: string;
     }>
-  >(
-    (deployment.impact_metrics && deployment.impact_metrics.length > 0
-      ? deployment.impact_metrics.map((m) => ({
-          id: m.id,
-          metric_name: m.metric_name,
-          description: m.description || "",
-          unit: m.unit || "",
-          baseline_value: m.baseline_value || "0",
-          target_value: m.target_value || "0",
-          observed_value: m.observed_value || "",
-          measurement_period: m.measurement_period || "",
-          measurement_method: m.measurement_method || "",
-          data_source: m.data_source || "",
-          status: m.status as ImpactMetricStatus,
-          notes: m.notes || "",
-        }))
-      : [
-          {
-            metric_name: "Civic Service Latency Reduction",
-            description: "Reduction in response and resolution turnaround for affected citizens.",
-            unit: "%",
-            baseline_value: "0%",
-            target_value: "75%",
-            observed_value: "",
-            measurement_period: "Quarterly",
-            measurement_method: "Municipal telemetry log comparison",
-            status: "PENDING",
-          },
-        ]) as any
-  );
+  >(() => {
+    if (deployment.impact_metrics && deployment.impact_metrics.length > 0) {
+      return deployment.impact_metrics.map((m) => ({
+        id: m.id,
+        metric_name: m.metric_name,
+        description: m.description || "",
+        unit: m.unit || "",
+        baseline_value: m.baseline_value || "0",
+        target_value: m.target_value || "0",
+        observed_value: m.observed_value || "",
+        measurement_period: m.measurement_period || "",
+        measurement_method: m.measurement_method || "",
+        data_source: m.data_source || "",
+        status: (m.status || "PENDING") as ImpactMetricStatus,
+        notes: m.notes || "",
+      }));
+    }
+    return [
+      {
+        metric_name: "Civic Service Latency Reduction",
+        description: "Reduction in response and resolution turnaround for affected citizens.",
+        unit: "%",
+        baseline_value: "0%",
+        target_value: "75%",
+        observed_value: "",
+        measurement_period: "Quarterly",
+        measurement_method: "Municipal telemetry log comparison",
+        status: "PENDING",
+      },
+    ];
+  });
 
   const [formError, setFormError] = useState<string | null>(null);
 
@@ -320,7 +316,7 @@ export function ScaleUpPlanForm({
         measurement_period: m.measurement_period?.trim() || undefined,
         measurement_method: m.measurement_method?.trim() || undefined,
         data_source: m.data_source?.trim() || undefined,
-        status: (m.status || "PENDING") as ImpactMetricStatus,
+        status: m.status || "PENDING",
         notes: m.notes?.trim() || undefined,
       })),
     };
@@ -331,8 +327,9 @@ export function ScaleUpPlanForm({
     if (!payload) return;
     try {
       await onSaveDraft(payload);
-    } catch (err: any) {
-      setFormError(err.message || "Failed to save draft.");
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Failed to save draft.";
+      setFormError(msg);
     }
   };
 
@@ -342,13 +339,19 @@ export function ScaleUpPlanForm({
     if (!payload) return;
     try {
       await onSubmit(payload);
-    } catch (err: any) {
-      setFormError(err.message || "Failed to submit deployment plan.");
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Failed to submit deployment plan.";
+      setFormError(msg);
     }
   };
 
   return (
-    <form onSubmit={handleSubmitForm} className="space-y-6">
+    <form
+      onSubmit={(e) => {
+        void handleSubmitForm(e);
+      }}
+      className="space-y-6"
+    >
       {formError && (
         <div className="p-3.5 rounded-lg bg-destructive/10 border border-destructive/20 text-xs text-destructive flex items-start gap-2">
           <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
@@ -634,11 +637,22 @@ export function ScaleUpPlanForm({
             </div>
 
             <div className="space-y-1.5">
-              <Label className="text-xs font-semibold text-foreground">Hardware & Technology Specs</Label>
+              <Label className="text-xs font-semibold text-foreground">Hardware & Edge Specs</Label>
               <Textarea
                 value={hardwareRequirements}
                 onChange={(e) => setHardwareRequirements(e.target.value)}
                 placeholder="Hardware bill of materials, edge processing units, sensors, and gateway modules..."
+                rows={2}
+                className="text-xs"
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold text-foreground">Software Stack & Technology Specifications</Label>
+              <Textarea
+                value={technologyRequirements}
+                onChange={(e) => setTechnologyRequirements(e.target.value)}
+                placeholder="Cloud architecture, container images, API connectors, streaming message brokers..."
                 rows={2}
                 className="text-xs"
               />
@@ -862,7 +876,9 @@ export function ScaleUpPlanForm({
             type="button"
             variant="outline"
             size="sm"
-            onClick={handleSave}
+            onClick={() => {
+              void handleSave();
+            }}
             disabled={isSaving || isSubmitting}
             className="text-xs gap-1.5"
           >

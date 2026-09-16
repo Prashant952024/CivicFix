@@ -1,21 +1,11 @@
 import React from "react";
 import {
-  AlertCircle,
   AlertTriangle,
   CheckCircle2,
   Clock,
   ExternalLink,
   FileCheck,
   FlaskConical,
-  GraduationCap,
-  Layers,
-  Lock,
-  Radio,
-  Rocket,
-  ShieldAlert,
-  ShieldCheck,
-  Sparkles,
-  XCircle,
 } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";

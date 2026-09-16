@@ -2,17 +2,10 @@ import React, { useState } from "react";
 import {
   AlertCircle,
   BarChart3,
-  CheckCircle2,
-  Clock,
   Edit2,
-  ExternalLink,
-  HelpCircle,
   Loader2,
-  Paperclip,
   Save,
   Sparkles,
-  TrendingUp,
-  XCircle,
 } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
@@ -64,7 +57,6 @@ interface ImpactMetricsTableProps {
 
 export function ImpactMetricsTable({
   metrics,
-  evidenceList = [],
   onUpdateMetric,
   isEditable = false,
 }: ImpactMetricsTableProps) {
@@ -94,8 +86,9 @@ export function ImpactMetricsTable({
         notes: notes.trim() || null,
       });
       setSelectedMetric(null);
-    } catch (err: any) {
-      setError(err.message || "Failed to update impact metric.");
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Failed to update impact metric.";
+      setError(msg);
     } finally {
       setSaving(false);
     }
@@ -320,7 +313,9 @@ export function ImpactMetricsTable({
             <Button
               type="button"
               size="sm"
-              onClick={handleSaveEdit}
+              onClick={() => {
+                void handleSaveEdit();
+              }}
               disabled={saving || !observedValue.trim()}
               className="text-xs gap-1.5 font-bold"
             >

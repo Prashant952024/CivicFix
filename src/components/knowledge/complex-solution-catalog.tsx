@@ -1,15 +1,12 @@
 import { useState, useMemo } from "react";
 import {
   BrainCircuit,
-  Building2,
   CheckCircle2,
   ExternalLink,
   GraduationCap,
-  Layers,
   Repeat,
   Search,
   SlidersHorizontal,
-  Sparkles,
   Tag,
   Wrench,
 } from "lucide-react";
@@ -102,6 +99,7 @@ export function ComplexSolutionCatalog({
             <option value="ACTIVE_REUSABLE">Active & Reusable</option>
             <option value="NEEDS_ADAPTATION">Needs Adaptation</option>
             <option value="ELIGIBLE">Eligible</option>
+            <option value="DEPRECATED">Deprecated / Inactive</option>
           </select>
         </div>
       </div>

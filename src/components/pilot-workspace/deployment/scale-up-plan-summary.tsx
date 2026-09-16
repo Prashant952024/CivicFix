@@ -1,22 +1,14 @@
 import React from "react";
 import {
-  BrainCircuit,
   Calendar,
-  CheckCircle2,
-  Clock,
   Cpu,
   DollarSign,
-  FileText,
-  FlaskConical,
   Globe,
   HardHat,
   Layers,
-  MapPin,
   Package,
-  Radio,
   Rocket,
   ShieldAlert,
-  ShieldCheck,
   Sparkles,
   Users,
   Wrench,
@@ -24,7 +16,6 @@ import {
 
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { cn } from "@/lib/utils";
 import type { DeploymentPlanWithDetails, DeploymentPhaseItem } from "@/lib/deployment-impact";
 
 interface ScaleUpPlanSummaryProps {
