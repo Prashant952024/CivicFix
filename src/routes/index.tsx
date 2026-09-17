@@ -72,6 +72,7 @@ const IndustryListingsPage = lazy(() => import("@/routes/industry/listings").the
 const IndustryContributionsPage = lazy(() => import("@/routes/industry/contributions").then((module) => ({ default: module.IndustryContributionsPage })));
 
 const UniversityDashboardPage = lazy(() => import("@/routes/university/index").then((module) => ({ default: module.UniversityDashboardPage })));
+const UniversityProjectsPortfolioPage = lazy(() => import("@/routes/university/projects/index").then((module) => ({ default: module.UniversityProjectsPortfolioPage })));
 const UniversityProfilePage = lazy(() => import("@/routes/university/profile").then((module) => ({ default: module.UniversityProfilePage })));
 const UniversityChallengesPage = lazy(() => import("@/routes/university/challenges").then((module) => ({ default: module.UniversityChallengesPage })));
 const UniversityMarketplacePage = lazy(() => import("@/routes/university/marketplace"));
@@ -356,6 +357,7 @@ export function AppRoutes() {
             }
           >
             <Route index element={<UniversityDashboardPage />} />
+            <Route path="projects" element={<UniversityProjectsPortfolioPage />} />
             <Route path="profile" element={<UniversityProfilePage />} />
             <Route path="challenges" element={<UniversityChallengesPage />} />
             <Route path="marketplace" element={<UniversityMarketplacePage />} />
