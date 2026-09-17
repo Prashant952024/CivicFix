@@ -943,12 +943,15 @@ export async function fetchOrganizationApplications(organizationId: string): Pro
       listing:research_support_listings!research_support_applications_listing_id_fkey(
         id,
         public_title,
+        public_summary,
         category,
+        public_specification,
         public_timeline,
         desired_outcome,
         status,
-        challenge:innovation_challenges!research_support_listings_challenge_id_fkey(title),
-        institution:institutions!research_support_listings_institution_id_fkey(name, city)
+        challenge:innovation_challenges!research_support_listings_challenge_id_fkey(id, title, category, problem_statement),
+        institution:institutions!research_support_listings_institution_id_fkey(id, name, city, state),
+        project:challenge_projects!research_support_listings_project_id_fkey(id, project_title, status)
       )
     `)
     .eq("organization_id", organizationId)
@@ -1447,29 +1450,48 @@ export interface IndustryAttentionItem {
 export interface IndustryApplicationItem {
   id: string;
   listing_id: string;
+  support_request_id?: string | null;
   organization_id: string;
+  applicant_profile_id?: string;
   status: ApplicationStatus;
   proposed_contribution: string;
   estimated_value: number | null;
   timeline: string | null;
+  terms_or_conditions?: string | null;
   review_notes: string | null;
+  reviewed_by?: string | null;
+  reviewed_at?: string | null;
   acceptance_agreement_notes: string | null;
+  rejection_reason?: string | null;
   created_at: string;
   updated_at?: string;
   capabilities_summary?: string;
   listing?: {
     id: string;
     public_title: string;
+    public_summary?: string | null;
     category: SupportRequestCategory;
+    public_specification?: string | null;
     public_timeline?: string | null;
     desired_outcome?: string | null;
     status?: ListingStatus;
     challenge?: {
+      id?: string;
       title?: string | null;
+      category?: string | null;
+      problem_statement?: string | null;
     } | null;
     institution?: {
+      id?: string;
       name: string;
       city?: string | null;
+      state?: string | null;
+    } | null;
+    project?: {
+      id?: string;
+      project_title?: string | null;
+      title?: string | null;
+      status?: string | null;
     } | null;
   } | null;
 }
