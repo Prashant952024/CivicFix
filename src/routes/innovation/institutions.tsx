@@ -251,131 +251,131 @@ export function InnovationInstitutionsPage() {
       />
 
       {/* KPI Stats Strip */}
-      <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
         {/* Total */}
         <Card
           onClick={() => setCategoryFilter("ALL")}
-          className={`cursor-pointer transition-all duration-150 border rounded-2xl bg-card shadow-xs hover:border-primary hover:shadow-md ${
-            categoryFilter === "ALL" ? "border-primary ring-2 ring-primary/25 bg-teal-50/40" : "border-border hover:bg-slate-50/60"
+          className={`cursor-pointer transition-all duration-150 border rounded-2xl bg-card shadow-xs hover:border-primary/60 hover:shadow-sm p-3.5 sm:p-4 flex flex-col justify-between ${
+            categoryFilter === "ALL" ? "border-primary ring-2 ring-primary/25 bg-primary/5" : "border-border hover:bg-muted/40"
           }`}
         >
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-xs font-bold uppercase tracking-wider text-slate-700">
+          <div className="flex items-center justify-between gap-2 min-w-0">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground truncate">
               Total
-            </CardTitle>
-            <div className="p-1.5 rounded-lg bg-teal-100 text-teal-800">
+            </span>
+            <div className="p-1.5 rounded-lg bg-teal-500/10 text-teal-600 dark:text-teal-400 shrink-0">
               <GraduationCap className="h-4 w-4" />
             </div>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-black text-slate-900">{stats.total}</div>
-            <p className="mt-1 text-xs font-semibold text-slate-600">Accredited Centers</p>
-          </CardContent>
+          </div>
+          <div className="mt-3">
+            <div className="text-2xl font-black text-foreground tracking-tight leading-none">{stats.total}</div>
+            <p className="mt-1.5 text-xs font-medium text-muted-foreground truncate">Accredited Centers</p>
+          </div>
         </Card>
 
         {/* Verified */}
         <Card
           onClick={() => setSelectedStatus((s) => (s === "VERIFIED" ? "ALL" : "VERIFIED"))}
-          className={`cursor-pointer transition-all duration-150 border rounded-2xl bg-card shadow-xs hover:border-emerald-600 hover:shadow-md ${
-            selectedStatus === "VERIFIED" ? "border-emerald-600 ring-2 ring-emerald-500/25 bg-emerald-50/40" : "border-border hover:bg-slate-50/60"
+          className={`cursor-pointer transition-all duration-150 border rounded-2xl bg-card shadow-xs hover:border-emerald-600/60 hover:shadow-sm p-3.5 sm:p-4 flex flex-col justify-between ${
+            selectedStatus === "VERIFIED" ? "border-emerald-600 ring-2 ring-emerald-500/25 bg-emerald-500/5" : "border-border hover:bg-muted/40"
           }`}
         >
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-xs font-bold uppercase tracking-wider text-slate-700">
+          <div className="flex items-center justify-between gap-2 min-w-0">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground truncate">
               Verified
-            </CardTitle>
-            <div className="p-1.5 rounded-lg bg-emerald-100 text-emerald-800">
+            </span>
+            <div className="p-1.5 rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 shrink-0">
               <CheckCircle2 className="h-4 w-4" />
             </div>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-black text-slate-900">{stats.verified}</div>
-            <p className="mt-1 text-xs font-semibold text-slate-600">Govt Validated</p>
-          </CardContent>
+          </div>
+          <div className="mt-3">
+            <div className="text-2xl font-black text-foreground tracking-tight leading-none">{stats.verified}</div>
+            <p className="mt-1.5 text-xs font-medium text-muted-foreground truncate">Govt Validated</p>
+          </div>
         </Card>
 
         {/* Active Partner */}
         <Card
           onClick={() => setCategoryFilter((c) => (c === "ENGAGED" ? "ALL" : "ENGAGED"))}
-          className={`cursor-pointer transition-all duration-150 border rounded-2xl bg-card shadow-xs hover:border-purple-600 hover:shadow-md ${
-            categoryFilter === "ENGAGED" ? "border-purple-600 ring-2 ring-purple-500/25 bg-purple-50/40" : "border-border hover:bg-slate-50/60"
+          className={`cursor-pointer transition-all duration-150 border rounded-2xl bg-card shadow-xs hover:border-purple-600/60 hover:shadow-sm p-3.5 sm:p-4 flex flex-col justify-between ${
+            categoryFilter === "ENGAGED" ? "border-purple-600 ring-2 ring-purple-500/25 bg-purple-500/5" : "border-border hover:bg-muted/40"
           }`}
         >
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-xs font-bold uppercase tracking-wider text-slate-700">
+          <div className="flex items-center justify-between gap-2 min-w-0">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground truncate">
               Active Partner
-            </CardTitle>
-            <div className="p-1.5 rounded-lg bg-purple-100 text-purple-800">
+            </span>
+            <div className="p-1.5 rounded-lg bg-purple-500/10 text-purple-600 dark:text-purple-400 shrink-0">
               <Sparkles className="h-4 w-4" />
             </div>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-black text-slate-900">{engagedCount}</div>
-            <p className="mt-1 text-xs font-semibold text-slate-600">In Civic Challenges</p>
-          </CardContent>
+          </div>
+          <div className="mt-3">
+            <div className="text-2xl font-black text-foreground tracking-tight leading-none">{engagedCount}</div>
+            <p className="mt-1.5 text-xs font-medium text-muted-foreground truncate">In Civic Challenges</p>
+          </div>
         </Card>
 
         {/* IITs & NITs */}
         <Card
           onClick={() => setCategoryFilter((c) => (c === "IIT_NIT" ? "ALL" : "IIT_NIT"))}
-          className={`cursor-pointer transition-all duration-150 border rounded-2xl bg-card shadow-xs hover:border-sky-600 hover:shadow-md ${
-            categoryFilter === "IIT_NIT" ? "border-sky-600 ring-2 ring-sky-500/25 bg-sky-50/40" : "border-border hover:bg-slate-50/60"
+          className={`cursor-pointer transition-all duration-150 border rounded-2xl bg-card shadow-xs hover:border-sky-600/60 hover:shadow-sm p-3.5 sm:p-4 flex flex-col justify-between ${
+            categoryFilter === "IIT_NIT" ? "border-sky-600 ring-2 ring-sky-500/25 bg-sky-500/5" : "border-border hover:bg-muted/40"
           }`}
         >
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-xs font-bold uppercase tracking-wider text-slate-700">
+          <div className="flex items-center justify-between gap-2 min-w-0">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground truncate">
               IITs &amp; NITs
-            </CardTitle>
-            <div className="p-1.5 rounded-lg bg-sky-100 text-sky-800">
+            </span>
+            <div className="p-1.5 rounded-lg bg-sky-500/10 text-sky-600 dark:text-sky-400 shrink-0">
               <Building2 className="h-4 w-4" />
             </div>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-black text-slate-900">{stats.iits + stats.nits}</div>
-            <p className="mt-1 text-xs font-semibold text-slate-600">Premier Institutes</p>
-          </CardContent>
+          </div>
+          <div className="mt-3">
+            <div className="text-2xl font-black text-foreground tracking-tight leading-none">{stats.iits + stats.nits}</div>
+            <p className="mt-1.5 text-xs font-medium text-muted-foreground truncate">Premier Institutes</p>
+          </div>
         </Card>
 
         {/* Research Labs */}
         <Card
           onClick={() => setCategoryFilter((c) => (c === "RESEARCH" ? "ALL" : "RESEARCH"))}
-          className={`cursor-pointer transition-all duration-150 border rounded-2xl bg-card shadow-xs hover:border-teal-600 hover:shadow-md ${
-            categoryFilter === "RESEARCH" ? "border-teal-600 ring-2 ring-teal-500/25 bg-teal-50/40" : "border-border hover:bg-slate-50/60"
+          className={`cursor-pointer transition-all duration-150 border rounded-2xl bg-card shadow-xs hover:border-teal-600/60 hover:shadow-sm p-3.5 sm:p-4 flex flex-col justify-between ${
+            categoryFilter === "RESEARCH" ? "border-teal-600 ring-2 ring-teal-500/25 bg-teal-500/5" : "border-border hover:bg-muted/40"
           }`}
         >
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-xs font-bold uppercase tracking-wider text-slate-700">
+          <div className="flex items-center justify-between gap-2 min-w-0">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground truncate">
               Research Labs
-            </CardTitle>
-            <div className="p-1.5 rounded-lg bg-teal-100 text-teal-800">
+            </span>
+            <div className="p-1.5 rounded-lg bg-teal-500/10 text-teal-600 dark:text-teal-400 shrink-0">
               <FlaskConical className="h-4 w-4" />
             </div>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-black text-slate-900">{stats.researchLabs}</div>
-            <p className="mt-1 text-xs font-semibold text-slate-600">CSIR / DRDO Labs</p>
-          </CardContent>
+          </div>
+          <div className="mt-3">
+            <div className="text-2xl font-black text-foreground tracking-tight leading-none">{stats.researchLabs}</div>
+            <p className="mt-1.5 text-xs font-medium text-muted-foreground truncate">CSIR / DRDO Labs</p>
+          </div>
         </Card>
 
         {/* Universities */}
         <Card
           onClick={() => setCategoryFilter((c) => (c === "UNIVERSITIES" ? "ALL" : "UNIVERSITIES"))}
-          className={`cursor-pointer transition-all duration-150 border rounded-2xl bg-card shadow-xs hover:border-amber-600 hover:shadow-md ${
-            categoryFilter === "UNIVERSITIES" ? "border-amber-600 ring-2 ring-amber-500/25 bg-amber-50/40" : "border-border hover:bg-slate-50/60"
+          className={`cursor-pointer transition-all duration-150 border rounded-2xl bg-card shadow-xs hover:border-amber-600/60 hover:shadow-sm p-3.5 sm:p-4 flex flex-col justify-between ${
+            categoryFilter === "UNIVERSITIES" ? "border-amber-600 ring-2 ring-amber-500/25 bg-amber-500/5" : "border-border hover:bg-muted/40"
           }`}
         >
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-xs font-bold uppercase tracking-wider text-slate-700">
+          <div className="flex items-center justify-between gap-2 min-w-0">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground truncate">
               Universities
-            </CardTitle>
-            <div className="p-1.5 rounded-lg bg-amber-100 text-amber-800">
+            </span>
+            <div className="p-1.5 rounded-lg bg-amber-500/10 text-amber-600 dark:text-amber-400 shrink-0">
               <Building className="h-4 w-4" />
             </div>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-black text-slate-900">{stats.universities + stats.agriculture}</div>
-            <p className="mt-1 text-xs font-semibold text-slate-600">Central, State &amp; Agri</p>
-          </CardContent>
+          </div>
+          <div className="mt-3">
+            <div className="text-2xl font-black text-foreground tracking-tight leading-none">{stats.universities + stats.agriculture}</div>
+            <p className="mt-1.5 text-xs font-medium text-muted-foreground truncate">Central, State &amp; Agri</p>
+          </div>
         </Card>
       </div>
 
@@ -385,19 +385,19 @@ export function InnovationInstitutionsPage() {
           <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
             {/* Search */}
             <div className="relative flex-1">
-              <Search className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
+              <Search className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <input
                 type="text"
                 placeholder="Search by institution name, acronym, state, city, domains, or technologies..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                className="w-full rounded-xl border border-slate-300 bg-white py-2 pl-9 pr-8 text-xs font-medium text-slate-900 placeholder:text-slate-500 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary shadow-2xs"
+                className="w-full rounded-xl border border-border bg-background py-2 pl-9 pr-8 text-xs font-medium text-foreground placeholder:text-muted-foreground/70 focus:border-primary focus:outline-hidden focus:ring-1 focus:ring-primary shadow-2xs"
               />
               {search && (
                 <button
                   type="button"
                   onClick={() => setSearch("")}
-                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700"
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
                 >
                   <X className="h-4 w-4" />
                 </button>
@@ -406,7 +406,7 @@ export function InnovationInstitutionsPage() {
 
             {/* Filter Dropdowns */}
             <div className="flex flex-wrap items-center gap-2">
-              <div className="flex items-center gap-1.5 text-xs font-bold text-slate-700">
+              <div className="flex items-center gap-1.5 text-xs font-bold text-muted-foreground">
                 <SlidersHorizontal className="h-3.5 w-3.5" />
                 <span className="hidden sm:inline">Filters:</span>
               </div>
@@ -415,7 +415,7 @@ export function InnovationInstitutionsPage() {
               <select
                 value={selectedType}
                 onChange={(e) => setSelectedType(e.target.value)}
-                className="rounded-xl border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-800 shadow-2xs focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                className="rounded-xl border border-border bg-background px-3 py-1.5 text-xs font-semibold text-foreground shadow-2xs focus:border-primary focus:outline-hidden focus:ring-1 focus:ring-primary"
               >
                 <option value="ALL">All Types</option>
                 {availableTypes.map((t) => (
@@ -429,7 +429,7 @@ export function InnovationInstitutionsPage() {
               <select
                 value={selectedState}
                 onChange={(e) => setSelectedState(e.target.value)}
-                className="rounded-xl border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-800 shadow-2xs focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                className="rounded-xl border border-border bg-background px-3 py-1.5 text-xs font-semibold text-foreground shadow-2xs focus:border-primary focus:outline-hidden focus:ring-1 focus:ring-primary"
               >
                 <option value="ALL">All States</option>
                 {availableStates.map((s) => (
@@ -443,7 +443,7 @@ export function InnovationInstitutionsPage() {
               <select
                 value={selectedStatus}
                 onChange={(e) => setSelectedStatus(e.target.value as InstitutionVerificationStatus | "ALL")}
-                className="rounded-xl border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-800 shadow-2xs focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                className="rounded-xl border border-border bg-background px-3 py-1.5 text-xs font-semibold text-foreground shadow-2xs focus:border-primary focus:outline-hidden focus:ring-1 focus:ring-primary"
               >
                 <option value="ALL">All Verification</option>
                 <option value="VERIFIED">Verified Only</option>
@@ -451,14 +451,14 @@ export function InnovationInstitutionsPage() {
               </select>
 
               {/* View Toggle */}
-              <div className="ml-auto flex items-center rounded-xl border border-slate-300 bg-slate-100 p-1 shadow-2xs">
+              <div className="ml-auto flex items-center rounded-xl border border-border bg-muted/40 p-1 shadow-2xs">
                 <button
                   type="button"
                   onClick={() => setViewMode("grid")}
                   className={`rounded-lg p-1.5 text-xs font-semibold transition-all ${
                     viewMode === "grid"
-                      ? "bg-white text-slate-950 shadow-xs"
-                      : "text-slate-600 hover:text-slate-950"
+                      ? "bg-card text-foreground shadow-xs"
+                      : "text-muted-foreground hover:text-foreground"
                   }`}
                   title="Grid view"
                 >
@@ -469,8 +469,8 @@ export function InnovationInstitutionsPage() {
                   onClick={() => setViewMode("table")}
                   className={`rounded-lg p-1.5 text-xs font-semibold transition-all ${
                     viewMode === "table"
-                      ? "bg-white text-slate-950 shadow-xs"
-                      : "text-slate-600 hover:text-slate-950"
+                      ? "bg-card text-foreground shadow-xs"
+                      : "text-muted-foreground hover:text-foreground"
                   }`}
                   title="Table view"
                 >
@@ -487,13 +487,13 @@ export function InnovationInstitutionsPage() {
               onClick={() => setCategoryFilter("ALL")}
               className={`px-3.5 py-1.5 text-xs font-bold rounded-xl transition-all whitespace-nowrap flex items-center gap-2 shadow-2xs ${
                 categoryFilter === "ALL"
-                  ? "bg-primary text-white border border-primary ring-1 ring-primary/30"
-                  : "bg-white text-slate-700 hover:text-slate-950 hover:bg-slate-100 border border-slate-300"
+                  ? "bg-primary text-primary-foreground border border-primary ring-1 ring-primary/30"
+                  : "bg-card text-muted-foreground hover:text-foreground hover:bg-muted/60 border border-border"
               }`}
             >
               <span>All Institutions</span>
               <span className={`px-1.5 py-0.5 rounded-md text-[10px] font-bold ${
-                categoryFilter === "ALL" ? "bg-white/25 text-white" : "bg-slate-200 text-slate-800"
+                categoryFilter === "ALL" ? "bg-primary-foreground/20 text-primary-foreground" : "bg-muted text-foreground"
               }`}>
                 {stats.total}
               </span>
@@ -504,14 +504,14 @@ export function InnovationInstitutionsPage() {
               onClick={() => setCategoryFilter("ENGAGED")}
               className={`px-3.5 py-1.5 text-xs font-bold rounded-xl transition-all whitespace-nowrap flex items-center gap-2 shadow-2xs ${
                 categoryFilter === "ENGAGED"
-                  ? "bg-primary text-white border border-primary ring-1 ring-primary/30"
-                  : "bg-white text-slate-700 hover:text-slate-950 hover:bg-slate-100 border border-slate-300"
+                  ? "bg-primary text-primary-foreground border border-primary ring-1 ring-primary/30"
+                  : "bg-card text-muted-foreground hover:text-foreground hover:bg-muted/60 border border-border"
               }`}
             >
               <Sparkles className="w-3.5 h-3.5 text-amber-500" />
               <span>Active in CivicFix</span>
               <span className={`px-1.5 py-0.5 rounded-md text-[10px] font-bold ${
-                categoryFilter === "ENGAGED" ? "bg-white/25 text-white" : "bg-slate-200 text-slate-800"
+                categoryFilter === "ENGAGED" ? "bg-primary-foreground/20 text-primary-foreground" : "bg-muted text-foreground"
               }`}>
                 {engagedCount}
               </span>
@@ -522,14 +522,14 @@ export function InnovationInstitutionsPage() {
               onClick={() => setCategoryFilter("IIT_NIT")}
               className={`px-3.5 py-1.5 text-xs font-bold rounded-xl transition-all whitespace-nowrap flex items-center gap-2 shadow-2xs ${
                 categoryFilter === "IIT_NIT"
-                  ? "bg-primary text-white border border-primary ring-1 ring-primary/30"
-                  : "bg-white text-slate-700 hover:text-slate-950 hover:bg-slate-100 border border-slate-300"
+                  ? "bg-primary text-primary-foreground border border-primary ring-1 ring-primary/30"
+                  : "bg-card text-muted-foreground hover:text-foreground hover:bg-muted/60 border border-border"
               }`}
             >
-              <GraduationCap className="w-3.5 h-3.5 text-sky-600" />
+              <GraduationCap className="w-3.5 h-3.5 text-sky-600 dark:text-sky-400" />
               <span>IITs &amp; NITs</span>
               <span className={`px-1.5 py-0.5 rounded-md text-[10px] font-bold ${
-                categoryFilter === "IIT_NIT" ? "bg-white/25 text-white" : "bg-slate-200 text-slate-800"
+                categoryFilter === "IIT_NIT" ? "bg-primary-foreground/20 text-primary-foreground" : "bg-muted text-foreground"
               }`}>
                 {stats.iits + stats.nits}
               </span>
@@ -540,14 +540,14 @@ export function InnovationInstitutionsPage() {
               onClick={() => setCategoryFilter("RESEARCH")}
               className={`px-3.5 py-1.5 text-xs font-bold rounded-xl transition-all whitespace-nowrap flex items-center gap-2 shadow-2xs ${
                 categoryFilter === "RESEARCH"
-                  ? "bg-primary text-white border border-primary ring-1 ring-primary/30"
-                  : "bg-white text-slate-700 hover:text-slate-950 hover:bg-slate-100 border border-slate-300"
+                  ? "bg-primary text-primary-foreground border border-primary ring-1 ring-primary/30"
+                  : "bg-card text-muted-foreground hover:text-foreground hover:bg-muted/60 border border-border"
               }`}
             >
-              <FlaskConical className="w-3.5 h-3.5 text-teal-600" />
+              <FlaskConical className="w-3.5 h-3.5 text-teal-600 dark:text-teal-400" />
               <span>Research Labs</span>
               <span className={`px-1.5 py-0.5 rounded-md text-[10px] font-bold ${
-                categoryFilter === "RESEARCH" ? "bg-white/25 text-white" : "bg-slate-200 text-slate-800"
+                categoryFilter === "RESEARCH" ? "bg-primary-foreground/20 text-primary-foreground" : "bg-muted text-foreground"
               }`}>
                 {stats.researchLabs}
               </span>
@@ -558,14 +558,14 @@ export function InnovationInstitutionsPage() {
               onClick={() => setCategoryFilter("UNIVERSITIES")}
               className={`px-3.5 py-1.5 text-xs font-bold rounded-xl transition-all whitespace-nowrap flex items-center gap-2 shadow-2xs ${
                 categoryFilter === "UNIVERSITIES"
-                  ? "bg-primary text-white border border-primary ring-1 ring-primary/30"
-                  : "bg-white text-slate-700 hover:text-slate-950 hover:bg-slate-100 border border-slate-300"
+                  ? "bg-primary text-primary-foreground border border-primary ring-1 ring-primary/30"
+                  : "bg-card text-muted-foreground hover:text-foreground hover:bg-muted/60 border border-border"
               }`}
             >
-              <Building className="w-3.5 h-3.5 text-amber-600" />
+              <Building className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
               <span>Universities</span>
               <span className={`px-1.5 py-0.5 rounded-md text-[10px] font-bold ${
-                categoryFilter === "UNIVERSITIES" ? "bg-white/25 text-white" : "bg-slate-200 text-slate-800"
+                categoryFilter === "UNIVERSITIES" ? "bg-primary-foreground/20 text-primary-foreground" : "bg-muted text-foreground"
               }`}>
                 {stats.universities}
               </span>
@@ -576,14 +576,14 @@ export function InnovationInstitutionsPage() {
               onClick={() => setCategoryFilter("AGRICULTURE")}
               className={`px-3.5 py-1.5 text-xs font-bold rounded-xl transition-all whitespace-nowrap flex items-center gap-2 shadow-2xs ${
                 categoryFilter === "AGRICULTURE"
-                  ? "bg-primary text-white border border-primary ring-1 ring-primary/30"
-                  : "bg-white text-slate-700 hover:text-slate-950 hover:bg-slate-100 border border-slate-300"
+                  ? "bg-primary text-primary-foreground border border-primary ring-1 ring-primary/30"
+                  : "bg-card text-muted-foreground hover:text-foreground hover:bg-muted/60 border border-border"
               }`}
             >
-              <Leaf className="w-3.5 h-3.5 text-emerald-600" />
+              <Leaf className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
               <span>Agri Universities</span>
               <span className={`px-1.5 py-0.5 rounded-md text-[10px] font-bold ${
-                categoryFilter === "AGRICULTURE" ? "bg-white/25 text-white" : "bg-slate-200 text-slate-800"
+                categoryFilter === "AGRICULTURE" ? "bg-primary-foreground/20 text-primary-foreground" : "bg-muted text-foreground"
               }`}>
                 {stats.agriculture}
               </span>
@@ -591,9 +591,9 @@ export function InnovationInstitutionsPage() {
           </div>
 
           {hasActiveFilters && (
-            <div className="flex items-center justify-between text-xs pt-2 border-t border-slate-200">
-              <span className="text-slate-700 font-medium">
-                Showing <strong className="text-slate-950 font-bold">{filteredInstitutions.length}</strong> matching institutions
+            <div className="flex items-center justify-between text-xs pt-2 border-t border-border">
+              <span className="text-muted-foreground font-medium">
+                Showing <strong className="text-foreground font-bold">{filteredInstitutions.length}</strong> matching institutions
               </span>
               <Button
                 variant="ghost"
@@ -642,26 +642,28 @@ export function InnovationInstitutionsPage() {
               inst.activeProjectsCount > 0 ||
               inst.proposalsCount > 0;
             const statusBadge = getVerificationStatusBadge(inst.verification_status);
+            const typeVisual = getInstitutionTypeVisual(inst.institution_type);
 
             return (
               <Card
                 key={inst.id}
-                className="group flex flex-col justify-between rounded-2xl border border-slate-200 bg-card transition-all duration-200 hover:border-primary/50 hover:shadow-lg"
+                className="group flex flex-col justify-between rounded-2xl border border-border bg-card transition-all duration-200 hover:border-primary/50 hover:shadow-md"
               >
                 <div>
-                  <CardHeader className="pb-3">
-                    <div className="flex items-start justify-between gap-2">
-                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-teal-50 text-teal-900 border border-teal-300 shadow-2xs">
-                        {inst.institution_type}
+                  <CardHeader className="pb-3 space-y-3">
+                    {/* Top Badges Row: Flex-wrap with proper alignment */}
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-primary/10 text-primary border border-primary/20 shadow-2xs">
+                        {typeVisual.label}
                       </span>
 
-                      <div className="flex items-center gap-1.5">
+                      <div className="flex items-center gap-1.5 shrink-0">
                         {inst.nirf_rank && (
                           <span
-                            className="inline-flex items-center gap-1 rounded-full border border-amber-300 bg-amber-50 px-2 py-0.5 text-[10px] font-bold text-amber-900 shadow-2xs"
+                            className="inline-flex items-center gap-1 rounded-full border border-amber-300 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/60 px-2 py-0.5 text-[10px] font-bold text-amber-900 dark:text-amber-200 shadow-2xs"
                             title={`NIRF All-India Ranking #${inst.nirf_rank}`}
                           >
-                            <Award className="h-3 w-3 text-amber-700" />
+                            <Award className="h-3 w-3 text-amber-600 dark:text-amber-400" />
                             #{inst.nirf_rank}
                           </span>
                         )}
@@ -672,24 +674,25 @@ export function InnovationInstitutionsPage() {
                       </div>
                     </div>
 
-                    <div className="flex items-start gap-3 mt-3.5">
+                    {/* Avatar, Title and Location Metadata */}
+                    <div className="flex items-start gap-3 pt-1">
                       <div
                         className="w-11 h-11 rounded-xl bg-teal-700 text-white flex items-center justify-center font-black text-sm shrink-0 shadow-xs ring-2 ring-teal-600/20 group-hover:scale-105 transition-transform"
                       >
                         {initials}
                       </div>
 
-                      <div className="min-w-0 flex-1">
-                        <h3 className="line-clamp-2 text-base font-bold text-slate-900 group-hover:text-primary transition-colors leading-snug">
+                      <div className="min-w-0 flex-1 space-y-1">
+                        <h3 className="line-clamp-2 text-base font-bold text-foreground group-hover:text-primary transition-colors leading-snug">
                           {inst.name}
                         </h3>
-                        <div className="mt-1 flex items-center gap-1.5 text-xs text-slate-600 font-medium truncate">
-                          <MapPin className="h-3.5 w-3.5 text-slate-500 shrink-0" />
+                        <div className="flex items-center gap-1.5 text-xs text-muted-foreground font-medium">
+                          <MapPin className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
                           <span className="truncate">{inst.city}, {inst.state}</span>
                           {inst.acronym && (
                             <>
-                              <span className="text-slate-400">·</span>
-                              <span className="font-bold text-slate-800 bg-slate-100 px-1.5 py-0.2 rounded border border-slate-200">
+                              <span className="text-muted-foreground/60 shrink-0">·</span>
+                              <span className="font-bold text-foreground bg-muted px-1.5 py-0.5 rounded border border-border text-[10px] shrink-0">
                                 {inst.acronym}
                               </span>
                             </>
@@ -701,24 +704,35 @@ export function InnovationInstitutionsPage() {
 
                   <CardContent className="space-y-3.5 pb-3">
                     {/* Research Domains Chips */}
-                    {inst.research_domains && inst.research_domains.length > 0 && (
+                    {inst.research_domains && inst.research_domains.length > 0 ? (
                       <div className="space-y-1.5">
-                        <span className="text-[11px] font-bold uppercase tracking-wider text-slate-700">Research Domains</span>
+                        <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
+                          Research Domains
+                        </span>
                         <div className="flex flex-wrap gap-1.5">
                           {inst.research_domains.slice(0, 3).map((dom, i) => (
                             <span
                               key={i}
-                              className="rounded-md bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-800 border border-slate-300"
+                              className="rounded-md bg-muted/60 px-2 py-0.5 text-[11px] font-semibold text-foreground border border-border"
                             >
                               {dom}
                             </span>
                           ))}
                           {inst.research_domains.length > 3 && (
-                            <span className="rounded-md bg-slate-200 px-1.5 py-0.5 text-[10px] text-slate-800 font-bold border border-slate-300">
+                            <span className="rounded-md bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground font-bold border border-border">
                               +{inst.research_domains.length - 3} more
                             </span>
                           )}
                         </div>
+                      </div>
+                    ) : (
+                      <div className="space-y-1.5">
+                        <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
+                          Research Domains
+                        </span>
+                        <p className="text-[11px] text-muted-foreground italic">
+                          Interdisciplinary Civic Engineering &amp; Science
+                        </p>
                       </div>
                     )}
 
@@ -726,39 +740,39 @@ export function InnovationInstitutionsPage() {
                     <div
                       className={`p-3 rounded-xl border text-xs space-y-2.5 transition ${
                         isEngaged
-                          ? "bg-emerald-50/70 border-emerald-300"
-                          : "bg-slate-50 border-slate-200"
+                          ? "bg-emerald-500/10 border-emerald-300/80 dark:border-emerald-800"
+                          : "bg-muted/40 border-border"
                       }`}
                     >
                       <div className="flex items-center justify-between text-xs">
-                        <span className="font-bold text-xs flex items-center gap-1.5 text-slate-900">
-                          <Sparkles className="w-3.5 h-3.5 text-teal-700" />
+                        <span className="font-bold text-xs flex items-center gap-1.5 text-foreground">
+                          <Sparkles className="w-3.5 h-3.5 text-teal-600 dark:text-teal-400" />
                           CivicFix Engagement
                         </span>
                         {isEngaged ? (
-                          <span className="inline-flex items-center gap-1.5 text-[11px] font-bold text-emerald-900 bg-emerald-100 px-2.5 py-0.5 rounded-full border border-emerald-300">
+                          <span className="inline-flex items-center gap-1.5 text-[11px] font-bold text-emerald-800 dark:text-emerald-300 bg-emerald-100 dark:bg-emerald-950/70 px-2.5 py-0.5 rounded-full border border-emerald-300 dark:border-emerald-800">
                             <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 animate-pulse" />
                             Active Partner
                           </span>
                         ) : (
-                          <span className="text-slate-600 font-semibold text-[11px] bg-slate-200/80 px-2 py-0.5 rounded-full border border-slate-300">
+                          <span className="text-muted-foreground font-semibold text-[11px] bg-muted px-2 py-0.5 rounded-full border border-border">
                             Available for Matching
                           </span>
                         )}
                       </div>
 
                       <div className="grid grid-cols-3 gap-2 text-center">
-                        <div className="p-2 rounded-xl bg-white border border-slate-200 shadow-2xs">
-                          <span className="text-[10px] font-bold uppercase tracking-wider text-slate-600 block">Problems</span>
-                          <span className="font-black text-slate-900 text-sm mt-0.5 block">{inst.selectedChallengesCount}</span>
+                        <div className="p-2 rounded-xl bg-card border border-border shadow-2xs">
+                          <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground block">Problems</span>
+                          <span className="font-black text-foreground text-sm mt-0.5 block">{inst.selectedChallengesCount}</span>
                         </div>
-                        <div className="p-2 rounded-xl bg-white border border-slate-200 shadow-2xs">
-                          <span className="text-[10px] font-bold uppercase tracking-wider text-slate-600 block">Projects</span>
-                          <span className="font-black text-slate-900 text-sm mt-0.5 block">{inst.activeProjectsCount}</span>
+                        <div className="p-2 rounded-xl bg-card border border-border shadow-2xs">
+                          <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground block">Projects</span>
+                          <span className="font-black text-foreground text-sm mt-0.5 block">{inst.activeProjectsCount}</span>
                         </div>
-                        <div className="p-2 rounded-xl bg-white border border-slate-200 shadow-2xs">
-                          <span className="text-[10px] font-bold uppercase tracking-wider text-slate-600 block">Proposals</span>
-                          <span className="font-black text-slate-900 text-sm mt-0.5 block">{inst.proposalsCount}</span>
+                        <div className="p-2 rounded-xl bg-card border border-border shadow-2xs">
+                          <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground block">Proposals</span>
+                          <span className="font-black text-foreground text-sm mt-0.5 block">{inst.proposalsCount}</span>
                         </div>
                       </div>
                     </div>
@@ -770,7 +784,7 @@ export function InnovationInstitutionsPage() {
                   <Button
                     size="sm"
                     onClick={() => handleOpenProfile(inst.id)}
-                    className="w-full bg-primary hover:bg-teal-800 text-white font-bold text-xs h-9 shadow-xs group/btn flex items-center justify-center gap-2 rounded-xl transition"
+                    className="w-full bg-primary text-primary-foreground hover:bg-primary/90 font-bold text-xs h-9 shadow-xs group/btn flex items-center justify-center gap-2 rounded-xl transition"
                   >
                     <span>View Capabilities &amp; Profile</span>
                     <ArrowRight className="w-3.5 h-3.5 transition-transform group-hover/btn:translate-x-1" />
@@ -782,10 +796,10 @@ export function InnovationInstitutionsPage() {
         </div>
       ) : (
         /* TABLE VIEW MATCHING CIVICFIX WEBSITE */
-        <div className="rounded-2xl border border-slate-200 bg-card overflow-hidden shadow-xs">
+        <div className="rounded-2xl border border-border bg-card overflow-hidden shadow-xs">
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs">
-              <thead className="bg-slate-100 border-b border-slate-200 text-[11px] font-bold uppercase tracking-wider text-slate-800">
+              <thead className="bg-muted/50 border-b border-border text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
                 <tr>
                   <th className="py-3.5 px-4">Institution</th>
                   <th className="py-3.5 px-4">Type</th>
@@ -795,13 +809,14 @@ export function InnovationInstitutionsPage() {
                   <th className="py-3.5 px-4 text-right">Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-200">
+              <tbody className="divide-y divide-border">
                 {filteredInstitutions.map((inst) => {
                   const initials = getInitials(inst.name, inst.acronym);
                   const statusBadge = getVerificationStatusBadge(inst.verification_status);
+                  const typeVisual = getInstitutionTypeVisual(inst.institution_type);
 
                   return (
-                    <tr key={inst.id} className="hover:bg-slate-50 transition">
+                    <tr key={inst.id} className="hover:bg-muted/30 transition">
                       <td className="py-3.5 px-4">
                         <div className="flex items-center gap-3">
                           <div
@@ -810,21 +825,21 @@ export function InnovationInstitutionsPage() {
                             {initials}
                           </div>
                           <div className="min-w-0">
-                            <p className="font-bold text-slate-900 hover:text-primary transition truncate max-w-sm">
+                            <p className="font-bold text-foreground hover:text-primary transition truncate max-w-sm">
                               {inst.name}
                             </p>
                             <div className="flex items-center gap-2 mt-0.5">
                               {inst.acronym && (
-                                <span className="text-[10px] font-bold text-slate-700 bg-slate-100 px-1.5 py-0.2 rounded border border-slate-200">
+                                <span className="text-[10px] font-bold text-muted-foreground bg-muted px-1.5 py-0.5 rounded border border-border">
                                   {inst.acronym}
                                 </span>
                               )}
                               {inst.nirf_rank && (
-                                <span className="text-[10px] font-bold text-amber-900 bg-amber-50 px-1.5 py-0.2 rounded border border-amber-300">
+                                <span className="text-[10px] font-bold text-amber-900 dark:text-amber-200 bg-amber-50 dark:bg-amber-950/60 px-1.5 py-0.5 rounded border border-amber-300 dark:border-amber-800">
                                   NIRF #{inst.nirf_rank}
                                 </span>
                               )}
-                              <span className={`text-[10px] font-bold px-1.5 py-0.2 rounded border ${statusBadge.bg}`}>
+                              <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded border ${statusBadge.bg}`}>
                                 {statusBadge.label}
                               </span>
                             </div>
@@ -833,14 +848,14 @@ export function InnovationInstitutionsPage() {
                       </td>
 
                       <td className="py-3.5 px-4">
-                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-bold bg-teal-50 text-teal-900 border border-teal-300">
-                          {inst.institution_type}
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-bold bg-primary/10 text-primary border border-primary/20">
+                          {typeVisual.label}
                         </span>
                       </td>
 
-                      <td className="py-3.5 px-4 text-slate-700 font-medium whitespace-nowrap">
+                      <td className="py-3.5 px-4 text-foreground font-medium whitespace-nowrap">
                         <div className="flex items-center gap-1">
-                          <MapPin className="w-3.5 h-3.5 text-slate-500 shrink-0" />
+                          <MapPin className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
                           <span>{inst.city}, {inst.state}</span>
                         </div>
                       </td>
@@ -850,13 +865,13 @@ export function InnovationInstitutionsPage() {
                           {inst.research_domains?.slice(0, 2).map((dom, i) => (
                             <span
                               key={i}
-                              className="rounded-md bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-800 border border-slate-300"
+                              className="rounded-md bg-muted px-2 py-0.5 text-[10px] font-semibold text-foreground border border-border"
                             >
                               {dom}
                             </span>
                           ))}
                           {inst.research_domains?.length > 2 && (
-                            <span className="rounded-md bg-slate-200 px-1.5 py-0.5 text-[10px] text-slate-800 font-bold border border-slate-300">
+                            <span className="rounded-md bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground font-bold border border-border">
                               +{inst.research_domains.length - 2}
                             </span>
                           )}
@@ -865,16 +880,16 @@ export function InnovationInstitutionsPage() {
 
                       <td className="py-3.5 px-4 whitespace-nowrap">
                         <div className="flex items-center gap-2 text-[11px]">
-                          <span className="font-bold text-slate-900">
-                            {inst.selectedChallengesCount} <span className="text-slate-600 font-normal">Problems</span>
+                          <span className="font-bold text-foreground">
+                            {inst.selectedChallengesCount} <span className="text-muted-foreground font-normal">Problems</span>
                           </span>
-                          <span className="text-slate-300">·</span>
-                          <span className="font-bold text-slate-900">
-                            {inst.activeProjectsCount} <span className="text-slate-600 font-normal">Projects</span>
+                          <span className="text-muted-foreground/50">·</span>
+                          <span className="font-bold text-foreground">
+                            {inst.activeProjectsCount} <span className="text-muted-foreground font-normal">Projects</span>
                           </span>
-                          <span className="text-slate-300">·</span>
-                          <span className="font-bold text-slate-900">
-                            {inst.proposalsCount} <span className="text-slate-600 font-normal">Proposals</span>
+                          <span className="text-muted-foreground/50">·</span>
+                          <span className="font-bold text-foreground">
+                            {inst.proposalsCount} <span className="text-muted-foreground font-normal">Proposals</span>
                           </span>
                         </div>
                       </td>
@@ -884,7 +899,7 @@ export function InnovationInstitutionsPage() {
                           size="sm"
                           variant="outline"
                           onClick={() => handleOpenProfile(inst.id)}
-                          className="text-xs font-bold h-8 border-primary/40 text-primary hover:bg-primary hover:text-white transition"
+                          className="text-xs font-bold h-8 border-primary/40 text-primary hover:bg-primary hover:text-primary-foreground transition"
                         >
                           View Profile →
                         </Button>

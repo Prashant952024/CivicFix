@@ -470,29 +470,31 @@ export function InnovationDashboardPage() {
           {/* 1. Research Proposals */}
           <div
             onClick={() => goTo("/app/innovation/proposals?status=SUBMITTED")}
-            className="p-4.5 rounded-2xl border-2 border-sky-400/90 bg-gradient-to-br from-sky-50/90 via-sky-50/30 to-background dark:from-sky-950/30 dark:via-background dark:to-background shadow-xs hover:shadow-md transition-all cursor-pointer group flex flex-col justify-between"
+            className="p-4.5 rounded-2xl border border-border bg-card shadow-xs hover:border-sky-500/60 hover:shadow-md transition-all cursor-pointer group flex flex-col justify-between"
           >
             <div>
               <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-sky-950 dark:text-sky-200 uppercase tracking-wider flex items-center gap-1.5">
-                  <FileText className="w-4 h-4 text-sky-600 dark:text-sky-400" />
+                <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-2">
+                  <div className="p-1.5 rounded-lg bg-sky-500/10 text-sky-600 dark:text-sky-400">
+                    <FileText className="w-4 h-4" />
+                  </div>
                   Research Proposals
                 </span>
                 <span className="h-2 w-2 rounded-full bg-sky-500 animate-pulse" />
               </div>
-              <div className="mt-2.5 flex items-baseline gap-2">
-                <span className="text-3xl font-black text-sky-900 dark:text-sky-100 tracking-tight">
+              <div className="mt-3 flex items-baseline gap-2">
+                <span className="text-3xl font-black text-foreground tracking-tight">
                   {loading ? "..." : data?.actionRequired.proposalsAwaitingReviewCount ?? 0}
                 </span>
-                <span className="text-xs font-semibold text-sky-700 dark:text-sky-300">awaiting review</span>
+                <span className="text-xs font-semibold text-muted-foreground">awaiting review</span>
               </div>
               {data && data.actionRequired.resubmittedCount > 0 && (
-                <p className="text-[11px] font-semibold text-indigo-700 dark:text-indigo-300 mt-0.5">
+                <p className="text-[11px] font-semibold text-sky-600 dark:text-sky-400 mt-1">
                   ★ {data.actionRequired.resubmittedCount} resubmitted revision
                 </p>
               )}
             </div>
-            <div className="mt-3.5 pt-2.5 border-t border-sky-200/80 dark:border-sky-900/60 flex items-center justify-between text-xs font-bold text-sky-700 dark:text-sky-300 group-hover:text-sky-900 dark:group-hover:text-sky-100">
+            <div className="mt-3.5 pt-2.5 border-t border-border flex items-center justify-between text-xs font-bold text-primary group-hover:text-primary/80">
               <span>Review Proposals</span>
               <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" />
             </div>
@@ -501,29 +503,31 @@ export function InnovationDashboardPage() {
           {/* 2. Critical Blockers & Risks */}
           <div
             onClick={() => setAttentionFilter("BLOCKERS_MILESTONES")}
-            className="p-4.5 rounded-2xl border border-rose-300/80 bg-gradient-to-br from-rose-50/80 via-background to-background dark:from-rose-950/30 dark:via-background dark:to-background shadow-xs hover:shadow-md transition-all cursor-pointer group flex flex-col justify-between"
+            className="p-4.5 rounded-2xl border border-border bg-card shadow-xs hover:border-rose-500/60 hover:shadow-md transition-all cursor-pointer group flex flex-col justify-between"
           >
             <div>
               <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-rose-950 dark:text-rose-200 uppercase tracking-wider flex items-center gap-1.5">
-                  <ShieldAlert className="w-4 h-4 text-rose-600 dark:text-rose-400" />
+                <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-2">
+                  <div className="p-1.5 rounded-lg bg-rose-500/10 text-rose-600 dark:text-rose-400">
+                    <ShieldAlert className="w-4 h-4" />
+                  </div>
                   Execution Blockers
                 </span>
                 {(data?.actionRequired.criticalBlockersCount ?? 0) > 0 && (
                   <Flame className="w-3.5 h-3.5 text-rose-500 animate-bounce" />
                 )}
               </div>
-              <div className="mt-2.5 flex items-baseline gap-2">
-                <span className="text-3xl font-black text-rose-900 dark:text-rose-100 tracking-tight">
+              <div className="mt-3 flex items-baseline gap-2">
+                <span className="text-3xl font-black text-foreground tracking-tight">
                   {loading ? "..." : data?.actionRequired.criticalBlockersCount ?? 0}
                 </span>
-                <span className="text-xs font-semibold text-rose-700 dark:text-rose-300">critical / high</span>
+                <span className="text-xs font-semibold text-rose-600 dark:text-rose-400">critical / high</span>
               </div>
-              <p className="text-[11px] text-muted-foreground mt-0.5">
+              <p className="text-[11px] text-muted-foreground mt-1">
                 {data?.actionRequired.overdueMilestonesCount ?? 0} research milestones overdue
               </p>
             </div>
-            <div className="mt-3.5 pt-2.5 border-t border-border flex items-center justify-between text-xs font-bold text-rose-700 dark:text-rose-300 group-hover:text-rose-900 dark:group-hover:text-rose-100">
+            <div className="mt-3.5 pt-2.5 border-t border-border flex items-center justify-between text-xs font-bold text-rose-600 dark:text-rose-400 group-hover:text-rose-700 dark:group-hover:text-rose-300">
               <span>Inspect Blockers</span>
               <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" />
             </div>
@@ -532,26 +536,28 @@ export function InnovationDashboardPage() {
           {/* 3. Pilot Validations & Scale */}
           <div
             onClick={() => goTo("/app/innovation/pilots")}
-            className="p-4.5 rounded-2xl border border-emerald-300/80 bg-gradient-to-br from-emerald-50/80 via-background to-background dark:from-emerald-950/30 dark:via-background dark:to-background shadow-xs hover:shadow-md transition-all cursor-pointer group flex flex-col justify-between"
+            className="p-4.5 rounded-2xl border border-border bg-card shadow-xs hover:border-emerald-500/60 hover:shadow-md transition-all cursor-pointer group flex flex-col justify-between"
           >
             <div>
               <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-emerald-950 dark:text-emerald-200 uppercase tracking-wider flex items-center gap-1.5">
-                  <FileCheck2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-2">
+                  <div className="p-1.5 rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
+                    <FileCheck2 className="w-4 h-4" />
+                  </div>
                   Pilot Validations
                 </span>
               </div>
-              <div className="mt-2.5 flex items-baseline gap-2">
-                <span className="text-3xl font-black text-emerald-900 dark:text-emerald-100 tracking-tight">
+              <div className="mt-3 flex items-baseline gap-2">
+                <span className="text-3xl font-black text-foreground tracking-tight">
                   {loading ? "..." : data?.actionRequired.validationsAwaitingReviewCount ?? 0}
                 </span>
-                <span className="text-xs font-semibold text-emerald-700 dark:text-emerald-300">signoffs pending</span>
+                <span className="text-xs font-semibold text-emerald-600 dark:text-emerald-400">signoffs pending</span>
               </div>
-              <p className="text-[11px] text-muted-foreground mt-0.5">
+              <p className="text-[11px] text-muted-foreground mt-1">
                 {data?.actionRequired.deploymentsAwaitingReviewCount ?? 0} scale authorizations pending
               </p>
             </div>
-            <div className="mt-3.5 pt-2.5 border-t border-border flex items-center justify-between text-xs font-bold text-emerald-700 dark:text-emerald-300 group-hover:text-emerald-900 dark:group-hover:text-emerald-100">
+            <div className="mt-3.5 pt-2.5 border-t border-border flex items-center justify-between text-xs font-bold text-emerald-600 dark:text-emerald-400 group-hover:text-emerald-700 dark:group-hover:text-emerald-300">
               <span>Evaluate Pilots</span>
               <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" />
             </div>
@@ -560,26 +566,28 @@ export function InnovationDashboardPage() {
           {/* 4. Unformulated Complex Problems */}
           <div
             onClick={() => goTo("/app/innovation/problems")}
-            className="p-4.5 rounded-2xl border border-amber-300/80 bg-gradient-to-br from-amber-50/80 via-background to-background dark:from-amber-950/30 dark:via-background dark:to-background shadow-xs hover:shadow-md transition-all cursor-pointer group flex flex-col justify-between"
+            className="p-4.5 rounded-2xl border border-border bg-card shadow-xs hover:border-amber-500/60 hover:shadow-md transition-all cursor-pointer group flex flex-col justify-between"
           >
             <div>
               <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-amber-950 dark:text-amber-200 uppercase tracking-wider flex items-center gap-1.5">
-                  <BrainCircuit className="w-4 h-4 text-amber-600 dark:text-amber-400" />
+                <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-2">
+                  <div className="p-1.5 rounded-lg bg-amber-500/10 text-amber-600 dark:text-amber-400">
+                    <BrainCircuit className="w-4 h-4" />
+                  </div>
                   Complex Problems
                 </span>
               </div>
-              <div className="mt-2.5 flex items-baseline gap-2">
-                <span className="text-3xl font-black text-amber-900 dark:text-amber-100 tracking-tight">
+              <div className="mt-3 flex items-baseline gap-2">
+                <span className="text-3xl font-black text-foreground tracking-tight">
                   {loading ? "..." : data?.actionRequired.unformulatedIssuesCount ?? 0}
                 </span>
-                <span className="text-xs font-semibold text-amber-700 dark:text-amber-300">unformulated</span>
+                <span className="text-xs font-semibold text-amber-600 dark:text-amber-400">unformulated</span>
               </div>
-              <p className="text-[11px] text-muted-foreground mt-0.5">
+              <p className="text-[11px] text-muted-foreground mt-1">
                 {data?.actionRequired.pendingInvitationsCount ?? 0} university match invitations pending
               </p>
             </div>
-            <div className="mt-3.5 pt-2.5 border-t border-border flex items-center justify-between text-xs font-bold text-amber-700 dark:text-amber-300 group-hover:text-amber-900 dark:group-hover:text-amber-100">
+            <div className="mt-3.5 pt-2.5 border-t border-border flex items-center justify-between text-xs font-bold text-amber-600 dark:text-amber-400 group-hover:text-amber-700 dark:group-hover:text-amber-300">
               <span>Formulate Challenges</span>
               <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" />
             </div>
@@ -784,15 +792,15 @@ export function InnovationDashboardPage() {
             {/* Stage 4: Proposals Awaiting Review */}
             <div
               onClick={() => goTo("/app/innovation/proposals")}
-              className="p-3 rounded-xl border-2 border-sky-400 bg-sky-50/70 dark:bg-sky-950/40 hover:bg-sky-100/70 dark:hover:bg-sky-950/70 cursor-pointer transition flex flex-col justify-between shadow-2xs"
+              className="p-3 rounded-xl border-2 border-primary/50 bg-primary/5 dark:bg-primary/10 hover:bg-primary/15 cursor-pointer transition flex flex-col justify-between shadow-2xs"
             >
-              <span className="text-[9px] font-bold text-sky-950 dark:text-sky-200 uppercase tracking-wider">
+              <span className="text-[9px] font-bold text-primary uppercase tracking-wider">
                 4. Proposals
               </span>
-              <p className="text-xl font-black text-sky-900 dark:text-sky-100 mt-1">
+              <p className="text-xl font-black text-foreground mt-1">
                 {loading ? "..." : data?.pipeline.proposalsAwaitingReviewCount ?? 0}
               </p>
-              <span className="text-[10px] text-sky-700 dark:text-sky-300 font-bold mt-1">Review ★</span>
+              <span className="text-[10px] text-primary font-bold mt-1">Review ★</span>
             </div>
 
             {/* Stage 5: Research Execution */}
@@ -868,12 +876,12 @@ export function InnovationDashboardPage() {
             {/* Stage 10: Knowledge Hub */}
             <div
               onClick={() => goTo("/app/innovation/knowledge")}
-              className="p-3 rounded-xl border border-emerald-300 bg-emerald-50/70 dark:bg-emerald-950/40 hover:bg-emerald-100/70 dark:hover:bg-emerald-950/70 cursor-pointer transition flex flex-col justify-between"
+              className="p-3 rounded-xl border border-emerald-500/40 bg-emerald-500/5 dark:bg-emerald-950/30 hover:bg-emerald-500/10 cursor-pointer transition flex flex-col justify-between shadow-2xs"
             >
-              <span className="text-[9px] font-bold text-emerald-950 dark:text-emerald-200 uppercase tracking-wider">
+              <span className="text-[9px] font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider">
                 10. Knowledge
               </span>
-              <p className="text-xl font-black text-emerald-900 dark:text-emerald-100 mt-1">
+              <p className="text-xl font-black text-foreground mt-1">
                 {loading ? "..." : data?.pipeline.knowledgeSolutionsCount ?? 0}
               </p>
               <span className="text-[10px] text-emerald-700 dark:text-emerald-300 font-bold mt-1">Published ✓</span>

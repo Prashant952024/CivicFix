@@ -1817,9 +1817,6 @@ export async function fetchIndustryDashboardData(
     }
   }
 
-  // Sort activity descending
-  activityItems.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
-
   return {
     organization,
     metrics,
@@ -1830,4 +1827,275 @@ export async function fetchIndustryDashboardData(
     recentActivity: activityItems.slice(0, 10),
   };
 }
+
+export interface DiscoveryAdvisoryMatch {
+  isMatch: boolean;
+  score: number;
+  level: "HIGH" | "MEDIUM" | "MODERATE" | "GENERAL";
+  badgeLabel: string;
+  badgeTone: "success" | "info" | "default";
+  reasons: string[];
+  summary: string;
+}
+
+export interface EnrichedDiscoveryListing extends PublicMarketplaceListing {
+  hasApplied: boolean;
+  applicationStatus?: ApplicationStatus | null;
+  applicationId?: string | null;
+  existingApplication?: IndustryApplicationItem | null;
+  advisoryMatch: DiscoveryAdvisoryMatch;
+  problemStatement?: string | null;
+  projectStage?: string | null;
+}
+
+export interface OpportunityDiscoveryData {
+  organization: IndustryOrganizationRow | null;
+  listings: EnrichedDiscoveryListing[];
+  categoryCounts: Record<SupportRequestCategory | "ALL", number>;
+  totalOpenCount: number;
+  myApplicationsCount: number;
+  highMatchCount: number;
+}
+
+/**
+ * Computes non-authoritative AI advisory match between an organization profile and a research support listing.
+ */
+export function computeAdvisoryMatch(
+  listing: PublicMarketplaceListing & { problem_statement?: string | null },
+  organization: IndustryOrganizationRow | null
+): DiscoveryAdvisoryMatch {
+  if (!organization) {
+    return {
+      isMatch: false,
+      score: 50,
+      level: "GENERAL",
+      badgeLabel: "General Opportunity",
+      badgeTone: "default",
+      reasons: ["Open for all accredited industry, startup, and CSR partners."],
+      summary: "Explore opportunity details to evaluate if your organization's resources align.",
+    };
+  }
+
+  const reasons: string[] = [];
+  let score = 55;
+
+  // 1. Organization Type Synergy
+  const orgType = organization.organization_type;
+  const cat = listing.category;
+
+  if (
+    (orgType === "COMPANY" || orgType === "STARTUP" || orgType === "CIVIC_TECH") &&
+    ["HARDWARE", "TECHNOLOGY", "MANUFACTURING", "DATA"].includes(cat)
+  ) {
+    score += 20;
+    reasons.push(`Strong organizational alignment: ${organization.name} (${orgType}) routinely provides ${SUPPORT_CATEGORY_META[cat]?.label}.`);
+  } else if (
+    orgType === "FOUNDATION" &&
+    ["FUNDING", "INFRASTRUCTURE", "EXPERTISE"].includes(cat)
+  ) {
+    score += 25;
+    reasons.push(`Direct mission fit: Foundations excel in providing ${SUPPORT_CATEGORY_META[cat]?.label}.`);
+  } else if (
+    orgType === "RND_LAB" &&
+    ["DATA", "EXPERTISE", "INFRASTRUCTURE", "TECHNOLOGY"].includes(cat)
+  ) {
+    score += 20;
+    reasons.push(`Academic & scientific synergy: R&D labs frequently exchange ${SUPPORT_CATEGORY_META[cat]?.label}.`);
+  }
+
+  // 2. Sector / Domain Overlap
+  if (organization.sector && listing.challenge_domain) {
+    const sec = organization.sector.toLowerCase();
+    const dom = listing.challenge_domain.toLowerCase();
+    if (sec.includes(dom) || dom.includes(sec)) {
+      score += 15;
+      reasons.push(`Domain overlap: Your declared sector (${organization.sector}) aligns directly with the challenge theme (${listing.challenge_domain}).`);
+    }
+  }
+
+  // 3. Organization Metadata Capabilities
+  const metadata = (organization.metadata as Record<string, unknown>) || {};
+  const declaredCapabilities = Array.isArray(metadata.capabilities)
+    ? (metadata.capabilities as string[])
+    : [];
+
+  const textToScan = `${listing.public_title} ${listing.public_summary} ${listing.public_specification ?? ""} ${listing.desired_outcome ?? ""}`.toLowerCase();
+
+  for (const cap of declaredCapabilities) {
+    if (textToScan.includes(cap.toLowerCase())) {
+      score += 10;
+      reasons.push(`Declared capability match: Opportunity requirements reference "${cap}".`);
+      break;
+    }
+  }
+
+  // Cap score between 30 and 95
+  score = Math.min(95, Math.max(30, score));
+
+  let level: "HIGH" | "MEDIUM" | "MODERATE" | "GENERAL" = "GENERAL";
+  let badgeLabel = "Advisory Match";
+  let badgeTone: "success" | "info" | "default" = "default";
+
+  if (score >= 80) {
+    level = "HIGH";
+    badgeLabel = "High Synergy";
+    badgeTone = "success";
+  } else if (score >= 65) {
+    level = "MEDIUM";
+    badgeLabel = "Relevant Match";
+    badgeTone = "info";
+  } else if (score >= 50) {
+    level = "MODERATE";
+    badgeLabel = "Moderate Fit";
+    badgeTone = "default";
+  }
+
+  if (reasons.length === 0) {
+    reasons.push(`Open support requirement seeking ${SUPPORT_CATEGORY_META[cat]?.label}.`);
+  }
+
+  return {
+    isMatch: score >= 65,
+    score,
+    level,
+    badgeLabel,
+    badgeTone,
+    reasons,
+    summary: reasons[0] || "Opportunity matches general platform contribution criteria.",
+  };
+}
+
+/**
+ * Fetches comprehensive opportunity discovery data for the Industry Partner Marketplace (Page 10B).
+ */
+export async function fetchOpportunityDiscoveryData(
+  userProfile: { id?: string; organization_id?: string | null; email?: string | null } | null
+): Promise<OpportunityDiscoveryData> {
+  const organization = await resolveIndustryOrganizationForUser(userProfile);
+
+  const [rawListingsRes, myApplications] = await Promise.all([
+    supabase
+      .from("research_support_listings")
+      .select(`
+        id,
+        support_request_id,
+        challenge_id,
+        institution_id,
+        project_id,
+        public_title,
+        public_summary,
+        category,
+        public_specification,
+        public_timeline,
+        desired_outcome,
+        status,
+        applications_count,
+        published_at,
+        expires_at,
+        challenge:innovation_challenges!research_support_listings_challenge_id_fkey(title, category, problem_statement),
+        institution:institutions!research_support_listings_institution_id_fkey(name, city),
+        project:challenge_projects!research_support_listings_project_id_fkey(project_title, status)
+      `)
+      .eq("status", "OPEN")
+      .order("published_at", { ascending: false }),
+    organization ? fetchOrganizationApplications(organization.id) : Promise.resolve([]),
+  ]);
+
+  if (rawListingsRes.error) {
+    console.error("Error fetching discovery listings:", rawListingsRes.error);
+    throw new Error(rawListingsRes.error.message);
+  }
+
+  // Build lookup map for existing applications by listing_id
+  const appByListingId = new Map<string, IndustryApplicationItem>();
+  for (const app of myApplications) {
+    if (app.listing_id) {
+      appByListingId.set(app.listing_id, app);
+    }
+  }
+
+  type RawDiscoveryItem = ResearchSupportListingRow & {
+    challenge?: { title?: string; category?: string | null; problem_statement?: string | null } | null;
+    institution?: { name?: string; city?: string | null } | null;
+    project?: { project_title?: string | null; status?: string | null } | null;
+  };
+
+  const rawListings = (rawListingsRes.data as unknown as RawDiscoveryItem[]) ?? [];
+
+  const categoryCounts: Record<SupportRequestCategory | "ALL", number> = {
+    ALL: rawListings.length,
+    FUNDING: 0,
+    HARDWARE: 0,
+    TECHNOLOGY: 0,
+    EXPERTISE: 0,
+    INFRASTRUCTURE: 0,
+    DATA: 0,
+    MANUFACTURING: 0,
+  };
+
+  let highMatchCount = 0;
+
+  const listings: EnrichedDiscoveryListing[] = rawListings.map((item) => {
+    if (categoryCounts[item.category] !== undefined) {
+      categoryCounts[item.category]++;
+    }
+
+    const existingApp = appByListingId.get(item.id);
+    const hasApplied = Boolean(existingApp);
+    const applicationStatus = existingApp?.status ?? null;
+    const applicationId = existingApp?.id ?? null;
+
+    const baseListing: PublicMarketplaceListing = {
+      id: item.id,
+      support_request_id: item.support_request_id,
+      challenge_id: item.challenge_id,
+      challenge_title: item.challenge?.title ?? "Civic Innovation Challenge",
+      challenge_domain: item.challenge?.category ?? null,
+      institution_id: item.institution_id,
+      institution_name: item.institution?.name ?? "Partner University",
+      institution_city: item.institution?.city ?? null,
+      project_id: item.project_id,
+      public_title: item.public_title,
+      public_summary: item.public_summary,
+      category: item.category,
+      public_specification: item.public_specification,
+      public_timeline: item.public_timeline,
+      desired_outcome: item.desired_outcome,
+      status: item.status,
+      applications_count: item.applications_count,
+      published_at: item.published_at,
+      expires_at: item.expires_at,
+    };
+
+    const advisoryMatch = computeAdvisoryMatch(
+      { ...baseListing, problem_statement: item.challenge?.problem_statement },
+      organization
+    );
+
+    if (advisoryMatch.level === "HIGH") {
+      highMatchCount++;
+    }
+
+    return {
+      ...baseListing,
+      hasApplied,
+      applicationStatus,
+      applicationId,
+      existingApplication: existingApp ?? null,
+      advisoryMatch,
+      problemStatement: item.challenge?.problem_statement ?? null,
+      projectStage: item.project?.status ?? "ACTIVE",
+    };
+  });
+
+  return {
+    organization,
+    listings,
+    categoryCounts,
+    totalOpenCount: listings.length,
+    myApplicationsCount: myApplications.length,
+    highMatchCount,
+  };
+}
+
 
