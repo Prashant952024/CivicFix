@@ -131,6 +131,35 @@ export const ORGANIZATION_TYPE_META: Record<
   OTHER: { label: "Supporting Organization", badgeTone: "default" },
 };
 
+export const PARTNER_STATUS_META: Record<
+  string,
+  { label: string; badgeTone: "default" | "info" | "warning" | "success" | "danger" }
+> = {
+  ONBOARDING: { label: "Onboarding", badgeTone: "warning" },
+  ACTIVE: { label: "Active Partner", badgeTone: "success" },
+  PAUSED: { label: "Paused", badgeTone: "warning" },
+  COMPLETED: { label: "Completed", badgeTone: "info" },
+  WITHDRAWN: { label: "Withdrawn", badgeTone: "default" },
+  TERMINATED: { label: "Terminated", badgeTone: "danger" },
+};
+
+export const RESEARCH_STAGE_META: Record<
+  string,
+  { label: string; shortLabel: string; step: number; badgeTone: "default" | "info" | "warning" | "success" }
+> = {
+  RESEARCH_STARTED: { label: "Research Baseline", shortLabel: "Research", step: 1, badgeTone: "info" },
+  PROTOTYPE_DEVELOPMENT: { label: "Prototype Development", shortLabel: "Prototype", step: 2, badgeTone: "info" },
+  PROTOTYPE_COMPLETED: { label: "Prototype Completed", shortLabel: "Complete", step: 3, badgeTone: "info" },
+  TESTING: { label: "Prototype Testing", shortLabel: "Testing", step: 4, badgeTone: "warning" },
+  PILOT_READY: { label: "Field Pilot Preparation", shortLabel: "Pilot Ready", step: 5, badgeTone: "warning" },
+  PILOT_ACTIVE: { label: "Field Pilot Active", shortLabel: "Pilot Active", step: 6, badgeTone: "success" },
+  VALIDATION: { label: "Field Validation", shortLabel: "Validation", step: 7, badgeTone: "success" },
+  DEPLOYMENT_READY: { label: "Scale-Up Ready", shortLabel: "Deployment Ready", step: 8, badgeTone: "warning" },
+  DEPLOYMENT_ACTIVE: { label: "Large-Scale Deployment", shortLabel: "Deployment Active", step: 9, badgeTone: "success" },
+  IMPACT_MONITORING: { label: "Impact Monitoring", shortLabel: "Impact", step: 10, badgeTone: "success" },
+  COMPLETED: { label: "Solution Completed", shortLabel: "Completed", step: 11, badgeTone: "success" },
+};
+
 export interface UniversityMarketplaceRequestItem extends ResearchSupportRequestRow {
   challenge?: { id: string; title: string; category?: string | null } | null;
   institution?: { id: string; name: string; city?: string | null } | null;
@@ -2309,6 +2338,378 @@ export async function fetchIndustrySupportListingsData(
   return {
     organization,
     listings,
+    metrics,
+  };
+}
+
+export interface IndustryActiveContributionItem {
+  id: string;
+  project_id: string;
+  organization_id: string;
+  support_request_id?: string | null;
+  application_id?: string | null;
+  listing_id?: string | null;
+  category: SupportRequestCategory;
+  contribution_summary: string;
+  notes: string | null;
+  agreement_notes: string | null;
+  participation_status: string;
+  status: string;
+  access_scope: string;
+  started_at: string;
+  onboarded_at?: string | null;
+  completed_at?: string | null;
+  created_at: string;
+  updated_at: string;
+  project: {
+    id: string;
+    project_title: string;
+    project_summary: string | null;
+    status: string;
+    research_stage: string;
+    update_cadence_days: number;
+    created_at: string;
+    updated_at: string;
+    institution: {
+      id: string;
+      name: string;
+      city?: string | null;
+      state?: string | null;
+      institution_type?: string | null;
+    } | null;
+    challenge: {
+      id: string;
+      title: string;
+      category?: string | null;
+      problem_statement?: string | null;
+      description?: string | null;
+    } | null;
+    lead: {
+      id: string;
+      full_name: string;
+      email?: string | null;
+    } | null;
+  } | null;
+  support_request?: {
+    id: string;
+    title: string;
+    category: SupportRequestCategory;
+    description?: string | null;
+    specification?: string | null;
+    desired_outcome?: string | null;
+    timeline?: string | null;
+  } | null;
+  application?: {
+    id: string;
+    proposed_contribution?: string | null;
+    proposal?: string | null;
+    estimated_value?: number | null;
+    timeline?: string | null;
+    status?: string | null;
+  } | null;
+  recent_activity?: {
+    id: string;
+    activity_type: string;
+    created_at: string;
+    actor_name?: string | null;
+  }[];
+}
+
+export interface IndustryActiveContributionsMetrics {
+  activePartnershipsCount: number;
+  supportedProjectsCount: number;
+  supportedInstitutionsCount: number;
+  distinctCategoriesCount: number;
+  attentionRequiredCount: number;
+  categoryCounts: Record<SupportRequestCategory | "ALL", number>;
+}
+
+export interface IndustryActiveContributionsData {
+  organization: IndustryOrganizationRow | null;
+  contributions: IndustryActiveContributionItem[];
+  metrics: IndustryActiveContributionsMetrics;
+}
+
+/**
+ * Fetches active contributions and supported projects for the Industry Partner (Page 10E).
+ */
+export async function fetchIndustryActiveContributionsData(
+  userProfile: { id?: string; organization_id?: string | null; email?: string | null } | null
+): Promise<IndustryActiveContributionsData> {
+  const organization = await resolveIndustryOrganizationForUser(userProfile);
+
+  if (!organization) {
+    return {
+      organization: null,
+      contributions: [],
+      metrics: {
+        activePartnershipsCount: 0,
+        supportedProjectsCount: 0,
+        supportedInstitutionsCount: 0,
+        distinctCategoriesCount: 0,
+        attentionRequiredCount: 0,
+        categoryCounts: {
+          ALL: 0,
+          FUNDING: 0,
+          HARDWARE: 0,
+          TECHNOLOGY: 0,
+          EXPERTISE: 0,
+          INFRASTRUCTURE: 0,
+          DATA: 0,
+          MANUFACTURING: 0,
+        },
+      },
+    };
+  }
+
+  const { data: rawPartners, error } = await supabase
+    .from("project_support_partners")
+    .select(`
+      *,
+      project:challenge_projects!project_support_partners_project_id_fkey(
+        id,
+        project_title,
+        project_summary,
+        status,
+        research_stage,
+        update_cadence_days,
+        created_at,
+        updated_at,
+        institution:institutions!challenge_projects_institution_id_fkey(id, name, city, state, institution_type),
+        challenge:innovation_challenges!challenge_projects_challenge_id_fkey(id, title, category, problem_statement, description),
+        lead:profiles!challenge_projects_project_lead_profile_id_fkey(id, full_name, email)
+      ),
+      support_request:research_support_requests!project_support_partners_support_request_id_fkey(
+        id,
+        title,
+        category,
+        description,
+        specification,
+        desired_outcome,
+        timeline
+      ),
+      application:research_support_applications!project_support_partners_application_id_fkey(
+        id,
+        proposed_contribution,
+        proposal,
+        estimated_value,
+        timeline,
+        status
+      )
+    `)
+    .eq("organization_id", organization.id)
+    .order("created_at", { ascending: false });
+
+  if (error) {
+    console.error("Error fetching active contributions:", error);
+    throw new Error(error.message);
+  }
+
+  type RawJoinRow = ProjectSupportPartnerRow & {
+    project?: {
+      id: string;
+      project_title: string;
+      project_summary?: string | null;
+      status: string;
+      research_stage?: string;
+      update_cadence_days?: number;
+      created_at: string;
+      updated_at: string;
+      institution?: { id: string; name: string; city?: string | null; state?: string | null; institution_type?: string | null } | null;
+      challenge?: { id: string; title: string; category?: string | null; problem_statement?: string | null; description?: string | null } | null;
+      lead?: { id: string; full_name: string; email?: string | null } | null;
+    } | null;
+    support_request?: {
+      id: string;
+      title: string;
+      category: SupportRequestCategory;
+      description?: string | null;
+      specification?: string | null;
+      desired_outcome?: string | null;
+      timeline?: string | null;
+    } | null;
+    application?: {
+      id: string;
+      proposed_contribution?: string | null;
+      proposal?: string | null;
+      estimated_value?: number | null;
+      timeline?: string | null;
+      status?: string | null;
+    } | null;
+  };
+
+  const rawList = (rawPartners as unknown as RawJoinRow[]) ?? [];
+
+  // Extract distinct project IDs to fetch recent activity
+  const projectIds = Array.from(new Set(rawList.map((p) => p.project_id).filter(Boolean)));
+
+  const activitiesByProjectId = new Map<string, { id: string; activity_type: string; created_at: string; actor_name?: string | null }[]>();
+
+  if (projectIds.length > 0) {
+    const { data: activityRows, error: actError } = await supabase
+      .from("challenge_project_activity")
+      .select(`
+        id,
+        project_id,
+        activity_type,
+        created_at,
+        actor:profiles!challenge_project_activity_actor_profile_id_fkey(full_name)
+      `)
+      .in("project_id", projectIds)
+      .order("created_at", { ascending: false })
+      .limit(50);
+
+    if (!actError && activityRows) {
+      for (const act of (activityRows as unknown as { id: string; project_id: string; activity_type: string; created_at: string; actor?: { full_name?: string } | null }[]) ?? []) {
+        const existing = activitiesByProjectId.get(act.project_id) ?? [];
+        existing.push({
+          id: act.id,
+          activity_type: act.activity_type,
+          created_at: act.created_at,
+          actor_name: act.actor?.full_name ?? null,
+        });
+        activitiesByProjectId.set(act.project_id, existing);
+      }
+    }
+  }
+
+  const categoryCounts: Record<SupportRequestCategory | "ALL", number> = {
+    ALL: rawList.length,
+    FUNDING: 0,
+    HARDWARE: 0,
+    TECHNOLOGY: 0,
+    EXPERTISE: 0,
+    INFRASTRUCTURE: 0,
+    DATA: 0,
+    MANUFACTURING: 0,
+  };
+
+  const distinctProjectIds = new Set<string>();
+  const distinctInstitutions = new Set<string>();
+  const distinctCategories = new Set<SupportRequestCategory>();
+  let activePartnershipsCount = 0;
+  let attentionRequiredCount = 0;
+
+  const contributions: IndustryActiveContributionItem[] = rawList.map((p) => {
+    const category: SupportRequestCategory = (p.category as SupportRequestCategory) || p.support_request?.category || "HARDWARE";
+    if (categoryCounts[category] !== undefined) {
+      categoryCounts[category]++;
+    }
+    distinctCategories.add(category);
+
+    const partStatus = p.status || p.participation_status || "ACTIVE";
+    if (partStatus === "ACTIVE") {
+      activePartnershipsCount++;
+    }
+
+    if (p.project?.id) {
+      distinctProjectIds.add(p.project.id);
+    }
+    if (p.project?.institution?.id || p.project?.institution?.name) {
+      distinctInstitutions.add(p.project.institution.id || p.project.institution.name);
+    }
+
+    // Determine attention required (e.g. status is ONBOARDING, project is PAUSED, etc.)
+    const isAttention = (partStatus as string) === "ONBOARDING" || p.project?.status === "PAUSED" || p.project?.status === "FORMING_TEAM";
+    if (isAttention) {
+      attentionRequiredCount++;
+    }
+
+    const projectActivities = (p.project?.id && activitiesByProjectId.get(p.project.id)) ? activitiesByProjectId.get(p.project.id) : [];
+
+    return {
+      id: p.id,
+      project_id: p.project_id,
+      organization_id: p.organization_id,
+      support_request_id: p.support_request_id ?? null,
+      application_id: p.application_id ?? null,
+      listing_id: p.listing_id ?? null,
+      category,
+      contribution_summary: p.contribution_summary || p.notes || p.application?.proposed_contribution || "Active Support Contribution",
+      notes: p.notes ?? null,
+      agreement_notes: p.agreement_notes ?? null,
+      participation_status: partStatus,
+      status: partStatus,
+      access_scope: p.access_scope ?? "SUPPORT_SPECIFIC",
+      started_at: p.started_at ?? p.onboarded_at ?? p.created_at,
+      onboarded_at: p.onboarded_at ?? null,
+      completed_at: p.completed_at ?? null,
+      created_at: p.created_at,
+      updated_at: p.updated_at,
+      project: p.project
+        ? {
+            id: p.project.id,
+            project_title: p.project.project_title || "Civic Research Project",
+            project_summary: p.project.project_summary ?? null,
+            status: p.project.status || "ACTIVE",
+            research_stage: p.project.research_stage || "RESEARCH_STARTED",
+            update_cadence_days: p.project.update_cadence_days || 14,
+            created_at: p.project.created_at,
+            updated_at: p.project.updated_at,
+            institution: p.project.institution
+              ? {
+                  id: p.project.institution.id,
+                  name: p.project.institution.name,
+                  city: p.project.institution.city ?? null,
+                  state: p.project.institution.state ?? null,
+                  institution_type: p.project.institution.institution_type ?? null,
+                }
+              : null,
+            challenge: p.project.challenge
+              ? {
+                  id: p.project.challenge.id,
+                  title: p.project.challenge.title,
+                  category: p.project.challenge.category ?? null,
+                  problem_statement: p.project.challenge.problem_statement ?? null,
+                  description: p.project.challenge.description ?? null,
+                }
+              : null,
+            lead: p.project.lead
+              ? {
+                  id: p.project.lead.id,
+                  full_name: p.project.lead.full_name,
+                  email: p.project.lead.email ?? null,
+                }
+              : null,
+          }
+        : null,
+      support_request: p.support_request
+        ? {
+            id: p.support_request.id,
+            title: p.support_request.title,
+            category: p.support_request.category,
+            description: p.support_request.description ?? null,
+            specification: p.support_request.specification ?? null,
+            desired_outcome: p.support_request.desired_outcome ?? null,
+            timeline: p.support_request.timeline ?? null,
+          }
+        : null,
+      application: p.application
+        ? {
+            id: p.application.id,
+            proposed_contribution: p.application.proposed_contribution ?? null,
+            proposal: p.application.proposal ?? null,
+            estimated_value: p.application.estimated_value ?? null,
+            timeline: p.application.timeline ?? null,
+            status: p.application.status ?? null,
+          }
+        : null,
+      recent_activity: projectActivities,
+    };
+  });
+
+  const metrics: IndustryActiveContributionsMetrics = {
+    activePartnershipsCount,
+    supportedProjectsCount: distinctProjectIds.size,
+    supportedInstitutionsCount: distinctInstitutions.size,
+    distinctCategoriesCount: distinctCategories.size,
+    attentionRequiredCount,
+    categoryCounts,
+  };
+
+  return {
+    organization,
+    contributions,
     metrics,
   };
 }

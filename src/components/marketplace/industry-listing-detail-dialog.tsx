@@ -6,6 +6,7 @@ import {
   Cpu,
   Database,
   ExternalLink,
+  FileText,
   Handshake,
   Layers,
   Send,
