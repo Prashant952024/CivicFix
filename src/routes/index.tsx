@@ -68,6 +68,7 @@ const IndustryDashboardPage = lazy(() => import("@/routes/industry/dashboard").t
 const IndustryMarketplacePage = lazy(() => import("@/routes/industry/marketplace").then((module) => ({ default: module.IndustryMarketplacePage })));
 const IndustryListingDetailPage = lazy(() => import("@/routes/industry/listing-detail").then((module) => ({ default: module.IndustryListingDetailPage })));
 const IndustryApplicationsPage = lazy(() => import("@/routes/industry/applications").then((module) => ({ default: module.IndustryApplicationsPage })));
+const IndustryListingsPage = lazy(() => import("@/routes/industry/listings").then((module) => ({ default: module.IndustryListingsPage })));
 
 const UniversityDashboardPage = lazy(() => import("@/routes/university/index").then((module) => ({ default: module.UniversityDashboardPage })));
 const UniversityProfilePage = lazy(() => import("@/routes/university/profile").then((module) => ({ default: module.UniversityProfilePage })));
@@ -375,6 +376,7 @@ export function AppRoutes() {
             <Route path="marketplace" element={<IndustryMarketplacePage />} />
             <Route path="marketplace/:listingId" element={<IndustryListingDetailPage />} />
             <Route path="applications" element={<IndustryApplicationsPage />} />
+            <Route path="listings" element={<IndustryListingsPage />} />
           </Route>
 
           {/* Backwards-compatible /app/institution alias */}

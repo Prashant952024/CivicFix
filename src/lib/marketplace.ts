@@ -103,6 +103,20 @@ export const APPLICATION_STATUS_META: Record<
   WITHDRAWN: { label: "Withdrawn", badgeTone: "default" },
 };
 
+export const LISTING_STATUS_META: Record<
+  ListingStatus,
+  { label: string; badgeTone: "default" | "info" | "warning" | "success" | "danger" }
+> = {
+  DRAFT: { label: "Draft", badgeTone: "default" },
+  PENDING_REVIEW: { label: "Pending Review", badgeTone: "warning" },
+  APPROVED: { label: "Approved", badgeTone: "info" },
+  OPEN: { label: "Open / Active", badgeTone: "success" },
+  PAUSED: { label: "Paused", badgeTone: "warning" },
+  FULFILLED: { label: "Fulfilled", badgeTone: "success" },
+  CLOSED: { label: "Closed", badgeTone: "default" },
+  CANCELLED: { label: "Cancelled", badgeTone: "danger" },
+};
+
 export const ORGANIZATION_TYPE_META: Record<
   string,
   { label: string; badgeTone: "default" | "info" | "warning" | "success" | "danger" }
@@ -2119,5 +2133,185 @@ export async function fetchOpportunityDiscoveryData(
     highMatchCount,
   };
 }
+
+export interface IndustrySupportListingItem extends PublicMarketplaceListing {
+  applications: EnrichedApplication[];
+  partnerships: IndustryPartnershipItem[];
+  myApplication?: IndustryApplicationItem | null;
+  myPartnership?: IndustryPartnershipItem | null;
+  problem_statement?: string | null;
+  project_status?: string | null;
+  institution_state?: string | null;
+}
+
+export interface IndustrySupportListingsMetrics {
+  totalListings: number;
+  activeOpenCount: number;
+  draftOrReviewCount: number;
+  pausedOrFulfilledCount: number;
+  totalApplicationsCount: number;
+  activePartnershipsCount: number;
+  categoryCounts: Record<SupportRequestCategory | "ALL", number>;
+}
+
+export interface IndustrySupportListingsData {
+  organization: IndustryOrganizationRow | null;
+  listings: IndustrySupportListingItem[];
+  metrics: IndustrySupportListingsMetrics;
+}
+
+/**
+ * Fetches comprehensive support listings data for the Industry Partner (Page 10D).
+ */
+export async function fetchIndustrySupportListingsData(
+  userProfile: { id?: string; organization_id?: string | null; email?: string | null } | null
+): Promise<IndustrySupportListingsData> {
+  const organization = await resolveIndustryOrganizationForUser(userProfile);
+
+  const [rawListingsRes, myApplications, myPartnerships, allAppsRes] = await Promise.all([
+    supabase
+      .from("research_support_listings")
+      .select(`
+        *,
+        challenge:innovation_challenges!research_support_listings_challenge_id_fkey(id, title, category, problem_statement),
+        institution:institutions!research_support_listings_institution_id_fkey(id, name, city, state),
+        project:challenge_projects!research_support_listings_project_id_fkey(id, project_title, status)
+      `)
+      .order("created_at", { ascending: false }),
+    organization ? fetchOrganizationApplications(organization.id) : Promise.resolve([]),
+    organization ? fetchOrganizationPartnerships(organization.id) : Promise.resolve([]),
+    supabase
+      .from("research_support_applications")
+      .select(`
+        *,
+        organization:industry_organizations!research_support_applications_organization_id_fkey(*),
+        applicant:profiles!research_support_applications_applicant_profile_id_fkey(id, full_name, email)
+      `)
+      .order("created_at", { ascending: false }),
+  ]);
+
+  if (rawListingsRes.error) {
+    console.error("Error fetching industry support listings:", rawListingsRes.error);
+    throw new Error(rawListingsRes.error.message);
+  }
+
+  // Group applications by listing_id
+  const appsByListingId = new Map<string, EnrichedApplication[]>();
+  for (const app of (allAppsRes.data as unknown as EnrichedApplication[]) ?? []) {
+    if (app.listing_id) {
+      const existing = appsByListingId.get(app.listing_id) ?? [];
+      existing.push(app);
+      appsByListingId.set(app.listing_id, existing);
+    }
+  }
+
+  // Lookup map for my applications by listing_id
+  const myAppByListingId = new Map<string, IndustryApplicationItem>();
+  for (const app of myApplications) {
+    if (app.listing_id) {
+      myAppByListingId.set(app.listing_id, app);
+    }
+  }
+
+  // Lookup map for my partnerships by project_id
+  const myPartByProjectId = new Map<string, IndustryPartnershipItem>();
+  for (const part of myPartnerships) {
+    if (part.project_id) {
+      myPartByProjectId.set(part.project_id, part);
+    }
+  }
+
+  type RawListingJoin = ResearchSupportListingRow & {
+    challenge?: { id?: string; title?: string | null; category?: string | null; problem_statement?: string | null } | null;
+    institution?: { id?: string; name?: string; city?: string | null; state?: string | null } | null;
+    project?: { id?: string; project_title?: string | null; status?: string | null } | null;
+  };
+
+  const rawListings = (rawListingsRes.data as unknown as RawListingJoin[]) ?? [];
+
+  const categoryCounts: Record<SupportRequestCategory | "ALL", number> = {
+    ALL: rawListings.length,
+    FUNDING: 0,
+    HARDWARE: 0,
+    TECHNOLOGY: 0,
+    EXPERTISE: 0,
+    INFRASTRUCTURE: 0,
+    DATA: 0,
+    MANUFACTURING: 0,
+  };
+
+  let activeOpenCount = 0;
+  let draftOrReviewCount = 0;
+  let pausedOrFulfilledCount = 0;
+  let totalApplicationsCount = 0;
+
+  const listings: IndustrySupportListingItem[] = rawListings.map((item) => {
+    if (categoryCounts[item.category] !== undefined) {
+      categoryCounts[item.category]++;
+    }
+
+    if (item.status === "OPEN" || item.status === "APPROVED") {
+      activeOpenCount++;
+    } else if (item.status === "DRAFT" || item.status === "PENDING_REVIEW") {
+      draftOrReviewCount++;
+    } else if (item.status === "PAUSED" || item.status === "FULFILLED" || item.status === "CLOSED") {
+      pausedOrFulfilledCount++;
+    }
+
+    const listingApps = appsByListingId.get(item.id) ?? [];
+    totalApplicationsCount += listingApps.length;
+
+    const myApp = myAppByListingId.get(item.id) ?? null;
+    const myPart = item.project_id ? (myPartByProjectId.get(item.project_id) ?? null) : null;
+
+    const relevantPartnerships = myPart ? [myPart] : [];
+
+    return {
+      id: item.id,
+      support_request_id: item.support_request_id,
+      challenge_id: item.challenge_id,
+      challenge_title: item.challenge?.title ?? "Civic Innovation Challenge",
+      challenge_domain: item.challenge?.category ?? null,
+      institution_id: item.institution_id,
+      institution_name: item.institution?.name ?? "Partner University",
+      institution_city: item.institution?.city ?? null,
+      institution_state: item.institution?.state ?? null,
+      project_id: item.project_id,
+      public_title: item.public_title,
+      public_summary: item.public_summary,
+      category: item.category,
+      public_specification: item.public_specification,
+      public_timeline: item.public_timeline,
+      desired_outcome: item.desired_outcome,
+      status: item.status,
+      applications_count: listingApps.length || item.applications_count || 0,
+      published_at: item.published_at,
+      expires_at: item.expires_at,
+      applications: listingApps,
+      partnerships: relevantPartnerships,
+      myApplication: myApp,
+      myPartnership: myPart,
+      problem_statement: item.challenge?.problem_statement ?? null,
+      project_status: item.project?.status ?? "ACTIVE",
+    };
+  });
+
+  const metrics: IndustrySupportListingsMetrics = {
+    totalListings: listings.length,
+    activeOpenCount,
+    draftOrReviewCount,
+    pausedOrFulfilledCount,
+    totalApplicationsCount,
+    activePartnershipsCount: myPartnerships.length,
+    categoryCounts,
+  };
+
+  return {
+    organization,
+    listings,
+    metrics,
+  };
+}
+
 
 

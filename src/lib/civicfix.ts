@@ -144,5 +144,6 @@ export const civicFixNavItems: Record<CivicFixRoleCode, CivicFixRoleNavItem[]> =
     { label: "Dashboard", path: "/app/industry", description: "Home overview of opportunities, applications, and contributions." },
     { label: "Marketplace", path: "/app/industry/marketplace", description: "Civic research & innovation opportunities." },
     { label: "My Applications", path: "/app/industry/applications", description: "Track submitted support applications and partnerships." },
+    { label: "My Support Listings", path: "/app/industry/listings", description: "Manage active support requirements and contributions." },
   ],
 };
