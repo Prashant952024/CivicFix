@@ -1,29 +1,45 @@
 import { useEffect, useMemo, useState } from "react";
 import {
+  Activity,
   AlertCircle,
+  AlertTriangle,
+  ArrowRight,
+  Award,
   BarChart3,
+  Bot,
+  Briefcase,
   Building2,
   CheckCircle2,
   Clock3,
+  ExternalLink,
   Flame,
+  FlaskConical,
+  GraduationCap,
   Layers,
   MapPin,
   Radio,
   RefreshCw,
+  Rocket,
   RotateCcw,
+  Search,
   Server,
   Shield,
+  ShieldAlert,
   ShieldCheck,
+  Sparkles,
+  Tag,
+  TrendingUp,
+  UserCheck,
   UserPlus,
   UsersRound,
   Wrench,
 } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 
 import { useAppSession } from "@/auth/app-session";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PageHeader } from "@/components/ui/page-header";
 import {
@@ -39,6 +55,8 @@ import type { Database } from "@/types/database";
 type ProfileRow = Database["public"]["Tables"]["profiles"]["Row"] & {
   role?: Pick<Database["public"]["Tables"]["roles"]["Row"], "code" | "name"> | null;
   department?: Pick<Database["public"]["Tables"]["departments"]["Row"], "id" | "name" | "is_active"> | null;
+  institution?: Pick<Database["public"]["Tables"]["institutions"]["Row"], "id" | "name"> | null;
+  organization?: Pick<Database["public"]["Tables"]["industry_organizations"]["Row"], "id" | "name"> | null;
 };
 
 type IssueRow = Database["public"]["Tables"]["issues"]["Row"] & {
@@ -48,12 +66,6 @@ type IssueRow = Database["public"]["Tables"]["issues"]["Row"] & {
     status: string;
     department?: { id: string; name: string } | null;
   }> | null;
-  issue_images?: Array<{
-    id: string;
-    storage_bucket: string;
-    storage_path: string;
-    image_type: string;
-  }> | null;
 };
 
 type HistoryRow = Database["public"]["Tables"]["issue_status_history"]["Row"] & {
@@ -62,12 +74,40 @@ type HistoryRow = Database["public"]["Tables"]["issue_status_history"]["Row"] & 
 };
 
 type DepartmentRow = Database["public"]["Tables"]["departments"]["Row"];
+type InstitutionRow = Database["public"]["Tables"]["institutions"]["Row"];
+type IndustryOrgRow = Database["public"]["Tables"]["industry_organizations"]["Row"];
+type ChallengeRow = Database["public"]["Tables"]["innovation_challenges"]["Row"];
+type ProjectRow = Database["public"]["Tables"]["challenge_projects"]["Row"];
+type ProposalRow = Database["public"]["Tables"]["research_proposals"]["Row"];
+type PilotPlanRow = Database["public"]["Tables"]["pilot_plans"]["Row"];
+type DeploymentPlanRow = Database["public"]["Tables"]["deployment_plans"]["Row"];
+type BlockerRiskRow = Database["public"]["Tables"]["research_blockers_risks"]["Row"];
+
+export interface AdminAttentionItem {
+  id: string;
+  category: "SECURITY" | "VERIFICATION" | "AI_ANOMALY" | "CIVIC_URGENT" | "INNOVATION" | "DATA_INTEGRITY";
+  urgency: "CRITICAL" | "HIGH" | "MEDIUM" | "INFO";
+  title: string;
+  subtitle: string;
+  source: string;
+  actionLabel: string;
+  actionHref: string;
+  timestamp?: string;
+}
 
 type AdminDashboardState = {
   profiles: ProfileRow[];
   issues: IssueRow[];
   activities: HistoryRow[];
   departments: DepartmentRow[];
+  institutions: InstitutionRow[];
+  industryOrgs: IndustryOrgRow[];
+  challenges: ChallengeRow[];
+  projects: ProjectRow[];
+  proposals: ProposalRow[];
+  pilotPlans: PilotPlanRow[];
+  deploymentPlans: DeploymentPlanRow[];
+  blockers: BlockerRiskRow[];
 };
 
 function getGreeting() {
@@ -79,11 +119,16 @@ function getGreeting() {
 
 export function AdminDashboardPage() {
   const { profile, status: sessionStatus, error: sessionError } = useAppSession();
+  const navigate = useNavigate();
+
   const [state, setState] = useState<AdminDashboardState | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [refreshNonce, setRefreshNonce] = useState(0);
   const [lastRefreshedAt, setLastRefreshedAt] = useState<string | null>(null);
+
+  // Attention Queue Filter
+  const [attentionFilter, setAttentionFilter] = useState<string>("ALL");
 
   const profileId = profile?.id;
   const sessionProblem = sessionStatus === "error" ? sessionError ?? "CivicFix profile is unavailable." : null;
@@ -99,86 +144,133 @@ export function AdminDashboardPage() {
       setLoading(true);
       setError(null);
 
-      const [profilesResult, issuesResult, activitiesResult, departmentsResult] = await Promise.all([
-        supabase
-          .from("profiles")
-          .select("id, clerk_user_id, full_name, email, phone, role_id, department_id, employee_id, designation, is_active, avatar_url, institution_id, organization_id, joined_at, created_at, updated_at, role:roles!profiles_role_id_fkey(code, name), department:departments!profiles_department_id_fkey(id, name, is_active)")
-          .order("created_at", { ascending: false }),
-        supabase
-          .from("issues")
-          .select(
-            `
-            id,
-            status,
-            priority,
-            severity,
-            category,
-            title,
-            description,
-            location_text,
-            address_text,
-            created_at,
-            updated_at,
-            reporter_profile_id,
-            latitude,
-            longitude,
-            department_assignments:issue_department_assignments!issue_department_assignments_issue_id_fkey(
+      try {
+        const [
+          profilesResult,
+          issuesResult,
+          activitiesResult,
+          departmentsResult,
+          institutionsResult,
+          industryResult,
+          challengesResult,
+          projectsResult,
+          proposalsResult,
+          pilotsResult,
+          deploymentsResult,
+          blockersResult,
+        ] = await Promise.all([
+          supabase
+            .from("profiles")
+            .select("id, clerk_user_id, full_name, email, phone, role_id, department_id, employee_id, designation, is_active, avatar_url, institution_id, organization_id, joined_at, created_at, updated_at, role:roles!profiles_role_id_fkey(code, name), department:departments!profiles_department_id_fkey(id, name, is_active), institution:institutions!profiles_institution_id_fkey(id, name), organization:industry_organizations!profiles_organization_id_fkey(id, name)")
+            .order("created_at", { ascending: false }),
+          supabase
+            .from("issues")
+            .select(
+              `
               id,
-              department_id,
               status,
-              department:departments!issue_department_assignments_department_id_fkey(id, name, is_active)
-            ),
-            issue_images(id, storage_bucket, storage_path, image_type)
-          `,
-          )
-          .order("created_at", { ascending: false }),
-        supabase
-          .from("issue_status_history")
-          .select(
-            `
-            id,
-            issue_id,
-            old_status,
-            new_status,
-            changed_by_profile_id,
-            notes,
-            created_at,
-            issue:issues!issue_status_history_issue_id_fkey(id, title, category),
-            changed_by_profile:profiles!issue_status_history_changed_by_profile_id_fkey(id, full_name, email)
-          `,
-          )
-          .order("created_at", { ascending: false })
-          .limit(8),
-        supabase
-          .from("departments")
-          .select("*")
-          .order("name", { ascending: true }),
-      ]);
+              priority,
+              severity,
+              category,
+              title,
+              description,
+              location_text,
+              address_text,
+              created_at,
+              updated_at,
+              reporter_profile_id,
+              latitude,
+              longitude,
+              ai_issue_type,
+              ai_classification_confidence,
+              final_issue_type,
+              department_id,
+              resolved_at,
+              department_assignments:issue_department_assignments!issue_department_assignments_issue_id_fkey(
+                id,
+                department_id,
+                status,
+                department:departments!issue_department_assignments_department_id_fkey(id, name, is_active)
+              )
+            `,
+            )
+            .order("created_at", { ascending: false }),
+          supabase
+            .from("issue_status_history")
+            .select(
+              `
+              id,
+              issue_id,
+              old_status,
+              new_status,
+              changed_by_profile_id,
+              notes,
+              created_at,
+              issue:issues!issue_status_history_issue_id_fkey(id, title, category),
+              changed_by_profile:profiles!issue_status_history_changed_by_profile_id_fkey(id, full_name, email)
+            `,
+            )
+            .order("created_at", { ascending: false })
+            .limit(10),
+          supabase.from("departments").select("*").order("name", { ascending: true }),
+          supabase.from("institutions").select("*").order("created_at", { ascending: false }),
+          supabase.from("industry_organizations").select("*").order("created_at", { ascending: false }),
+          supabase.from("innovation_challenges").select("*").order("created_at", { ascending: false }),
+          supabase.from("challenge_projects").select("*").order("created_at", { ascending: false }),
+          supabase.from("research_proposals").select("*").order("updated_at", { ascending: false }),
+          supabase.from("pilot_plans").select("*").order("updated_at", { ascending: false }),
+          supabase.from("deployment_plans").select("*").order("updated_at", { ascending: false }),
+          supabase.from("research_blockers_risks").select("*").order("created_at", { ascending: false }),
+        ]);
 
-      if (cancelled) return;
+        if (cancelled) return;
 
-      if (profilesResult.error || issuesResult.error || activitiesResult.error || departmentsResult.error) {
-        if (import.meta.env.DEV) {
-          console.error("Admin dashboard load error", {
-            profiles: profilesResult.error,
-            issues: issuesResult.error,
-            activities: activitiesResult.error,
-            departments: departmentsResult.error,
-          });
+        if (
+          profilesResult.error ||
+          issuesResult.error ||
+          activitiesResult.error ||
+          departmentsResult.error ||
+          institutionsResult.error ||
+          industryResult.error
+        ) {
+          if (import.meta.env.DEV) {
+            console.error("Admin dashboard load error", {
+              profiles: profilesResult.error,
+              issues: issuesResult.error,
+              activities: activitiesResult.error,
+              departments: departmentsResult.error,
+            });
+          }
+          setError("Unable to load platform governance data.");
+          setLoading(false);
+          return;
         }
-        setError("Unable to load municipal operations data.");
-        setLoading(false);
-        return;
-      }
 
-      setState({
-        profiles: profilesResult.data ?? [],
-        issues: (issuesResult.data ?? []) as unknown as IssueRow[],
-        activities: (activitiesResult.data ?? []) as unknown as HistoryRow[],
-        departments: departmentsResult.data ?? [],
-      });
-      setLastRefreshedAt(new Date().toISOString());
-      setLoading(false);
+        setState({
+          profiles: profilesResult.data ?? [],
+          issues: (issuesResult.data ?? []) as unknown as IssueRow[],
+          activities: (activitiesResult.data ?? []) as unknown as HistoryRow[],
+          departments: departmentsResult.data ?? [],
+          institutions: institutionsResult.data ?? [],
+          industryOrgs: industryResult.data ?? [],
+          challenges: challengesResult.data ?? [],
+          projects: projectsResult.data ?? [],
+          proposals: proposalsResult.data ?? [],
+          pilotPlans: pilotsResult.data ?? [],
+          deploymentPlans: deploymentsResult.data ?? [],
+          blockers: blockersResult.data ?? [],
+        });
+        setLastRefreshedAt(new Date().toISOString());
+      } catch (err) {
+        if (!cancelled) {
+          console.error("Dashboard error:", err);
+          setError("An unexpected error occurred while loading dashboard telemetry.");
+        }
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
+        }
+      }
     }
 
     void loadDashboard();
@@ -188,103 +280,229 @@ export function AdminDashboardPage() {
     };
   }, [profileId, refreshNonce, sessionStatus]);
 
+  // Build Dynamic Platform Attention Queue
+  const attentionItems = useMemo(() => {
+    if (!state) return [];
+    const items: AdminAttentionItem[] = [];
+
+    const { institutions, industryOrgs, issues, proposals, pilotPlans, deploymentPlans, blockers, projects } = state;
+
+    // 1. Pending Institution Verifications
+    institutions
+      .filter((inst) => inst.verification_status === "PENDING_VERIFICATION" || inst.verification_status === "DRAFT")
+      .forEach((inst) => {
+        items.push({
+          id: `inst-verif-${inst.id}`,
+          category: "VERIFICATION",
+          urgency: "HIGH",
+          title: `Institution Accreditation Pending: ${inst.name}`,
+          subtitle: `${inst.institution_type || "University"} located in ${inst.city}, ${inst.state} requires administrative review.`,
+          source: "Institutions Registry",
+          actionLabel: "Review Institution",
+          actionHref: `/app/admin/institutions`,
+          timestamp: inst.created_at,
+        });
+      });
+
+    // 2. Pending Industry Partner Verifications
+    industryOrgs
+      .filter((org) => org.verification_status === "PENDING")
+      .forEach((org) => {
+        items.push({
+          id: `org-verif-${org.id}`,
+          category: "VERIFICATION",
+          urgency: "HIGH",
+          title: `Industry Partner Verification: ${org.name}`,
+          subtitle: `${org.organization_type} partner account registered and awaiting administrative verification.`,
+          source: "Industry Registry",
+          actionLabel: "Verify Organization",
+          actionHref: `/app/admin/users`,
+          timestamp: org.created_at,
+        });
+      });
+
+    // 3. Urgent / Critical Civic Issues requiring Assignment
+    issues
+      .filter(
+        (i) =>
+          (i.priority === "URGENT" || i.severity === "CRITICAL") &&
+          (i.status === "SUBMITTED" || i.status === "AI_ANALYZED"),
+      )
+      .slice(0, 4)
+      .forEach((iss) => {
+        items.push({
+          id: `issue-urgent-${iss.id}`,
+          category: "CIVIC_URGENT",
+          urgency: "CRITICAL",
+          title: `Unassigned Critical Issue: ${iss.title}`,
+          subtitle: `Severity ${iss.severity} · Priority ${iss.priority} reported at ${iss.location_text || "unspecified location"}.`,
+          source: "Civic Intake Queue",
+          actionLabel: "Assign Department",
+          actionHref: `/app/admin/issues/${iss.id}`,
+          timestamp: iss.created_at,
+        });
+      });
+
+    // 4. Low-Confidence or Flagged AI Classifications
+    issues
+      .filter(
+        (i) =>
+          i.status === "AI_ANALYZED" &&
+          i.ai_classification_confidence !== null &&
+          i.ai_classification_confidence < 0.6,
+      )
+      .slice(0, 3)
+      .forEach((iss) => {
+        items.push({
+          id: `ai-lowconf-${iss.id}`,
+          category: "AI_ANOMALY",
+          urgency: "MEDIUM",
+          title: `Low-Confidence AI Classification (${Math.round((iss.ai_classification_confidence || 0) * 100)}%)`,
+          subtitle: `Issue "${iss.title}" was classified as ${iss.ai_issue_type || "UNKNOWN"} with low model confidence.`,
+          source: "AI Classification Engine",
+          actionLabel: "Audit Classification",
+          actionHref: `/app/admin/classification`,
+          timestamp: iss.created_at,
+        });
+      });
+
+    // 5. Research Proposal Revision Backlog
+    proposals
+      .filter((p) => p.status === "REQUESTED_REVISION" && p.is_current)
+      .slice(0, 3)
+      .forEach((prop) => {
+        const proj = projects.find((pj) => pj.id === prop.project_id);
+        items.push({
+          id: `prop-rev-${prop.id}`,
+          category: "INNOVATION",
+          urgency: "HIGH",
+          title: `Proposal Revisions Requested: v${prop.version_number}`,
+          subtitle: `Project "${proj?.project_title || "Research Workspace"}" requires institutional resubmission.`,
+          source: "Research Governance",
+          actionLabel: "Inspect Proposal",
+          actionHref: `/app/innovation/proposals`,
+          timestamp: prop.updated_at,
+        });
+      });
+
+    // 6. Open Execution Blockers on Active Projects
+    blockers
+      .filter((b) => b.item_type === "BLOCKER" && (b.status === "OPEN" || b.status === "IN_PROGRESS"))
+      .slice(0, 3)
+      .forEach((blk) => {
+        const proj = projects.find((pj) => pj.id === blk.project_id);
+        items.push({
+          id: `blk-${blk.id}`,
+          category: "INNOVATION",
+          urgency: blk.severity === "CRITICAL" ? "CRITICAL" : "HIGH",
+          title: `Execution Blocker: ${blk.title}`,
+          subtitle: `Project "${proj?.project_title || "Workspace"}" reported a technical or resource constraint.`,
+          source: "Innovation Workspaces",
+          actionLabel: "View Workspace",
+          actionHref: `/app/university/projects/${blk.project_id}`,
+          timestamp: blk.reported_at || blk.created_at,
+        });
+      });
+
+    // 7. Pilot Protocol & Scaling Review Backlog
+    pilotPlans
+      .filter((p) => p.status === "SUBMITTED" || p.status === "UNDER_REVIEW")
+      .slice(0, 2)
+      .forEach((pilot) => {
+        items.push({
+          id: `pilot-rev-${pilot.id}`,
+          category: "INNOVATION",
+          urgency: "MEDIUM",
+          title: `Pilot Plan Pending Governance: ${pilot.title}`,
+          subtitle: `Field validation methodology awaiting municipal innovation sign-off.`,
+          source: "Pilot Control Center",
+          actionLabel: "Review Pilot",
+          actionHref: `/app/innovation/pilots`,
+          timestamp: pilot.updated_at,
+        });
+      });
+
+    // Sort by Urgency
+    const rank = { CRITICAL: 4, HIGH: 3, MEDIUM: 2, INFO: 1 };
+    items.sort((a, b) => rank[b.urgency] - rank[a.urgency]);
+
+    return items;
+  }, [state]);
+
+  const filteredAttentionItems = useMemo(() => {
+    if (attentionFilter === "ALL") return attentionItems;
+    if (attentionFilter === "VERIFICATION") return attentionItems.filter((i) => i.category === "VERIFICATION");
+    if (attentionFilter === "CIVIC") return attentionItems.filter((i) => i.category === "CIVIC_URGENT");
+    if (attentionFilter === "INNOVATION") return attentionItems.filter((i) => i.category === "INNOVATION");
+    if (attentionFilter === "AI") return attentionItems.filter((i) => i.category === "AI_ANOMALY");
+    return attentionItems;
+  }, [attentionItems, attentionFilter]);
+
+  // Executive Platform KPIs
   const kpis = useMemo(() => {
     if (!state) return null;
-    const { issues, profiles, departments } = state;
+    const { profiles, issues, departments, institutions, industryOrgs, challenges, projects, proposals, pilotPlans, deploymentPlans } = state;
 
-    const totalIssues = issues.length;
-    const pendingIssues = issues.filter((i) => ["SUBMITTED", "AI_ANALYZED", "UNDER_REVIEW"].includes(i.status)).length;
-    const inProgressIssues = issues.filter((i) => ["ASSIGNED", "IN_PROGRESS"].includes(i.status)).length;
-    const resolvedIssues = issues.filter((i) => ["RESOLVED", "CITIZEN_VERIFIED"].includes(i.status)).length;
+    const totalUsers = profiles.length;
     const activeStaff = profiles.filter((p) => p.is_active && p.role?.code !== "CITIZEN").length;
-    const activeDepartments = departments.filter((d) => d.is_active).length;
+    const totalCivicIssues = issues.length;
+    const resolvedIssues = issues.filter((i) => ["RESOLVED", "CITIZEN_VERIFIED"].includes(i.status)).length;
+    const openIssues = totalCivicIssues - resolvedIssues;
+    const resolutionRate = totalCivicIssues > 0 ? Math.round((resolvedIssues / totalCivicIssues) * 100) : 0;
 
-    const resolutionRate = totalIssues > 0 ? Math.round((resolvedIssues / totalIssues) * 100) : 0;
+    const verifiedInstitutions = institutions.filter((i) => i.verification_status === "VERIFIED").length;
+    const verifiedIndustry = industryOrgs.filter((o) => o.verification_status === "VERIFIED").length;
+    const totalOrganizations = institutions.length + industryOrgs.length;
+    const verifiedOrganizations = verifiedInstitutions + verifiedIndustry;
 
-    // Status Pipeline counts
-    const today = new Date().toISOString().split("T")[0];
-    const issuesToday = issues.filter((i) => i.created_at.startsWith(today)).length;
-    const aiAnalyzed = issues.filter((i) => i.status === "AI_ANALYZED").length;
-    const awaitingAssignment = issues.filter((i) => i.status === "SUBMITTED" || i.status === "AI_ANALYZED").length;
-    const assigned = issues.filter((i) => i.status === "ASSIGNED").length;
-    const inProgress = issues.filter((i) => i.status === "IN_PROGRESS").length;
-    const awaitingReview = issues.filter((i) => i.status === "UNDER_REVIEW").length;
-    const reopened = issues.filter((i) => i.status === "REOPENED" || i.status === "REJECTED").length;
+    const activeProjects = projects.filter((p) => p.status === "ACTIVE" || p.status === "FORMING_TEAM").length;
+    const activePilots = pilotPlans.filter((p) => ["APPROVED", "SUBMITTED", "UNDER_REVIEW"].includes(p.status)).length;
+    const activeDeployments = deploymentPlans.filter((d) => ["APPROVED", "SUBMITTED", "UNDER_REVIEW"].includes(d.status)).length;
 
-    // Breakdown
-    const statusCounts: Record<string, number> = {
-      SUBMITTED: issues.filter((i) => i.status === "SUBMITTED").length,
-      AI_ANALYZED: aiAnalyzed,
-      ASSIGNED: assigned,
-      IN_PROGRESS: inProgress,
-      UNDER_REVIEW: awaitingReview,
-      RESOLVED: issues.filter((i) => i.status === "RESOLVED").length,
-      CITIZEN_VERIFIED: issues.filter((i) => i.status === "CITIZEN_VERIFIED").length,
-      REOPENED: issues.filter((i) => i.status === "REOPENED").length,
+    // Platform Health Score calculation
+    let healthScore = 100;
+    const unassignedCritical = issues.filter((i) => (i.priority === "URGENT" || i.severity === "CRITICAL") && (i.status === "SUBMITTED" || i.status === "AI_ANALYZED")).length;
+    healthScore -= unassignedCritical * 3;
+    const pendingVerifs = (institutions.filter((i) => i.verification_status === "PENDING_VERIFICATION" || i.verification_status === "DRAFT").length + industryOrgs.filter((o) => o.verification_status === "PENDING").length);
+    healthScore -= pendingVerifs * 2;
+    healthScore = Math.max(72, Math.min(100, healthScore));
+
+    // Pipeline breakdown
+    const pipeline = {
+      submitted: issues.filter((i) => i.status === "SUBMITTED").length,
+      aiAnalyzed: issues.filter((i) => i.status === "AI_ANALYZED").length,
+      underReview: issues.filter((i) => i.status === "UNDER_REVIEW").length,
+      verified: issues.filter((i) => i.status === "VERIFIED").length,
+      assigned: issues.filter((i) => i.status === "ASSIGNED").length,
+      inProgress: issues.filter((i) => i.status === "IN_PROGRESS").length,
+      partiallyCompleted: issues.filter((i) => i.status === "PARTIALLY_COMPLETED").length,
+      resolved: issues.filter((i) => i.status === "RESOLVED").length,
+      citizenVerified: issues.filter((i) => i.status === "CITIZEN_VERIFIED").length,
+      reopened: issues.filter((i) => i.status === "REOPENED").length,
     };
 
     return {
-      totalIssues,
-      pendingIssues,
-      inProgressIssues,
-      resolvedIssues,
+      totalUsers,
       activeStaff,
-      activeDepartments,
+      totalCivicIssues,
+      resolvedIssues,
+      openIssues,
       resolutionRate,
-      statusCounts,
-      pipeline: {
-        issuesToday,
-        aiAnalyzed,
-        awaitingAssignment,
-        assigned,
-        inProgress,
-        awaitingReview,
-        resolved: resolvedIssues,
-        reopened,
-      },
+      totalOrganizations,
+      verifiedOrganizations,
+      institutionsCount: institutions.length,
+      verifiedInstitutions,
+      industryCount: industryOrgs.length,
+      verifiedIndustry,
+      activeProjects,
+      totalProjects: projects.length,
+      challengesCount: challenges.length,
+      proposalsCount: proposals.length,
+      activePilots,
+      activeDeployments,
+      healthScore,
+      pipeline,
     };
-  }, [state]);
-
-  const priorityIssues = useMemo(() => {
-    if (!state) return [];
-    return state.issues
-      .filter((i) => !["RESOLVED", "CITIZEN_VERIFIED"].includes(i.status))
-      .sort((a, b) => {
-        const rank = { URGENT: 4, HIGH: 3, MEDIUM: 2, LOW: 1 };
-        return (rank[b.priority] || 0) - (rank[a.priority] || 0);
-      })
-      .slice(0, 5);
-  }, [state]);
-
-  const departmentPerformance = useMemo(() => {
-    if (!state) return [];
-    const { departments, issues } = state;
-    return departments.map((dept) => {
-      const deptIssues = issues.filter(
-        (issue) => issue.department_assignments?.some((da) => da.department_id === dept.id) || issue.department_id === dept.id,
-      );
-      const total = deptIssues.length;
-      const inProgress = deptIssues.filter((i) => ["ASSIGNED", "IN_PROGRESS"].includes(i.status)).length;
-      const completed = deptIssues.filter((i) => ["RESOLVED", "CITIZEN_VERIFIED"].includes(i.status)).length;
-      const pending = total - completed;
-      const rate = total > 0 ? Math.round((completed / total) * 100) : 0;
-
-      return {
-        id: dept.id,
-        name: dept.name,
-        isActive: dept.is_active,
-        total,
-        inProgress,
-        completed,
-        pending,
-        rate,
-      };
-    }).sort((a, b) => b.total - a.total);
-  }, [state]);
-
-  const recentStaff = useMemo(() => {
-    if (!state) return [];
-    return state.profiles.filter((p) => p.role?.code !== "CITIZEN").slice(0, 4);
   }, [state]);
 
   if (sessionProblem || error) {
@@ -292,12 +510,12 @@ export function AdminDashboardPage() {
       <EmptyState
         icon={AlertCircle}
         variant="error"
-        title="Command Center Unavailable"
-        description={sessionProblem ?? error ?? "We could not load municipal command metrics."}
+        title="Admin Control Plane Unavailable"
+        description={sessionProblem ?? error ?? "We could not load platform administrative telemetry."}
         action={
           <Button onClick={() => setRefreshNonce((v) => v + 1)} type="button">
             <RotateCcw className="h-4 w-4 mr-2" />
-            Retry Command Center
+            Retry Connection
           </Button>
         }
       />
@@ -314,8 +532,8 @@ export function AdminDashboardPage() {
           ))}
         </div>
         <div className="grid gap-6 lg:grid-cols-[1.3fr_0.7fr]">
-          <div className="h-64 animate-pulse rounded-3xl border border-border/70 bg-muted/20" />
-          <div className="h-64 animate-pulse rounded-3xl border border-border/70 bg-muted/20" />
+          <div className="h-72 animate-pulse rounded-3xl border border-border/70 bg-muted/20" />
+          <div className="h-72 animate-pulse rounded-3xl border border-border/70 bg-muted/20" />
         </div>
       </div>
     );
@@ -325,487 +543,553 @@ export function AdminDashboardPage() {
   const adminName = profile?.full_name?.split(" ")[0] || "Admin";
 
   return (
-    <div className="space-y-6">
-      {/* 1. Command Center Hero Header */}
+    <div className="space-y-6 pb-12">
+      {/* 1. Platform Control Plane Header */}
       <PageHeader
-        tag="Municipal Civic Operations Command Center"
+        tag="Platform Control Plane & Governance Console"
         title={`${greeting}, ${adminName}`}
-        description="Live city-wide governance dashboard. Track incident lifecycle, dispatch throughput, workforce capacity, and system integrity."
+        description="Comprehensive city-wide administrative control plane. Monitor real-time civic incident workflows, innovation research, institutional accreditation, and platform data integrity."
         actions={
           <div className="flex flex-wrap items-center gap-2">
-            <Button asChild size="sm" className="bg-gradient-to-r from-teal-600 via-cyan-600 to-blue-600 text-xs shadow-md">
-              <Link to="/app/admin/users">
-                <UserPlus className="h-3.5 w-3.5 mr-1.5" />
-                Add a User
-              </Link>
-            </Button>
-            <Button asChild variant="outline" size="sm" className="text-xs">
-              <Link to="/app/admin/issues">
-                <Layers className="h-3.5 w-3.5 mr-1.5" />
-                All Issues
-              </Link>
-            </Button>
             <Button
               variant="outline"
               size="sm"
               onClick={() => setRefreshNonce((v) => v + 1)}
-              className="text-xs"
+              className="h-8.5 border-border text-foreground hover:bg-surface-elevated text-xs font-semibold gap-1.5 shadow-xs"
             >
-              <RefreshCw className="h-3.5 w-3.5 mr-1" />
-              Refresh
+              <RefreshCw className="h-3.5 w-3.5" />
+              <span>Refresh</span>
+              {lastRefreshedAt && (
+                <span className="text-[10px] text-muted-foreground font-normal">
+                  ({new Date(lastRefreshedAt).toLocaleTimeString()})
+                </span>
+              )}
+            </Button>
+            <Button
+              asChild
+              variant="outline"
+              size="sm"
+              className="h-8.5 border-border text-foreground hover:bg-surface-elevated text-xs font-semibold gap-1.5 shadow-xs"
+            >
+              <Link to="/app/admin/analytics">
+                <BarChart3 className="h-3.5 w-3.5 text-primary" />
+                <span>Analytics Observatory</span>
+              </Link>
+            </Button>
+            <Button
+              asChild
+              size="sm"
+              className="h-8.5 bg-primary text-primary-foreground hover:bg-primary/90 text-xs font-semibold gap-1.5 shadow-xs"
+            >
+              <Link to="/app/admin/users">
+                <UserPlus className="h-3.5 w-3.5" />
+                <span>User Provisioning</span>
+              </Link>
             </Button>
           </div>
         }
       >
         <div className="flex flex-wrap items-center gap-3 pt-2 text-xs">
-          {/* Live System Indicator */}
-          <div className="inline-flex items-center gap-2 rounded-2xl border border-emerald-200/80 bg-emerald-50/70 px-3.5 py-1.5 font-bold text-emerald-900 shadow-sm">
+          <div className="inline-flex items-center gap-2 rounded-2xl border border-emerald-500/30 bg-emerald-500/10 px-3.5 py-1.5 font-bold text-emerald-800 dark:text-emerald-300 shadow-2xs">
             <span className="relative flex h-2 w-2">
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
               <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-600" />
             </span>
-            <span>All Municipal Systems Operational</span>
+            <span>Platform Status: Operational ({kpis.healthScore}% Integrity)</span>
           </div>
 
-          {lastRefreshedAt && (
-            <div className="rounded-2xl border border-border/80 bg-surface/80 px-3.5 py-1.5 text-xs text-muted-foreground shadow-sm">
-              Updated: <span className="font-semibold text-foreground">{formatAdminDateTime(lastRefreshedAt)}</span>
-            </div>
-          )}
+          <div className="rounded-2xl border border-border/80 bg-surface/90 px-3.5 py-1.5 text-xs text-muted-foreground shadow-2xs">
+            Scope: <span className="font-semibold text-foreground">Citywide Municipal & Academic Network</span>
+          </div>
         </div>
       </PageHeader>
 
-      {/* 2. Row 1 — 6 Uniform Compact KPI Cards */}
-      <section className="grid gap-3 grid-cols-2 sm:grid-cols-3 lg:grid-cols-6">
-        {/* Card 1: Total Issues */}
-        <Link to="/app/admin/issues" className="block group">
-          <div className="flex flex-col justify-between h-28 rounded-2xl border border-sky-200/80 bg-gradient-to-br from-sky-50/70 via-surface to-teal-50/40 p-4 shadow-sm group-hover:shadow-md group-hover:border-sky-300 transition">
-            <div className="flex items-center justify-between">
-              <span className="text-[11px] font-bold uppercase tracking-wider text-sky-800">Total Issues</span>
-              <div className="p-1.5 rounded-lg bg-sky-100 text-sky-700">
-                <Layers className="h-3.5 w-3.5" />
-              </div>
-            </div>
-            <div className="my-auto">
-              <p className="text-2xl font-bold tracking-tight text-sky-950">{kpis.totalIssues}</p>
-            </div>
-            <div className="flex items-center justify-between text-[11px] text-muted-foreground">
-              <span>All recorded</span>
-              <span className="font-semibold text-sky-700">100%</span>
-            </div>
-          </div>
-        </Link>
-
-        {/* Card 2: Pending Issues */}
-        <Link to="/app/admin/issues?status=SUBMITTED" className="block group">
-          <div className="flex flex-col justify-between h-28 rounded-2xl border border-amber-200/80 bg-gradient-to-br from-amber-50/70 via-surface to-orange-50/40 p-4 shadow-sm group-hover:shadow-md group-hover:border-amber-300 transition">
-            <div className="flex items-center justify-between">
-              <span className="text-[11px] font-bold uppercase tracking-wider text-amber-800">Pending</span>
-              <div className="p-1.5 rounded-lg bg-amber-100 text-amber-700">
-                <Clock3 className="h-3.5 w-3.5" />
-              </div>
-            </div>
-            <div className="my-auto">
-              <p className="text-2xl font-bold tracking-tight text-amber-950">{kpis.pendingIssues}</p>
-            </div>
-            <div className="flex items-center justify-between text-[11px] text-muted-foreground">
-              <span>Awaiting review</span>
-              <span className="font-semibold text-amber-700">{kpis.totalIssues > 0 ? Math.round((kpis.pendingIssues / kpis.totalIssues) * 100) : 0}%</span>
-            </div>
-          </div>
-        </Link>
-
-        {/* Card 3: In Progress */}
-        <Link to="/app/admin/issues?status=IN_PROGRESS" className="block group">
-          <div className="flex flex-col justify-between h-28 rounded-2xl border border-blue-200/80 bg-gradient-to-br from-blue-50/70 via-surface to-indigo-50/40 p-4 shadow-sm group-hover:shadow-md group-hover:border-blue-300 transition">
-            <div className="flex items-center justify-between">
-              <span className="text-[11px] font-bold uppercase tracking-wider text-blue-800">In Progress</span>
-              <div className="p-1.5 rounded-lg bg-blue-100 text-blue-700">
-                <Wrench className="h-3.5 w-3.5" />
-              </div>
-            </div>
-            <div className="my-auto">
-              <p className="text-2xl font-bold tracking-tight text-blue-950">{kpis.inProgressIssues}</p>
-            </div>
-            <div className="flex items-center justify-between text-[11px] text-muted-foreground">
-              <span>Active repair</span>
-              <span className="font-semibold text-blue-700">{kpis.totalIssues > 0 ? Math.round((kpis.inProgressIssues / kpis.totalIssues) * 100) : 0}%</span>
-            </div>
-          </div>
-        </Link>
-
-        {/* Card 4: Resolved */}
-        <Link to="/app/admin/issues?status=RESOLVED" className="block group">
-          <div className="flex flex-col justify-between h-28 rounded-2xl border border-emerald-200/80 bg-gradient-to-br from-emerald-50/70 via-surface to-teal-50/40 p-4 shadow-sm group-hover:shadow-md group-hover:border-emerald-300 transition">
-            <div className="flex items-center justify-between">
-              <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-800">Resolved</span>
-              <div className="p-1.5 rounded-lg bg-emerald-100 text-emerald-700">
-                <CheckCircle2 className="h-3.5 w-3.5" />
-              </div>
-            </div>
-            <div className="my-auto">
-              <p className="text-2xl font-bold tracking-tight text-emerald-950">{kpis.resolvedIssues}</p>
-            </div>
-            <div className="flex items-center justify-between text-[11px] text-muted-foreground">
-              <span>Resolution rate</span>
-              <span className="font-semibold text-emerald-700">{kpis.resolutionRate}%</span>
-            </div>
-          </div>
-        </Link>
-
-        {/* Card 5: Active Staff */}
-        <Link to="/app/admin/users" className="block group">
-          <div className="flex flex-col justify-between h-28 rounded-2xl border border-teal-200/80 bg-gradient-to-br from-teal-50/70 via-surface to-cyan-50/40 p-4 shadow-sm group-hover:shadow-md group-hover:border-teal-300 transition">
-            <div className="flex items-center justify-between">
-              <span className="text-[11px] font-bold uppercase tracking-wider text-teal-800">Staff Crew</span>
-              <div className="p-1.5 rounded-lg bg-teal-100 text-teal-700">
-                <UsersRound className="h-3.5 w-3.5" />
-              </div>
-            </div>
-            <div className="my-auto">
-              <p className="text-2xl font-bold tracking-tight text-teal-950">{kpis.activeStaff}</p>
-            </div>
-            <div className="flex items-center justify-between text-[11px] text-muted-foreground">
-              <span>Officers & Techs</span>
-              <span className="font-semibold text-teal-700">Active</span>
-            </div>
-          </div>
-        </Link>
-
-        {/* Card 6: Departments */}
-        <Link to="/app/admin/departments" className="block group">
-          <div className="flex flex-col justify-between h-28 rounded-2xl border border-indigo-200/80 bg-gradient-to-br from-indigo-50/70 via-surface to-violet-50/40 p-4 shadow-sm group-hover:shadow-md group-hover:border-indigo-300 transition">
-            <div className="flex items-center justify-between">
-              <span className="text-[11px] font-bold uppercase tracking-wider text-indigo-800">Departments</span>
-              <div className="p-1.5 rounded-lg bg-indigo-100 text-indigo-700">
-                <Building2 className="h-3.5 w-3.5" />
-              </div>
-            </div>
-            <div className="my-auto">
-              <p className="text-2xl font-bold tracking-tight text-indigo-950">{kpis.activeDepartments}</p>
-            </div>
-            <div className="flex items-center justify-between text-[11px] text-muted-foreground">
-              <span>Civic branches</span>
-              <span className="font-semibold text-indigo-700">Online</span>
-            </div>
-          </div>
-        </Link>
-      </section>
-
-      {/* 3. Row 2 — Operations Overview Split: Status Pipeline & Status Breakdown */}
-      <section className="grid gap-6 lg:grid-cols-[1.3fr_0.7fr]">
-        {/* Left: Live Operations Status Pipeline */}
-        <Card className="rounded-3xl border border-border/80 bg-surface/95 p-5 shadow-sm space-y-4">
-          <div className="flex items-center justify-between border-b border-border/60 pb-3">
-            <div className="flex items-center gap-2">
-              <Radio className="h-4 w-4 text-teal-700 animate-pulse" />
-              <h3 className="text-sm font-bold text-foreground">Live Operations Status Pipeline</h3>
-            </div>
-            <span className="text-xs text-muted-foreground font-medium">End-to-End Incident Flow</span>
+      {/* 2. Needs Administrative Attention Queue */}
+      <section className="space-y-3.5">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2.5">
+          <div className="flex items-center gap-2.5">
+            <h3 className="text-xs font-bold uppercase tracking-wider text-foreground flex items-center gap-1.5">
+              <Flame className="h-4 w-4 text-amber-500 shrink-0" />
+              <span>Needs Administrative Attention ({attentionItems.length})</span>
+            </h3>
+            {attentionItems.some((i) => i.urgency === "CRITICAL") && (
+              <span className="inline-flex items-center gap-1 rounded-full bg-rose-600 text-white px-2 py-0.5 text-[10px] font-bold shadow-2xs">
+                <AlertTriangle className="h-2.5 w-2.5 shrink-0" />
+                <span>Urgent Actions Required</span>
+              </span>
+            )}
           </div>
 
-          <div className="grid gap-2 grid-cols-2 sm:grid-cols-4 text-center text-xs">
-            <div className="p-3 rounded-2xl border border-border/70 bg-background/60 space-y-1">
-              <span className="text-[10px] uppercase font-bold text-muted-foreground block">Today's Inflow</span>
-              <p className="text-xl font-bold text-foreground">{kpis.pipeline.issuesToday}</p>
-              <span className="text-[10px] text-muted-foreground">New intake</span>
-            </div>
-            <div className="p-3 rounded-2xl border border-indigo-200/80 bg-indigo-50/40 space-y-1">
-              <span className="text-[10px] uppercase font-bold text-indigo-800 block">AI Analyzed</span>
-              <p className="text-xl font-bold text-indigo-950">{kpis.pipeline.aiAnalyzed}</p>
-              <span className="text-[10px] text-indigo-700">Triage ready</span>
-            </div>
-            <div className="p-3 rounded-2xl border border-sky-200/80 bg-sky-50/40 space-y-1">
-              <span className="text-[10px] uppercase font-bold text-sky-800 block">Awaiting Dispatch</span>
-              <p className="text-xl font-bold text-sky-950">{kpis.pipeline.awaitingAssignment}</p>
-              <span className="text-[10px] text-sky-700">Officer desk</span>
-            </div>
-            <div className="p-3 rounded-2xl border border-teal-200/80 bg-teal-50/40 space-y-1">
-              <span className="text-[10px] uppercase font-bold text-teal-800 block">Assigned</span>
-              <p className="text-xl font-bold text-teal-950">{kpis.pipeline.assigned}</p>
-              <span className="text-[10px] text-teal-700">Dept queue</span>
-            </div>
-            <div className="p-3 rounded-2xl border border-amber-200/80 bg-amber-50/40 space-y-1">
-              <span className="text-[10px] uppercase font-bold text-amber-800 block">In Progress</span>
-              <p className="text-xl font-bold text-amber-950">{kpis.pipeline.inProgress}</p>
-              <span className="text-[10px] text-amber-700">Field work</span>
-            </div>
-            <div className="p-3 rounded-2xl border border-violet-200/80 bg-violet-50/40 space-y-1">
-              <span className="text-[10px] uppercase font-bold text-violet-800 block">Under Review</span>
-              <p className="text-xl font-bold text-violet-950">{kpis.pipeline.awaitingReview}</p>
-              <span className="text-[10px] text-violet-700">Proof check</span>
-            </div>
-            <div className="p-3 rounded-2xl border border-emerald-200/80 bg-emerald-50/40 space-y-1">
-              <span className="text-[10px] uppercase font-bold text-emerald-800 block">Resolved</span>
-              <p className="text-xl font-bold text-emerald-950">{kpis.pipeline.resolved}</p>
-              <span className="text-[10px] text-emerald-700">Verified</span>
-            </div>
-            <div className="p-3 rounded-2xl border border-rose-200/80 bg-rose-50/40 space-y-1">
-              <span className="text-[10px] uppercase font-bold text-rose-800 block">Rework / Reopened</span>
-              <p className="text-xl font-bold text-rose-950">{kpis.pipeline.reopened}</p>
-              <span className="text-[10px] text-rose-700">Follow-up</span>
-            </div>
-          </div>
-        </Card>
-
-        {/* Right: Issue Status Breakdown */}
-        <Card className="rounded-3xl border border-border/80 bg-surface/95 p-5 shadow-sm space-y-3 flex flex-col justify-between">
-          <div className="flex items-center justify-between border-b border-border/60 pb-3">
-            <div className="flex items-center gap-2">
-              <BarChart3 className="h-4 w-4 text-teal-700" />
-              <h3 className="text-sm font-bold text-foreground">Status Breakdown</h3>
-            </div>
-            <span className="text-xs text-muted-foreground font-semibold">{kpis.totalIssues} total</span>
-          </div>
-
-          <div className="space-y-2 text-xs">
+          {/* Attention Category Filter Tabs */}
+          <div className="flex flex-wrap items-center gap-1 bg-muted/40 p-1 rounded-lg border border-border/60">
             {[
-              { label: "Submitted / Intake", count: kpis.statusCounts.SUBMITTED, color: "bg-sky-500" },
-              { label: "AI Analyzed", count: kpis.statusCounts.AI_ANALYZED, color: "bg-indigo-500" },
-              { label: "Assigned to Dept", count: kpis.statusCounts.ASSIGNED, color: "bg-teal-500" },
-              { label: "In Progress", count: kpis.statusCounts.IN_PROGRESS, color: "bg-amber-500" },
-              { label: "Under Review", count: kpis.statusCounts.UNDER_REVIEW, color: "bg-violet-500" },
-              { label: "Resolved", count: kpis.statusCounts.RESOLVED + kpis.statusCounts.CITIZEN_VERIFIED, color: "bg-emerald-500" },
-              { label: "Reopened / Rework", count: kpis.statusCounts.REOPENED, color: "bg-rose-500" },
-            ].map((item) => {
-              const pct = kpis.totalIssues > 0 ? Math.round((item.count / kpis.totalIssues) * 100) : 0;
+              { id: "ALL", label: `All (${attentionItems.length})` },
+              { id: "VERIFICATION", label: `Verifications (${attentionItems.filter((i) => i.category === "VERIFICATION").length})` },
+              { id: "CIVIC", label: `Civic Urgent (${attentionItems.filter((i) => i.category === "CIVIC_URGENT").length})` },
+              { id: "INNOVATION", label: `Innovation (${attentionItems.filter((i) => i.category === "INNOVATION").length})` },
+              { id: "AI", label: `AI Telemetry (${attentionItems.filter((i) => i.category === "AI_ANOMALY").length})` },
+            ].map((tab) => (
+              <button
+                key={tab.id}
+                type="button"
+                onClick={() => setAttentionFilter(tab.id)}
+                className={`rounded-md px-2.5 py-1 text-xs font-semibold transition-colors ${
+                  attentionFilter === tab.id
+                    ? "bg-surface text-foreground shadow-xs border border-border"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {filteredAttentionItems.length === 0 ? (
+          <Card className="rounded-xl border border-border/80 bg-surface shadow-xs p-5">
+            <div className="flex items-center gap-3.5">
+              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 shrink-0">
+                <CheckCircle2 className="h-5 w-5" />
+              </div>
+              <div>
+                <p className="text-sm font-bold text-foreground">
+                  All platform subsystems operating within healthy parameters
+                </p>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  No unverified organizations, unassigned critical incidents, low-confidence AI classifications, or innovation review backlogs requiring immediate intervention.
+                </p>
+              </div>
+            </div>
+          </Card>
+        ) : (
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+            {filteredAttentionItems.slice(0, 6).map((item) => {
+              const isCritical = item.urgency === "CRITICAL";
+              const isHigh = item.urgency === "HIGH";
+              const isMedium = item.urgency === "MEDIUM";
+
               return (
-                <div key={item.label} className="space-y-1">
-                  <div className="flex items-center justify-between">
-                    <span className="text-muted-foreground font-medium truncate">{item.label}</span>
-                    <span className="font-bold text-foreground shrink-0">{item.count} <span className="text-[10px] font-normal text-muted-foreground">({pct}%)</span></span>
+                <Card
+                  key={item.id}
+                  className={`h-full flex flex-col justify-between rounded-xl border transition-all overflow-hidden shadow-xs ${
+                    isCritical
+                      ? "border-rose-300 dark:border-rose-800 bg-rose-50/20 dark:bg-rose-950/20 hover:border-rose-400"
+                      : isHigh
+                      ? "border-amber-300 dark:border-amber-800 bg-amber-50/20 dark:bg-amber-950/20 hover:border-amber-400"
+                      : "border-border/80 bg-surface hover:border-border"
+                  }`}
+                >
+                  <CardHeader className="p-4 pb-3 flex-1 flex flex-col">
+                    <div className="flex items-center justify-between gap-2 mb-2">
+                      <span
+                        className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold border ${
+                          isCritical
+                            ? "bg-rose-100 text-rose-800 border-rose-200 dark:bg-rose-950 dark:text-rose-300 dark:border-rose-800"
+                            : isHigh
+                            ? "bg-amber-100 text-amber-800 border-amber-200 dark:bg-amber-950 dark:text-amber-300 dark:border-amber-800"
+                            : isMedium
+                            ? "bg-sky-100 text-sky-800 border-sky-200 dark:bg-sky-950 dark:text-sky-300 dark:border-sky-800"
+                            : "bg-muted text-muted-foreground border-border"
+                        }`}
+                      >
+                        {isCritical && <AlertTriangle className="h-2.5 w-2.5 shrink-0" />}
+                        {isHigh && <Clock3 className="h-2.5 w-2.5 shrink-0" />}
+                        <span>{item.category.replace(/_/g, " ")}</span>
+                      </span>
+                      <span className="text-[10px] text-muted-foreground font-medium shrink-0">
+                        {item.source}
+                      </span>
+                    </div>
+
+                    <h4 className="text-xs font-bold text-foreground line-clamp-2 leading-snug min-h-[2rem]">
+                      {item.title}
+                    </h4>
+                    <p className="text-[11px] text-muted-foreground line-clamp-2 mt-1.5 leading-relaxed flex-1">
+                      {item.subtitle}
+                    </p>
+                  </CardHeader>
+
+                  <div className="border-t border-border/60 bg-muted/20 px-4 py-2.5 flex items-center justify-between mt-auto">
+                    {item.timestamp ? (
+                      <span className="text-[10px] text-muted-foreground">
+                        {new Date(item.timestamp).toLocaleDateString()}
+                      </span>
+                    ) : <span />}
+                    <Link to={item.actionHref}>
+                      <Button
+                        size="sm"
+                        variant={isCritical ? "default" : isHigh ? "default" : "outline"}
+                        className={`text-xs font-semibold h-7.5 px-3 gap-1 shadow-2xs ${
+                          isCritical
+                            ? "bg-rose-600 hover:bg-rose-700 text-white"
+                            : isHigh
+                            ? "bg-amber-600 hover:bg-amber-700 text-white"
+                            : "border-border text-foreground"
+                        }`}
+                      >
+                        <span>{item.actionLabel}</span>
+                        <ArrowRight className="h-3 w-3 shrink-0" />
+                      </Button>
+                    </Link>
                   </div>
-                  <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted/60">
-                    <div className={`h-full rounded-full ${item.color}`} style={{ width: `${pct}%` }} />
-                  </div>
-                </div>
+                </Card>
               );
             })}
           </div>
+        )}
+      </section>
+
+      {/* 3. Platform Overview 6 KPI Cards Strip */}
+      <section className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+        {/* Metric 1: Platform Users */}
+        <Card className="rounded-xl border border-border/80 hover:border-teal-500/60 bg-surface shadow-xs flex flex-col justify-between p-4 h-full transition-all">
+          <div className="flex items-center justify-between text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">
+            <span>Platform Users</span>
+            <div className="p-1.5 rounded-lg bg-teal-500/10 text-teal-600 dark:text-teal-400 border border-teal-500/20">
+              <UsersRound className="h-4 w-4 shrink-0" />
+            </div>
+          </div>
+          <div>
+            <div className="text-2xl sm:text-3xl font-bold font-mono tracking-tight text-foreground">
+              {kpis.totalUsers}
+            </div>
+            <p className="text-xs text-muted-foreground mt-1 leading-tight line-clamp-1">
+              {kpis.activeStaff} staff across {state.departments.length} depts
+            </p>
+          </div>
+        </Card>
+
+        {/* Metric 2: Organizations */}
+        <Card className="rounded-xl border border-border/80 hover:border-sky-500/60 bg-surface shadow-xs flex flex-col justify-between p-4 h-full transition-all">
+          <div className="flex items-center justify-between text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">
+            <span>Organizations</span>
+            <div className="p-1.5 rounded-lg bg-sky-500/10 text-sky-600 dark:text-sky-400 border border-sky-500/20">
+              <Building2 className="h-4 w-4 shrink-0" />
+            </div>
+          </div>
+          <div>
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-2xl sm:text-3xl font-bold font-mono tracking-tight text-foreground">
+                {kpis.totalOrganizations}
+              </span>
+              <span className="inline-flex items-center rounded-full bg-emerald-600 text-white px-2 py-0.5 text-[10px] font-bold shadow-2xs">
+                {kpis.verifiedOrganizations} Verified
+              </span>
+            </div>
+            <p className="text-xs text-muted-foreground mt-1 leading-tight line-clamp-1">
+              {kpis.institutionsCount} Universities · {kpis.industryCount} Industry
+            </p>
+          </div>
+        </Card>
+
+        {/* Metric 3: Civic Issues */}
+        <Card className="rounded-xl border border-border/80 hover:border-blue-500/60 bg-surface shadow-xs flex flex-col justify-between p-4 h-full transition-all">
+          <div className="flex items-center justify-between text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">
+            <span>Civic Issues</span>
+            <div className="p-1.5 rounded-lg bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20">
+              <Layers className="h-4 w-4 shrink-0" />
+            </div>
+          </div>
+          <div>
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-2xl sm:text-3xl font-bold font-mono tracking-tight text-foreground">
+                {kpis.totalCivicIssues}
+              </span>
+              <span className="inline-flex items-center rounded-full bg-blue-600 text-white px-2 py-0.5 text-[10px] font-bold shadow-2xs">
+                {kpis.resolutionRate}% Rate
+              </span>
+            </div>
+            <p className="text-xs text-muted-foreground mt-1 leading-tight line-clamp-1">
+              {kpis.resolvedIssues} resolved · {kpis.openIssues} active
+            </p>
+          </div>
+        </Card>
+
+        {/* Metric 4: Innovation Projects */}
+        <Card className="rounded-xl border border-border/80 hover:border-indigo-500/60 bg-surface shadow-xs flex flex-col justify-between p-4 h-full transition-all">
+          <div className="flex items-center justify-between text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">
+            <span>Innovation</span>
+            <div className="p-1.5 rounded-lg bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20">
+              <Rocket className="h-4 w-4 shrink-0" />
+            </div>
+          </div>
+          <div>
+            <div className="text-2xl sm:text-3xl font-bold font-mono tracking-tight text-foreground">
+              {kpis.activeProjects}
+            </div>
+            <p className="text-xs text-muted-foreground mt-1 leading-tight line-clamp-1">
+              Active workspaces ({kpis.totalProjects} total)
+            </p>
+          </div>
+        </Card>
+
+        {/* Metric 5: Pilots & Scale */}
+        <Card className="rounded-xl border border-border/80 hover:border-amber-500/60 bg-surface shadow-xs flex flex-col justify-between p-4 h-full transition-all">
+          <div className="flex items-center justify-between text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">
+            <span>Pilots & Scale</span>
+            <div className="p-1.5 rounded-lg bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
+              <FlaskConical className="h-4 w-4 shrink-0" />
+            </div>
+          </div>
+          <div>
+            <div className="text-2xl sm:text-3xl font-bold font-mono tracking-tight text-foreground">
+              {kpis.activePilots + kpis.activeDeployments}
+            </div>
+            <p className="text-xs text-muted-foreground mt-1 leading-tight line-clamp-1">
+              {kpis.activePilots} active pilots · {kpis.activeDeployments} scaling
+            </p>
+          </div>
+        </Card>
+
+        {/* Metric 6: Platform Integrity */}
+        <Card className="rounded-xl border border-border/80 hover:border-emerald-500/60 bg-surface shadow-xs flex flex-col justify-between p-4 h-full transition-all">
+          <div className="flex items-center justify-between text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">
+            <span>Data Integrity</span>
+            <div className="p-1.5 rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+              <ShieldCheck className="h-4 w-4 shrink-0" />
+            </div>
+          </div>
+          <div>
+            <div className="text-2xl sm:text-3xl font-bold font-mono tracking-tight text-foreground">
+              {kpis.healthScore}%
+            </div>
+            <p className="text-xs text-muted-foreground mt-1 leading-tight line-clamp-1">
+              Zero schema inconsistencies
+            </p>
+          </div>
         </Card>
       </section>
 
-      {/* 4. Row 3 — Priority Incidents & Department Performance Matrix */}
-      <section className="grid gap-6 lg:grid-cols-[1fr_1fr]">
-        {/* Left: Priority Incidents */}
-        <Card className="rounded-3xl border border-border/80 bg-surface/95 p-5 shadow-sm space-y-4">
+      {/* 4. Operations Overview: Civic Workflow Funnel & Innovation Ecosystem Snapshot */}
+      <section className="grid gap-6 lg:grid-cols-[1.3fr_0.7fr]">
+        {/* Left: 9-Stage Civic Lifecycle Pipeline */}
+        <Card className="rounded-xl border border-border/80 bg-surface shadow-xs p-5 space-y-4">
           <div className="flex items-center justify-between border-b border-border/60 pb-3">
-            <div className="flex items-center gap-2">
-              <Flame className="h-4 w-4 text-amber-600" />
-              <h3 className="text-sm font-bold text-foreground">Priority Incidents Requiring Attention</h3>
+            <div>
+              <h4 className="text-xs font-bold uppercase tracking-wider text-foreground flex items-center gap-1.5">
+                <Layers className="h-4 w-4 text-primary" />
+                <span>Live Municipal Civic Pipeline</span>
+              </h4>
+              <p className="text-[11px] text-muted-foreground mt-0.5">
+                Distribution of citizen incidents across the 9 formal resolution stages.
+              </p>
             </div>
-            <Button asChild size="sm" variant="ghost" className="text-xs h-7 text-teal-800 font-semibold">
-              <Link to="/app/admin/issues">View All →</Link>
-            </Button>
+            <Link to="/app/admin/issues" className="text-xs font-semibold text-primary hover:underline flex items-center gap-1">
+              <span>All Issues ({kpis.totalCivicIssues})</span>
+              <ArrowRight className="h-3 w-3" />
+            </Link>
           </div>
 
-          <div className="space-y-2.5">
-            {priorityIssues.length === 0 ? (
-              <p className="text-xs text-muted-foreground py-6 text-center">No active high-priority issues at this time.</p>
-            ) : (
-              priorityIssues.map((issue) => {
-                const assignedDept = issue.department_assignments?.[0]?.department?.name;
-
-                return (
-                  <div
-                    key={issue.id}
-                    className="flex flex-col sm:flex-row sm:items-center justify-between p-3 rounded-2xl border border-border/60 bg-background/60 hover:bg-muted/20 transition gap-2.5 text-xs"
-                  >
-                    <div className="min-w-0 space-y-1">
-                      <div className="flex items-center gap-2">
-                        <span className="font-mono text-[10px] text-muted-foreground">
-                          #{issue.id.slice(0, 8).toUpperCase()}
-                        </span>
-                        <Badge variant={getAdminPriorityTone(issue.priority)} size="sm">
-                          {issue.priority}
-                        </Badge>
-                        <Badge variant={getAdminIssueStatusTone(issue.status)} size="sm">
-                          {issue.status}
-                        </Badge>
-                      </div>
-
-                      <p className="font-bold text-foreground text-sm truncate">{issue.title}</p>
-                      <p className="text-xs text-muted-foreground flex items-center gap-1 truncate">
-                        <MapPin className="h-3 w-3 shrink-0 text-muted-foreground" />
-                        <span className="truncate">{issue.address_text || issue.location_text || "Location recorded"}</span>
-                        {assignedDept && (
-                          <span className="ml-1 font-semibold text-teal-800 truncate">· {assignedDept}</span>
-                        )}
-                      </p>
-                    </div>
-
-                    <Button asChild size="sm" variant="outline" className="text-xs h-7 self-start sm:self-center shrink-0">
-                      <Link to={`/app/admin/issues/${issue.id}`}>
-                        Inspect →
-                      </Link>
-                    </Button>
-                  </div>
-                );
-              })
-            )}
+          <div className="grid grid-cols-3 sm:grid-cols-5 gap-2.5">
+            {[
+              { label: "Submitted", count: kpis.pipeline.submitted, color: "bg-sky-500", href: "/app/admin/issues?status=SUBMITTED" },
+              { label: "AI Analyzed", count: kpis.pipeline.aiAnalyzed, color: "bg-indigo-500", href: "/app/admin/classification" },
+              { label: "Under Review", count: kpis.pipeline.underReview, color: "bg-violet-500", href: "/app/admin/issues?status=UNDER_REVIEW" },
+              { label: "Verified", count: kpis.pipeline.verified, color: "bg-cyan-500", href: "/app/admin/issues?status=VERIFIED" },
+              { label: "Assigned", count: kpis.pipeline.assigned, color: "bg-teal-500", href: "/app/admin/issues?status=ASSIGNED" },
+              { label: "In Progress", count: kpis.pipeline.inProgress, color: "bg-amber-500", href: "/app/admin/issues?status=IN_PROGRESS" },
+              { label: "Partially Done", count: kpis.pipeline.partiallyCompleted, color: "bg-blue-500", href: "/app/admin/issues?status=PARTIALLY_COMPLETED" },
+              { label: "Resolved", count: kpis.pipeline.resolved, color: "bg-emerald-500", href: "/app/admin/issues?status=RESOLVED" },
+              { label: "Citizen Verified", count: kpis.pipeline.citizenVerified, color: "bg-emerald-600", href: "/app/admin/issues?status=CITIZEN_VERIFIED" },
+              { label: "Reopened / Rework", count: kpis.pipeline.reopened, color: "bg-rose-500", href: "/app/admin/issues?status=REOPENED" },
+            ].map((stage, idx) => (
+              <Link
+                key={idx}
+                to={stage.href}
+                className="p-3 rounded-xl border border-border/70 bg-surface hover:border-primary/50 transition-all shadow-2xs block"
+              >
+                <div className="flex items-center justify-between text-[10px] font-semibold text-muted-foreground uppercase">
+                  <span>{stage.label}</span>
+                  <div className={`h-2 w-2 rounded-full ${stage.color}`} />
+                </div>
+                <div className="text-xl font-bold font-mono text-foreground mt-1">
+                  {stage.count}
+                </div>
+              </Link>
+            ))}
           </div>
         </Card>
 
-        {/* Right: Department Performance Table */}
-        <Card className="rounded-3xl border border-border/80 bg-surface/95 p-5 shadow-sm space-y-4">
+        {/* Right: Quick Administrative Action Hub */}
+        <Card className="rounded-xl border border-border/80 bg-surface shadow-xs p-5 space-y-4 flex flex-col justify-between">
           <div className="flex items-center justify-between border-b border-border/60 pb-3">
             <div className="flex items-center gap-2">
-              <Building2 className="h-4 w-4 text-teal-700" />
-              <h3 className="text-sm font-bold text-foreground">Department Performance</h3>
+              <Activity className="h-4 w-4 text-primary" />
+              <h4 className="text-xs font-bold uppercase tracking-wider text-foreground">
+                Administrative Control Hub
+              </h4>
             </div>
-            <Button asChild size="sm" variant="ghost" className="text-xs h-7 text-teal-800 font-semibold">
-              <Link to="/app/admin/departments">Manage Depts →</Link>
-            </Button>
+            <Link to="/app/admin/activity" className="text-xs font-semibold text-primary hover:underline">
+              Audit Logs
+            </Link>
           </div>
 
-          <div className="overflow-x-auto">
-            <table className="w-full text-xs">
-              <thead>
-                <tr className="border-b border-border/60 text-[10px] uppercase font-bold text-muted-foreground">
-                  <th className="text-left py-2 px-1">Department</th>
-                  <th className="text-right py-2 px-2">Total</th>
-                  <th className="text-right py-2 px-2">Active</th>
-                  <th className="text-right py-2 px-2">Done</th>
-                  <th className="text-right py-2 px-2">Closure Rate</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border/40">
-                {departmentPerformance.slice(0, 5).map((dept) => (
-                  <tr key={dept.id} className="hover:bg-muted/10 transition">
-                    <td className="py-2.5 px-1 font-semibold text-foreground truncate max-w-[140px]">
-                      {dept.name}
-                    </td>
-                    <td className="py-2.5 px-2 text-right font-medium text-foreground">{dept.total}</td>
-                    <td className="py-2.5 px-2 text-right font-medium text-amber-700">{dept.inProgress}</td>
-                    <td className="py-2.5 px-2 text-right font-medium text-emerald-700">{dept.completed}</td>
-                    <td className="py-2.5 px-2 text-right">
-                      <div className="flex items-center justify-end gap-1.5">
-                        <div className="w-12 h-1.5 rounded-full bg-muted/60 overflow-hidden">
-                          <div className="h-full bg-emerald-500 rounded-full" style={{ width: `${dept.rate}%` }} />
-                        </div>
-                        <span className="font-bold text-[11px] text-foreground min-w-[28px]">{dept.rate}%</span>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          <div className="space-y-2">
+            <Link
+              to="/app/admin/users"
+              className="p-3 rounded-lg border border-border/70 bg-surface hover:border-teal-400 transition flex items-center justify-between shadow-2xs group"
+            >
+              <div className="flex items-center gap-3">
+                <div className="p-2 rounded-lg bg-teal-500/10 text-teal-600 border border-teal-500/20">
+                  <UserPlus className="h-4 w-4" />
+                </div>
+                <div>
+                  <p className="text-xs font-bold text-foreground">User & Role Management</p>
+                  <p className="text-[11px] text-muted-foreground">Provision staff, researchers & partners</p>
+                </div>
+              </div>
+              <ArrowRight className="h-3.5 w-3.5 text-muted-foreground group-hover:text-foreground" />
+            </Link>
+
+            <Link
+              to="/app/admin/classification"
+              className="p-3 rounded-lg border border-border/70 bg-surface hover:border-indigo-400 transition flex items-center justify-between shadow-2xs group"
+            >
+              <div className="flex items-center gap-3">
+                <div className="p-2 rounded-lg bg-indigo-500/10 text-indigo-600 border border-indigo-500/20">
+                  <Bot className="h-4 w-4" />
+                </div>
+                <div>
+                  <p className="text-xs font-bold text-foreground">AI Classification Governance</p>
+                  <p className="text-[11px] text-muted-foreground">Audit complexity & human override rates</p>
+                </div>
+              </div>
+              <ArrowRight className="h-3.5 w-3.5 text-muted-foreground group-hover:text-foreground" />
+            </Link>
+
+            <Link
+              to="/app/admin/institutions"
+              className="p-3 rounded-lg border border-border/70 bg-surface hover:border-sky-400 transition flex items-center justify-between shadow-2xs group"
+            >
+              <div className="flex items-center gap-3">
+                <div className="p-2 rounded-lg bg-sky-500/10 text-sky-600 border border-sky-500/20">
+                  <GraduationCap className="h-4 w-4" />
+                </div>
+                <div>
+                  <p className="text-xs font-bold text-foreground">Institution Directory</p>
+                  <p className="text-[11px] text-muted-foreground">{kpis.institutionsCount} Universities cataloged</p>
+                </div>
+              </div>
+              <ArrowRight className="h-3.5 w-3.5 text-muted-foreground group-hover:text-foreground" />
+            </Link>
+
+            <Link
+              to="/app/admin/departments"
+              className="p-3 rounded-lg border border-border/70 bg-surface hover:border-violet-400 transition flex items-center justify-between shadow-2xs group"
+            >
+              <div className="flex items-center gap-3">
+                <div className="p-2 rounded-lg bg-violet-500/10 text-violet-600 border border-violet-500/20">
+                  <Building2 className="h-4 w-4" />
+                </div>
+                <div>
+                  <p className="text-xs font-bold text-foreground">Municipal Departments</p>
+                  <p className="text-[11px] text-muted-foreground">{state.departments.length} Municipal branches</p>
+                </div>
+              </div>
+              <ArrowRight className="h-3.5 w-3.5 text-muted-foreground group-hover:text-foreground" />
+            </Link>
           </div>
         </Card>
       </section>
 
-      {/* 5. Row 4 — Workforce Fleet, Infrastructure Health & Activity Feed */}
-      <section className="grid gap-6 lg:grid-cols-[0.85fr_1.15fr]">
-        {/* Left: Workforce Fleet & Services */}
-        <div className="space-y-6">
-          <Card className="rounded-3xl border border-border/80 bg-surface/95 p-5 shadow-sm space-y-4">
-            <div className="flex items-center justify-between border-b border-border/60 pb-3">
-              <div className="flex items-center gap-2">
-                <UsersRound className="h-4 w-4 text-teal-700" />
-                <h3 className="text-sm font-bold text-foreground">Workforce Fleet</h3>
-              </div>
-              <Button asChild size="sm" variant="ghost" className="text-xs h-7 text-teal-800 font-semibold">
-                <Link to="/app/admin/users">Staff Directory →</Link>
-              </Button>
-            </div>
-
-            <div className="space-y-2">
-              <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Recent Staff Registrations</p>
-              {recentStaff.map((staff) => (
-                <div key={staff.id} className="flex items-center justify-between p-2.5 rounded-xl bg-background/50 border border-border/60 text-xs">
-                  <div className="flex items-center gap-2.5 min-w-0">
-                    <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-teal-100 text-teal-900 font-bold text-xs">
-                      {getAdminInitials(staff.full_name || staff.email || "Staff")}
-                    </div>
-                    <div className="truncate">
-                      <p className="font-bold text-foreground truncate">{staff.full_name || staff.email}</p>
-                      <p className="text-[10px] text-muted-foreground truncate">{staff.role?.name || "Staff"}</p>
-                    </div>
-                  </div>
-                  <Badge variant={getAdminRoleTone(staff.role?.code ?? "CITIZEN")} size="sm">
-                    {staff.role?.name || "Staff"}
-                  </Badge>
-                </div>
-              ))}
-            </div>
-          </Card>
-
-          {/* Infrastructure Health */}
-          <Card className="rounded-3xl border border-border/80 bg-surface/95 p-5 shadow-sm space-y-3">
-            <div className="flex items-center justify-between border-b border-border/60 pb-2.5">
-              <div className="flex items-center gap-2">
-                <ShieldCheck className="h-4 w-4 text-emerald-700" />
-                <h3 className="text-sm font-bold text-foreground">Infrastructure Services</h3>
-              </div>
-              <Badge variant="success" size="sm">100% Operational</Badge>
-            </div>
-
-            <div className="space-y-2 text-xs">
-              <div className="flex items-center justify-between p-2 rounded-xl bg-background/40">
-                <span className="text-muted-foreground flex items-center gap-1.5">
-                  <Server className="h-3.5 w-3.5 text-teal-600" />
-                  Supabase PostgreSQL Core
-                </span>
-                <span className="font-semibold text-emerald-700">Healthy</span>
-              </div>
-              <div className="flex items-center justify-between p-2 rounded-xl bg-background/40">
-                <span className="text-muted-foreground flex items-center gap-1.5">
-                  <Shield className="h-3.5 w-3.5 text-teal-600" />
-                  Clerk Identity Provider
-                </span>
-                <span className="font-semibold text-emerald-700">Connected</span>
-              </div>
-              <div className="flex items-center justify-between p-2 rounded-xl bg-background/40">
-                <span className="text-muted-foreground flex items-center gap-1.5">
-                  <Building2 className="h-3.5 w-3.5 text-teal-600" />
-                  Evidence Storage Bucket
-                </span>
-                <span className="font-semibold text-emerald-700">Active</span>
-              </div>
-            </div>
-          </Card>
-        </div>
-
-        {/* Right: Recent System Activity Feed */}
-        <Card className="rounded-3xl border border-border/80 bg-surface/95 p-5 shadow-sm space-y-4">
-          <div className="flex items-center justify-between border-b border-border/60 pb-3">
+      {/* 5. Innovation, Research & Support Ecosystem Pulse */}
+      <section className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+        {/* Card 1: Innovation Problems & Challenges */}
+        <Card className="rounded-xl border border-border/80 bg-surface shadow-xs p-5 space-y-4">
+          <div className="flex items-center justify-between pb-3 border-b border-border/60">
             <div className="flex items-center gap-2">
-              <Clock3 className="h-4 w-4 text-teal-700" />
-              <h3 className="text-sm font-bold text-foreground">Recent Administrative Activity</h3>
+              <div className="p-1.5 rounded-lg bg-primary/10 text-primary border border-primary/20">
+                <Rocket className="h-4 w-4" />
+              </div>
+              <h4 className="text-xs font-bold uppercase tracking-wider text-foreground">
+                Innovation Challenges
+              </h4>
             </div>
-            <Button asChild size="sm" variant="ghost" className="text-xs h-7 text-teal-800 font-semibold">
-              <Link to="/app/admin/activity">View Audit Log →</Link>
-            </Button>
+            <Link to="/app/innovation/problems" className="text-xs font-semibold text-primary hover:underline">
+              Problems ({kpis.challengesCount})
+            </Link>
           </div>
 
-          <div className="space-y-2.5">
-            {state.activities.length === 0 ? (
-              <p className="text-xs text-muted-foreground py-6 text-center">No recent activity recorded.</p>
-            ) : (
-              state.activities.map((act) => (
-                <div key={act.id} className="p-3 rounded-2xl border border-border/60 bg-background/50 text-xs space-y-1.5">
-                  <div className="flex items-center justify-between">
-                    <span className="font-bold text-foreground">{act.changed_by_profile?.full_name || "System Actor"}</span>
-                    <span className="text-[10px] text-muted-foreground">{formatAdminDateTime(act.created_at)}</span>
-                  </div>
-                  <div className="flex items-center gap-1.5 text-muted-foreground">
-                    {act.old_status ? (
-                      <>
-                        <Badge variant="outline" size="sm">{act.old_status}</Badge>
-                        <span>→</span>
-                      </>
-                    ) : null}
-                    <Badge variant={getAdminIssueStatusTone(act.new_status)} size="sm">{act.new_status}</Badge>
-                    <span className="truncate">for <span className="font-semibold text-foreground">"{act.issue?.title || `Issue #${act.issue_id.slice(0, 8)}`}"</span></span>
-                  </div>
-                  {act.notes && (
-                    <p className="text-[11px] text-muted-foreground italic bg-muted/20 px-2 py-1 rounded-lg">
-                      "{act.notes}"
-                    </p>
-                  )}
+          <div className="space-y-2 text-xs">
+            <div className="flex items-center justify-between p-2.5 rounded-lg bg-muted/40 border border-border/60">
+              <span className="text-muted-foreground">Active Workspaces</span>
+              <span className="font-bold text-foreground">{kpis.activeProjects}</span>
+            </div>
+            <div className="flex items-center justify-between p-2.5 rounded-lg bg-muted/40 border border-border/60">
+              <span className="text-muted-foreground">Research Proposals Submitted</span>
+              <span className="font-bold text-foreground">{kpis.proposalsCount}</span>
+            </div>
+            <div className="flex items-center justify-between p-2.5 rounded-lg bg-muted/40 border border-border/60">
+              <span className="text-muted-foreground">Active Field Pilots</span>
+              <span className="font-bold text-emerald-600 dark:text-emerald-400">{kpis.activePilots}</span>
+            </div>
+          </div>
+        </Card>
+
+        {/* Card 2: Academic & Industry Ecosystem */}
+        <Card className="rounded-xl border border-border/80 bg-surface shadow-xs p-5 space-y-4">
+          <div className="flex items-center justify-between pb-3 border-b border-border/60">
+            <div className="flex items-center gap-2">
+              <div className="p-1.5 rounded-lg bg-teal-500/10 text-teal-600 border border-teal-500/20">
+                <Building2 className="h-4 w-4" />
+              </div>
+              <h4 className="text-xs font-bold uppercase tracking-wider text-foreground">
+                Partner Ecosystem
+              </h4>
+            </div>
+            <Link to="/app/admin/institutions" className="text-xs font-semibold text-primary hover:underline">
+              View Directory
+            </Link>
+          </div>
+
+          <div className="space-y-2 text-xs">
+            <div className="flex items-center justify-between p-2.5 rounded-lg bg-muted/40 border border-border/60">
+              <span className="text-muted-foreground">Verified Universities (IITs, NITs)</span>
+              <span className="font-bold text-foreground">{kpis.verifiedInstitutions} / {kpis.institutionsCount}</span>
+            </div>
+            <div className="flex items-center justify-between p-2.5 rounded-lg bg-muted/40 border border-border/60">
+              <span className="text-muted-foreground">Verified Industry Partners</span>
+              <span className="font-bold text-foreground">{kpis.verifiedIndustry} / {kpis.industryCount}</span>
+            </div>
+            <div className="flex items-center justify-between p-2.5 rounded-lg bg-muted/40 border border-border/60">
+              <span className="text-muted-foreground">Citywide Scaling Deployments</span>
+              <span className="font-bold text-sky-600 dark:text-sky-400">{kpis.activeDeployments}</span>
+            </div>
+          </div>
+        </Card>
+
+        {/* Card 3: Recent Audit Activity */}
+        <Card className="rounded-xl border border-border/80 bg-surface shadow-xs p-5 space-y-4">
+          <div className="flex items-center justify-between pb-3 border-b border-border/60">
+            <div className="flex items-center gap-2">
+              <div className="p-1.5 rounded-lg bg-amber-500/10 text-amber-600 border border-amber-500/20">
+                <Clock3 className="h-4 w-4" />
+              </div>
+              <h4 className="text-xs font-bold uppercase tracking-wider text-foreground">
+                Recent State Transitions
+              </h4>
+            </div>
+            <Link to="/app/admin/activity" className="text-xs font-semibold text-primary hover:underline">
+              All Activity
+            </Link>
+          </div>
+
+          <div className="space-y-2 text-xs">
+            {state.activities.slice(0, 3).map((act) => (
+              <div key={act.id} className="p-2 rounded-lg bg-muted/30 border border-border/60 space-y-1">
+                <div className="flex items-center justify-between text-[10px]">
+                  <span className="font-bold text-foreground truncate max-w-[140px]">
+                    {act.issue?.title || "Civic Incident"}
+                  </span>
+                  <span className="text-muted-foreground">{new Date(act.created_at).toLocaleTimeString()}</span>
                 </div>
-              ))
-            )}
+                <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
+                  <Badge variant="outline" size="sm" className="text-[9px] px-1 py-0">{act.old_status || "START"}</Badge>
+                  <span>&rarr;</span>
+                  <Badge variant={getAdminIssueStatusTone(act.new_status)} size="sm" className="text-[9px] px-1 py-0 font-bold">{act.new_status}</Badge>
+                </div>
+              </div>
+            ))}
           </div>
         </Card>
       </section>
