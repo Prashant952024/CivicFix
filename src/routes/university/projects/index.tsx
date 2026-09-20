@@ -156,7 +156,7 @@ export function UniversityProjectsPortfolioPage() {
         setPilotPlans(pilotsRes.data ?? []);
         setDeploymentPlans(deploymentsRes.data ?? []);
 
-        // Query project-dependent records if projects exist
+        // Load project-dependent milestones and risks if projects exist
         const projectIds = projectsData.map((p) => p.id);
         if (projectIds.length > 0) {
           const [milestonesRes, blockersRes] = await Promise.all([
@@ -186,8 +186,8 @@ export function UniversityProjectsPortfolioPage() {
         setLastRefreshed(new Date().toLocaleTimeString());
       } catch (err: unknown) {
         if (!cancelled) {
-          console.error("Failed to load portfolio data:", err);
-          setError(err instanceof Error ? err.message : "Failed to load project portfolio.");
+          console.error("Failed to load institution projects portfolio:", err);
+          setError(err instanceof Error ? err.message : "Failed to load projects portfolio.");
         }
       } finally {
         if (!cancelled) {
@@ -203,21 +203,19 @@ export function UniversityProjectsPortfolioPage() {
     };
   }, [profile?.institution_id, profile?.id, refreshNonce]);
 
-  // Derived health & issues calculation per project
+  // Derived Project Health Map
   const projectHealthMap = useMemo(() => {
     const map = new Map<
       string,
       {
-        needsAttention: boolean;
+        totalMilestones: number;
+        completedMilestones: number;
+        progressPct: number;
         blockersCount: number;
-        risksCount: number;
         criticalRisksCount: number;
         overdueMilestonesCount: number;
-        hasProposalRevision: boolean;
+        needsAttention: boolean;
         currentProposal?: ResearchProposalRow;
-        completedMilestones: number;
-        totalMilestones: number;
-        progressPct: number;
       }
     >();
 
@@ -230,49 +228,48 @@ export function UniversityProjectsPortfolioPage() {
       const progressPct = totalMilestones > 0 ? Math.round((completedMilestones / totalMilestones) * 100) : 0;
 
       const projBlockers = blockersRisks.filter(
-        (b) => b.project_id === proj.id && (b.status === "OPEN" || b.status === "IN_PROGRESS") && b.item_type === "BLOCKER"
+        (b) => b.project_id === proj.id && b.item_type === "BLOCKER" && (b.status === "OPEN" || b.status === "IN_PROGRESS")
       );
-      const projRisks = blockersRisks.filter(
-        (r) => b_isRisk(r) && r.project_id === proj.id && (r.status === "OPEN" || r.status === "IN_PROGRESS")
+      const projCriticalRisks = blockersRisks.filter(
+        (b) =>
+          b.project_id === proj.id &&
+          b.item_type === "RISK" &&
+          (b.severity === "CRITICAL" || b.severity === "HIGH") &&
+          (b.status === "OPEN" || b.status === "IN_PROGRESS")
       );
-      const projCriticalRisks = projRisks.filter((r) => r.severity === "CRITICAL" || r.severity === "HIGH");
 
-      const overdueMilestones = projMilestones.filter((m) => {
-        const isOverdue = m.status === "IN_PROGRESS" && m.planned_completion_date && m.planned_completion_date < nowStr;
-        return m.status === "BLOCKED" || m.status === "DELAYED" || isOverdue;
-      });
+      const overdueMilestones = projMilestones.filter(
+        (m) =>
+          m.status === "IN_PROGRESS" &&
+          m.planned_completion_date &&
+          m.planned_completion_date < nowStr
+      );
 
       const currentProposal = proposals.find((p) => p.project_id === proj.id && p.is_current);
-      const hasProposalRevision = currentProposal?.status === "REQUESTED_REVISION";
+      const proposalNeedsRevision = currentProposal?.status === "REQUESTED_REVISION";
 
       const needsAttention =
         projBlockers.length > 0 ||
         projCriticalRisks.length > 0 ||
         overdueMilestones.length > 0 ||
-        hasProposalRevision;
+        Boolean(proposalNeedsRevision);
 
       map.set(proj.id, {
-        needsAttention,
+        totalMilestones,
+        completedMilestones,
+        progressPct,
         blockersCount: projBlockers.length,
-        risksCount: projRisks.length,
         criticalRisksCount: projCriticalRisks.length,
         overdueMilestonesCount: overdueMilestones.length,
-        hasProposalRevision,
+        needsAttention,
         currentProposal,
-        completedMilestones,
-        totalMilestones,
-        progressPct,
       });
     });
 
     return map;
   }, [projects, milestones, blockersRisks, proposals]);
 
-  function b_isRisk(item: ResearchBlockerRiskRow) {
-    return item.item_type === "RISK";
-  }
-
-  // Attention Queue items across the portfolio
+  // Attention Queue for Portfolio
   const portfolioAttentionItems = useMemo(() => {
     const items: ProjectAttentionItem[] = [];
 
@@ -280,14 +277,14 @@ export function UniversityProjectsPortfolioPage() {
       const health = projectHealthMap.get(proj.id);
       if (!health) return;
 
-      if (health.hasProposalRevision) {
+      if (health.currentProposal?.status === "REQUESTED_REVISION") {
         items.push({
           projectId: proj.id,
           projectTitle: proj.project_title,
           issueType: "PROPOSAL",
           severity: "CRITICAL",
-          title: `Proposal Revision Requested`,
-          description: `Municipal innovation reviewer requested revisions on the active proposal.`,
+          title: `Proposal Revision Requested (v${health.currentProposal.version_number})`,
+          description: health.currentProposal.review_feedback || "Municipal review requested revisions.",
           researchStage: proj.research_stage,
         });
       }
@@ -542,12 +539,12 @@ export function UniversityProjectsPortfolioPage() {
         backHref="/app/university"
         backLabel="University Dashboard"
         actions={
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2.5">
             <Button
               variant="outline"
               size="sm"
               onClick={() => setRefreshNonce((v) => v + 1)}
-              className="border-border text-foreground hover:bg-surface-elevated text-xs font-semibold gap-1.5"
+              className="h-8.5 border-border text-foreground hover:bg-surface-elevated text-xs font-semibold gap-1.5 shadow-xs"
             >
               <RefreshCw className="h-3.5 w-3.5" />
               <span>Refresh</span>
@@ -558,7 +555,7 @@ export function UniversityProjectsPortfolioPage() {
               onClick={() => {
                 void navigate("/app/university/challenges");
               }}
-              className="bg-primary text-primary-foreground hover:bg-primary/90 shadow-xs text-xs font-semibold gap-1.5"
+              className="h-8.5 bg-primary text-primary-foreground hover:bg-primary/90 shadow-xs text-xs font-semibold gap-1.5"
             >
               <Rocket className="h-3.5 w-3.5" />
               <span>Explore Opportunities</span>
@@ -570,11 +567,11 @@ export function UniversityProjectsPortfolioPage() {
           <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-sky-200/40 dark:border-sky-800/40 pt-3 text-xs text-muted-foreground">
             <span className="font-bold text-foreground">{institution.official_name || institution.name}</span>
             <span>·</span>
-            <span className={`inline-flex items-center rounded-full border px-2 py-0.2 text-[10px] font-semibold ${statusBadge.bg}`}>
+            <span className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-[10px] font-semibold ${statusBadge.bg}`}>
               {statusBadge.label}
             </span>
             {institution.nirf_rank && (
-              <span className="inline-flex items-center gap-1 rounded-full border border-amber-200 bg-amber-50 px-2 py-0.2 text-[10px] font-medium text-amber-800">
+              <span className="inline-flex items-center gap-1 rounded-full border border-amber-200 bg-amber-50 px-2.5 py-0.5 text-[10px] font-medium text-amber-800">
                 NIRF #{institution.nirf_rank}
               </span>
             )}
@@ -586,129 +583,127 @@ export function UniversityProjectsPortfolioPage() {
 
       {/* 2. Portfolio Metrics */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
-        <Card className="border border-border/80 bg-surface/90 shadow-xs">
-          <CardHeader className="flex flex-row items-center justify-between pb-1 p-4">
-            <CardTitle className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-              Total Projects
-            </CardTitle>
-            <BookOpen className="h-3.5 w-3.5 text-primary" />
-          </CardHeader>
-          <CardContent className="p-4 pt-0">
-            <div className="text-2xl font-bold text-foreground">{totalProjectsCount}</div>
-            <p className="mt-0.5 text-[11px] text-muted-foreground">
+        <Card className="rounded-xl border border-border/80 bg-surface/90 shadow-xs flex flex-col justify-between p-4 h-full">
+          <div className="flex items-center justify-between text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-2">
+            <span>Total Projects</span>
+            <BookOpen className="h-3.5 w-3.5 text-primary shrink-0" />
+          </div>
+          <div>
+            <div className="text-2xl font-bold tracking-tight text-foreground min-h-[2rem] flex items-baseline">
+              {totalProjectsCount}
+            </div>
+            <p className="text-[11px] text-muted-foreground mt-1 leading-tight line-clamp-1">
               Across all departments
             </p>
-          </CardContent>
+          </div>
         </Card>
 
-        <Card className="border border-border/80 bg-surface/90 shadow-xs">
-          <CardHeader className="flex flex-row items-center justify-between pb-1 p-4">
-            <CardTitle className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-              Active Workspaces
-            </CardTitle>
-            <Rocket className="h-3.5 w-3.5 text-teal-600 dark:text-teal-400" />
-          </CardHeader>
-          <CardContent className="p-4 pt-0">
-            <div className="text-2xl font-bold text-foreground">{activeWorkspacesCount}</div>
-            <p className="mt-0.5 text-[11px] text-muted-foreground">
+        <Card className="rounded-xl border border-border/80 bg-surface/90 shadow-xs flex flex-col justify-between p-4 h-full">
+          <div className="flex items-center justify-between text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-2">
+            <span>Active Workspaces</span>
+            <Rocket className="h-3.5 w-3.5 text-teal-600 dark:text-teal-400 shrink-0" />
+          </div>
+          <div>
+            <div className="text-2xl font-bold tracking-tight text-foreground min-h-[2rem] flex items-baseline">
+              {activeWorkspacesCount}
+            </div>
+            <p className="text-[11px] text-muted-foreground mt-1 leading-tight line-clamp-1">
               {projects.filter((p) => p.status === "FORMING_TEAM").length} forming team
             </p>
-          </CardContent>
+          </div>
         </Card>
 
-        <Card className="border border-border/80 bg-surface/90 shadow-xs">
-          <CardHeader className="flex flex-row items-center justify-between pb-1 p-4">
-            <CardTitle className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-              Research &amp; Prototype
-            </CardTitle>
-            <Sparkles className="h-3.5 w-3.5 text-sky-600 dark:text-sky-400" />
-          </CardHeader>
-          <CardContent className="p-4 pt-0">
-            <div className="text-2xl font-bold text-foreground">{researchStageCount}</div>
-            <p className="mt-0.5 text-[11px] text-muted-foreground">
+        <Card className="rounded-xl border border-border/80 bg-surface/90 shadow-xs flex flex-col justify-between p-4 h-full">
+          <div className="flex items-center justify-between text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-2">
+            <span>Research &amp; Build</span>
+            <Sparkles className="h-3.5 w-3.5 text-sky-600 dark:text-sky-400 shrink-0" />
+          </div>
+          <div>
+            <div className="text-2xl font-bold tracking-tight text-foreground min-h-[2rem] flex items-baseline">
+              {researchStageCount}
+            </div>
+            <p className="text-[11px] text-muted-foreground mt-1 leading-tight line-clamp-1">
               Lab &amp; build phase
             </p>
-          </CardContent>
+          </div>
         </Card>
 
-        <Card className="border border-border/80 bg-surface/90 shadow-xs">
-          <CardHeader className="flex flex-row items-center justify-between pb-1 p-4">
-            <CardTitle className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-              Pilot &amp; Validation
-            </CardTitle>
-            <FlaskConical className="h-3.5 w-3.5 text-indigo-600 dark:text-indigo-400" />
-          </CardHeader>
-          <CardContent className="p-4 pt-0">
-            <div className="text-2xl font-bold text-foreground">{pilotStageCount}</div>
-            <p className="mt-0.5 text-[11px] text-muted-foreground">
+        <Card className="rounded-xl border border-border/80 bg-surface/90 shadow-xs flex flex-col justify-between p-4 h-full">
+          <div className="flex items-center justify-between text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-2">
+            <span>Pilot &amp; Validation</span>
+            <FlaskConical className="h-3.5 w-3.5 text-indigo-600 dark:text-indigo-400 shrink-0" />
+          </div>
+          <div>
+            <div className="text-2xl font-bold tracking-tight text-foreground min-h-[2rem] flex items-baseline">
+              {pilotStageCount}
+            </div>
+            <p className="text-[11px] text-muted-foreground mt-1 leading-tight line-clamp-1">
               Field tests in progress
             </p>
-          </CardContent>
+          </div>
         </Card>
 
-        <Card className="border border-border/80 bg-surface/90 shadow-xs">
-          <CardHeader className="flex flex-row items-center justify-between pb-1 p-4">
-            <CardTitle className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-              Deployment &amp; Scale
-            </CardTitle>
-            <Layers className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
-          </CardHeader>
-          <CardContent className="p-4 pt-0">
-            <div className="text-2xl font-bold text-foreground">{deploymentStageCount}</div>
-            <p className="mt-0.5 text-[11px] text-muted-foreground">
+        <Card className="rounded-xl border border-border/80 bg-surface/90 shadow-xs flex flex-col justify-between p-4 h-full">
+          <div className="flex items-center justify-between text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-2">
+            <span>Deployment &amp; Scale</span>
+            <Layers className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
+          </div>
+          <div>
+            <div className="text-2xl font-bold tracking-tight text-foreground min-h-[2rem] flex items-baseline">
+              {deploymentStageCount}
+            </div>
+            <p className="text-[11px] text-muted-foreground mt-1 leading-tight line-clamp-1">
               City scaling rollout
             </p>
-          </CardContent>
+          </div>
         </Card>
 
-        <Card className="border border-border/80 bg-surface/90 shadow-xs">
-          <CardHeader className="flex flex-row items-center justify-between pb-1 p-4">
-            <CardTitle className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-              Needs Attention
-            </CardTitle>
-            <ShieldAlert className="h-3.5 w-3.5 text-amber-600 dark:text-amber-400" />
-          </CardHeader>
-          <CardContent className="p-4 pt-0">
-            <div className="flex items-baseline gap-2">
-              <span className="text-2xl font-bold text-foreground">{attentionCount}</span>
+        <Card className="rounded-xl border border-border/80 bg-surface/90 shadow-xs flex flex-col justify-between p-4 h-full">
+          <div className="flex items-center justify-between text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-2">
+            <span>Needs Attention</span>
+            <ShieldAlert className="h-3.5 w-3.5 text-amber-600 dark:text-amber-400 shrink-0" />
+          </div>
+          <div>
+            <div className="flex items-baseline gap-2 min-h-[2rem]">
+              <span className="text-2xl font-bold tracking-tight text-foreground">{attentionCount}</span>
               {attentionCount > 0 && (
-                <span className="inline-flex items-center rounded-full bg-amber-100 dark:bg-amber-950/80 px-1.5 py-0.2 text-[10px] font-bold text-amber-800 dark:text-amber-300 border border-amber-300 dark:border-amber-800">
+                <span className="inline-flex items-center rounded-full bg-amber-100 dark:bg-amber-950/80 px-2 py-0.5 text-[10px] font-bold text-amber-800 dark:text-amber-300 border border-amber-300 dark:border-amber-800">
                   Issues
                 </span>
               )}
             </div>
-            <p className="mt-0.5 text-[11px] text-muted-foreground">
+            <p className="text-[11px] text-muted-foreground mt-1 leading-tight line-clamp-1">
               Blockers / revisions
             </p>
-          </CardContent>
+          </div>
         </Card>
       </div>
 
       {/* 3. Portfolio Attention Queue */}
       {portfolioAttentionItems.length > 0 && (
-        <Card className="border border-amber-200/80 dark:border-amber-900/60 bg-amber-50/20 dark:bg-amber-950/10 p-4 space-y-3">
-          <div className="flex items-center justify-between pb-2 border-b border-border/60">
+        <Card className="rounded-xl border border-amber-200/80 dark:border-amber-900/60 bg-amber-50/20 dark:bg-amber-950/10 p-5 space-y-3.5 shadow-xs">
+          <div className="flex items-center justify-between pb-2.5 border-b border-border/60">
             <div className="flex items-center gap-2">
-              <Flame className="h-4 w-4 text-amber-600" />
+              <Flame className="h-4 w-4 text-amber-600 shrink-0" />
               <h4 className="text-xs font-bold uppercase tracking-wider text-foreground">
                 Portfolio Attention Queue ({portfolioAttentionItems.length})
               </h4>
             </div>
-            <span className="text-[11px] text-muted-foreground">
+            <span className="text-[11px] text-muted-foreground font-medium">
               Actionable execution blockers, overdue milestones &amp; proposal revisions
             </span>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2.5">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
             {portfolioAttentionItems.slice(0, 6).map((item, idx) => (
               <div
                 key={idx}
-                className="p-3 rounded-lg border border-border/70 bg-surface shadow-2xs flex flex-col justify-between space-y-2"
+                className="p-3.5 rounded-xl border border-border/70 bg-surface shadow-2xs flex flex-col justify-between space-y-2.5"
               >
-                <div className="space-y-1">
-                  <div className="flex items-center justify-between gap-1">
+                <div className="space-y-1.5 flex-1">
+                  <div className="flex items-center justify-between gap-1.5">
                     <span
-                      className={`text-[9px] font-bold px-1.5 py-0.2 rounded border ${
+                      className={`text-[9px] font-bold px-2 py-0.5 rounded border ${
                         item.severity === "CRITICAL"
                           ? "bg-rose-100 text-rose-800 border-rose-200 dark:bg-rose-950 dark:text-rose-300"
                           : item.severity === "HIGH"
@@ -718,23 +713,23 @@ export function UniversityProjectsPortfolioPage() {
                     >
                       {item.issueType}
                     </span>
-                    <Badge variant="outline" size="sm" className="text-[9px]">
+                    <Badge variant="outline" size="sm" className="text-[9px] px-2 py-0.5">
                       {item.researchStage.replace(/_/g, " ")}
                     </Badge>
                   </div>
                   <h5 className="text-xs font-bold text-foreground line-clamp-1">
                     {item.projectTitle}
                   </h5>
-                  <p className="text-[11px] text-muted-foreground line-clamp-2">
+                  <p className="text-[11px] text-muted-foreground line-clamp-2 leading-relaxed">
                     {item.title} — {item.description}
                   </p>
                 </div>
 
-                <div className="flex justify-end pt-1 border-t border-border/60">
+                <div className="flex justify-end pt-2 border-t border-border/60 mt-auto">
                   <Link to={`/app/university/projects/${item.projectId}`}>
-                    <Button size="sm" variant="outline" className="h-6 text-[10px] font-semibold gap-1">
+                    <Button size="sm" variant="outline" className="h-6.5 text-[10px] font-semibold gap-1 px-2.5">
                       <span>Open Workspace</span>
-                      <ArrowRight className="h-2.5 w-2.5" />
+                      <ArrowRight className="h-2.5 w-2.5 shrink-0" />
                     </Button>
                   </Link>
                 </div>
@@ -745,7 +740,7 @@ export function UniversityProjectsPortfolioPage() {
       )}
 
       {/* 4. Search + Multi-Dimensional Filters Toolbar */}
-      <Card className="border border-border/80 bg-surface/90 shadow-xs p-4 space-y-3">
+      <Card className="rounded-xl border border-border/80 bg-surface/90 shadow-xs p-4 space-y-3">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
           {/* Search Box */}
           <div className="relative flex-1">
@@ -775,7 +770,7 @@ export function UniversityProjectsPortfolioPage() {
               <button
                 type="button"
                 onClick={() => setViewMode("CARDS")}
-                className={`flex items-center gap-1 rounded-md px-2 py-1 text-xs font-semibold transition-colors ${
+                className={`flex items-center gap-1 rounded-md px-2.5 py-1 text-xs font-semibold transition-colors ${
                   viewMode === "CARDS"
                     ? "bg-surface text-foreground shadow-xs"
                     : "text-muted-foreground hover:text-foreground"
@@ -788,7 +783,7 @@ export function UniversityProjectsPortfolioPage() {
               <button
                 type="button"
                 onClick={() => setViewMode("TABLE")}
-                className={`flex items-center gap-1 rounded-md px-2 py-1 text-xs font-semibold transition-colors ${
+                className={`flex items-center gap-1 rounded-md px-2.5 py-1 text-xs font-semibold transition-colors ${
                   viewMode === "TABLE"
                     ? "bg-surface text-foreground shadow-xs"
                     : "text-muted-foreground hover:text-foreground"
@@ -821,7 +816,7 @@ export function UniversityProjectsPortfolioPage() {
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
-            className="rounded-md border border-border bg-background px-2 py-1 text-xs text-foreground font-medium focus:outline-hidden"
+            className="rounded-md border border-border bg-background px-2.5 py-1 text-xs text-foreground font-medium focus:outline-hidden"
             aria-label="Filter by project status"
           >
             <option value="ALL">All Statuses ({projects.length})</option>
@@ -835,7 +830,7 @@ export function UniversityProjectsPortfolioPage() {
           <select
             value={stageFilter}
             onChange={(e) => setStageFilter(e.target.value)}
-            className="rounded-md border border-border bg-background px-2 py-1 text-xs text-foreground font-medium focus:outline-hidden"
+            className="rounded-md border border-border bg-background px-2.5 py-1 text-xs text-foreground font-medium focus:outline-hidden"
             aria-label="Filter by research stage"
           >
             <option value="ALL">All Research Stages</option>
@@ -849,7 +844,7 @@ export function UniversityProjectsPortfolioPage() {
           <select
             value={healthFilter}
             onChange={(e) => setHealthFilter(e.target.value)}
-            className="rounded-md border border-border bg-background px-2 py-1 text-xs text-foreground font-medium focus:outline-hidden"
+            className="rounded-md border border-border bg-background px-2.5 py-1 text-xs text-foreground font-medium focus:outline-hidden"
             aria-label="Filter by project health"
           >
             <option value="ALL">All Health States</option>
@@ -862,7 +857,7 @@ export function UniversityProjectsPortfolioPage() {
             <select
               value={categoryFilter}
               onChange={(e) => setCategoryFilter(e.target.value)}
-              className="rounded-md border border-border bg-background px-2 py-1 text-xs text-foreground font-medium focus:outline-hidden"
+              className="rounded-md border border-border bg-background px-2.5 py-1 text-xs text-foreground font-medium focus:outline-hidden"
               aria-label="Filter by challenge category"
             >
               <option value="ALL">All Categories</option>
@@ -879,7 +874,7 @@ export function UniversityProjectsPortfolioPage() {
               variant="ghost"
               size="sm"
               onClick={clearAllFilters}
-              className="h-7 px-2 text-[11px] font-semibold text-rose-600 hover:text-rose-700 hover:bg-rose-50 dark:hover:bg-rose-950/50 gap-1 ml-auto"
+              className="h-7 px-2.5 text-[11px] font-semibold text-rose-600 hover:text-rose-700 hover:bg-rose-50 dark:hover:bg-rose-950/50 gap-1 ml-auto"
             >
               <X className="h-3 w-3" />
               <span>Clear Filters</span>
@@ -892,23 +887,23 @@ export function UniversityProjectsPortfolioPage() {
       <div className="space-y-4">
         <div className="flex items-center justify-between text-xs text-muted-foreground">
           <span>
-            Showing <strong className="text-foreground">{filteredProjects.length}</strong> of{" "}
+            Showing <strong className="text-foreground font-semibold">{filteredProjects.length}</strong> of{" "}
             {totalProjectsCount} projects
           </span>
           {hasActiveFilters && (
-            <span className="text-primary font-medium">Filtered Results</span>
+            <span className="text-primary font-semibold">Filtered Results</span>
           )}
         </div>
 
         {filteredProjects.length === 0 ? (
-          <Card className="border border-border/80 bg-surface/90 p-8 text-center">
+          <Card className="rounded-xl border border-border/80 bg-surface/90 p-8 text-center shadow-xs">
             {hasActiveFilters ? (
               <div className="space-y-3">
                 <p className="text-sm font-bold text-foreground">No projects match your filter criteria</p>
                 <p className="text-xs text-muted-foreground">
                   Try adjusting search keywords or resetting status, stage, or health filters.
                 </p>
-                <Button variant="outline" size="sm" onClick={clearAllFilters} className="text-xs">
+                <Button variant="outline" size="sm" onClick={clearAllFilters} className="text-xs font-semibold">
                   Clear All Filters
                 </Button>
               </div>
@@ -930,27 +925,27 @@ export function UniversityProjectsPortfolioPage() {
               return (
                 <Card
                   key={proj.id}
-                  className={`border transition-all flex flex-col justify-between shadow-xs ${
+                  className={`h-full flex flex-col justify-between rounded-xl border transition-all shadow-xs overflow-hidden ${
                     hasAttention
                       ? "border-amber-300/80 dark:border-amber-800/80 bg-surface/95 hover:border-amber-400"
                       : "border-border/80 bg-surface/90 hover:border-primary/40"
                   }`}
                 >
-                  <CardHeader className="p-4 pb-2">
-                    <div className="flex items-start justify-between gap-2">
-                      <Badge variant="outline" className="text-[10px] border-primary/20 bg-primary/5 text-primary">
+                  <CardHeader className="p-4 pb-2 space-y-2 flex-1 flex flex-col">
+                    <div className="flex items-center justify-between gap-2 flex-wrap">
+                      <Badge variant="outline" className="text-[10px] font-semibold border-primary/20 bg-primary/5 text-primary px-2 py-0.5">
                         {proj.challenge.category.replace(/_/g, " ")}
                       </Badge>
-                      <div className="flex items-center gap-1">
+                      <div className="flex items-center gap-1.5">
                         {hasAttention ? (
-                          <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 dark:bg-amber-950 px-1.5 py-0.2 text-[9px] font-bold text-amber-800 dark:text-amber-300 border border-amber-300 dark:border-amber-800">
-                            <AlertTriangle className="h-2.5 w-2.5" />
-                            Needs Attention
+                          <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 dark:bg-amber-950 px-2 py-0.5 text-[9px] font-bold text-amber-800 dark:text-amber-300 border border-amber-300 dark:border-amber-800">
+                            <AlertTriangle className="h-2.5 w-2.5 shrink-0" />
+                            <span>Needs Attention</span>
                           </span>
                         ) : (
-                          <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 dark:bg-emerald-950 px-1.5 py-0.2 text-[9px] font-bold text-emerald-800 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800">
-                            <CheckCircle2 className="h-2.5 w-2.5" />
-                            On Track
+                          <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 dark:bg-emerald-950 px-2 py-0.5 text-[9px] font-bold text-emerald-800 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800">
+                            <CheckCircle2 className="h-2.5 w-2.5 shrink-0" />
+                            <span>On Track</span>
                           </span>
                         )}
                         <Badge
@@ -964,7 +959,7 @@ export function UniversityProjectsPortfolioPage() {
                               : "default"
                           }
                           size="sm"
-                          className="text-[9px]"
+                          className="text-[9px] font-bold px-2 py-0.5"
                         >
                           {proj.status.replace(/_/g, " ")}
                         </Badge>
@@ -972,57 +967,57 @@ export function UniversityProjectsPortfolioPage() {
                     </div>
 
                     <Link to={`/app/university/projects/${proj.id}`} className="block group">
-                      <h4 className="text-sm font-bold text-foreground group-hover:text-primary transition-colors mt-2 line-clamp-1">
+                      <h4 className="text-sm font-bold text-foreground group-hover:text-primary transition-colors mt-2 line-clamp-1 min-h-[1.25rem]">
                         {proj.project_title}
                       </h4>
                     </Link>
-                    <p className="text-xs text-muted-foreground line-clamp-2 mt-0.5 leading-relaxed">
+                    <p className="text-xs text-muted-foreground line-clamp-2 mt-0.5 leading-relaxed min-h-[2rem]">
                       {proj.project_summary || proj.challenge.problem_statement}
                     </p>
                   </CardHeader>
 
-                  <CardContent className="space-y-3 p-4 pt-0">
+                  <CardContent className="space-y-3 p-4 pt-0 mt-auto">
                     {/* Research Stage Badge */}
-                    <div className="p-2 rounded-md bg-muted/30 border border-border/60 flex items-center justify-between text-[11px]">
-                      <span className="text-muted-foreground font-medium">Stage:</span>
-                      <Badge variant="indigo" size="sm" className="text-[10px]">
+                    <div className="p-2 rounded-lg bg-muted/30 border border-border/60 flex items-center justify-between text-[11px]">
+                      <span className="text-muted-foreground font-semibold">Stage:</span>
+                      <Badge variant="indigo" size="sm" className="text-[10px] font-semibold px-2 py-0.5">
                         {proj.research_stage.replace(/_/g, " ")}
                       </Badge>
                     </div>
 
                     {/* Milestones Progress Bar */}
-                    <div className="space-y-1">
-                      <div className="flex justify-between text-[10px] text-muted-foreground font-medium">
+                    <div className="space-y-1 pt-0.5">
+                      <div className="flex justify-between text-[10px] text-muted-foreground font-semibold">
                         <span>Milestones</span>
                         <span>
-                          {health?.completedMilestones || 0} / {health?.totalMilestones || 0} Completed ({health?.progressPct || 0}%)
+                          {health?.completedMilestones || 0} / {health?.totalMilestones || 0} Done ({health?.progressPct || 0}%)
                         </span>
                       </div>
                       <div className="h-1.5 w-full bg-muted rounded-full overflow-hidden">
                         <div
-                          className="h-full bg-primary transition-all duration-300"
+                          className="h-full bg-primary transition-all duration-300 rounded-full"
                           style={{ width: `${health?.progressPct || 0}%` }}
                         />
                       </div>
                     </div>
 
                     {/* Lead, Members & Issues Status */}
-                    <div className="flex items-center justify-between border-t border-border/60 pt-2 text-xs">
+                    <div className="flex items-center justify-between border-t border-border/60 pt-2.5 text-xs">
                       <div className="flex items-center gap-1.5 min-w-0 text-foreground/90 font-medium">
                         <Crown className="w-3.5 h-3.5 text-amber-500 fill-amber-500/20 shrink-0" />
-                        <span className="truncate text-[11px]">
+                        <span className="truncate text-[11px] font-semibold">
                           {proj.project_lead?.full_name || "Lead Unassigned"}
                         </span>
                       </div>
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-1.5 shrink-0">
                         {health && (health.blockersCount > 0 || health.criticalRisksCount > 0) && (
-                          <span className="inline-flex items-center gap-1 px-1.5 py-0.2 rounded-full bg-rose-50 dark:bg-rose-950/60 border border-rose-200 text-rose-800 dark:text-rose-300 font-bold text-[10px]">
-                            <ShieldAlert className="w-2.5 h-2.5 text-rose-600" />
-                            {health.blockersCount + health.criticalRisksCount} Issues
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-rose-50 dark:bg-rose-950/60 border border-rose-200 text-rose-800 dark:text-rose-300 font-bold text-[10px]">
+                            <ShieldAlert className="w-2.5 h-2.5 text-rose-600 shrink-0" />
+                            <span>{health.blockersCount + health.criticalRisksCount} Issues</span>
                           </span>
                         )}
-                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-teal-50 dark:bg-teal-950/60 border border-teal-200/80 dark:border-teal-800/80 text-teal-800 dark:text-teal-300 font-semibold text-[11px] shrink-0">
-                          <Users className="w-3 h-3 text-teal-600 dark:text-teal-400" />
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-teal-50 dark:bg-teal-950/60 border border-teal-200/80 dark:border-teal-800/80 text-teal-800 dark:text-teal-300 font-semibold text-[10px]">
+                          <Users className="w-3 h-3 text-teal-600 dark:text-teal-400 shrink-0" />
                           <span>{proj.members_count || 1}</span>
                         </span>
                       </div>
@@ -1030,10 +1025,10 @@ export function UniversityProjectsPortfolioPage() {
 
                     {/* Proposal Status Tag */}
                     {proposal && (
-                      <div className="flex items-center justify-between text-[10px] text-muted-foreground pt-1 border-t border-border/40">
-                        <span>Proposal Status:</span>
+                      <div className="flex items-center justify-between text-[10px] text-muted-foreground pt-1.5 border-t border-border/40">
+                        <span className="font-medium">Proposal:</span>
                         <span
-                          className={`font-semibold ${
+                          className={`font-bold ${
                             proposal.status === "APPROVED"
                               ? "text-emerald-700 dark:text-emerald-400"
                               : proposal.status === "REQUESTED_REVISION"
@@ -1049,14 +1044,14 @@ export function UniversityProjectsPortfolioPage() {
                     {/* Action Buttons */}
                     <div className="grid grid-cols-2 gap-2 pt-1">
                       <Link to={`/app/university/projects/${proj.id}/proposal`}>
-                        <Button variant="outline" size="sm" className="w-full text-xs font-semibold h-8 gap-1">
-                          <FileEdit className="w-3 h-3 text-sky-600" />
+                        <Button variant="outline" size="sm" className="w-full text-xs font-semibold h-8 gap-1.5 shadow-2xs">
+                          <FileEdit className="w-3.5 h-3.5 text-sky-600 shrink-0" />
                           <span>Proposal</span>
                         </Button>
                       </Link>
                       <Link to={`/app/university/projects/${proj.id}`}>
-                        <Button size="sm" className="w-full text-xs font-bold bg-primary hover:bg-primary/90 text-primary-foreground h-8 gap-1">
-                          <Rocket className="w-3 h-3" />
+                        <Button size="sm" className="w-full text-xs font-bold bg-primary hover:bg-primary/90 text-primary-foreground h-8 gap-1.5 shadow-2xs">
+                          <Rocket className="w-3.5 h-3.5 shrink-0" />
                           <span>Workspace</span>
                         </Button>
                       </Link>
@@ -1068,19 +1063,19 @@ export function UniversityProjectsPortfolioPage() {
           </div>
         ) : (
           /* Table View */
-          <Card className="border border-border/80 bg-surface/90 shadow-xs overflow-hidden">
+          <Card className="rounded-xl border border-border/80 bg-surface/90 shadow-xs overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full text-left text-xs border-collapse">
                 <thead>
                   <tr className="border-b border-border/80 bg-muted/30 text-muted-foreground font-semibold uppercase tracking-wider text-[10px]">
-                    <th className="p-3 pl-4">Project &amp; Challenge</th>
-                    <th className="p-3">Status</th>
-                    <th className="p-3">Research Stage</th>
-                    <th className="p-3">Project Lead &amp; Team</th>
-                    <th className="p-3">Milestone Progress</th>
-                    <th className="p-3">Health &amp; Issues</th>
-                    <th className="p-3">Proposal</th>
-                    <th className="p-3 pr-4 text-right">Actions</th>
+                    <th className="p-3.5 pl-4">Project &amp; Challenge</th>
+                    <th className="p-3.5">Status</th>
+                    <th className="p-3.5">Research Stage</th>
+                    <th className="p-3.5">Project Lead &amp; Team</th>
+                    <th className="p-3.5">Milestone Progress</th>
+                    <th className="p-3.5">Health &amp; Issues</th>
+                    <th className="p-3.5">Proposal</th>
+                    <th className="p-3.5 pr-4 text-right">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border/60 text-foreground">
@@ -1091,7 +1086,7 @@ export function UniversityProjectsPortfolioPage() {
 
                     return (
                       <tr key={proj.id} className="hover:bg-muted/20 transition-colors">
-                        <td className="p-3 pl-4 max-w-xs">
+                        <td className="p-3.5 pl-4 max-w-xs">
                           <Link
                             to={`/app/university/projects/${proj.id}`}
                             className="font-bold text-foreground hover:text-primary transition-colors block line-clamp-1"
@@ -1102,7 +1097,7 @@ export function UniversityProjectsPortfolioPage() {
                             {proj.challenge.title}
                           </span>
                         </td>
-                        <td className="p-3">
+                        <td className="p-3.5">
                           <Badge
                             variant={
                               proj.status === "ACTIVE"
@@ -1114,58 +1109,58 @@ export function UniversityProjectsPortfolioPage() {
                                 : "default"
                             }
                             size="sm"
-                            className="text-[9px]"
+                            className="text-[9px] font-bold px-2 py-0.5"
                           >
                             {proj.status.replace(/_/g, " ")}
                           </Badge>
                         </td>
-                        <td className="p-3">
-                          <Badge variant="indigo" size="sm" className="text-[9px]">
+                        <td className="p-3.5">
+                          <Badge variant="indigo" size="sm" className="text-[9px] font-semibold px-2 py-0.5">
                             {proj.research_stage.replace(/_/g, " ")}
                           </Badge>
                         </td>
-                        <td className="p-3">
-                          <div className="font-medium text-[11px]">
+                        <td className="p-3.5">
+                          <div className="font-semibold text-[11px]">
                             {proj.project_lead?.full_name || "Unassigned"}
                           </div>
                           <span className="text-[10px] text-muted-foreground">
                             {proj.members_count || 1} team members
                           </span>
                         </td>
-                        <td className="p-3 min-w-[130px]">
-                          <div className="flex justify-between text-[10px] text-muted-foreground mb-1">
+                        <td className="p-3.5 min-w-[130px]">
+                          <div className="flex justify-between text-[10px] text-muted-foreground font-semibold mb-1">
                             <span>{health?.completedMilestones || 0}/{health?.totalMilestones || 0}</span>
                             <span>{health?.progressPct || 0}%</span>
                           </div>
                           <div className="h-1.5 w-full bg-muted rounded-full overflow-hidden">
                             <div
-                              className="h-full bg-primary"
+                              className="h-full bg-primary rounded-full"
                               style={{ width: `${health?.progressPct || 0}%` }}
                             />
                           </div>
                         </td>
-                        <td className="p-3">
+                        <td className="p-3.5">
                           {hasAttention ? (
                             <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 dark:bg-amber-950 px-2 py-0.5 text-[10px] font-bold text-amber-800 dark:text-amber-300 border border-amber-300">
-                              <AlertTriangle className="h-2.5 w-2.5" />
-                              Needs Attention
+                              <AlertTriangle className="h-2.5 w-2.5 shrink-0" />
+                              <span>Needs Attention</span>
                             </span>
                           ) : (
                             <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 dark:bg-emerald-950 px-2 py-0.5 text-[10px] font-bold text-emerald-800 dark:text-emerald-300 border border-emerald-300">
-                              <CheckCircle2 className="h-2.5 w-2.5" />
-                              On Track
+                              <CheckCircle2 className="h-2.5 w-2.5 shrink-0" />
+                              <span>On Track</span>
                             </span>
                           )}
                         </td>
-                        <td className="p-3 text-[11px]">
+                        <td className="p-3.5 text-[11px]">
                           {proposal ? (
                             <span
                               className={`font-semibold ${
                                 proposal.status === "APPROVED"
-                                  ? "text-emerald-700"
+                                  ? "text-emerald-700 dark:text-emerald-400"
                                   : proposal.status === "REQUESTED_REVISION"
-                                  ? "text-rose-700"
-                                  : "text-sky-700"
+                                  ? "text-rose-700 dark:text-rose-400"
+                                  : "text-sky-700 dark:text-sky-400"
                               }`}
                             >
                               v{proposal.version_number} ({proposal.status.replace(/_/g, " ")})
@@ -1174,15 +1169,15 @@ export function UniversityProjectsPortfolioPage() {
                             <span className="text-muted-foreground">None</span>
                           )}
                         </td>
-                        <td className="p-3 pr-4 text-right">
+                        <td className="p-3.5 pr-4 text-right">
                           <div className="flex items-center justify-end gap-1.5">
                             <Link to={`/app/university/projects/${proj.id}/proposal`}>
-                              <Button variant="outline" size="sm" className="h-7 text-[10px] font-semibold">
+                              <Button variant="outline" size="sm" className="h-7 px-2.5 text-[10px] font-semibold">
                                 Proposal
                               </Button>
                             </Link>
                             <Link to={`/app/university/projects/${proj.id}`}>
-                              <Button size="sm" className="h-7 text-[10px] font-bold bg-primary text-primary-foreground">
+                              <Button size="sm" className="h-7 px-2.5 text-[10px] font-bold bg-primary text-primary-foreground">
                                 Workspace
                               </Button>
                             </Link>

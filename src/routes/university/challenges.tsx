@@ -198,16 +198,11 @@ export function UniversityChallengesPage() {
           }
         }
 
-        // Fetch network-wide approved challenges
+        // Fetch network-wide approved and active challenges
         const { data: challengeData, error: challengeErr } = await supabase
           .from("innovation_challenges")
           .select("*")
-          .in("status", [
-            "APPROVED",
-            "READY_FOR_MATCHING",
-            "OPEN_FOR_PROPOSALS",
-            "INVITATIONS_SENT",
-          ])
+          .neq("status", "DRAFT")
           .order("created_at", { ascending: false });
 
         if (challengeErr) throw challengeErr;
@@ -551,103 +546,115 @@ export function UniversityChallengesPage() {
       {/* KPI Overview Strip */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         <Card
-          className={`border transition-all cursor-pointer ${
+          className={`border transition-all cursor-pointer rounded-xl ${
             activeTab === "invitations" && invitationStatusFilter === "ACTION_REQUIRED"
-              ? "border-amber-400 bg-amber-50/40 shadow-xs"
-              : "border-border/80 bg-surface/80 hover:border-amber-300"
+              ? "border-amber-500/80 bg-amber-500/10 dark:bg-amber-950/40 shadow-xs"
+              : "border-border/80 bg-surface hover:border-amber-400"
           }`}
           onClick={() => {
             switchTab("invitations");
             setInvitationStatusFilter("ACTION_REQUIRED");
           }}
         >
-          <CardContent className="p-3.5">
+          <CardContent className="p-4 flex flex-col justify-between h-full">
             <div className="flex items-center justify-between">
-              <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+              <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                 Action Required
               </span>
-              <Mail className="h-4 w-4 text-amber-600" />
+              <div className="p-1.5 rounded-lg bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
+                <Mail className="h-4 w-4" />
+              </div>
             </div>
-            <div className="mt-1 flex items-baseline gap-2">
-              <span className="text-xl font-bold font-mono text-amber-700">
+            <div className="mt-3">
+              <div className="text-2xl sm:text-3xl font-bold font-mono tracking-tight text-foreground">
                 {pendingInvitationsCount}
-              </span>
-              <span className="text-[11px] text-muted-foreground">
-                {pendingInvitationsCount === 1 ? "invitation pending" : "invitations pending"}
-              </span>
+              </div>
+              <p className="text-xs text-muted-foreground mt-1 truncate">
+                {pendingInvitationsCount === 1 ? "1 invitation pending" : `${pendingInvitationsCount} invitations pending`}
+              </p>
             </div>
           </CardContent>
         </Card>
 
         <Card
-          className={`border transition-all cursor-pointer ${
+          className={`border transition-all cursor-pointer rounded-xl ${
             activeTab === "invitations" && invitationStatusFilter === "ALL"
-              ? "border-teal-400 bg-teal-50/40 shadow-xs"
-              : "border-border/80 bg-surface/80 hover:border-teal-300"
+              ? "border-teal-500/80 bg-teal-500/10 dark:bg-teal-950/40 shadow-xs"
+              : "border-border/80 bg-surface hover:border-teal-400"
           }`}
           onClick={() => {
             switchTab("invitations");
             setInvitationStatusFilter("ALL");
           }}
         >
-          <CardContent className="p-3.5">
+          <CardContent className="p-4 flex flex-col justify-between h-full">
             <div className="flex items-center justify-between">
-              <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+              <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                 Total Invitations
               </span>
-              <FileCheck className="h-4 w-4 text-teal-600" />
+              <div className="p-1.5 rounded-lg bg-teal-500/10 text-teal-600 dark:text-teal-400 border border-teal-500/20">
+                <FileCheck className="h-4 w-4" />
+              </div>
             </div>
-            <div className="mt-1 flex items-baseline gap-2">
-              <span className="text-xl font-bold font-mono text-foreground">
+            <div className="mt-3">
+              <div className="text-2xl sm:text-3xl font-bold font-mono tracking-tight text-foreground">
                 {invitations.length}
-              </span>
-              <span className="text-[11px] text-muted-foreground">
-                {acceptedInvitationsCount} accepted
-              </span>
+              </div>
+              <p className="text-xs text-muted-foreground mt-1 truncate">
+                {acceptedInvitationsCount} accepted by institution
+              </p>
             </div>
           </CardContent>
         </Card>
 
         <Card
-          className="border border-border/80 bg-surface/80 hover:border-emerald-300 transition-all cursor-pointer"
+          className="border border-border/80 bg-surface hover:border-emerald-400 transition-all cursor-pointer rounded-xl"
           onClick={() => void navigate("/app/university/projects")}
         >
-          <CardContent className="p-3.5">
+          <CardContent className="p-4 flex flex-col justify-between h-full">
             <div className="flex items-center justify-between">
-              <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+              <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                 Active Projects
               </span>
-              <Rocket className="h-4 w-4 text-emerald-600" />
+              <div className="p-1.5 rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+                <Rocket className="h-4 w-4" />
+              </div>
             </div>
-            <div className="mt-1 flex items-baseline gap-2">
-              <span className="text-xl font-bold font-mono text-emerald-700">
+            <div className="mt-3">
+              <div className="text-2xl sm:text-3xl font-bold font-mono tracking-tight text-foreground">
                 {projects.length}
-              </span>
-              <span className="text-[11px] text-muted-foreground">portfolio initiatives</span>
+              </div>
+              <p className="text-xs text-muted-foreground mt-1 truncate">
+                Active research workspaces
+              </p>
             </div>
           </CardContent>
         </Card>
 
         <Card
-          className={`border transition-all cursor-pointer ${
+          className={`border transition-all cursor-pointer rounded-xl ${
             activeTab === "discover"
-              ? "border-sky-400 bg-sky-50/40 shadow-xs"
-              : "border-border/80 bg-surface/80 hover:border-sky-300"
+              ? "border-sky-500/80 bg-sky-500/10 dark:bg-sky-950/40 shadow-xs"
+              : "border-border/80 bg-surface hover:border-sky-400"
           }`}
           onClick={() => switchTab("discover")}
         >
-          <CardContent className="p-3.5">
+          <CardContent className="p-4 flex flex-col justify-between h-full">
             <div className="flex items-center justify-between">
-              <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+              <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                 Network Challenges
               </span>
-              <Compass className="h-4 w-4 text-sky-600" />
+              <div className="p-1.5 rounded-lg bg-sky-500/10 text-sky-600 dark:text-sky-400 border border-sky-500/20">
+                <Compass className="h-4 w-4" />
+              </div>
             </div>
-            <div className="mt-1 flex items-baseline gap-2">
-              <span className="text-xl font-bold font-mono text-sky-700">
+            <div className="mt-3">
+              <div className="text-2xl sm:text-3xl font-bold font-mono tracking-tight text-foreground">
                 {challenges.length}
-              </span>
-              <span className="text-[11px] text-muted-foreground">open civic problems</span>
+              </div>
+              <p className="text-xs text-muted-foreground mt-1 truncate">
+                Open civic problems
+              </p>
             </div>
           </CardContent>
         </Card>
@@ -1115,8 +1122,13 @@ export function UniversityChallengesPage() {
                     <option value="ALL">All Statuses</option>
                     <option value="APPROVED">Approved</option>
                     <option value="READY_FOR_MATCHING">Ready for Matching</option>
-                    <option value="OPEN_FOR_PROPOSALS">Open for Proposals</option>
+                    <option value="MATCHING_COMPLETED">Matching Completed</option>
+                    <option value="INSTITUTIONS_SELECTED">Institutions Selected</option>
+                    <option value="READY_FOR_INVITATION">Ready for Invitation</option>
                     <option value="INVITATIONS_SENT">Invitations Sent</option>
+                    <option value="OPEN_FOR_PROPOSALS">Open for Proposals</option>
+                    <option value="PILOT_ACTIVE">Pilot Active</option>
+                    <option value="SOLVED">Solved</option>
                   </select>
 
                   <button
