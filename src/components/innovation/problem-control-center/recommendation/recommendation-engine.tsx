@@ -8,6 +8,7 @@ import {
   Loader2,
   RefreshCw,
   Send,
+  ShieldCheck,
   Sparkles,
   Square,
 } from "lucide-react";
@@ -41,7 +42,8 @@ export function RecommendationEngine({
   onNavigateToCollaborations,
 }: RecommendationEngineProps) {
   const navigate = useNavigate();
-  const { profile } = useAppSession();
+  const { profile, roleCode } = useAppSession();
+  const isAdmin = roleCode === "ADMIN";
 
   // Selection state for unlimited institutions
   const [selectedIds, setSelectedIds] = useState<Set<string>>(() => {
@@ -198,7 +200,12 @@ export function RecommendationEngine({
             </Button>
           )}
 
-          {challenge && (
+          {isAdmin ? (
+            <Badge variant="outline" className="text-xs font-medium border-primary/30 bg-primary/5 text-primary py-1 px-2.5 rounded-xl gap-1">
+              <ShieldCheck className="w-3.5 h-3.5 text-primary" />
+              <span>Matching Oversight (Read-Only)</span>
+            </Badge>
+          ) : challenge ? (
             <Button
               size="sm"
               variant="innovation"
@@ -220,7 +227,7 @@ export function RecommendationEngine({
                 </>
               )}
             </Button>
-          )}
+          ) : null}
         </div>
       </div>
 
@@ -310,44 +317,51 @@ export function RecommendationEngine({
           {/* Top Selection Ribbon */}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-card p-3.5 rounded-xl border border-border/80 shadow-xs text-xs">
             <div className="flex items-center gap-3 flex-wrap">
-              <div className="flex items-center gap-1.5 flex-wrap">
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={handleSelectTop5}
-                  className="h-7.5 px-2.5 text-xs text-teal-800 border-teal-300 bg-teal-50/60 hover:bg-teal-100 font-semibold gap-1"
-                >
-                  <Sparkles className="w-3.5 h-3.5 text-teal-700" />
-                  <span>Select Top 5</span>
-                </Button>
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  onClick={handleSelectAll}
-                  className="h-7.5 px-2.5 text-xs text-muted-foreground hover:text-foreground gap-1"
-                >
-                  <CheckSquare className="w-3.5 h-3.5 text-primary" />
-                  <span>Select All ({matching.topMatches.length})</span>
-                </Button>
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  onClick={handleDeselectAll}
-                  className="h-7.5 px-2.5 text-xs text-muted-foreground hover:text-foreground gap-1"
-                >
-                  <Square className="w-3.5 h-3.5" />
-                  <span>Deselect All</span>
-                </Button>
-              </div>
-
-              <span className="text-border">|</span>
+              {!isAdmin && (
+                <>
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={handleSelectTop5}
+                      className="h-7.5 px-2.5 text-xs text-teal-800 border-teal-300 bg-teal-50/60 hover:bg-teal-100 font-semibold gap-1"
+                    >
+                      <Sparkles className="w-3.5 h-3.5 text-teal-700" />
+                      <span>Select Top 5</span>
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={handleSelectAll}
+                      className="h-7.5 px-2.5 text-xs text-muted-foreground hover:text-foreground gap-1"
+                    >
+                      <CheckSquare className="w-3.5 h-3.5 text-primary" />
+                      <span>Select All ({matching.topMatches.length})</span>
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={handleDeselectAll}
+                      className="h-7.5 px-2.5 text-xs text-muted-foreground hover:text-foreground gap-1"
+                    >
+                      <Square className="w-3.5 h-3.5" />
+                      <span>Deselect All</span>
+                    </Button>
+                  </div>
+                  <span className="text-border">|</span>
+                </>
+              )}
 
               <span className="font-semibold text-foreground">
-                Selected: <span className="font-bold text-teal-700">{selectedIds.size}</span> institution(s)
+                {isAdmin ? (
+                  <span>Showing <strong className="text-teal-700">{matching.topMatches.length}</strong> evaluated institution(s)</span>
+                ) : (
+                  <span>Selected: <span className="font-bold text-teal-700">{selectedIds.size}</span> institution(s)</span>
+                )}
               </span>
             </div>
 
-            {challenge && (
+            {!isAdmin && challenge && (
               <Button
                 size="sm"
                 onClick={() => setInvitationDialogOpen(true)}
@@ -513,18 +527,20 @@ export function RecommendationEngine({
                               <span>Inspect</span>
                             </Button>
 
-                            <Button
-                              size="sm"
-                              variant={isChecked ? "outline" : "default"}
-                              onClick={() => toggleSelect(m.institutionId)}
-                              className={`h-8 px-3 text-xs font-bold gap-1 ${
-                                isChecked
-                                  ? "text-muted-foreground border-border"
-                                  : "bg-primary text-primary-foreground"
-                              }`}
-                            >
-                              {isChecked ? "Remove" : "Select"}
-                            </Button>
+                            {!isAdmin && (
+                              <Button
+                                size="sm"
+                                variant={isChecked ? "outline" : "default"}
+                                onClick={() => toggleSelect(m.institutionId)}
+                                className={`h-8 px-3 text-xs font-bold gap-1 ${
+                                  isChecked
+                                    ? "text-muted-foreground border-border"
+                                    : "bg-primary text-primary-foreground"
+                                }`}
+                              >
+                                {isChecked ? "Remove" : "Select"}
+                              </Button>
+                            )}
                           </div>
                         </div>
                       </div>

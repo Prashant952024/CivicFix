@@ -267,7 +267,7 @@ export function OfficerIssueDetailsPage() {
             issue_status_history(id, old_status, new_status, notes, created_at),
             department:departments(id, name),
             reporter_profile:profiles!issues_reporter_profile_id_fkey(id, full_name, email, phone),
-            canonical_issue:issues!issues_canonical_issue_id_fkey(id, title, status)
+            canonical_issue:issues!canonical_issue_id(id, title, status)
           `,
           )
           .eq("id", currentIssueId)

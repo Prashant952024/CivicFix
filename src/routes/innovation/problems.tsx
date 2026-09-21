@@ -11,11 +11,13 @@ import {
   List,
   RefreshCw,
   Search,
+  ShieldCheck,
   Sparkles,
   X,
 } from "lucide-react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 
+import { useAppSession } from "@/auth/app-session";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -45,6 +47,8 @@ const STAGE_STEP_MAP: Record<string, number> = {
 export function InnovationProblemsPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+  const { roleCode } = useAppSession();
+  const isAdmin = roleCode === "ADMIN";
 
   const [problems, setProblems] = useState<ComplexProblemListItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -244,9 +248,9 @@ export function InnovationProblemsPage() {
         variant="innovation"
         title="Complex Civic Problems"
         description="Primary operational directory for managing complex municipal challenges, multi-institutional university research partnerships, and proposal governance."
-        backHref="/app/innovation"
-        backLabel="Innovation Hub"
-        tag="Innovation Directory"
+        backHref={isAdmin ? "/app/admin" : "/app/innovation"}
+        backLabel={isAdmin ? "Admin Overview" : "Innovation Hub"}
+        tag={isAdmin ? "Ecosystem Oversight" : "Innovation Directory"}
         actions={
           <div className="flex items-center gap-2">
             <Button
@@ -262,6 +266,28 @@ export function InnovationProblemsPage() {
           </div>
         }
       />
+
+      {/* Admin Ecosystem Oversight Context Indicator */}
+      {isAdmin && (
+        <div className="rounded-2xl border border-primary/20 bg-primary/5 p-4 text-xs sm:text-sm text-foreground flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-xs">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <ShieldCheck className="h-4 w-4 text-primary shrink-0" />
+            <span>
+              <strong>Ecosystem Oversight Mode:</strong> You are viewing the platform-wide complex problems pipeline with administrative visibility. Operational workflow actions are governed by the Innovation Manager.
+            </span>
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              void navigate("/app/admin");
+            }}
+            className="shrink-0 text-xs rounded-xl"
+          >
+            Admin Control Center
+          </Button>
+        </div>
+      )}
 
       {/* Error state */}
       {error && (

@@ -40,7 +40,8 @@ export function ProblemFormulationSection({
   onNavigateToRecommendation,
 }: ProblemFormulationSectionProps) {
   const navigate = useNavigate();
-  const { profile } = useAppSession();
+  const { profile, roleCode } = useAppSession();
+  const isAdmin = roleCode === "ADMIN";
 
   // Generation state
   const [generating, setGenerating] = useState(false);
@@ -290,15 +291,22 @@ export function ProblemFormulationSection({
                 </p>
               </div>
 
-              <Button
-                size="sm"
-                onClick={() => { void handleGenerateWithAi(); }}
-                disabled={generating}
-                className="bg-primary hover:bg-primary/90 text-primary-foreground font-bold gap-2 text-xs h-10 px-5 shadow-xs shrink-0"
-              >
-                <Sparkles className={`w-4 h-4 ${generating ? "animate-spin" : ""}`} />
-                <span>{generating ? "Synthesizing with AI..." : "Formulate with AI"}</span>
-              </Button>
+              {!isAdmin ? (
+                <Button
+                  size="sm"
+                  onClick={() => { void handleGenerateWithAi(); }}
+                  disabled={generating}
+                  className="bg-primary hover:bg-primary/90 text-primary-foreground font-bold gap-2 text-xs h-10 px-5 shadow-xs shrink-0"
+                >
+                  <Sparkles className={`w-4 h-4 ${generating ? "animate-spin" : ""}`} />
+                  <span>{generating ? "Synthesizing with AI..." : "Formulate with AI"}</span>
+                </Button>
+              ) : (
+                <Badge variant="outline" className="text-xs border-primary/30 bg-primary/5 text-primary py-2 px-3.5 rounded-xl shrink-0 gap-1.5 font-medium">
+                  <ShieldCheck className="w-4 h-4 text-primary shrink-0" />
+                  <span>Awaiting Innovation Manager Formulation</span>
+                </Badge>
+              )}
             </div>
 
             {generationError && (
@@ -349,7 +357,12 @@ export function ProblemFormulationSection({
 
           {/* Action Buttons */}
           <div className="flex items-center gap-2 flex-wrap shrink-0">
-            {isEditing ? (
+            {isAdmin ? (
+              <Badge variant="outline" className="text-xs font-medium border-primary/30 bg-primary/5 text-primary py-1 px-2.5 rounded-xl gap-1">
+                <ShieldCheck className="w-3.5 h-3.5 text-primary" />
+                <span>Read-Only Oversight</span>
+              </Badge>
+            ) : isEditing ? (
               <>
                 <Button
                   size="sm"

@@ -320,7 +320,7 @@ export function AppRoutes() {
             path="innovation"
             element={
               <RequireRole allowedRoles={["INNOVATION_MANAGER", "ADMIN"]}>
-                <AppLayout roleCode="INNOVATION_MANAGER" />
+                <AppLayout />
               </RequireRole>
             }
           >

@@ -71,7 +71,8 @@ const CANONICAL_STAGE_STEPS = [
 ];
 
 export function InnovationProblemControlCenterPage() {
-  const { profile } = useAppSession();
+  const { profile, roleCode } = useAppSession();
+  const isAdmin = roleCode === "ADMIN";
   const { problemId } = useParams<{ problemId: string }>();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -503,18 +504,27 @@ export function InnovationProblemControlCenterPage() {
             </div>
 
             {/* Dynamic Primary CTA */}
-            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 shrink-0 pt-1 lg:pt-0">
-              <Button
-                size="sm"
-                variant={primaryActionConfig.variant}
-                onClick={primaryActionConfig.onClick}
-                className="text-xs font-bold gap-2 h-9 px-4 rounded-xl shadow-xs"
-              >
-                <primaryActionConfig.icon className="w-4 h-4 shrink-0" />
-                <span>{primaryActionConfig.label}</span>
-                <ArrowRight className="w-3.5 h-3.5 ml-0.5" />
-              </Button>
-            </div>
+            {!isAdmin ? (
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 shrink-0 pt-1 lg:pt-0">
+                <Button
+                  size="sm"
+                  variant={primaryActionConfig.variant}
+                  onClick={primaryActionConfig.onClick}
+                  className="text-xs font-bold gap-2 h-9 px-4 rounded-xl shadow-xs"
+                >
+                  <primaryActionConfig.icon className="w-4 h-4 shrink-0" />
+                  <span>{primaryActionConfig.label}</span>
+                  <ArrowRight className="w-3.5 h-3.5 ml-0.5" />
+                </Button>
+              </div>
+            ) : (
+              <div className="flex items-center gap-2 shrink-0 pt-1 lg:pt-0">
+                <Badge variant="outline" className="text-xs font-medium border-primary/30 bg-primary/5 text-primary py-1.5 px-3 rounded-xl gap-1.5">
+                  <ShieldCheck className="w-3.5 h-3.5 text-primary shrink-0" />
+                  <span>Ecosystem Oversight (Read-Only)</span>
+                </Badge>
+              </div>
+            )}
           </div>
         </CardContent>
       </Card>

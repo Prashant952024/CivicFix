@@ -18,12 +18,14 @@ import {
   RotateCcw,
   Send,
   ShieldAlert,
+  ShieldCheck,
   Sparkles,
   Target,
   Users,
   XCircle,
 } from "lucide-react";
 
+import { useAppSession } from "@/auth/app-session";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -46,6 +48,8 @@ interface UniversityProposalProps {
 }
 
 export function UniversityProposal({ institution }: UniversityProposalProps) {
+  const { roleCode } = useAppSession();
+  const isAdmin = roleCode === "ADMIN";
   const proposals = institution.proposals || [];
   const currentProposal = proposals.find((p) => p.isCurrent) || proposals[0] || null;
 
@@ -250,7 +254,14 @@ export function UniversityProposal({ institution }: UniversityProposalProps) {
             </div>
 
             {/* Inline Governance Action Buttons (Active version only) */}
-            {isViewingCurrent && (
+            {isAdmin ? (
+              <div className="flex items-center gap-2 flex-wrap shrink-0">
+                <Badge variant="outline" className="text-xs font-medium border-primary/30 bg-primary/5 text-primary py-1 px-2.5 rounded-xl gap-1">
+                  <ShieldCheck className="w-3.5 h-3.5 text-primary" />
+                  <span>Proposal Oversight (Read-Only)</span>
+                </Badge>
+              </div>
+            ) : isViewingCurrent && (
               <div className="flex items-center gap-2 flex-wrap shrink-0">
                 {isSubmittedOrResubmitted && (
                   <Button

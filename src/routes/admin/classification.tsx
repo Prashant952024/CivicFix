@@ -227,7 +227,7 @@ export function AdminClassificationPage() {
           issue_images(id, storage_bucket, storage_path, image_type, created_at),
           reporter_profile:profiles!issues_reporter_profile_id_fkey(id, full_name, email),
           decided_by_profile:profiles!issues_classification_decided_by_fkey(id, full_name, email),
-          child_issues:issues!issues_canonical_issue_id_fkey(id),
+          child_issues:issues!canonical_issue_id(id),
           issue_ai_analysis(
             id,
             provider,

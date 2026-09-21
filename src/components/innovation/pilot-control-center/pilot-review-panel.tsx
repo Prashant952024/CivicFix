@@ -11,10 +11,12 @@ import {
   Loader2,
   MessageSquare,
   Send,
+  ShieldCheck,
   XCircle,
 } from "lucide-react";
 import { Link } from "react-router-dom";
 
+import { useAppSession } from "@/auth/app-session";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -73,6 +75,8 @@ export function PilotReviewPanel({
   onClose,
   onRefresh,
 }: PilotReviewPanelProps) {
+  const { roleCode } = useAppSession();
+  const isAdmin = roleCode === "ADMIN";
   const [actionLoading, setActionLoading] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
   const [executionData, setExecutionData] = useState<PilotExecutionData | null>(null);
@@ -217,61 +221,70 @@ export function PilotReviewPanel({
 
         {/* Action Controls in Header */}
         <div className="flex items-center gap-2">
-          {pilot.status === "SUBMITTED" || pilot.status === "RESUBMITTED" ? (
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => {
-                void handleStartReview();
-              }}
-              disabled={actionLoading}
-              className="text-xs h-8 gap-1.5"
-            >
-              {actionLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Clock className="h-3.5 w-3.5" />}
-              Start Review
-            </Button>
-          ) : null}
-
-          {isActionable && (
-            <>
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => setRevisionModalOpen(true)}
-                disabled={actionLoading}
-                className="text-xs h-8 gap-1.5 border-amber-500/40 text-amber-600 dark:text-amber-400 hover:bg-amber-500/10"
-              >
-                <MessageSquare className="h-3.5 w-3.5" />
-                Request Changes
-              </Button>
-
-              <Button
-                size="sm"
-                variant="destructive"
-                onClick={() => setRejectModalOpen(true)}
-                disabled={actionLoading}
-                className="text-xs h-8 gap-1.5"
-              >
-                <XCircle className="h-3.5 w-3.5" />
-                Reject
-              </Button>
-
-              <Button
-                size="sm"
-                onClick={() => setApproveModalOpen(true)}
-                disabled={actionLoading}
-                className="text-xs h-8 gap-1.5 font-bold bg-emerald-600 hover:bg-emerald-700 text-white"
-              >
-                <CheckCircle2 className="h-3.5 w-3.5" />
-                Approve Pilot Plan
-              </Button>
-            </>
-          )}
-
-          {pilot.status === "APPROVED" && (
-            <Badge variant="success" className="text-xs py-1 px-2.5 uppercase font-bold tracking-wide">
-              Approved (Pilot Ready)
+          {isAdmin ? (
+            <Badge variant="outline" className="text-xs font-medium border-primary/30 bg-primary/5 text-primary py-1 px-2.5 rounded-xl gap-1">
+              <ShieldCheck className="w-3.5 h-3.5 text-primary" />
+              <span>Pilot Oversight (Read-Only)</span>
             </Badge>
+          ) : (
+            <>
+              {pilot.status === "SUBMITTED" || pilot.status === "RESUBMITTED" ? (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => {
+                    void handleStartReview();
+                  }}
+                  disabled={actionLoading}
+                  className="text-xs h-8 gap-1.5"
+                >
+                  {actionLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Clock className="h-3.5 w-3.5" />}
+                  Start Review
+                </Button>
+              ) : null}
+
+              {isActionable && (
+                <>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setRevisionModalOpen(true)}
+                    disabled={actionLoading}
+                    className="text-xs h-8 gap-1.5 border-amber-500/40 text-amber-600 dark:text-amber-400 hover:bg-amber-500/10"
+                  >
+                    <MessageSquare className="h-3.5 w-3.5" />
+                    Request Changes
+                  </Button>
+
+                  <Button
+                    size="sm"
+                    variant="destructive"
+                    onClick={() => setRejectModalOpen(true)}
+                    disabled={actionLoading}
+                    className="text-xs h-8 gap-1.5"
+                  >
+                    <XCircle className="h-3.5 w-3.5" />
+                    Reject
+                  </Button>
+
+                  <Button
+                    size="sm"
+                    onClick={() => setApproveModalOpen(true)}
+                    disabled={actionLoading}
+                    className="text-xs h-8 gap-1.5 font-bold bg-emerald-600 hover:bg-emerald-700 text-white"
+                  >
+                    <CheckCircle2 className="h-3.5 w-3.5" />
+                    Approve Pilot Plan
+                  </Button>
+                </>
+              )}
+
+              {pilot.status === "APPROVED" && (
+                <Badge variant="success" className="text-xs py-1 px-2.5 uppercase font-bold tracking-wide">
+                  Approved (Pilot Ready)
+                </Badge>
+              )}
+            </>
           )}
         </div>
       </div>
