@@ -58,7 +58,19 @@ begin
     ) values (
       'clerk_seed_iitb_coord', 'Prof. Arnab Jana', 'coordinator@iitb.ac.in', coalesce(v_inst_role_id, (select id from public.roles limit 1)), v_iitb_inst_id
     ) returning id into v_inst_coord_id;
+  else
+    update public.profiles
+    set institution_id = v_iitb_inst_id
+    where id = v_inst_coord_id and (institution_id is null or institution_id <> v_iitb_inst_id);
   end if;
+
+  -- Ensure institution member mapping
+  insert into public.institution_members (
+    institution_id, profile_id, role_title, is_primary_contact
+  ) values (
+    v_iitb_inst_id, v_inst_coord_id, 'Lead Institution Coordinator', true
+  ) on conflict (institution_id, profile_id) do update set
+    is_primary_contact = true;
 
   -- 3. Insert or Update Public Issue
   insert into public.issues (
@@ -104,7 +116,7 @@ begin
     ai_required_expertise = excluded.ai_required_expertise,
     updated_at = now();
 
-  -- 4. Insert or Update Authoritative Innovation Challenge
+  -- 4. Insert or Update Authoritative Innovation Challenge (Initial state: INSTITUTIONS_SELECTED to satisfy outreach triggers)
   insert into public.innovation_challenges (
     id,
     source_issue_id,
@@ -149,7 +161,7 @@ begin
     'High-resolution boundary layer meteorological modeling, coupled CFD thermal simulations, long-term albedo degradation testing under heavy traffic, and physiological equivalent temperature (PET) human comfort assessment.',
     array['Measurable ambient air temperature reduction of >= 1.5°C in pilot corridor', 'Surface temperature attenuation >= 3.0°C on treated pavements and roofs', 'Continuous 90-day telemetry data capture rate >= 98%', 'Positive community thermal perception improvement >= 30%']::text[],
     88,
-    'OPEN_FOR_PROPOSALS',
+    'INSTITUTIONS_SELECTED',
     v_manager_id,
     now() - interval '12 days',
     now()
@@ -168,7 +180,6 @@ begin
     potential_technology_areas = excluded.potential_technology_areas,
     research_requirements = excluded.research_requirements,
     success_criteria = excluded.success_criteria,
-    status = excluded.status,
     updated_at = now();
 
   -- 5. Selection for IIT Bombay
@@ -176,7 +187,8 @@ begin
     id,
     challenge_id,
     institution_id,
-    suitability_score,
+    selected_by,
+    selection_rank,
     status,
     created_at,
     updated_at
@@ -184,13 +196,14 @@ begin
     v_selection_id,
     v_challenge_id,
     v_iitb_inst_id,
-    94.5,
-    'SELECTED',
+    v_manager_id,
+    1,
+    'SELECTED_FOR_OUTREACH',
     now() - interval '10 days',
     now()
   ) on conflict (challenge_id, institution_id) do update set
-    suitability_score = 94.5,
-    status = 'SELECTED',
+    status = 'SELECTED_FOR_OUTREACH',
+    selection_rank = 1,
     updated_at = now();
 
   -- 6. Institution Invitation for IIT Bombay
@@ -869,6 +882,11 @@ begin
     status = 'SUBMITTED',
     is_current = true,
     updated_at = now();
+
+  -- 10. Finally transition challenge status to OPEN_FOR_PROPOSALS
+  update public.innovation_challenges
+  set status = 'OPEN_FOR_PROPOSALS', updated_at = now()
+  where id = v_challenge_id;
 
 end;
 $$;
