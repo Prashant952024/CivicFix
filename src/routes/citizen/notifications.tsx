@@ -9,6 +9,7 @@ import {
   formatCitizenIssueDateTime,
   type CitizenNotificationRow,
 } from "@/lib/citizen-issues";
+import { useTranslation } from "@/lib/i18n";
 import { supabase } from "@/lib/supabase";
 
 type GroupKey = "today" | "earlier";
@@ -55,6 +56,7 @@ function toneClasses(tone: "default" | "success" | "warning" | "danger" | "info"
 }
 
 export function CitizenNotificationsPage() {
+  const { t } = useTranslation();
   const { profile, status: sessionStatus, error: sessionError } = useAppSession();
   const [notifications, setNotifications] = useState<CitizenNotificationRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -138,7 +140,7 @@ export function CitizenNotificationsPage() {
             <p className="text-sm leading-6 text-muted-foreground">{sessionProblem ?? error}</p>
           </div>
           <Button onClick={() => setRefreshNonce((value) => value + 1)} type="button">
-            Try Again
+            {t("common.tryAgain")}
           </Button>
         </div>
       </section>
@@ -171,12 +173,12 @@ export function CitizenNotificationsPage() {
           <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
             <div className="space-y-3">
               <div className="inline-flex items-center rounded-full border border-border/70 bg-background/40 px-3 py-1 text-xs font-semibold uppercase tracking-[0.22em] text-muted-foreground">
-                Citizen alerts
+                {t("citizen.notifications.tag")}
               </div>
               <div className="space-y-2">
-                <h2 className="text-3xl font-semibold tracking-tight text-foreground">Notifications</h2>
+                <h2 className="text-3xl font-semibold tracking-tight text-foreground">{t("citizen.notifications.title")}</h2>
                 <p className="max-w-2xl text-sm leading-6 text-muted-foreground">
-                  Follow verification prompts, workflow updates, and citizen-facing CivicFix messages.
+                  {t("citizen.notifications.description")}
                 </p>
               </div>
             </div>
@@ -195,7 +197,7 @@ export function CitizenNotificationsPage() {
                 {unreadCount} unread
               </div>
               <Button asChild>
-                <Link to="/app/citizen/issues">View My Issues</Link>
+                <Link to="/app/citizen/issues">{t("citizen.dashboard.viewReportsButton")}</Link>
               </Button>
             </div>
           </div>
@@ -251,8 +253,8 @@ export function CitizenNotificationsPage() {
                           {notification.related_issue_id ? (
                             <Button asChild size="sm" variant="outline">
                               <Link to={`/app/citizen/issues/${notification.related_issue_id}`}>
-                                View Issue
-                                <ExternalLink className="h-4 w-4" aria-hidden="true" />
+                                {t("common.viewDetails")}
+                                <ExternalLink className="h-4 w-4 ml-1" aria-hidden="true" />
                               </Link>
                             </Button>
                           ) : null}
@@ -267,12 +269,12 @@ export function CitizenNotificationsPage() {
         </div>
       ) : (
         <CitizenEmptyState
-          description="You do not have any civic notifications yet. Updates will appear here when CivicFix creates them."
+          description={t("citizen.notifications.emptyDescription")}
           primaryActionHref="/app/citizen/issues"
-          primaryActionLabel="View My Issues"
+          primaryActionLabel={t("citizen.dashboard.viewReportsButton")}
           secondaryActionHref="/app/citizen/report"
-          secondaryActionLabel="Report an Issue"
-          title="No notifications yet"
+          secondaryActionLabel={t("citizen.dashboard.reportButton")}
+          title={t("citizen.notifications.emptyTitle")}
         />
       )}
     </div>

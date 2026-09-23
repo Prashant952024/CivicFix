@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 
 import { Button } from "@/components/ui/button";
 import { UserMenu } from "@/components/layout/user-menu";
+import { LanguageSelector } from "@/components/citizen/language-selector";
 import { getCivicFixRoleLabel, type CivicFixRoleCode } from "@/lib/civicfix";
 
 type AppNavbarProps = {
@@ -54,6 +55,7 @@ export function AppNavbar({ title, subtitle, roleCode, onMenuClick }: AppNavbarP
         </div>
 
         <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+          <LanguageSelector />
           <Button asChild aria-label="Notifications" size="icon" variant="ghost" className="h-10 w-10 text-muted-foreground hover:text-foreground">
             <Link to={notificationPath}>
               <Bell className="h-4 w-4" aria-hidden="true" />

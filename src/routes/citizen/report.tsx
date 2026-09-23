@@ -15,11 +15,13 @@ import { Link, useNavigate } from "react-router-dom";
 
 import { useAppSession } from "@/auth/app-session";
 import { IssueImage } from "@/components/issues/issue-image";
+import { VoiceInputButton } from "@/components/citizen/voice-input-button";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { PageHeader } from "@/components/ui/page-header";
 import { citizenIssueCategories, formatCitizenIssueDate, type CitizenIssueCategory } from "@/lib/citizen-issues";
+import { useTranslation } from "@/lib/i18n";
 import { supabase } from "@/lib/supabase";
 import type { Database } from "@/types/database";
 
@@ -234,20 +236,21 @@ function buildUserFacingError(operation: string, error: unknown) {
     : `We could not complete the report while ${operation.toLowerCase()}. Please try again.`;
 }
 
-function getStageLabel(stage: ReportStage) {
+function getStageLabel(stage: ReportStage, t: (key: string) => string) {
   switch (stage) {
     case "saving":
-      return "Creating issue record...";
+      return t("citizen.report.stages.saving");
     case "uploading":
-      return "Uploading compressed photo...";
+      return t("citizen.report.stages.uploading");
     case "finalizing":
-      return "Finalizing municipal report...";
+      return t("citizen.report.stages.finalizing");
     default:
-      return "Ready to submit";
+      return t("citizen.report.stages.idle");
   }
 }
 
 export function CitizenReportPage() {
+  const { t } = useTranslation();
   const { profile, status: sessionStatus, error: sessionError } = useAppSession();
   const profileId = profile?.id;
   const sessionProblem = sessionStatus === "error" ? sessionError ?? "CivicFix profile is unavailable." : null;
@@ -260,11 +263,11 @@ export function CitizenReportPage() {
             <AlertCircle className="h-6 w-6" aria-hidden="true" />
           </div>
           <div className="space-y-1.5">
-            <h2 className="text-2xl font-bold tracking-tight text-foreground">Report form unavailable</h2>
+            <h2 className="text-2xl font-bold tracking-tight text-foreground">{t("citizen.dashboard.loadError")}</h2>
             <p className="text-sm leading-relaxed text-muted-foreground">{sessionProblem}</p>
           </div>
           <Button asChild>
-            <Link to="/app/citizen">Back to Dashboard</Link>
+            <Link to="/app/citizen">{t("common.backToDashboard")}</Link>
           </Button>
         </div>
       </Card>
@@ -276,7 +279,7 @@ export function CitizenReportPage() {
       <div className="page-container-form flex min-h-[40vh] items-center justify-center">
         <div className="flex items-center gap-3 rounded-2xl border border-border/70 bg-surface/90 px-6 py-4 shadow-sm">
           <Loader2 className="h-5 w-5 animate-spin text-primary" aria-hidden="true" />
-          <span className="text-sm font-medium text-muted-foreground">Loading report form...</span>
+          <span className="text-sm font-medium text-muted-foreground">{t("common.loading")}</span>
         </div>
       </div>
     );
@@ -286,6 +289,7 @@ export function CitizenReportPage() {
 }
 
 function CitizenReportComposer({ profileId }: { profileId: string }) {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const initialDraft = citizenReportDraftCache.get(profileId) ?? createEmptyCitizenReportDraft();
   const [title, setTitle] = useState(initialDraft.title);
@@ -307,6 +311,18 @@ function CitizenReportComposer({ profileId }: { profileId: string }) {
   const [outcome, setOutcome] = useState<SubmissionOutcome | null>(null);
   const submissionInFlightRef = useRef(false);
   const imageInputRef = useRef<HTMLInputElement | null>(null);
+
+  function handleVoiceTranscription(transcribedText: string) {
+    if (!transcribedText.trim()) return;
+    setDescription((prev) => {
+      const trimmed = prev.trim();
+      if (!trimmed) {
+        return transcribedText.trim();
+      }
+      return `${trimmed}\n\n${transcribedText.trim()}`;
+    });
+    setErrors((current) => ({ ...current, description: undefined }));
+  }
 
   const previewUrl = useMemo(() => {
     if (!compressedImage) {
@@ -381,7 +397,7 @@ function CitizenReportComposer({ profileId }: { profileId: string }) {
     setErrors((current) => ({ ...current, image: undefined }));
 
     if (!file.type.startsWith("image/")) {
-      setErrors((current) => ({ ...current, image: "Please choose a JPG, PNG, HEIC, or WebP image." }));
+      setErrors((current) => ({ ...current, image: t("citizen.report.validation.image") }));
       resetImageSelection();
       return;
     }
@@ -394,7 +410,7 @@ function CitizenReportComposer({ profileId }: { profileId: string }) {
       setCompressedImage(nextImage);
     } catch (imageError) {
       console.error("Citizen image preparation failed", imageError);
-      setErrors((current) => ({ ...current, image: "We could not prepare that image. Please choose another file." }));
+      setErrors((current) => ({ ...current, image: t("citizen.report.validation.image") }));
       resetImageSelection();
     } finally {
       setImageProcessing(false);
@@ -407,7 +423,7 @@ function CitizenReportComposer({ profileId }: { profileId: string }) {
 
     if (!navigator.geolocation) {
       setLocationStatus("error");
-      setGeoError("This browser does not support location capture.");
+      setGeoError(t("citizen.report.voice.micNotSupported"));
       return;
     }
 
@@ -456,10 +472,10 @@ function CitizenReportComposer({ profileId }: { profileId: string }) {
     const trimmedLocation = locationText.trim();
     const imageToUpload = compressedImage;
 
-    if (!trimmedTitle) nextErrors.title = "Please provide an issue title.";
-    if (!trimmedDescription) nextErrors.description = "Please provide a description of the problem.";
-    if (!category) nextErrors.category = "Please select an issue category.";
-    if (!trimmedLocation) nextErrors.location = "Please enter the location or landmark.";
+    if (!trimmedTitle) nextErrors.title = t("citizen.report.validation.title");
+    if (!trimmedDescription) nextErrors.description = t("citizen.report.validation.description");
+    if (!category) nextErrors.category = t("citizen.report.validation.category");
+    if (!trimmedLocation) nextErrors.location = t("citizen.report.validation.location");
     if (!imageToUpload) {
       setErrors((current) => ({ ...current, image: undefined }));
     }
@@ -656,13 +672,13 @@ function CitizenReportComposer({ profileId }: { profileId: string }) {
               <CheckCircle2 className="h-7 w-7" aria-hidden="true" />
             </div>
             <p className="mt-4 text-xs font-bold uppercase tracking-[0.24em] text-emerald-800">
-              Report Filed Successfully
+              {t("citizen.report.successModal.tag")}
             </p>
             <h2 className="mt-1.5 text-2xl sm:text-3xl font-extrabold text-foreground">
-              Your civic report is live!
+              {t("citizen.report.successModal.title")}
             </h2>
             <p className="mt-2 text-sm text-muted-foreground max-w-md mx-auto">
-              CivicFix has recorded your report and assigned it reference number{" "}
+              {t("citizen.report.successModal.refText")}{" "}
               <span className="font-mono font-bold text-foreground">#{outcome.issueId.slice(0, 8).toUpperCase()}</span>.
             </p>
           </div>
@@ -670,27 +686,27 @@ function CitizenReportComposer({ profileId }: { profileId: string }) {
           <div className="p-6 sm:p-8 space-y-6">
             <div className="rounded-2xl border border-border/70 bg-surface-elevated p-4 sm:p-5">
               <p className="text-xs font-bold uppercase tracking-[0.2em] text-muted-foreground">
-                Report Summary
+                {t("citizen.report.successModal.summary")}
               </p>
               <dl className="mt-3.5 grid gap-3 sm:grid-cols-2 text-sm">
                 <div>
-                  <dt className="text-xs font-semibold text-muted-foreground">Title</dt>
+                  <dt className="text-xs font-semibold text-muted-foreground">{t("citizen.report.successModal.titleField")}</dt>
                   <dd className="font-semibold text-foreground mt-0.5">{outcome.title}</dd>
                 </div>
                 <div>
-                  <dt className="text-xs font-semibold text-muted-foreground">Category</dt>
-                  <dd className="font-semibold text-foreground mt-0.5">{outcome.category}</dd>
+                  <dt className="text-xs font-semibold text-muted-foreground">{t("citizen.report.successModal.categoryField")}</dt>
+                  <dd className="font-semibold text-foreground mt-0.5">{t(`categories.${outcome.category}`)}</dd>
                 </div>
                 <div>
-                  <dt className="text-xs font-semibold text-muted-foreground">Status</dt>
+                  <dt className="text-xs font-semibold text-muted-foreground">{t("citizen.report.successModal.statusField")}</dt>
                   <dd className="mt-0.5">
                     <Badge variant="teal" size="sm">
-                      {outcome.status}
+                      {t(`statuses.${outcome.status}`)}
                     </Badge>
                   </dd>
                 </div>
                 <div>
-                  <dt className="text-xs font-semibold text-muted-foreground">Submitted At</dt>
+                  <dt className="text-xs font-semibold text-muted-foreground">{t("citizen.report.successModal.submittedAtField")}</dt>
                   <dd className="font-medium text-foreground mt-0.5">
                     {formatCitizenIssueDate(outcome.submittedAt)}
                   </dd>
@@ -700,10 +716,10 @@ function CitizenReportComposer({ profileId }: { profileId: string }) {
 
             <div className="flex flex-col sm:flex-row gap-3">
               <Button asChild size="lg" className="flex-1">
-                <Link to={`/app/citizen/issues/${outcome.issueId}`}>View My Issue Now</Link>
+                <Link to={`/app/citizen/issues/${outcome.issueId}`}>{t("citizen.report.successModal.viewIssue")}</Link>
               </Button>
               <Button asChild size="lg" variant="outline">
-                <Link to="/app/citizen">Back to Dashboard</Link>
+                <Link to="/app/citizen">{t("citizen.report.successModal.backToDashboard")}</Link>
               </Button>
             </div>
           </div>
@@ -722,13 +738,13 @@ function CitizenReportComposer({ profileId }: { profileId: string }) {
               <AlertCircle className="h-7 w-7" aria-hidden="true" />
             </div>
             <p className="mt-4 text-xs font-bold uppercase tracking-[0.24em] text-amber-800">
-              Report Saved with Notice
+              {t("citizen.report.partialErrorModal.tag")}
             </p>
             <h2 className="mt-1.5 text-2xl sm:text-3xl font-extrabold text-foreground">
-              Your report was created
+              {t("citizen.report.partialErrorModal.title")}
             </h2>
             <p className="mt-2 text-sm text-muted-foreground max-w-md mx-auto">
-              The issue was recorded in the database, but the image attachment could not be completed.
+              {t("citizen.report.partialErrorModal.description")}
             </p>
           </div>
 
@@ -739,10 +755,10 @@ function CitizenReportComposer({ profileId }: { profileId: string }) {
 
             <div className="flex flex-col sm:flex-row gap-3">
               <Button asChild size="lg" className="flex-1">
-                <Link to="/app/citizen/issues">View My Issues</Link>
+                <Link to="/app/citizen/issues">{t("citizen.report.partialErrorModal.viewIssues")}</Link>
               </Button>
               <Button asChild size="lg" variant="outline">
-                <Link to="/app/citizen">Back to Dashboard</Link>
+                <Link to="/app/citizen">{t("citizen.report.partialErrorModal.backToDashboard")}</Link>
               </Button>
             </div>
           </div>
@@ -755,11 +771,11 @@ function CitizenReportComposer({ profileId }: { profileId: string }) {
   return (
     <div className="page-container-form space-y-6 sm:space-y-8">
       <PageHeader
-        tag="Citizen Intake"
-        title="Report a Civic Issue"
-        description="Submit a complaint about civic infrastructure, sanitation, or safety. Your report will be routed directly to municipal officers for review and assignment."
+        tag={t("citizen.report.tag")}
+        title={t("citizen.report.title")}
+        description={t("citizen.report.description")}
         backHref="/app/citizen"
-        backLabel="Back to Dashboard"
+        backLabel={t("common.backToDashboard")}
       />
 
       {/* Guided Form Layout */}
@@ -768,25 +784,25 @@ function CitizenReportComposer({ profileId }: { profileId: string }) {
         <Card className="p-5 sm:p-7">
           <div className="flex items-center gap-3 border-b border-border/60 pb-4">
             <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-primary text-white text-xs font-bold shadow-sm">
-              1
+              {t("citizen.report.steps.step1")}
             </div>
             <div>
-              <h2 className="text-lg font-bold text-foreground">Describe the Problem</h2>
-              <p className="text-xs text-muted-foreground">What civic issue are you reporting?</p>
+              <h2 className="text-lg font-bold text-foreground">{t("citizen.report.steps.step1Title")}</h2>
+              <p className="text-xs text-muted-foreground">{t("citizen.report.steps.step1Subtitle")}</p>
             </div>
           </div>
 
           <div className="mt-5 space-y-4">
             <div>
               <label htmlFor="issue-title" className="block text-sm font-semibold text-foreground">
-                Issue Title <span className="text-red-500">*</span>
+                {t("citizen.report.fields.titleLabel")} <span className="text-red-500">*</span>
               </label>
               <input
                 id="issue-title"
                 className="mt-1.5 w-full rounded-xl border border-border/80 bg-background/60 px-4 py-3 text-sm text-foreground outline-none transition placeholder:text-muted-foreground focus:border-primary focus:ring-2 focus:ring-primary/20"
                 maxLength={120}
                 onChange={(event) => setTitle(event.target.value)}
-                placeholder="e.g. Broken streetlight, overflowing garbage bin, deep pothole"
+                placeholder={t("citizen.report.fields.titlePlaceholder")}
                 value={title}
               />
               {errors.title ? <p className="mt-1.5 text-xs font-medium text-red-600">{errors.title}</p> : null}
@@ -794,7 +810,7 @@ function CitizenReportComposer({ profileId }: { profileId: string }) {
 
             <div>
               <label htmlFor="issue-category" className="block text-sm font-semibold text-foreground">
-                Category <span className="text-red-500">*</span>
+                {t("citizen.report.fields.categoryLabel")} <span className="text-red-500">*</span>
               </label>
               <select
                 id="issue-category"
@@ -802,10 +818,10 @@ function CitizenReportComposer({ profileId }: { profileId: string }) {
                 onChange={(event) => setCategory(event.target.value as CitizenIssueCategory | "")}
                 value={category}
               >
-                <option value="">Select a category</option>
+                <option value="">{t("citizen.report.fields.categorySelect")}</option>
                 {citizenIssueCategories.map((option) => (
                   <option key={option} value={option}>
-                    {option}
+                    {t(`categories.${option}`)}
                   </option>
                 ))}
               </select>
@@ -813,18 +829,27 @@ function CitizenReportComposer({ profileId }: { profileId: string }) {
             </div>
 
             <div>
-              <div className="flex items-center justify-between">
-                <label htmlFor="issue-description" className="block text-sm font-semibold text-foreground">
-                  Description <span className="text-red-500">*</span>
-                </label>
-                <span className="text-xs text-muted-foreground">{description.length}/1200</span>
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-1">
+                <div className="flex items-center gap-2">
+                  <label htmlFor="issue-description" className="block text-sm font-semibold text-foreground">
+                    {t("citizen.report.fields.descriptionLabel")} <span className="text-red-500">*</span>
+                  </label>
+                  <span className="text-xs text-muted-foreground">({description.length}/1200)</span>
+                </div>
+
+                {/* Multilingual Voice Input Button */}
+                <VoiceInputButton
+                  onTranscription={handleVoiceTranscription}
+                  disabled={submissionStage !== "idle"}
+                />
               </div>
+
               <textarea
                 id="issue-description"
-                className="mt-1.5 min-h-32 w-full resize-y rounded-xl border border-border/80 bg-background/60 px-4 py-3 text-sm text-foreground outline-none transition placeholder:text-muted-foreground focus:border-primary focus:ring-2 focus:ring-primary/20"
+                className="mt-1.5 min-h-32 w-full resize-y rounded-xl border border-border/80 bg-background/60 px-4 py-3 text-sm text-foreground outline-none transition placeholder:text-muted-foreground focus:border-primary focus:ring-2 focus:ring-primary/20 leading-relaxed"
                 maxLength={1200}
                 onChange={(event) => setDescription(event.target.value)}
-                placeholder="Provide details about the issue: exact spot, safety hazards, how long it has been present..."
+                placeholder={t("citizen.report.fields.descriptionPlaceholder")}
                 value={description}
               />
               {errors.description ? <p className="mt-1.5 text-xs font-medium text-red-600">{errors.description}</p> : null}
@@ -836,25 +861,25 @@ function CitizenReportComposer({ profileId }: { profileId: string }) {
         <Card className="p-5 sm:p-7">
           <div className="flex items-center gap-3 border-b border-border/60 pb-4">
             <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-primary text-white text-xs font-bold shadow-sm">
-              2
+              {t("citizen.report.steps.step2")}
             </div>
             <div>
-              <h2 className="text-lg font-bold text-foreground">Specify Location</h2>
-              <p className="text-xs text-muted-foreground">Where is the issue located?</p>
+              <h2 className="text-lg font-bold text-foreground">{t("citizen.report.steps.step2Title")}</h2>
+              <p className="text-xs text-muted-foreground">{t("citizen.report.steps.step2Subtitle")}</p>
             </div>
           </div>
 
           <div className="mt-5 space-y-4">
             <div>
               <label htmlFor="issue-location" className="block text-sm font-semibold text-foreground">
-                Location & Landmark <span className="text-red-500">*</span>
+                {t("citizen.report.fields.locationLabel")} <span className="text-red-500">*</span>
               </label>
               <input
                 id="issue-location"
                 className="mt-1.5 w-full rounded-xl border border-border/80 bg-background/60 px-4 py-3 text-sm text-foreground outline-none transition placeholder:text-muted-foreground focus:border-primary focus:ring-2 focus:ring-primary/20"
                 maxLength={160}
                 onChange={(event) => setLocationText(event.target.value)}
-                placeholder="e.g. Near Metro Pillar 142, Jubilee Hills Road No. 36"
+                placeholder={t("citizen.report.fields.locationPlaceholder")}
                 value={locationText}
               />
               {errors.location ? <p className="mt-1.5 text-xs font-medium text-red-600">{errors.location}</p> : null}
@@ -866,10 +891,10 @@ function CitizenReportComposer({ profileId }: { profileId: string }) {
                 <div className="space-y-1">
                   <p className="text-sm font-bold text-foreground flex items-center gap-1.5">
                     <MapPin className="h-4 w-4 text-primary" aria-hidden="true" />
-                    <span>GPS Geolocation</span>
+                    <span>{t("citizen.report.fields.gpsTitle")}</span>
                   </p>
                   <p className="text-xs text-muted-foreground">
-                    Attaching coordinates helps workers find the exact spot quickly.
+                    {t("citizen.report.fields.gpsDescription")}
                   </p>
                 </div>
 
@@ -883,12 +908,12 @@ function CitizenReportComposer({ profileId }: { profileId: string }) {
                   {geoLoading ? (
                     <>
                       <Loader2 className="h-4 w-4 animate-spin text-primary mr-1" aria-hidden="true" />
-                      <span>Detecting GPS...</span>
+                      <span>{t("citizen.report.fields.gpsDetecting")}</span>
                     </>
                   ) : (
                     <>
                       <Navigation2 className="h-4 w-4 text-primary mr-1" aria-hidden="true" />
-                      <span>Use My Current Location</span>
+                      <span>{t("citizen.report.fields.gpsButton")}</span>
                     </>
                   )}
                 </Button>
@@ -898,8 +923,10 @@ function CitizenReportComposer({ profileId }: { profileId: string }) {
                 <div className="mt-3.5 flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50/90 px-3.5 py-2.5 text-xs text-emerald-900">
                   <CheckCircle2 className="h-4 w-4 text-emerald-700 shrink-0" aria-hidden="true" />
                   <span className="font-medium">
-                    Coordinates captured: {latitude}, {longitude}
-                    {locationAccuracyMeters !== null ? ` (±${Math.round(locationAccuracyMeters)}m)` : ""}
+                    {t("citizen.report.fields.gpsCaptured", { lat: latitude, lng: longitude })}
+                    {locationAccuracyMeters !== null
+                      ? t("citizen.report.fields.gpsAccuracy", { accuracy: Math.round(locationAccuracyMeters) })
+                      : ""}
                   </span>
                 </div>
               ) : null}
@@ -918,14 +945,14 @@ function CitizenReportComposer({ profileId }: { profileId: string }) {
           <div className="flex items-center justify-between border-b border-border/60 pb-4">
             <div className="flex items-center gap-3">
               <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-primary text-white text-xs font-bold shadow-sm">
-                3
+                {t("citizen.report.steps.step3")}
               </div>
               <div>
-                <h2 className="text-lg font-bold text-foreground">Attach Photo</h2>
-                <p className="text-xs text-muted-foreground">Provide photographic evidence of the issue</p>
+                <h2 className="text-lg font-bold text-foreground">{t("citizen.report.steps.step3Title")}</h2>
+                <p className="text-xs text-muted-foreground">{t("citizen.report.steps.step3Subtitle")}</p>
               </div>
             </div>
-            <Badge variant="default" size="sm">Optional</Badge>
+            <Badge variant="default" size="sm">{t("common.optional")}</Badge>
           </div>
 
           <div className="mt-5 space-y-4">
@@ -947,10 +974,10 @@ function CitizenReportComposer({ profileId }: { profileId: string }) {
                   <Camera className="h-6 w-6" aria-hidden="true" />
                 </div>
                 <p className="mt-3 text-sm font-bold text-foreground">
-                  Click to choose or take a photo
+                  {t("citizen.report.fields.photoUploadTitle")}
                 </p>
                 <p className="mt-1 text-xs text-muted-foreground max-w-xs">
-                  Supports JPG, PNG, HEIC, WebP. Images are automatically compressed in your browser before upload.
+                  {t("citizen.report.fields.photoUploadDesc")}
                 </p>
                 <Button
                   disabled={imageProcessing}
@@ -961,7 +988,7 @@ function CitizenReportComposer({ profileId }: { profileId: string }) {
                   className="mt-4 bg-white"
                 >
                   <Paperclip className="h-4 w-4 mr-1" aria-hidden="true" />
-                  {imageProcessing ? "Processing..." : "Select File"}
+                  {imageProcessing ? t("citizen.report.fields.processingFile") : t("citizen.report.fields.selectFile")}
                 </Button>
               </div>
             ) : (
@@ -980,7 +1007,7 @@ function CitizenReportComposer({ profileId }: { profileId: string }) {
                       type="button"
                       onClick={() => resetImageSelection({ clearError: true })}
                       aria-label="Remove image"
-                      className="absolute top-3 right-3 rounded-full bg-black/60 p-1.5 text-white hover:bg-black/80 transition"
+                      className="absolute top-3 right-3 rounded-full bg-black/60 p-1.5 text-white hover:bg-black/80 transition cursor-pointer"
                     >
                       <X className="h-4 w-4" aria-hidden="true" />
                     </button>
@@ -1001,7 +1028,7 @@ function CitizenReportComposer({ profileId }: { profileId: string }) {
                       onClick={() => resetImageSelection({ clearError: true })}
                       className="text-red-600 hover:text-red-700 hover:bg-red-50"
                     >
-                      Remove
+                      {t("citizen.report.fields.removePhoto")}
                     </Button>
                   </div>
                 </div>
@@ -1016,11 +1043,11 @@ function CitizenReportComposer({ profileId }: { profileId: string }) {
         <Card className="p-5 sm:p-7 border-teal-200 shadow-md">
           <div className="flex items-center justify-between gap-4">
             <div className="space-y-1">
-              <h2 className="text-lg font-bold text-foreground">Ready to Submit?</h2>
+              <h2 className="text-lg font-bold text-foreground">{t("citizen.report.steps.step4Title")}</h2>
               <p className="text-xs text-muted-foreground">
                 {submissionStage === "idle"
-                  ? "Please verify your details above before submitting."
-                  : getStageLabel(submissionStage)}
+                  ? t("citizen.report.steps.step4Subtitle")
+                  : getStageLabel(submissionStage, t)}
               </p>
             </div>
             {submissionStage !== "idle" ? (
@@ -1044,17 +1071,17 @@ function CitizenReportComposer({ profileId }: { profileId: string }) {
               {submissionStage === "idle" ? (
                 <>
                   <Sparkles className="h-4 w-4 mr-1" aria-hidden="true" />
-                  Submit Civic Report
+                  {t("citizen.report.submitButton")}
                 </>
               ) : (
                 <>
                   <Loader2 className="h-4 w-4 animate-spin mr-1" aria-hidden="true" />
-                  {getStageLabel(submissionStage)}
+                  {getStageLabel(submissionStage, t)}
                 </>
               )}
             </Button>
             <Button asChild size="lg" variant="outline">
-              <Link to="/app/citizen">Cancel</Link>
+              <Link to="/app/citizen">{t("common.cancel")}</Link>
             </Button>
           </div>
         </Card>

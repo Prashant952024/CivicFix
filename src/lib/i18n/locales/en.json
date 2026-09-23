@@ -1,0 +1,248 @@
+{
+  "common": {
+    "loading": "Loading...",
+    "error": "Error",
+    "tryAgain": "Try Again",
+    "back": "Back",
+    "cancel": "Cancel",
+    "submit": "Submit",
+    "save": "Save",
+    "search": "Search",
+    "reset": "Reset",
+    "optional": "Optional",
+    "required": "Required",
+    "all": "All",
+    "viewDetails": "View Details",
+    "backToDashboard": "Back to Dashboard",
+    "workspace": "CivicFix workspace"
+  },
+  "languages": {
+    "en": "English",
+    "hi": "हिन्दी",
+    "mr": "मराठी",
+    "selectLanguage": "Language"
+  },
+  "categories": {
+    "Pothole": "Pothole",
+    "Garbage": "Garbage",
+    "Streetlight": "Streetlight",
+    "Water Supply": "Water Supply",
+    "Drainage": "Drainage",
+    "Road Damage": "Road Damage",
+    "Traffic/Safety": "Traffic / Safety",
+    "Other": "Other"
+  },
+  "statuses": {
+    "SUBMITTED": "Submitted",
+    "TRIAGED": "Triaged",
+    "ASSIGNED": "Assigned",
+    "IN_PROGRESS": "In Progress",
+    "RESOLVED": "Resolved",
+    "VERIFIED": "Verified",
+    "REOPENED": "Reopened",
+    "REJECTED": "Rejected",
+    "ESCALATED_TO_INNOVATION": "Escalated to Innovation"
+  },
+  "priorities": {
+    "LOW": "Low",
+    "MEDIUM": "Medium",
+    "HIGH": "High",
+    "URGENT": "Urgent",
+    "all": "All priorities"
+  },
+  "citizen": {
+    "dashboard": {
+      "tag": "Citizen Action Center",
+      "welcome": "Welcome back, {{name}}",
+      "subtitle": "Report civic issues in your neighborhood, track municipal progress in real-time, and verify ground repairs.",
+      "reportButton": "Report an Issue",
+      "viewReportsButton": "View My Reports",
+      "stats": {
+        "total": "Total Reports",
+        "totalDesc": "All civic complaints filed",
+        "pending": "Pending Triage",
+        "pendingDesc": "Awaiting municipal review",
+        "inProgress": "In Progress",
+        "inProgressDesc": "Field work underway",
+        "resolved": "Resolved",
+        "resolvedDesc": "Completed & verified"
+      },
+      "verificationNotice": {
+        "single": "1 resolved issue requires your ground verification",
+        "multiple": "{{count}} resolved issues require your ground verification",
+        "description": "Municipal work was completed. Please confirm whether the issue is resolved to close the feedback loop.",
+        "action": "Verify Resolution Now"
+      },
+      "recentActivity": "Recent Activity",
+      "latestReports": "Latest Civic Reports",
+      "viewAll": "View All ({{count}})",
+      "impact": {
+        "tag": "Community Impact",
+        "title": "Closing the municipal feedback loop",
+        "description": "Every report you file holds civic departments accountable and helps create a cleaner, safer city.",
+        "totalImpact": "Your Total Impact",
+        "reports": "reports",
+        "registry": "Documented in city registry",
+        "resolutionRate": "Resolution Rate",
+        "resolvedCount": "{{resolved}} of {{total}} resolved"
+      },
+      "empty": {
+        "title": "No reports filed yet",
+        "description": "You have not reported any civic issues yet. Take a photo of a problem in your area and submit your first report.",
+        "primaryAction": "Report an Issue Now",
+        "secondaryAction": "Explore Issue Catalog"
+      },
+      "loadError": "Unable to load your reports."
+    },
+    "report": {
+      "tag": "Citizen Intake",
+      "title": "Report a Civic Issue",
+      "description": "Submit a complaint about civic infrastructure, sanitation, or safety. Your report will be routed directly to municipal officers for review and assignment.",
+      "steps": {
+        "step1": "1",
+        "step1Title": "Describe the Problem",
+        "step1Subtitle": "What civic issue are you reporting?",
+        "step2": "2",
+        "step2Title": "Specify Location",
+        "step2Subtitle": "Where is the issue located?",
+        "step3": "3",
+        "step3Title": "Attach Photo",
+        "step3Subtitle": "Provide photographic evidence of the issue",
+        "step4": "4",
+        "step4Title": "Ready to Submit?",
+        "step4Subtitle": "Please verify your details above before submitting."
+      },
+      "fields": {
+        "titleLabel": "Issue Title",
+        "titlePlaceholder": "e.g. Broken streetlight, overflowing garbage bin, deep pothole",
+        "categoryLabel": "Category",
+        "categorySelect": "Select a category",
+        "descriptionLabel": "Description",
+        "descriptionPlaceholder": "Provide details about the issue: exact spot, safety hazards, how long it has been present...",
+        "locationLabel": "Location & Landmark",
+        "locationPlaceholder": "e.g. Near Metro Pillar 142, Jubilee Hills Road No. 36",
+        "gpsTitle": "GPS Geolocation",
+        "gpsDescription": "Attaching coordinates helps workers find the exact spot quickly.",
+        "gpsButton": "Use My Current Location",
+        "gpsDetecting": "Detecting GPS...",
+        "gpsCaptured": "Coordinates captured: {{lat}}, {{lng}}",
+        "gpsAccuracy": " (±{{accuracy}}m)",
+        "photoUploadTitle": "Click to choose or take a photo",
+        "photoUploadDesc": "Supports JPG, PNG, HEIC, WebP. Images are automatically compressed in your browser before upload.",
+        "selectFile": "Select File",
+        "processingFile": "Processing...",
+        "removePhoto": "Remove"
+      },
+      "voice": {
+        "speakButton": "Speak Description",
+        "listening": "Listening... Speak now",
+        "stop": "Stop",
+        "transcribing": "Transcribing with AI...",
+        "detectedLanguage": "Transcribed in {{language}}",
+        "replaceOrAppend": "Text transcribed. Review or edit below.",
+        "micPermissionDenied": "Microphone permission was denied. Please allow microphone access in browser settings.",
+        "micNotSupported": "Voice recording is not supported in this browser.",
+        "transcriptionFailed": "Voice transcription failed. Please try again or type manually."
+      },
+      "stages": {
+        "idle": "Ready to submit",
+        "saving": "Creating issue record...",
+        "uploading": "Uploading compressed photo...",
+        "finalizing": "Finalizing municipal report..."
+      },
+      "submitButton": "Submit Civic Report",
+      "successModal": {
+        "tag": "Report Filed Successfully",
+        "title": "Your civic report is live!",
+        "refText": "CivicFix has recorded your report and assigned it reference number",
+        "summary": "Report Summary",
+        "titleField": "Title",
+        "categoryField": "Category",
+        "statusField": "Status",
+        "submittedAtField": "Submitted At",
+        "viewIssue": "View My Issue Now",
+        "backToDashboard": "Back to Dashboard"
+      },
+      "partialErrorModal": {
+        "tag": "Report Saved with Notice",
+        "title": "Your report was created",
+        "description": "The issue was recorded in the database, but the image attachment could not be completed.",
+        "viewIssues": "View My Issues",
+        "backToDashboard": "Back to Dashboard"
+      },
+      "validation": {
+        "title": "Please provide an issue title.",
+        "description": "Please provide a description of the problem.",
+        "category": "Please select an issue category.",
+        "location": "Please enter the location or landmark.",
+        "image": "Please choose a JPG, PNG, HEIC, or WebP image."
+      }
+    },
+    "issues": {
+      "tag": "Issue Registry",
+      "title": "My Civic Reports",
+      "description": "Search, filter, and monitor every civic complaint you have filed across your city.",
+      "reportButton": "Report an Issue",
+      "searchPlaceholder": "Search by title, location, category, description...",
+      "sortNewest": "Newest first",
+      "sortOldest": "Oldest first",
+      "filtersSort": "Filters & Sort",
+      "resetFilters": "Reset filters",
+      "showingCount": "Showing {{filtered}} of {{total}} reports",
+      "sortedBy": "Sorted by: {{order}}",
+      "empty": {
+        "noReports": "No reports found",
+        "noReportsDesc": "You have not reported any issues yet. Start by creating your first CivicFix report.",
+        "noMatches": "No matching issues",
+        "noMatchesDesc": "No issues match the current search or filter criteria. Try resetting filters."
+      },
+      "filterLabels": {
+        "all": "All",
+        "pending": "Pending",
+        "verified": "Verified",
+        "inProgress": "In Progress",
+        "resolved": "Resolved",
+        "reopened": "Reopened",
+        "rejected": "Rejected"
+      }
+    },
+    "issueDetails": {
+      "backToReports": "Back to My Reports",
+      "reportedOn": "Reported on {{date}}",
+      "reference": "Ref #{{id}}",
+      "descriptionSection": "Issue Description",
+      "locationSection": "Location Information",
+      "landmark": "Landmark / Address",
+      "coordinates": "GPS Coordinates",
+      "openMap": "Open in Maps",
+      "photoSection": "Photographic Evidence",
+      "initialPhoto": "Initial Citizen Photo",
+      "resolutionPhoto": "Resolution Evidence Photo",
+      "timelineSection": "Progress & Status History",
+      "deptAssignment": "Assigned Department",
+      "verificationCard": {
+        "title": "Ground Verification Required",
+        "description": "Municipal field crews marked this issue as resolved. Has the problem been fixed on the ground?",
+        "yesButton": "Yes, Issue is Resolved",
+        "noButton": "No, Still Broken (Reopen)",
+        "verifiedYes": "You verified this issue as resolved. Thank you for closing the loop!",
+        "verifiedNo": "You reported this issue was not resolved. It has been reopened for municipal follow-up."
+      },
+      "reopenModal": {
+        "title": "Reopen Civic Issue",
+        "description": "Explain why this issue is not resolved so field crews can take corrective action.",
+        "feedbackLabel": "Reason for Reopening",
+        "feedbackPlaceholder": "e.g. Streetlight was fixed but went out again the next night...",
+        "submitReopen": "Reopen Issue",
+        "cancel": "Cancel"
+      }
+    },
+    "notifications": {
+      "tag": "Notification Center",
+      "title": "Citizen Alerts & Updates",
+      "description": "Stay updated on the status of your reported civic issues and municipal actions.",
+      "emptyTitle": "No notifications yet",
+      "emptyDescription": "You are all caught up! Updates regarding your reported issues will appear here."
+    }
+  }
+}

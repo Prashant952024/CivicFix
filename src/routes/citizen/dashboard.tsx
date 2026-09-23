@@ -26,6 +26,7 @@ import {
   getCitizenIssueSummaryBucket,
   pickCitizenIssueThumbnail,
 } from "@/lib/citizen-issues";
+import { useTranslation } from "@/lib/i18n";
 import { supabase } from "@/lib/supabase";
 import type { Database } from "@/types/database";
 
@@ -61,6 +62,7 @@ function pickIssueThumbnail(issue: CitizenDashboardIssue) {
 }
 
 export function CitizenDashboardPage() {
+  const { t } = useTranslation();
   const { user, isLoaded: isUserLoaded } = useUser();
   const { profile, status: sessionStatus, error: sessionError } = useAppSession();
   const [data, setData] = useState<DashboardData | null>(null);
@@ -108,7 +110,7 @@ export function CitizenDashboardPage() {
         if (import.meta.env.DEV && nextError) {
           console.error("Citizen dashboard load failed", nextError);
         }
-        setError("Unable to load your reports.");
+        setError(t("citizen.dashboard.loadError"));
         setData(null);
         setLoading(false);
         return;
@@ -140,40 +142,40 @@ export function CitizenDashboardPage() {
     return () => {
       cancelled = true;
     };
-  }, [profileId, refreshNonce, sessionError, sessionStatus]);
+  }, [profileId, refreshNonce, sessionError, sessionStatus, t]);
 
   const summaryCards = useMemo(
     () => [
       {
-        label: "Total Reports",
+        label: t("citizen.dashboard.stats.total"),
         value: data?.total ?? 0,
         icon: ClipboardList,
         tone: "default" as const,
-        description: "All civic complaints filed",
+        description: t("citizen.dashboard.stats.totalDesc"),
       },
       {
-        label: "Pending Triage",
+        label: t("citizen.dashboard.stats.pending"),
         value: data?.pending ?? 0,
         icon: Clock3,
         tone: "warning" as const,
-        description: "Awaiting municipal review",
+        description: t("citizen.dashboard.stats.pendingDesc"),
       },
       {
-        label: "In Progress",
+        label: t("citizen.dashboard.stats.inProgress"),
         value: data?.inProgress ?? 0,
         icon: RefreshCw,
         tone: "info" as const,
-        description: "Field work underway",
+        description: t("citizen.dashboard.stats.inProgressDesc"),
       },
       {
-        label: "Resolved",
+        label: t("citizen.dashboard.stats.resolved"),
         value: data?.resolved ?? 0,
         icon: CheckCircle2,
         tone: "success" as const,
-        description: "Completed & verified",
+        description: t("citizen.dashboard.stats.resolvedDesc"),
       },
     ],
-    [data],
+    [data, t],
   );
 
   const awaitingVerificationIssues = useMemo(
@@ -191,11 +193,11 @@ export function CitizenDashboardPage() {
             <AlertCircle className="h-6 w-6" aria-hidden="true" />
           </div>
           <div className="space-y-1.5">
-            <h2 className="text-2xl font-bold tracking-tight text-foreground">Unable to load your reports</h2>
+            <h2 className="text-2xl font-bold tracking-tight text-foreground">{t("citizen.dashboard.loadError")}</h2>
             <p className="text-sm leading-relaxed text-muted-foreground">{sessionProblem ?? error}</p>
           </div>
           <Button onClick={() => setRefreshNonce((value) => value + 1)} type="button">
-            Try Again
+            {t("common.tryAgain")}
           </Button>
         </div>
       </Card>
@@ -242,15 +244,15 @@ export function CitizenDashboardPage() {
           <div className="space-y-3 min-w-0 max-w-2xl">
             <div className="inline-flex items-center gap-1.5 rounded-full border border-sky-200/90 bg-white/90 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.22em] text-[#0f5f59] shadow-sm shadow-teal-950/5">
               <Sparkles className="h-3.5 w-3.5 text-[#0f766e]" aria-hidden="true" />
-              <span>Citizen Action Center</span>
+              <span>{t("citizen.dashboard.tag")}</span>
             </div>
 
             <h1 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold tracking-tight text-foreground break-words">
-              Welcome back, {displayName}
+              {t("citizen.dashboard.welcome", { name: displayName })}
             </h1>
 
             <p className="text-sm sm:text-base leading-relaxed text-muted-foreground">
-              Report civic issues in your neighborhood, track municipal progress in real-time, and verify ground repairs.
+              {t("citizen.dashboard.subtitle")}
             </p>
           </div>
 
@@ -258,11 +260,11 @@ export function CitizenDashboardPage() {
             <Button asChild size="lg" className="shadow-lg shadow-teal-950/20 hover:shadow-xl hover:shadow-teal-950/25">
               <Link to="/app/citizen/report">
                 <PlusCircle className="h-5 w-5 mr-1" aria-hidden="true" />
-                Report an Issue
+                {t("citizen.dashboard.reportButton")}
               </Link>
             </Button>
             <Button asChild size="lg" variant="outline" className="bg-white/80 hover:bg-white">
-              <Link to="/app/citizen/issues">View My Reports</Link>
+              <Link to="/app/citizen/issues">{t("citizen.dashboard.viewReportsButton")}</Link>
             </Button>
           </div>
         </div>
@@ -279,17 +281,17 @@ export function CitizenDashboardPage() {
               <div>
                 <h2 className="text-base font-bold text-emerald-950">
                   {awaitingVerificationIssues.length === 1
-                    ? "1 resolved issue requires your ground verification"
-                    : `${awaitingVerificationIssues.length} resolved issues require your ground verification`}
+                    ? t("citizen.dashboard.verificationNotice.single")
+                    : t("citizen.dashboard.verificationNotice.multiple", { count: awaitingVerificationIssues.length })}
                 </h2>
                 <p className="text-xs sm:text-sm text-emerald-800/90 mt-0.5">
-                  Municipal work was completed. Please confirm whether the issue is resolved to close the feedback loop.
+                  {t("citizen.dashboard.verificationNotice.description")}
                 </p>
               </div>
             </div>
             <Button asChild size="sm" className="shrink-0 bg-emerald-700 text-white hover:bg-emerald-800">
               <Link to={`/app/citizen/issues/${awaitingVerificationIssues[0]?.id}`}>
-                Verify Resolution Now
+                {t("citizen.dashboard.verificationNotice.action")}
               </Link>
             </Button>
           </div>
@@ -317,15 +319,15 @@ export function CitizenDashboardPage() {
         <div className="flex flex-wrap items-end justify-between gap-3">
           <div>
             <p className="text-xs font-bold uppercase tracking-[0.22em] text-[#0f766e]">
-              Recent Activity
+              {t("citizen.dashboard.recentActivity")}
             </p>
             <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-foreground mt-0.5">
-              Latest Civic Reports
+              {t("citizen.dashboard.latestReports")}
             </h2>
           </div>
           {hasReports ? (
             <Button asChild size="sm" variant="outline">
-              <Link to="/app/citizen/issues">View All ({data?.total ?? 0})</Link>
+              <Link to="/app/citizen/issues">{t("citizen.dashboard.viewAll", { count: data?.total ?? 0 })}</Link>
             </Button>
           ) : null}
         </div>
@@ -336,7 +338,7 @@ export function CitizenDashboardPage() {
               <RecentIssueCard
                 key={issue.id}
                 issue={issue}
-                statusLabel={getCitizenIssueStatusLabel(issue.status)}
+                statusLabel={t(`statuses.${issue.status}`)}
                 statusTone={getCitizenIssueStatusTone(issue.status)}
                 thumbnailUrl={pickIssueThumbnail(issue)}
                 viewDetailsHref={`/app/citizen/issues/${issue.id}`}
@@ -345,12 +347,12 @@ export function CitizenDashboardPage() {
           </div>
         ) : (
           <CitizenEmptyState
-            description="You have not reported any civic issues yet. Take a photo of a problem in your area and submit your first report."
+            description={t("citizen.dashboard.empty.description")}
             primaryActionHref="/app/citizen/report"
-            primaryActionLabel="Report an Issue Now"
+            primaryActionLabel={t("citizen.dashboard.empty.primaryAction")}
             secondaryActionHref="/app/citizen/issues"
-            secondaryActionLabel="Explore Issue Catalog"
-            title="No reports filed yet"
+            secondaryActionLabel={t("citizen.dashboard.empty.secondaryAction")}
+            title={t("citizen.dashboard.empty.title")}
           />
         )}
       </section>
@@ -362,13 +364,13 @@ export function CitizenDashboardPage() {
             <div className="space-y-2 md:col-span-1">
               <div className="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-[0.2em] text-[#0f766e]">
                 <TreePine className="h-4 w-4" aria-hidden="true" />
-                <span>Community Impact</span>
+                <span>{t("citizen.dashboard.impact.tag")}</span>
               </div>
               <h3 className="text-lg sm:text-xl font-bold text-foreground">
-                Closing the municipal feedback loop
+                {t("citizen.dashboard.impact.title")}
               </h3>
               <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed">
-                Every report you file holds civic departments accountable and helps create a cleaner, safer city.
+                {t("citizen.dashboard.impact.description")}
               </p>
             </div>
 
@@ -376,24 +378,24 @@ export function CitizenDashboardPage() {
               <div className="rounded-2xl border border-teal-100 bg-white/90 p-4 shadow-sm">
                 <div className="flex items-center gap-2 text-xs font-semibold text-muted-foreground">
                   <Building2 className="h-4 w-4 text-[#0f766e]" aria-hidden="true" />
-                  <span>Your Total Impact</span>
+                  <span>{t("citizen.dashboard.impact.totalImpact")}</span>
                 </div>
                 <p className="mt-2 text-2xl font-extrabold text-foreground">
-                  {data?.total ?? 0} <span className="text-xs font-normal text-muted-foreground">reports</span>
+                  {data?.total ?? 0} <span className="text-xs font-normal text-muted-foreground">{t("citizen.dashboard.impact.reports")}</span>
                 </p>
-                <p className="mt-1 text-[11px] text-muted-foreground">Documented in city registry</p>
+                <p className="mt-1 text-[11px] text-muted-foreground">{t("citizen.dashboard.impact.registry")}</p>
               </div>
 
               <div className="rounded-2xl border border-emerald-100 bg-white/90 p-4 shadow-sm">
                 <div className="flex items-center gap-2 text-xs font-semibold text-muted-foreground">
                   <CheckCircle2 className="h-4 w-4 text-emerald-600" aria-hidden="true" />
-                  <span>Resolution Rate</span>
+                  <span>{t("citizen.dashboard.impact.resolutionRate")}</span>
                 </div>
                 <p className="mt-2 text-2xl font-extrabold text-emerald-700">
                   {data?.total ? Math.round(((data?.resolved ?? 0) / data.total) * 100) : 0}%
                 </p>
                 <p className="mt-1 text-[11px] text-muted-foreground">
-                  {data?.resolved ?? 0} of {data?.total ?? 0} resolved
+                  {t("citizen.dashboard.impact.resolvedCount", { resolved: data?.resolved ?? 0, total: data?.total ?? 0 })}
                 </p>
               </div>
             </div>

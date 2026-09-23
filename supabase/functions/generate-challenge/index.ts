@@ -417,34 +417,56 @@ Generate ONLY a valid JSON object matching the required structure.`;
       return json(502, { error: "Failed to parse structured JSON from AI output." }, origin);
     }
 
+    // Helper functions to safely convert AI output to expected types
+    const toSafeString = (val: any, fallback = ""): string => {
+      if (typeof val === "string") {
+        const trimmed = val.trim();
+        return trimmed.length > 0 ? trimmed : fallback;
+      }
+      if (Array.isArray(val)) {
+        const joined = val.map((v) => String(v).trim()).filter(Boolean).join("\n- ");
+        return joined.length > 0 ? (joined.startsWith("- ") ? joined : `- ${joined}`) : fallback;
+      }
+      if (val !== null && val !== undefined && typeof val === "object") {
+        return JSON.stringify(val);
+      }
+      if (val !== null && val !== undefined) {
+        return String(val).trim() || fallback;
+      }
+      return fallback;
+    };
+
+    const toSafeArray = (val: any, fallback: string[] = []): string[] => {
+      if (Array.isArray(val)) {
+        const cleaned = val.map((item: any) => String(item).trim()).filter(Boolean);
+        return cleaned.length > 0 ? cleaned : fallback;
+      }
+      if (typeof val === "string" && val.trim().length > 0) {
+        const items = val
+          .split(/[\n,]+/)
+          .map((item) => item.replace(/^[-*•\d.]\s*/, "").trim())
+          .filter(Boolean);
+        return items.length > 0 ? items : fallback;
+      }
+      return fallback;
+    };
+
     // Sanitize and ensure complete fields
     const sanitizedChallenge: GeneratedChallengeOutput = {
-      title: (parsedOutput.title || `Innovation Challenge: ${issue.title}`).trim(),
-      problem_statement: (parsedOutput.problem_statement || issue.description).trim(),
-      root_cause: (parsedOutput.root_cause || issue.ai_complexity_reasoning || "Systemic operational limitation requiring multi-disciplinary innovation.").trim(),
-      affected_population: (parsedOutput.affected_population || "Civic community in the reported jurisdiction.").trim(),
-      geographic_scope: (parsedOutput.geographic_scope || issue.address_text || issue.location_text || "Municipal Jurisdiction").trim(),
-      problem_category: (parsedOutput.problem_category || issue.category).trim(),
-      required_domains: Array.isArray(parsedOutput.required_domains) && parsedOutput.required_domains.length > 0
-        ? parsedOutput.required_domains.map((d: any) => String(d).trim()).filter(Boolean)
-        : (issue.ai_required_expertise || ["Municipal Innovation", "Systems Engineering"]),
-      current_limitations: (parsedOutput.current_limitations || "Standard departmental maintenance procedures lack predictive analytics or specialized intervention.").trim(),
-      objectives: Array.isArray(parsedOutput.objectives) && parsedOutput.objectives.length > 0
-        ? parsedOutput.objectives.map((o: any) => String(o).trim()).filter(Boolean)
-        : ["Analyze underlying systemic failure factors", "Formulate and test potential pilot solutions", "Establish evaluation and mitigation benchmarks"],
-      expected_outcomes: Array.isArray(parsedOutput.expected_outcomes) && parsedOutput.expected_outcomes.length > 0
-        ? parsedOutput.expected_outcomes.map((o: any) => String(o).trim()).filter(Boolean)
-        : ["Improved operational resilience", "Evidence-based decision making capability", "Measurable reduction in civic downtime"],
-      constraints: Array.isArray(parsedOutput.constraints) && parsedOutput.constraints.length > 0
-        ? parsedOutput.constraints.map((c: any) => String(c).trim()).filter(Boolean)
-        : ["Municipal budget boundaries", "Field deployment conditions", "Existing infrastructure compatibility"],
-      potential_technology_areas: Array.isArray(parsedOutput.potential_technology_areas) && parsedOutput.potential_technology_areas.length > 0
-        ? parsedOutput.potential_technology_areas.map((t: any) => String(t).trim()).filter(Boolean)
-        : ["Predictive Analytics", "Field Telemetry", "Civic Data Systems"],
-      research_requirements: (parsedOutput.research_requirements || "Field experimentation, operational modeling, and stakeholder adoption research.").trim(),
-      success_criteria: Array.isArray(parsedOutput.success_criteria) && parsedOutput.success_criteria.length > 0
-        ? parsedOutput.success_criteria.map((s: any) => String(s).trim()).filter(Boolean)
-        : ["Demonstrated reduction in recurrence", "Operational viability within municipal parameters", "Stakeholder adoption and satisfaction"],
+      title: toSafeString(parsedOutput.title, `Innovation Challenge: ${issue.title}`),
+      problem_statement: toSafeString(parsedOutput.problem_statement, issue.description),
+      root_cause: toSafeString(parsedOutput.root_cause, issue.ai_complexity_reasoning || "Systemic operational limitation requiring multi-disciplinary innovation."),
+      affected_population: toSafeString(parsedOutput.affected_population, "Civic community in the reported jurisdiction."),
+      geographic_scope: toSafeString(parsedOutput.geographic_scope, issue.address_text || issue.location_text || "Municipal Jurisdiction"),
+      problem_category: toSafeString(parsedOutput.problem_category, issue.category),
+      required_domains: toSafeArray(parsedOutput.required_domains, issue.ai_required_expertise || ["Municipal Innovation", "Systems Engineering"]),
+      current_limitations: toSafeString(parsedOutput.current_limitations, "Standard departmental maintenance procedures lack predictive analytics or specialized intervention."),
+      objectives: toSafeArray(parsedOutput.objectives, ["Analyze underlying systemic failure factors", "Formulate and test potential pilot solutions", "Establish evaluation and mitigation benchmarks"]),
+      expected_outcomes: toSafeArray(parsedOutput.expected_outcomes, ["Improved operational resilience", "Evidence-based decision making capability", "Measurable reduction in civic downtime"]),
+      constraints: toSafeArray(parsedOutput.constraints, ["Municipal budget boundaries", "Field deployment conditions", "Existing infrastructure compatibility"]),
+      potential_technology_areas: toSafeArray(parsedOutput.potential_technology_areas, ["Predictive Analytics", "Field Telemetry", "Civic Data Systems"]),
+      research_requirements: toSafeString(parsedOutput.research_requirements, "Field experimentation, operational modeling, and stakeholder adoption research."),
+      success_criteria: toSafeArray(parsedOutput.success_criteria, ["Demonstrated reduction in recurrence", "Operational viability within municipal parameters", "Stakeholder adoption and satisfaction"]),
     };
 
     const nowIso = new Date().toISOString();

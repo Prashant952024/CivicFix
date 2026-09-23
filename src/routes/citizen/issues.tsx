@@ -24,6 +24,7 @@ import {
   type CitizenIssuePriority,
   type CitizenIssueStatusFilterBucket,
 } from "@/lib/citizen-issues";
+import { useTranslation } from "@/lib/i18n";
 import { supabase } from "@/lib/supabase";
 import type { Database } from "@/types/database";
 
@@ -64,6 +65,7 @@ function getFilterBucket(status: IssueStatus) {
 }
 
 export function CitizenIssuesPage() {
+  const { t } = useTranslation();
   const { profile, status: sessionStatus, error: sessionError } = useAppSession();
   const [issues, setIssues] = useState<CitizenIssuesIssue[]>([]);
   const [loading, setLoading] = useState(true);
@@ -76,6 +78,24 @@ export function CitizenIssuesPage() {
   const [refreshNonce, setRefreshNonce] = useState(0);
   const profileId = profile?.id;
   const sessionProblem = sessionStatus === "error" ? sessionError ?? "CivicFix profile is unavailable." : null;
+
+  const statusFiltersWithLabels = useMemo(
+    () =>
+      STATUS_FILTERS.map((f) => ({
+        ...f,
+        label: t(`citizen.issues.filterLabels.${f.key}`),
+      })),
+    [t],
+  );
+
+  const priorityFiltersWithLabels = useMemo(
+    () =>
+      PRIORITY_FILTERS.map((p) => ({
+        ...p,
+        label: p.key === "all" ? t("priorities.all") : t(`priorities.${p.key}`),
+      })),
+    [t],
+  );
 
   useEffect(() => {
     if (sessionStatus !== "ready" || !profileId) {
@@ -186,7 +206,7 @@ export function CitizenIssuesPage() {
             <p className="text-sm leading-relaxed text-muted-foreground">{sessionProblem ?? error}</p>
           </div>
           <Button onClick={() => setRefreshNonce((value) => value + 1)} type="button">
-            Try Again
+            {t("common.tryAgain")}
           </Button>
         </div>
       </Card>
@@ -222,19 +242,19 @@ export function CitizenIssuesPage() {
   return (
     <div className="page-container-standard space-y-6 sm:space-y-8">
       <PageHeader
-        tag="Issue Registry"
-        title="My Civic Reports"
-        description="Search, filter, and monitor every civic complaint you have filed across your city."
+        tag={t("citizen.issues.tag")}
+        title={t("citizen.issues.title")}
+        description={t("citizen.issues.description")}
         actions={
           <>
             <Button asChild size="default" className="shadow-md shadow-teal-950/15">
               <Link to="/app/citizen/report">
                 <PlusCircle className="h-4 w-4 mr-1" aria-hidden="true" />
-                Report an Issue
+                {t("citizen.issues.reportButton")}
               </Link>
             </Button>
             <Button asChild size="default" variant="outline">
-              <Link to="/app/citizen">Dashboard</Link>
+              <Link to="/app/citizen">{t("common.backToDashboard")}</Link>
             </Button>
           </>
         }
@@ -249,14 +269,14 @@ export function CitizenIssuesPage() {
             <input
               className="w-full rounded-xl border border-border/80 bg-background/60 py-2.5 pl-10 pr-4 text-sm text-foreground outline-none transition placeholder:text-muted-foreground focus:border-primary focus:ring-2 focus:ring-primary/20"
               onChange={(event) => setSearch(event.target.value)}
-              placeholder="Search by title, location, category, description..."
+              placeholder={t("citizen.issues.searchPlaceholder")}
               value={search}
             />
             {search ? (
               <button
                 type="button"
                 onClick={() => setSearch("")}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground cursor-pointer"
                 aria-label="Clear search query"
               >
                 <X className="h-4 w-4" aria-hidden="true" />
@@ -272,7 +292,7 @@ export function CitizenIssuesPage() {
               value={priorityFilter}
               aria-label="Filter by priority"
             >
-              {PRIORITY_FILTERS.map((option) => (
+              {priorityFiltersWithLabels.map((option) => (
                 <option key={option.key} value={option.key}>
                   {option.label}
                 </option>
@@ -285,8 +305,8 @@ export function CitizenIssuesPage() {
               value={sortOrder}
               aria-label="Sort issues"
             >
-              <option value="newest">Newest first</option>
-              <option value="oldest">Oldest first</option>
+              <option value="newest">{t("citizen.issues.sortNewest")}</option>
+              <option value="oldest">{t("citizen.issues.sortOldest")}</option>
             </select>
           </div>
 
@@ -300,7 +320,7 @@ export function CitizenIssuesPage() {
               className="flex-1 min-h-[44px]"
             >
               <SlidersHorizontal className="h-4 w-4 mr-1.5" aria-hidden="true" />
-              <span>Filters & Sort</span>
+              <span>{t("citizen.issues.filtersSort")}</span>
               {hasFiltersActive ? (
                 <Badge variant="outline" size="sm" className="ml-1.5 bg-white/20 text-white border-white/40">
                   Active
@@ -310,7 +330,7 @@ export function CitizenIssuesPage() {
             {hasFiltersActive ? (
               <Button type="button" variant="ghost" size="sm" onClick={clearFilters} className="min-h-[44px]">
                 <X className="h-4 w-4" aria-hidden="true" />
-                Reset
+                {t("common.reset")}
               </Button>
             ) : null}
           </div>
@@ -326,14 +346,14 @@ export function CitizenIssuesPage() {
               className="hidden lg:inline-flex shrink-0 text-muted-foreground hover:text-foreground"
             >
               <X className="h-4 w-4 mr-1" aria-hidden="true" />
-              Reset filters
+              {t("citizen.issues.resetFilters")}
             </Button>
           ) : null}
         </div>
 
         {/* Status Pills Carousel / Row */}
         <div className="mt-4 pt-3.5 border-t border-border/60 flex items-center gap-1.5 overflow-x-auto pb-1 -mb-1">
-          {STATUS_FILTERS.map((filter) => {
+          {statusFiltersWithLabels.map((filter) => {
             const isActive = statusFilter === filter.key;
             return (
               <button
@@ -366,7 +386,7 @@ export function CitizenIssuesPage() {
       <Dialog
         open={mobileFiltersOpen}
         onClose={() => setMobileFiltersOpen(false)}
-        title="Filter & Sort Reports"
+        title={t("citizen.issues.filtersSort")}
         description="Refine your issue view by status, priority, and date."
         maxWidth="sm"
       >
@@ -380,7 +400,7 @@ export function CitizenIssuesPage() {
               onChange={(event) => setStatusFilter(event.target.value as CitizenIssueStatusFilterBucket)}
               value={statusFilter}
             >
-              {STATUS_FILTERS.map((option) => (
+              {statusFiltersWithLabels.map((option) => (
                 <option key={option.key} value={option.key}>
                   {option.label} ({filterCounts[option.key]})
                 </option>
@@ -397,7 +417,7 @@ export function CitizenIssuesPage() {
               onChange={(event) => setPriorityFilter(event.target.value as "all" | CitizenIssuePriority)}
               value={priorityFilter}
             >
-              {PRIORITY_FILTERS.map((option) => (
+              {priorityFiltersWithLabels.map((option) => (
                 <option key={option.key} value={option.key}>
                   {option.label}
                 </option>
@@ -414,8 +434,8 @@ export function CitizenIssuesPage() {
               onChange={(event) => setSortOrder(event.target.value as SortOrder)}
               value={sortOrder}
             >
-              <option value="newest">Newest first</option>
-              <option value="oldest">Oldest first</option>
+              <option value="newest">{t("citizen.issues.sortNewest")}</option>
+              <option value="oldest">{t("citizen.issues.sortOldest")}</option>
             </select>
           </div>
 
@@ -425,14 +445,14 @@ export function CitizenIssuesPage() {
               onClick={() => setMobileFiltersOpen(false)}
               type="button"
             >
-              Apply Filters
+              Apply
             </Button>
             <Button
               variant="outline"
               onClick={clearFilters}
               type="button"
             >
-              Reset
+              {t("common.reset")}
             </Button>
           </div>
         </div>
@@ -443,11 +463,10 @@ export function CitizenIssuesPage() {
         <div className="space-y-4">
           <div className="flex items-center justify-between gap-3 text-xs sm:text-sm text-muted-foreground px-1">
             <p>
-              Showing <span className="font-bold text-foreground">{filteredIssues.length}</span> of{" "}
-              <span className="font-bold text-foreground">{totalCount}</span> reports
+              {t("citizen.issues.showingCount", { filtered: filteredIssues.length, total: totalCount })}
             </p>
             <span className="font-medium">
-              Sorted by: {sortOrder === "newest" ? "Newest" : "Oldest"}
+              {t("citizen.issues.sortedBy", { order: sortOrder === "newest" ? t("citizen.issues.sortNewest") : t("citizen.issues.sortOldest") })}
             </span>
           </div>
 
@@ -456,7 +475,7 @@ export function CitizenIssuesPage() {
               <RecentIssueCard
                 key={issue.id}
                 issue={issue}
-                statusLabel={getCitizenIssueStatusLabel(issue.status)}
+                statusLabel={t(`statuses.${issue.status}`)}
                 statusTone={getCitizenIssueStatusTone(issue.status)}
                 thumbnailUrl={pickCitizenIssueThumbnail(issue)}
                 viewDetailsHref={`/app/citizen/issues/${issue.id}`}
@@ -468,19 +487,26 @@ export function CitizenIssuesPage() {
         <CitizenEmptyState
           description={
             totalCount === 0
-              ? "You have not reported any issues yet. Start by creating your first CivicFix report."
+              ? t("citizen.issues.empty.noReportsDesc")
               : hasFiltersActive
-                ? "No issues match the current search or filter criteria. Try resetting filters."
-                : "No issues are available right now."
+                ? t("citizen.issues.empty.noMatchesDesc")
+                : t("citizen.issues.empty.noReportsDesc")
           }
           primaryActionHref="/app/citizen/report"
-          primaryActionLabel="Report an Issue Now"
+          primaryActionLabel={t("citizen.issues.reportButton")}
           secondaryActionHref="/app/citizen"
-          secondaryActionLabel="Back to Dashboard"
-          title={totalCount === 0 ? "No reports found" : hasFiltersActive ? "No matching issues" : "No issues available"}
+          secondaryActionLabel={t("common.backToDashboard")}
+          title={
+            totalCount === 0
+              ? t("citizen.issues.empty.noReports")
+              : hasFiltersActive
+                ? t("citizen.issues.empty.noMatches")
+                : t("citizen.issues.empty.noReports")
+          }
         />
       )}
     </div>
   );
 }
+
 

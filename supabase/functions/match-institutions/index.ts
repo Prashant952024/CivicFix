@@ -158,8 +158,10 @@ async function verifySupabaseAuthToken(token: string, supabaseAdmin: ReturnType<
 
 
 // Tokenize and clean text for capability alignment
-function tokenize(text: string): string[] {
-  return text
+function tokenize(text: unknown): string[] {
+  if (!text) return [];
+  const str = typeof text === "string" ? text : (Array.isArray(text) ? text.join(" ") : String(text));
+  return str
     .toLowerCase()
     .replace(/[^a-z0-9\s]/g, " ")
     .split(/\s+/)

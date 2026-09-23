@@ -44,6 +44,7 @@ import {
   getDepartmentAssignmentStatusLabel,
   getDepartmentAssignmentStatusTone,
 } from "@/lib/department-issues";
+import { useTranslation } from "@/lib/i18n";
 import { supabase } from "@/lib/supabase";
 import type { Database } from "@/types/database";
 
@@ -125,6 +126,7 @@ function buildTimeline(issue: IssueRow): TimelineItem[] {
 }
 
 export function CitizenIssueDetailsPage() {
+  const { t } = useTranslation();
   const { issueId } = useParams();
   const { profile, status: sessionStatus, error: sessionError } = useAppSession();
   const [issue, setIssue] = useState<IssueRow | null>(null);
@@ -417,17 +419,17 @@ export function CitizenIssueDetailsPage() {
         title={issue.title}
         description={issue.description}
         backHref="/app/citizen/issues"
-        backLabel="Back to My Issues"
+        backLabel={t("citizen.issueDetails.backToReports")}
         actions={
           <div className="flex flex-wrap items-center gap-2">
             <Badge variant={statusTone} size="default">
-              {statusLabel}
+              {t(`statuses.${issue.status}`)}
             </Badge>
             <Badge variant="outline" size="default" className="bg-white/80">
-              {issue.category}
+              {t(`categories.${issue.category}`)}
             </Badge>
             <Badge variant="default" size="default">
-              Priority {formatCitizenIssuePriority(issue.priority)}
+              {t(`priorities.${issue.priority}`)}
             </Badge>
           </div>
         }
@@ -484,30 +486,28 @@ export function CitizenIssueDetailsPage() {
             <div className="space-y-3 flex-1 min-w-0">
               <div>
                 <p className="text-xs font-bold uppercase tracking-[0.2em] text-primary">
-                  Citizen Ground Verification
+                  {t("citizen.issueDetails.verificationCard.title")}
                 </p>
                 <h3 className="text-lg sm:text-xl font-bold text-foreground mt-0.5">
                   {verification?.result === "VERIFIED"
-                    ? "Resolution Verified by You"
+                    ? t("citizen.issueDetails.verificationCard.yesButton")
                     : verification?.result === "UNRESOLVED"
-                      ? "Marked as Still Unresolved"
-                      : "Municipal work complete — please verify"}
+                      ? t("citizen.issueDetails.verificationCard.noButton")
+                      : t("citizen.issueDetails.verificationCard.description")}
                 </h3>
               </div>
 
               {verification?.result === "VERIFIED" ? (
                 <div className="rounded-xl border border-emerald-200 bg-emerald-50/90 p-4 text-xs sm:text-sm text-emerald-900">
                   <p className="font-semibold">
-                    Thank you! You confirmed this repair was resolved on{" "}
-                    {formatCitizenIssueDateTime(verification.created_at)}.
+                    {t("citizen.issueDetails.verificationCard.verifiedYes")}
                   </p>
                 </div>
               ) : verification?.result === "UNRESOLVED" ? (
                 <div className="space-y-3">
                   <div className="rounded-xl border border-amber-200 bg-amber-50/90 p-4 text-xs sm:text-sm text-amber-900">
                     <p className="font-semibold">
-                      You indicated this issue is still unresolved on{" "}
-                      {formatCitizenIssueDateTime(verification.created_at)}.
+                      {t("citizen.issueDetails.verificationCard.verifiedNo")}
                     </p>
                   </div>
                   {issue.status !== "REOPENED" ? (
@@ -521,14 +521,14 @@ export function CitizenIssueDetailsPage() {
                       ) : (
                         <RotateCcw className="h-4 w-4 mr-1" aria-hidden="true" />
                       )}
-                      Reopen Complaint
+                      {t("citizen.issueDetails.reopenModal.submitReopen")}
                     </Button>
                   ) : null}
                 </div>
               ) : (
                 <div className="space-y-3">
                   <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed">
-                    The assigned municipal worker marked this issue resolved. Please inspect the location and confirm if the work was completed satisfactorily.
+                    {t("citizen.issueDetails.verificationCard.description")}
                   </p>
                   <div className="flex flex-col sm:flex-row gap-3 pt-1">
                     <Button
@@ -542,7 +542,7 @@ export function CitizenIssueDetailsPage() {
                       ) : (
                         <ThumbsUp className="h-4 w-4 mr-1" aria-hidden="true" />
                       )}
-                      Yes, Issue is Resolved
+                      {t("citizen.issueDetails.verificationCard.yesButton")}
                     </Button>
                     <Button
                       disabled={actionState !== "idle"}
@@ -556,7 +556,7 @@ export function CitizenIssueDetailsPage() {
                       ) : (
                         <ThumbsDown className="h-4 w-4 mr-1" aria-hidden="true" />
                       )}
-                      No, Issue Still Exists
+                      {t("citizen.issueDetails.verificationCard.noButton")}
                     </Button>
                   </div>
                 </div>
@@ -581,7 +581,7 @@ export function CitizenIssueDetailsPage() {
             />
             <div className="p-5 sm:p-6 space-y-4">
               <div className="space-y-1">
-                <h3 className="text-lg font-bold text-foreground">Report Description</h3>
+                <h3 className="text-lg font-bold text-foreground">{t("citizen.issueDetails.descriptionSection")}</h3>
                 <p className="text-sm leading-relaxed text-muted-foreground whitespace-pre-wrap">
                   {issue.description}
                 </p>
@@ -597,7 +597,7 @@ export function CitizenIssueDetailsPage() {
                       </div>
                       <div>
                         <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
-                          Location & Landmark
+                          {t("citizen.issueDetails.landmark")}
                         </p>
                         <p className="text-sm font-medium text-foreground mt-0.5">{locationText}</p>
                       </div>
@@ -611,7 +611,7 @@ export function CitizenIssueDetailsPage() {
                       </div>
                       <div className="flex-1">
                         <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
-                          GPS Coordinates
+                          {t("citizen.issueDetails.coordinates")}
                         </p>
                         <div className="flex items-center gap-3 mt-0.5">
                           <p className="text-xs font-mono font-medium text-foreground">{coordinates}</p>
@@ -621,7 +621,7 @@ export function CitizenIssueDetailsPage() {
                             rel="noreferrer"
                             className="inline-flex items-center gap-1 text-xs font-semibold text-primary hover:underline"
                           >
-                            <span>Open in Maps</span>
+                            <span>{t("citizen.issueDetails.openMap")}</span>
                             <ExternalLink className="h-3 w-3" aria-hidden="true" />
                           </a>
                         </div>
@@ -638,10 +638,10 @@ export function CitizenIssueDetailsPage() {
             <div className="flex items-center justify-between border-b border-border/60 pb-3.5">
               <div>
                 <p className="text-xs font-bold uppercase tracking-[0.2em] text-primary">
-                  Proof of Work
+                  {t("citizen.issueDetails.photoSection")}
                 </p>
                 <h3 className="text-base sm:text-lg font-bold text-foreground">
-                  Resolution Evidence
+                  {t("citizen.issueDetails.resolutionPhoto")}
                 </h3>
               </div>
               <Badge variant={resolutionImage ? "success" : "default"} size="sm">
@@ -654,7 +654,7 @@ export function CitizenIssueDetailsPage() {
                 <div className="rounded-2xl border border-border/70 overflow-hidden bg-surface-elevated">
                   <div className="bg-surface px-4 py-2 border-b border-border/60">
                     <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
-                      Before (Initial Report)
+                      {t("citizen.issueDetails.initialPhoto")}
                     </p>
                   </div>
                   {initialImage ? (
@@ -675,7 +675,7 @@ export function CitizenIssueDetailsPage() {
                 <div className="rounded-2xl border border-emerald-200 overflow-hidden bg-surface-elevated">
                   <div className="bg-emerald-50 px-4 py-2 border-b border-emerald-200">
                     <p className="text-xs font-bold uppercase tracking-wider text-emerald-800">
-                      After (Ground Repair)
+                      {t("citizen.issueDetails.resolutionPhoto")}
                     </p>
                   </div>
                   <IssueImage
@@ -711,7 +711,7 @@ export function CitizenIssueDetailsPage() {
                   Audit Trail
                 </p>
                 <h3 className="text-base sm:text-lg font-bold text-foreground">
-                  Status History & Timeline
+                  {t("citizen.issueDetails.timelineSection")}
                 </h3>
               </div>
             </div>
@@ -754,7 +754,7 @@ export function CitizenIssueDetailsPage() {
               <div className="flex items-center gap-2">
                 <Building2 className="h-4 w-4 text-primary" />
                 <h3 className="text-sm font-bold uppercase tracking-wider text-muted-foreground">
-                  Responsible Departments ({departmentAssignments.length})
+                  {t("citizen.issueDetails.deptAssignment")} ({departmentAssignments.length})
                 </h3>
               </div>
               <div className="space-y-2">
@@ -793,7 +793,7 @@ export function CitizenIssueDetailsPage() {
                 <dt className="text-xs font-semibold text-muted-foreground">Current Stage</dt>
                 <dd className="mt-1">
                   <Badge variant={statusTone} size="sm">
-                    {statusLabel}
+                    {t(`statuses.${issue.status}`)}
                   </Badge>
                 </dd>
               </div>
@@ -825,13 +825,13 @@ export function CitizenIssueDetailsPage() {
               <Button asChild size="sm" variant="default" className="w-full">
                 <Link to="/app/citizen/report">
                   <PlusCircle className="h-4 w-4 mr-1" aria-hidden="true" />
-                  Report Another Issue
+                  {t("citizen.issues.reportButton")}
                 </Link>
               </Button>
               <Button asChild size="sm" variant="outline" className="w-full">
                 <Link to="/app/citizen/issues">
                   <ArrowLeft className="h-4 w-4 mr-1" aria-hidden="true" />
-                  Back to All Reports
+                  {t("citizen.issueDetails.backToReports")}
                 </Link>
               </Button>
             </div>
