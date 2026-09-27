@@ -562,11 +562,16 @@ function CitizenReportComposer({ profileId }: { profileId: string }) {
 
     try {
       const issueId = crypto.randomUUID();
+      const finalOriginalTitle = originalTitle.trim() || trimmedTitle;
+      const finalOriginalDescription = originalDescription.trim() || trimmedDescription;
+      const finalEnglishTitle = englishTitle.trim() || trimmedTitle;
+      const finalEnglishDescription = englishDescription.trim() || trimmedDescription;
+
       const issueInsertPayload = {
         id: issueId,
         reporter_profile_id: profileId,
-        title: trimmedTitle,
-        description: trimmedDescription,
+        title: finalEnglishTitle,
+        description: finalEnglishDescription,
         category,
         location_text: trimmedLocation,
         latitude,
@@ -574,10 +579,10 @@ function CitizenReportComposer({ profileId }: { profileId: string }) {
         original_language: originalLanguage || language,
         detected_language: detectedLanguage || originalLanguage || language,
         input_method: inputMethod,
-        original_title: originalTitle.trim() || trimmedTitle,
-        original_description: originalDescription.trim() || trimmedDescription,
-        english_title: englishTitle.trim() || trimmedTitle,
-        english_description: englishDescription.trim() || trimmedDescription,
+        original_title: finalOriginalTitle,
+        original_description: finalOriginalDescription,
+        english_title: finalEnglishTitle,
+        english_description: finalEnglishDescription,
       };
 
       const { error: issueError } = await supabase
@@ -880,7 +885,7 @@ function CitizenReportComposer({ profileId }: { profileId: string }) {
                 {/* Multilingual Voice Input for Title */}
                 <VoiceInputButton
                   fieldMode="title"
-                  buttonLabel="Speak Title"
+                  buttonLabel={t("citizen.report.voice.speakTitle")}
                   onTranscription={handleTitleVoiceTranscription}
                   disabled={submissionStage !== "idle"}
                 />
@@ -970,7 +975,7 @@ function CitizenReportComposer({ profileId }: { profileId: string }) {
                 {/* Multilingual Voice Input for Location Notes */}
                 <VoiceInputButton
                   fieldMode="notes"
-                  buttonLabel="Speak Landmark"
+                  buttonLabel={t("citizen.report.voice.speakNotes")}
                   onTranscription={handleLocationVoiceTranscription}
                   disabled={submissionStage !== "idle"}
                 />

@@ -9,6 +9,7 @@ import {
   Sparkles,
   RotateCcw,
   Languages,
+  X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -33,12 +34,17 @@ export type VoiceErrorCode =
   | "MICROPHONE_PERMISSION_DENIED"
   | "RECORDING_FAILED"
   | "UNSUPPORTED_BROWSER"
+  | "UNSUPPORTED_AUDIO_FORMAT"
   | "EMPTY_AUDIO"
+  | "AUDIO_TOO_SHORT"
   | "UPLOAD_FAILED"
   | "EDGE_FUNCTION_FAILED"
   | "GEMINI_API_FAILED"
   | "NO_SPEECH_DETECTED"
+  | "LANGUAGE_NOT_SUPPORTED"
+  | "LOW_CONFIDENCE_TRANSCRIPTION"
   | "TRANSLATION_FAILED"
+  | "INVALID_AI_RESPONSE"
   | "UNKNOWN_ERROR";
 
 type VoiceInputButtonProps = {
@@ -82,6 +88,7 @@ export function VoiceInputButton({
   const audioChunksRef = useRef<Blob[]>([]);
   const timerRef = useRef<number | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
+  const recordingStartTimeRef = useRef<number>(0);
 
   // Clean up media stream and timer on unmount
   useEffect(() => {
@@ -102,6 +109,7 @@ export function VoiceInputButton({
   }
 
   function getSupportedMimeType(): string {
+    if (typeof MediaRecorder === "undefined") return "";
     const candidateTypes = [
       "audio/webm;codecs=opus",
       "audio/webm",
@@ -112,35 +120,23 @@ export function VoiceInputButton({
       "audio/wav",
     ];
     for (const type of candidateTypes) {
-      if (typeof MediaRecorder !== "undefined" && MediaRecorder.isTypeSupported(type)) {
-        return type;
+      try {
+        if (MediaRecorder.isTypeSupported(type)) {
+          return type;
+        }
+      } catch {
+        // continue checking next candidate
       }
     }
     return "";
   }
 
-  function getUserFacingErrorMessage(code: VoiceErrorCode, fallback?: string): string {
-    switch (code) {
-      case "MICROPHONE_PERMISSION_DENIED":
-        return "Microphone access was denied. Please allow microphone permissions in your browser and try again.";
-      case "RECORDING_FAILED":
-        return "Your recording could not be processed. Please try again.";
-      case "UNSUPPORTED_BROWSER":
-        return "Voice recording is not supported on this browser or device.";
-      case "EMPTY_AUDIO":
-        return "The recording was empty. Please try speaking into your microphone.";
-      case "NO_SPEECH_DETECTED":
-        return "The recording was received, but speech could not be detected. Please try speaking clearly.";
-      case "UPLOAD_FAILED":
-        return "Could not connect to the voice transcription service. Please check your internet connection.";
-      case "GEMINI_API_FAILED":
-      case "EDGE_FUNCTION_FAILED":
-        return "Voice processing is temporarily unavailable. You can type your response instead.";
-      case "TRANSLATION_FAILED":
-        return "Speech transcribed, but translation encountered an error.";
-      default:
-        return fallback || "We could not transcribe the audio recording. Please try again or type instead.";
+  function getLocalizedErrorMessage(code: VoiceErrorCode, fallback?: string): string {
+    const localized = t(`citizen.report.voice.errors.${code}`);
+    if (localized && !localized.startsWith("citizen.report.voice.errors.")) {
+      return localized;
     }
+    return fallback || t("citizen.report.voice.transcriptionFailed") || "Voice transcription could not be completed. Please try again or type manually.";
   }
 
   async function startRecording() {
@@ -152,7 +148,7 @@ export function VoiceInputButton({
     if (typeof navigator === "undefined" || !navigator.mediaDevices?.getUserMedia) {
       setState("error");
       setErrorCode("UNSUPPORTED_BROWSER");
-      setErrorMessage(getUserFacingErrorMessage("UNSUPPORTED_BROWSER"));
+      setErrorMessage(getLocalizedErrorMessage("UNSUPPORTED_BROWSER"));
       return;
     }
 
@@ -172,6 +168,7 @@ export function VoiceInputButton({
       const recorder = new MediaRecorder(stream, options);
       mediaRecorderRef.current = recorder;
       audioChunksRef.current = [];
+      recordingStartTimeRef.current = Date.now();
 
       recorder.ondataavailable = (event: BlobEvent) => {
         if (event.data && event.data.size > 0) {
@@ -191,21 +188,22 @@ export function VoiceInputButton({
           streamRef.current = null;
         }
 
+        const durationMs = Date.now() - recordingStartTimeRef.current;
         const effectiveMime = recorder.mimeType || detectedMimeType || "audio/webm";
         const recordedBlob = new Blob(audioChunksRef.current, { type: effectiveMime });
 
-        if (recordedBlob.size < 200) {
-          console.warn("[VoiceInput] Audio blob is too small/empty:", recordedBlob.size, "bytes");
+        if (durationMs < 600 || recordedBlob.size < 300) {
+          console.warn("[VoiceInput] Audio recording is too short or empty:", recordedBlob.size, "bytes,", durationMs, "ms");
           setState("error");
-          setErrorCode("EMPTY_AUDIO");
-          setErrorMessage(getUserFacingErrorMessage("EMPTY_AUDIO"));
+          setErrorCode("AUDIO_TOO_SHORT");
+          setErrorMessage(getLocalizedErrorMessage("AUDIO_TOO_SHORT"));
           return;
         }
 
         await processAudioTranscription(recordedBlob, effectiveMime);
       };
 
-      recorder.start(250); // Slice chunks every 250ms
+      recorder.start(250); // Collect chunks every 250ms
       setState("recording");
       setRecordingSeconds(0);
 
@@ -224,10 +222,10 @@ export function VoiceInputButton({
       setState("error");
       if (err instanceof DOMException && (err.name === "NotAllowedError" || err.name === "PermissionDeniedError")) {
         setErrorCode("MICROPHONE_PERMISSION_DENIED");
-        setErrorMessage(getUserFacingErrorMessage("MICROPHONE_PERMISSION_DENIED"));
+        setErrorMessage(getLocalizedErrorMessage("MICROPHONE_PERMISSION_DENIED"));
       } else {
         setErrorCode("RECORDING_FAILED");
-        setErrorMessage(getUserFacingErrorMessage("RECORDING_FAILED"));
+        setErrorMessage(getLocalizedErrorMessage("RECORDING_FAILED"));
       }
     }
   }
@@ -292,20 +290,20 @@ export function VoiceInputButton({
         const errPayload = await response.json().catch(() => ({}));
         const returnedCode = (errPayload.errorCode as VoiceErrorCode) || "EDGE_FUNCTION_FAILED";
         setErrorCode(returnedCode);
-        throw new Error(errPayload.userMessage || getUserFacingErrorMessage(returnedCode));
+        throw new Error(errPayload.userMessage || getLocalizedErrorMessage(returnedCode));
       }
 
       const data = await response.json();
 
       if (!data.success && data.errorCode) {
         setErrorCode(data.errorCode as VoiceErrorCode);
-        throw new Error(data.userMessage || getUserFacingErrorMessage(data.errorCode));
+        throw new Error(data.userMessage || getLocalizedErrorMessage(data.errorCode));
       }
 
       const rawText = data.transcription || data.text;
       if (!rawText || String(rawText).trim().length === 0) {
         setErrorCode("NO_SPEECH_DETECTED");
-        throw new Error(getUserFacingErrorMessage("NO_SPEECH_DETECTED"));
+        throw new Error(getLocalizedErrorMessage("NO_SPEECH_DETECTED"));
       }
 
       const transcription = String(rawText).trim();
@@ -339,7 +337,7 @@ export function VoiceInputButton({
         setErrorCode("GEMINI_API_FAILED");
       }
       setErrorMessage(
-        err instanceof Error ? err.message : getUserFacingErrorMessage("UNKNOWN_ERROR"),
+        err instanceof Error ? err.message : getLocalizedErrorMessage("UNKNOWN_ERROR"),
       );
     }
   }
@@ -373,10 +371,10 @@ export function VoiceInputButton({
   const defaultButtonText =
     buttonLabel ||
     (fieldMode === "title"
-      ? "Speak Title"
+      ? t("citizen.report.voice.speakTitle")
       : fieldMode === "notes"
-      ? "Speak Details"
-      : t("citizen.report.voice.speakButton"));
+      ? t("citizen.report.voice.speakNotes")
+      : t("citizen.report.voice.speakDescription"));
 
   return (
     <div className={`inline-block ${className}`}>
@@ -389,7 +387,8 @@ export function VoiceInputButton({
             disabled={disabled}
             onClick={startRecording}
             className="flex items-center gap-1.5 border-teal-200 bg-teal-50/70 text-[#0f766e] hover:bg-teal-100 hover:text-teal-900 transition-colors shadow-xs cursor-pointer font-semibold text-xs"
-            aria-label={`Voice input for ${fieldMode}`}
+            aria-label={`${defaultButtonText} (${fieldMode})`}
+            title={defaultButtonText}
           >
             <Mic className="h-3.5 w-3.5 text-[#0f766e]" aria-hidden="true" />
             <span>{defaultButtonText}</span>
@@ -397,14 +396,14 @@ export function VoiceInputButton({
         )}
 
         {state === "requesting_permission" && (
-          <Button type="button" variant="outline" size={size} disabled className="flex items-center gap-1.5 bg-muted/60 text-xs">
+          <Button type="button" variant="outline" size={size} disabled className="flex items-center gap-1.5 bg-muted/60 text-xs" aria-live="polite">
             <Loader2 className="h-3.5 w-3.5 animate-spin text-primary" aria-hidden="true" />
-            <span>Connecting mic...</span>
+            <span>{t("citizen.report.voice.connectingMic") || "Connecting microphone..."}</span>
           </Button>
         )}
 
         {state === "recording" && (
-          <div className="flex items-center gap-2 rounded-xl border border-red-200 bg-red-50/95 px-3 py-1 text-xs shadow-xs animate-in fade-in duration-150">
+          <div className="flex items-center gap-2 rounded-xl border border-red-200 bg-red-50/95 px-3 py-1 text-xs shadow-xs animate-in fade-in duration-150" role="status" aria-live="polite">
             <span className="relative flex h-2.5 w-2.5">
               <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-red-400 opacity-75" />
               <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-red-600" />
@@ -418,6 +417,7 @@ export function VoiceInputButton({
               size="xs"
               onClick={stopRecording}
               className="bg-red-600 text-white hover:bg-red-700 h-6 px-2 text-[11px] cursor-pointer ml-1"
+              aria-label={t("citizen.report.voice.stop")}
             >
               <Square className="h-2.5 w-2.5 mr-1 fill-current" aria-hidden="true" />
               <span>{t("citizen.report.voice.stop")}</span>
@@ -426,7 +426,7 @@ export function VoiceInputButton({
         )}
 
         {state === "transcribing" && (
-          <div className="flex items-center gap-1.5 rounded-xl border border-sky-200 bg-sky-50/90 px-3 py-1 text-xs text-sky-900 shadow-xs animate-pulse">
+          <div className="flex items-center gap-1.5 rounded-xl border border-sky-200 bg-sky-50/90 px-3 py-1 text-xs text-sky-900 shadow-xs animate-pulse" role="status" aria-live="polite">
             <Loader2 className="h-3.5 w-3.5 animate-spin text-sky-600" aria-hidden="true" />
             <Sparkles className="h-3.5 w-3.5 text-sky-600" aria-hidden="true" />
             <span className="font-semibold">{t("citizen.report.voice.transcribing")}</span>
@@ -445,6 +445,7 @@ export function VoiceInputButton({
               size="xs"
               onClick={startRecording}
               className="text-xs text-muted-foreground hover:text-foreground cursor-pointer h-7"
+              aria-label={t("citizen.report.voice.recordAgain")}
             >
               <Mic className="h-3 w-3 mr-1" aria-hidden="true" />
               <span>{t("citizen.report.voice.recordAgain")}</span>
@@ -460,6 +461,7 @@ export function VoiceInputButton({
               size="xs"
               onClick={startRecording}
               className="flex items-center gap-1 border-amber-300 bg-amber-50 text-amber-900 hover:bg-amber-100 text-xs cursor-pointer h-7"
+              aria-label={t("citizen.report.voice.recordAgain")}
             >
               <MicOff className="h-3 w-3 text-amber-700" aria-hidden="true" />
               <span>{t("citizen.report.voice.recordAgain")}</span>
@@ -469,7 +471,7 @@ export function VoiceInputButton({
       </div>
 
       {errorMessage && (
-        <div className="mt-1.5 flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 p-2 text-xs text-amber-900">
+        <div className="mt-1.5 flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 p-2 text-xs text-amber-900" role="alert">
           <AlertCircle className="h-4 w-4 text-amber-700 shrink-0 mt-0.5" aria-hidden="true" />
           <div className="flex-1">
             <p className="font-medium leading-relaxed">{errorMessage}</p>
@@ -489,11 +491,17 @@ export function VoiceInputButton({
             <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-teal-50/80 border border-teal-200/80 px-3 py-2 text-xs">
               <div className="flex items-center gap-1.5 font-semibold text-teal-900">
                 <Languages className="h-4 w-4 text-teal-700" aria-hidden="true" />
-                <span>Detected Language: {getLanguageDisplayName(pendingPayload.detectedLanguage)}</span>
+                <span>
+                  {t("citizen.report.voice.detectedLanguageLabel", {
+                    language: getLanguageDisplayName(pendingPayload.detectedLanguage),
+                  })}
+                </span>
               </div>
               {pendingPayload.detectedLanguage !== language && (
                 <Badge variant="outline" size="sm" className="bg-white border-teal-300 text-teal-900 text-[10px]">
-                  UI is in {getLanguageNativeLabel(language)}
+                  {t("citizen.report.voice.uiLanguageHint", {
+                    language: getLanguageNativeLabel(language),
+                  })}
                 </Badge>
               )}
             </div>
@@ -508,14 +516,14 @@ export function VoiceInputButton({
                 dir={pendingPayload.isRtl ? "rtl" : "ltr"}
                 rows={fieldMode === "title" ? 2 : 4}
                 className="w-full rounded-xl border border-border/80 bg-background px-3 py-2 text-sm text-foreground focus:border-primary focus:ring-2 focus:ring-primary/20 leading-relaxed outline-none"
-                placeholder="Review or edit spoken complaint..."
+                placeholder={t("citizen.report.voice.originalPlaceholder") || "Review or edit spoken complaint..."}
               />
             </div>
 
             {pendingPayload.detectedLanguage !== "en" && pendingPayload.englishTranslation && (
               <div className="rounded-xl border border-sky-200/70 bg-sky-50/60 p-3 text-xs">
                 <span className="font-bold text-sky-900 block mb-0.5">
-                  {t("citizen.report.voice.englishTranslationLabel")} (Canonical Representation):
+                  {t("citizen.report.voice.englishTranslationLabel")}:
                 </span>
                 <p className="text-sky-950 leading-relaxed font-medium">
                   {fieldMode === "title" && pendingPayload.suggestedEnglishTitle
@@ -526,6 +534,16 @@ export function VoiceInputButton({
             )}
 
             <div className="flex flex-col sm:flex-row justify-end gap-2 pt-2 border-t border-border/60">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={handleDiscard}
+                className="flex items-center gap-1.5"
+              >
+                <X className="h-3.5 w-3.5" aria-hidden="true" />
+                <span>{t("citizen.report.voice.discard")}</span>
+              </Button>
               <Button
                 type="button"
                 variant="outline"
@@ -541,7 +559,7 @@ export function VoiceInputButton({
                 variant="default"
                 size="sm"
                 onClick={handleAcceptReview}
-                className="flex items-center gap-1.5 bg-primary text-white font-semibold"
+                className="flex items-center gap-1.5 bg-primary text-white font-semibold cursor-pointer"
               >
                 <CheckCircle2 className="h-4 w-4" aria-hidden="true" />
                 <span>{t("citizen.report.voice.useTranscription")}</span>

@@ -50,6 +50,13 @@ const SUPPORTED_MIME_TYPES = new Set([
   "audio/l16",
 ]);
 
+const VALID_FIELD_MODES = new Set(["title", "description", "notes", "general"]);
+
+const VALID_INDIC_LANGUAGE_CODES = new Set([
+  "en", "hi", "mr", "bn", "gu", "pa", "ta", "te", "kn", "ml",
+  "or", "as", "ur", "sa", "ne", "kok", "ks", "sd", "mai", "mni"
+]);
+
 function normalizeMimeType(rawMimeType?: string): string {
   if (!rawMimeType || typeof rawMimeType !== "string") {
     return "audio/webm";
@@ -58,7 +65,7 @@ function normalizeMimeType(rawMimeType?: string): string {
   if (clean === "audio/mp3") return "audio/mp3";
   if (clean === "audio/x-m4a") return "audio/m4a";
   if (SUPPORTED_MIME_TYPES.has(clean)) return clean;
-  // If video/webm was recorded instead of audio/webm (happens in some browsers)
+  // If video container was recorded instead of audio container (common in some webviews/browsers)
   if (clean === "video/webm") return "audio/webm";
   if (clean === "video/mp4") return "audio/mp4";
   return "audio/webm";
@@ -87,7 +94,7 @@ Deno.serve(async (req: Request) => {
     console.error(`[transcribe-voice:${requestId}] Server misconfiguration: Missing GEMINI_API_KEY`);
     return json(500, {
       success: false,
-      errorCode: "GEMINI_AUTH_ERROR",
+      errorCode: "GEMINI_API_FAILED",
       userMessage: "Voice processing is temporarily unavailable. You can type your response instead.",
       requestId,
     }, origin);
@@ -116,58 +123,111 @@ Deno.serve(async (req: Request) => {
     }, origin);
   }
 
-  const mimeType = normalizeMimeType(body.mimeType);
-  const languageHint = body.languageHint?.trim() || "en";
-  const fieldMode = body.fieldMode || "description";
+  // Enforce abuse/size limit: max 12 MB base64 (~9 MB decoded audio)
+  if (audioBase64.length > 12000000) {
+    return json(413, {
+      success: false,
+      errorCode: "PAYLOAD_TOO_LARGE",
+      userMessage: "The audio recording exceeds the maximum allowable size (9 MB). Please record a shorter audio clip.",
+      requestId,
+    }, origin);
+  }
 
-  // Sanitize base64 data (strip data URL scheme if accidentally included)
+  // Sanitize base64 data (strip data URL scheme if included)
   const cleanBase64 = audioBase64.replace(/^data:[^;]+;base64,/, "").trim();
 
+  // Validate base64 structure
+  if (!/^[A-Za-z0-9+/=]+$/.test(cleanBase64.replace(/\s+/g, ""))) {
+    return json(400, {
+      success: false,
+      errorCode: "INVALID_AUDIO_DATA",
+      userMessage: "The audio recording data format is corrupt. Please record again.",
+      requestId,
+    }, origin);
+  }
+
   const approximateBytes = Math.round((cleanBase64.length * 3) / 4);
+  if (approximateBytes < 250) {
+    return json(400, {
+      success: false,
+      errorCode: "AUDIO_TOO_SHORT",
+      userMessage: "The recording was too short. Please speak for at least 1-2 seconds.",
+      requestId,
+    }, origin);
+  }
+
+  const mimeType = normalizeMimeType(body.mimeType);
+  const rawLanguageHint = body.languageHint?.trim().toLowerCase() || "en";
+  const languageHint = VALID_INDIC_LANGUAGE_CODES.has(rawLanguageHint) ? rawLanguageHint : "en";
+  const fieldMode = body.fieldMode && VALID_FIELD_MODES.has(body.fieldMode) ? body.fieldMode : "description";
+
   console.log(`[transcribe-voice:${requestId}] Processing audio (${approximateBytes} bytes, mime=${mimeType}, hint=${languageHint}, field=${fieldMode})`);
 
   const systemPrompt = `You are the Expert Multilingual Speech-to-Text & Translation AI Engine for CivicFix, India's public municipal grievance redressal platform.
 
-CORE CAPABILITIES:
-1. INDIC LANGUAGE COVERAGE: You accurately transcribe speech in all major Indian languages and scripts:
-   - English (en), Hindi (hi - हिन्दी), Marathi (mr - मराठी), Bengali (bn - বাংলা), Gujarati (gu - ગુજરાતી)
-   - Punjabi (pa - ਪੰਜਾਬੀ), Tamil (ta - தமிழ்), Telugu (te - తెలుగు), Kannada (kn - ಕನ್ನಡ), Malayalam (ml - മലയാളം)
-   - Odia (or - ଓଡ଼ିଆ), Assamese (as - অসমীয়া), Urdu (ur - اردو), Sanskrit (sa - संस्कृतम्), Nepali (ne - नेपाली)
-   - Konkani (kok - कोंकणी), Kashmiri (ks - कॉशुर / کٲشُر), Sindhi (sd - سنڌي / सिन्धी), Maithili (mai - मैथिली), Manipuri (mni - মৈতৈलोন্)
-   - Mixed / Code-switching dialects (e.g. Hinglish, Tanglish, Marathi-English).
+CORE CAPABILITIES & RULES:
+1. ALL 20 INDIC LANGUAGES SUPPORTED:
+   You accurately detect and transcribe speech in all 20 official CivicFix languages and their authentic native scripts:
+   - English (en) [Latin]
+   - Hindi (hi) [Devanagari - हिन्दी]
+   - Marathi (mr) [Devanagari - मराठी]
+   - Bengali (bn) [Bengali - বাংলা]
+   - Gujarati (gu) [Gujarati - ગુજરાતી]
+   - Punjabi (pa) [Gurmukhi - ਪੰਜਾਬੀ]
+   - Tamil (ta) [Tamil - தமிழ்]
+   - Telugu (te) [Telugu - తెలుగు]
+   - Kannada (kn) [Kannada - ಕನ್ನಡ]
+   - Malayalam (ml) [Malayalam - മലയാളം]
+   - Odia (or) [Odia - ଓଡ଼ିଆ]
+   - Assamese (as) [Assamese - অসমীয়া]
+   - Urdu (ur) [Arabic - اردو] (isRtl: true)
+   - Sanskrit (sa) [Devanagari - संस्कृतम्]
+   - Nepali (ne) [Devanagari - नेपाली]
+   - Konkani (kok) [Devanagari - कोंकणी]
+   - Kashmiri (ks) [Arabic/Devanagari - کٲشُر] (isRtl: true if Arabic script)
+   - Sindhi (sd) [Arabic/Devanagari - سنڌي] (isRtl: true if Arabic script)
+   - Maithili (mai) [Devanagari - मैथिली]
+   - Manipuri (mni) [Meetei Mayek / Bengali - মৈতৈলোন্]
+   - Also handle mixed code-switching (e.g. Hinglish, Tanglish, Marathi-English).
 
-2. FIELD CONTEXT:
-   - fieldMode = "title": Citizen is speaking an issue title or summary. Generate a concise title in original language and English (max 8 words).
-   - fieldMode = "description": Citizen is describing an entire municipal complaint. Provide full verbatim transcription and canonical English translation.
-   - fieldMode = "notes": Citizen is providing additional details or landmark notes.
+2. INDEPENDENT SPOKEN LANGUAGE DETECTION:
+   - The user interface language is provided strictly as a recognition hint ('${languageHint}').
+   - Citizens very often speak a different language than their UI language (e.g. UI is Hindi, citizen speaks Marathi; UI is English, citizen speaks Tamil; UI is Gujarati, citizen speaks Hindi).
+   - You MUST detect the ACTUAL spoken language independently from the audio. Never force the detected language to match the UI language hint unless that is genuinely what was spoken.
 
-3. ACCURACY & FIDELITY:
-   - Transcribe in the EXACT native script of the spoken language (e.g. Devanagari for Hindi/Marathi/Nepali, Tamil for Tamil, Telugu for Telugu, Gurmukhi for Punjabi, Arabic for Urdu, etc.).
-   - Preserve civic terminology, road names, colony names, metro pillars, ward numbers, and municipal problems accurately.
-   - Remove acoustic fillers ("umm", "uhh", stuttering) while preserving 100% of facts.
-   - For Urdu/Kashmiri/Sindhi, specify isRtl: true.
+3. FIELD MODES:
+   - fieldMode = "title": Citizen is speaking an issue title or summary. Return a concise title in original language (max 8 words) and suggested English title (max 8 words).
+   - fieldMode = "description": Citizen is describing a full municipal problem. Provide full verbatim transcription in native script and natural canonical English translation. Do NOT summarize or omit details.
+   - fieldMode = "notes": Citizen is providing landmark or location directions (e.g. "near Gram Panchayat office, next to water tank"). Transcribe verbatim and translate to canonical English.
+   - fieldMode = "general": Verbatim transcription and canonical English translation.
 
-4. CANONICAL ENGLISH TRANSLATION:
-   - Always generate a clear, natural, high-fidelity English translation of the spoken content for downstream municipal triage.
+4. SILENCE & BACKGROUND NOISE HANDLING:
+   - If the audio contains only silence, background static, breathing, or unintelligible noise with NO human speech:
+     Return empty string for transcription (""), empty englishTranslation (""), and confidence: 0.0.
 
-5. JSON RESPONSE SCHEMA:
+5. SCRIPT & CIVIC TERMINOLOGY FIDELITY:
+   - Transcribe in the EXACT authentic native script of the spoken language.
+   - Preserve municipal landmarks, ward numbers, road names, colony names, and civic issues accurately.
+   - For Urdu, Kashmiri, and Sindhi in Arabic script, set isRtl: true.
+
+6. JSON OUTPUT SCHEMA:
 Return ONLY a valid JSON object matching this schema:
 {
-  "transcription": "Spoken text in native script of spoken language",
-  "englishTranslation": "Complete and accurate English canonical translation",
+  "transcription": "Verbatim spoken text in native script of spoken language (or empty string if silence)",
+  "englishTranslation": "Complete and accurate English canonical translation (or empty string if silence)",
   "suggestedTitle": "Concise title in the spoken language (max 8 words)",
   "suggestedEnglishTitle": "Concise title in English (max 8 words)",
-  "detectedLanguage": "ISO-639-1 code (e.g. en, hi, mr, bn, gu, pa, ta, te, kn, ml, or, as, ur, sa, ne, kok, ks, sd, mai, mni)",
-  "languageName": "English name of language (e.g. Hindi, Marathi, Tamil, Bengali, Urdu)",
+  "detectedLanguage": "ISO-639-1 code (one of: en, hi, mr, bn, gu, pa, ta, te, kn, ml, or, as, ur, sa, ne, kok, ks, sd, mai, mni)",
+  "languageName": "English name of language (e.g. Marathi, Hindi, Tamil, Bengali, Urdu)",
   "script": "Script name (e.g. Devanagari, Tamil, Gurmukhi, Arabic, Bengali, Latin)",
   "isRtl": boolean,
   "confidence": number (between 0.0 and 1.0)
 }`;
 
-  const userPromptText = `Please transcribe and translate this civic complaint voice recording.
+  const userPromptText = `Transcribe and translate this civic grievance audio recording.
 Field Context: ${fieldMode.toUpperCase()}.
-Preferred UI Language Hint: '${languageHint}'.
-Provide accurate transcription in the native script, canonical English translation, and language detection in JSON format.`;
+Citizen UI Language Hint: '${languageHint}'.
+Remember: The citizen may be speaking in ANY of the 20 supported Indic languages. Detect the spoken language from the audio itself. Output strictly valid JSON.`;
 
   const preferredModels = [
     "gemini-2.5-flash",
@@ -349,18 +409,15 @@ Provide accurate transcription in the native script, canonical English translati
   }
 
   // 3. Structured Error Handling
-  if (!transcriptionResult || (!transcriptionResult.transcription && !transcriptionResult.text)) {
+  if (!transcriptionResult) {
     console.error(`[transcribe-voice:${requestId}] All Gemini models failed. Last error: ${lastErrorDetails}`);
 
-    let errorCode = "GEMINI_REQUEST_FAILED";
+    let errorCode = "GEMINI_API_FAILED";
     let userMessage = "Voice processing is temporarily unavailable. You can type your response instead.";
 
     if (lastHttpStatus === 429) {
-      errorCode = "GEMINI_RATE_LIMIT";
+      errorCode = "GEMINI_API_FAILED";
       userMessage = "Voice processing rate limit reached. Please wait a moment and try again.";
-    } else if (lastHttpStatus === 400) {
-      errorCode = "NO_SPEECH_DETECTED";
-      userMessage = "The recording was received, but speech could not be detected. Please try speaking clearly.";
     }
 
     return json(
@@ -378,10 +435,12 @@ Provide accurate transcription in the native script, canonical English translati
 
   const primaryText = (transcriptionResult.transcription || transcriptionResult.text || "").trim();
   const englishText = (transcriptionResult.englishTranslation || primaryText).trim();
-  const detectedLang = (transcriptionResult.detectedLanguage || languageHint || "en").toLowerCase().trim();
+  const rawDetectedLang = (transcriptionResult.detectedLanguage || languageHint || "en").toLowerCase().trim();
+  const detectedLang = VALID_INDIC_LANGUAGE_CODES.has(rawDetectedLang) ? rawDetectedLang : "en";
+  const confidence = typeof transcriptionResult.confidence === "number" ? transcriptionResult.confidence : 0.9;
 
-  // If transcription returned nothing meaningful
-  if (!primaryText || primaryText.length === 0) {
+  // If transcription returned nothing meaningful or silence detected
+  if (!primaryText || primaryText.length === 0 || confidence === 0) {
     return json(
       200,
       {
@@ -394,7 +453,7 @@ Provide accurate transcription in the native script, canonical English translati
     );
   }
 
-  console.log(`[transcribe-voice:${requestId}] Success with ${successfulModel} -> detected=${detectedLang}, len=${primaryText.length}`);
+  console.log(`[transcribe-voice:${requestId}] Success with ${successfulModel} -> detected=${detectedLang}, len=${primaryText.length}, conf=${confidence}`);
 
   return json(
     200,
@@ -408,7 +467,7 @@ Provide accurate transcription in the native script, canonical English translati
       detectedLanguageName: transcriptionResult.languageName || "Detected",
       detectedScript: transcriptionResult.script || "Standard",
       isRtl: Boolean(transcriptionResult.isRtl || detectedLang === "ur" || detectedLang === "ks" || detectedLang === "sd"),
-      confidence: transcriptionResult.confidence ?? 0.9,
+      confidence,
       modelUsed: successfulModel,
       fieldMode,
       requestId,

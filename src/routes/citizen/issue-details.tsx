@@ -428,8 +428,8 @@ export function CitizenIssueDetailsPage() {
       {/* Header with Navigation and Quick Status */}
       <PageHeader
         tag={`Issue #${shortRef}`}
-        title={issue.title}
-        description={issue.description}
+        title={showCanonicalEnglish && issue.english_title ? issue.english_title : (issue.original_title || issue.title)}
+        description={showCanonicalEnglish && issue.english_description ? issue.english_description : (issue.original_description || issue.description)}
         backHref="/app/citizen/issues"
         backLabel={t("citizen.issueDetails.backToReports")}
         actions={
