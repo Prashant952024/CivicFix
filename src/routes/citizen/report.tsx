@@ -15,7 +15,7 @@ import { Link, useNavigate } from "react-router-dom";
 
 import { useAppSession } from "@/auth/app-session";
 import { IssueImage } from "@/components/issues/issue-image";
-import { VoiceInputButton } from "@/components/citizen/voice-input-button";
+import { VoiceInputButton, type VoiceTranscriptionPayload } from "@/components/citizen/voice-input-button";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -81,11 +81,18 @@ type CitizenReportDraft = {
   locationStatus: LocationStatus;
   rawImage: File | null;
   compressedImage: File | null;
+  inputMethod: "TEXT" | "VOICE";
+  originalLanguage: string;
+  detectedLanguage: string;
+  originalTitle: string;
+  originalDescription: string;
+  englishTitle: string;
+  englishDescription: string;
 };
 
 const citizenReportDraftCache = new Map<string, CitizenReportDraft>();
 
-function createEmptyCitizenReportDraft(): CitizenReportDraft {
+function createEmptyCitizenReportDraft(defaultLang = "en"): CitizenReportDraft {
   return {
     title: "",
     description: "",
@@ -97,6 +104,13 @@ function createEmptyCitizenReportDraft(): CitizenReportDraft {
     locationStatus: "idle",
     rawImage: null,
     compressedImage: null,
+    inputMethod: "TEXT",
+    originalLanguage: defaultLang,
+    detectedLanguage: defaultLang,
+    originalTitle: "",
+    originalDescription: "",
+    englishTitle: "",
+    englishDescription: "",
   };
 }
 
@@ -289,9 +303,9 @@ export function CitizenReportPage() {
 }
 
 function CitizenReportComposer({ profileId }: { profileId: string }) {
-  const { t } = useTranslation();
+  const { t, language } = useTranslation();
   const navigate = useNavigate();
-  const initialDraft = citizenReportDraftCache.get(profileId) ?? createEmptyCitizenReportDraft();
+  const initialDraft = citizenReportDraftCache.get(profileId) ?? createEmptyCitizenReportDraft(language);
   const [title, setTitle] = useState(initialDraft.title);
   const [description, setDescription] = useState(initialDraft.description);
   const [category, setCategory] = useState<CitizenIssueCategory | "">(initialDraft.category);
@@ -302,6 +316,13 @@ function CitizenReportComposer({ profileId }: { profileId: string }) {
   const [locationStatus, setLocationStatus] = useState<LocationStatus>(initialDraft.locationStatus);
   const [rawImage, setRawImage] = useState<File | null>(initialDraft.rawImage);
   const [compressedImage, setCompressedImage] = useState<File | null>(initialDraft.compressedImage);
+  const [inputMethod, setInputMethod] = useState<"TEXT" | "VOICE">(initialDraft.inputMethod || "TEXT");
+  const [originalLanguage, setOriginalLanguage] = useState<string>(initialDraft.originalLanguage || language);
+  const [detectedLanguage, setDetectedLanguage] = useState<string>(initialDraft.detectedLanguage || language);
+  const [originalTitle, setOriginalTitle] = useState<string>(initialDraft.originalTitle || "");
+  const [originalDescription, setOriginalDescription] = useState<string>(initialDraft.originalDescription || "");
+  const [englishTitle, setEnglishTitle] = useState<string>(initialDraft.englishTitle || "");
+  const [englishDescription, setEnglishDescription] = useState<string>(initialDraft.englishDescription || "");
   const [imageProcessing, setImageProcessing] = useState(false);
   const [errors, setErrors] = useState<FormErrors>({});
   const [geoError, setGeoError] = useState<string | null>(null);
@@ -312,16 +333,49 @@ function CitizenReportComposer({ profileId }: { profileId: string }) {
   const submissionInFlightRef = useRef(false);
   const imageInputRef = useRef<HTMLInputElement | null>(null);
 
-  function handleVoiceTranscription(transcribedText: string) {
-    if (!transcribedText.trim()) return;
+  function handleTitleVoiceTranscription(payload: VoiceTranscriptionPayload) {
+    if (!payload.transcription.trim()) return;
+    const chosenTitle = payload.suggestedTitle || payload.transcription.trim();
+    setTitle(chosenTitle);
+    setOriginalTitle(chosenTitle);
+    if (payload.suggestedEnglishTitle || payload.englishTranslation) {
+      setEnglishTitle(payload.suggestedEnglishTitle || payload.englishTranslation);
+    }
+    setOriginalLanguage(payload.detectedLanguage || language);
+    setDetectedLanguage(payload.detectedLanguage || language);
+    setInputMethod("VOICE");
+    setErrors((current) => ({ ...current, title: undefined }));
+  }
+
+  function handleDescriptionVoiceTranscription(payload: VoiceTranscriptionPayload) {
+    if (!payload.transcription.trim()) return;
+    setInputMethod("VOICE");
+    setOriginalLanguage(payload.detectedLanguage || language);
+    setDetectedLanguage(payload.detectedLanguage || language);
+    setOriginalDescription((prev) => (prev ? `${prev}\n\n${payload.transcription.trim()}` : payload.transcription.trim()));
+    setEnglishDescription((prev) => (prev ? `${prev}\n\n${payload.englishTranslation.trim()}` : payload.englishTranslation.trim()));
+
+    if (payload.suggestedEnglishTitle && !englishTitle) {
+      setEnglishTitle(payload.suggestedEnglishTitle);
+    }
+    if (!title.trim() && payload.suggestedTitle) {
+      setTitle(payload.suggestedTitle);
+      setOriginalTitle(payload.suggestedTitle);
+    }
     setDescription((prev) => {
       const trimmed = prev.trim();
       if (!trimmed) {
-        return transcribedText.trim();
+        return payload.transcription.trim();
       }
-      return `${trimmed}\n\n${transcribedText.trim()}`;
+      return `${trimmed}\n\n${payload.transcription.trim()}`;
     });
     setErrors((current) => ({ ...current, description: undefined }));
+  }
+
+  function handleLocationVoiceTranscription(payload: VoiceTranscriptionPayload) {
+    if (!payload.transcription.trim()) return;
+    setLocationText(payload.transcription.trim());
+    setErrors((current) => ({ ...current, location: undefined }));
   }
 
   const previewUrl = useMemo(() => {
@@ -354,17 +408,31 @@ function CitizenReportComposer({ profileId }: { profileId: string }) {
         locationStatus,
         rawImage,
         compressedImage,
+        inputMethod,
+        originalLanguage,
+        detectedLanguage,
+        originalTitle,
+        originalDescription,
+        englishTitle,
+        englishDescription,
       },
     );
   }, [
     category,
     compressedImage,
     description,
+    detectedLanguage,
+    englishDescription,
+    englishTitle,
+    inputMethod,
     latitude,
     locationAccuracyMeters,
     locationStatus,
     locationText,
     longitude,
+    originalDescription,
+    originalLanguage,
+    originalTitle,
     profileId,
     rawImage,
     title,
@@ -503,6 +571,13 @@ function CitizenReportComposer({ profileId }: { profileId: string }) {
         location_text: trimmedLocation,
         latitude,
         longitude,
+        original_language: originalLanguage || language,
+        detected_language: detectedLanguage || originalLanguage || language,
+        input_method: inputMethod,
+        original_title: originalTitle.trim() || trimmedTitle,
+        original_description: originalDescription.trim() || trimmedDescription,
+        english_title: englishTitle.trim() || trimmedTitle,
+        english_description: englishDescription.trim() || trimmedDescription,
       };
 
       const { error: issueError } = await supabase
@@ -794,9 +869,23 @@ function CitizenReportComposer({ profileId }: { profileId: string }) {
 
           <div className="mt-5 space-y-4">
             <div>
-              <label htmlFor="issue-title" className="block text-sm font-semibold text-foreground">
-                {t("citizen.report.fields.titleLabel")} <span className="text-red-500">*</span>
-              </label>
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-1">
+                <div className="flex items-center gap-2">
+                  <label htmlFor="issue-title" className="block text-sm font-semibold text-foreground">
+                    {t("citizen.report.fields.titleLabel")} <span className="text-red-500">*</span>
+                  </label>
+                  <span className="text-xs text-muted-foreground">({title.length}/120)</span>
+                </div>
+
+                {/* Multilingual Voice Input for Title */}
+                <VoiceInputButton
+                  fieldMode="title"
+                  buttonLabel="Speak Title"
+                  onTranscription={handleTitleVoiceTranscription}
+                  disabled={submissionStage !== "idle"}
+                />
+              </div>
+
               <input
                 id="issue-title"
                 className="mt-1.5 w-full rounded-xl border border-border/80 bg-background/60 px-4 py-3 text-sm text-foreground outline-none transition placeholder:text-muted-foreground focus:border-primary focus:ring-2 focus:ring-primary/20"
@@ -837,9 +926,11 @@ function CitizenReportComposer({ profileId }: { profileId: string }) {
                   <span className="text-xs text-muted-foreground">({description.length}/1200)</span>
                 </div>
 
-                {/* Multilingual Voice Input Button */}
+                {/* Multilingual Voice Input for Description */}
                 <VoiceInputButton
-                  onTranscription={handleVoiceTranscription}
+                  fieldMode="description"
+                  buttonLabel={t("citizen.report.voice.speakButton")}
+                  onTranscription={handleDescriptionVoiceTranscription}
                   disabled={submissionStage !== "idle"}
                 />
               </div>
@@ -871,9 +962,20 @@ function CitizenReportComposer({ profileId }: { profileId: string }) {
 
           <div className="mt-5 space-y-4">
             <div>
-              <label htmlFor="issue-location" className="block text-sm font-semibold text-foreground">
-                {t("citizen.report.fields.locationLabel")} <span className="text-red-500">*</span>
-              </label>
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-1">
+                <label htmlFor="issue-location" className="block text-sm font-semibold text-foreground">
+                  {t("citizen.report.fields.locationLabel")} <span className="text-red-500">*</span>
+                </label>
+
+                {/* Multilingual Voice Input for Location Notes */}
+                <VoiceInputButton
+                  fieldMode="notes"
+                  buttonLabel="Speak Landmark"
+                  onTranscription={handleLocationVoiceTranscription}
+                  disabled={submissionStage !== "idle"}
+                />
+              </div>
+
               <input
                 id="issue-location"
                 className="mt-1.5 w-full rounded-xl border border-border/80 bg-background/60 px-4 py-3 text-sm text-foreground outline-none transition placeholder:text-muted-foreground focus:border-primary focus:ring-2 focus:ring-primary/20"

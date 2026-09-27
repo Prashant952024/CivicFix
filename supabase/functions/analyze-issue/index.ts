@@ -287,7 +287,7 @@ Deno.serve(async (req: Request) => {
       // 2. Fetch the target issue record
       const { data: dbIssue, error: issueError } = await supabaseAdmin
         .from("issues")
-        .select("id, title, description, category, priority, severity, status, location_text, address_text, latitude, longitude, created_at")
+        .select("id, title, description, category, priority, severity, status, location_text, address_text, latitude, longitude, original_language, original_title, original_description, english_title, english_description, created_at")
         .eq("id", targetIssueId)
         .maybeSingle();
 
@@ -432,9 +432,13 @@ STANDARD MUNICIPAL TRIAGE:
 - Department: Best-suited municipal department from active list [${departmentNames.join(", ")}].
 `;
 
+    const promptTitle = (issue as Record<string, unknown>).english_title || issue.title;
+    const promptDescription = (issue as Record<string, unknown>).english_description || issue.description;
+    const originalLang = (issue as Record<string, unknown>).original_language;
+
     const userPromptText = `Please analyze this civic complaint using the Two-Stage Semantic Reasoning Process:
-- Issue Title: ${issue.title}
-- Citizen Problem Description: ${issue.description}
+- Issue Title: ${promptTitle}
+- Citizen Problem Description: ${promptDescription}${originalLang && originalLang !== "en" ? `\n- Original Submission Language: ${originalLang} (Original Text: ${issue.description})` : ""}
 - Citizen Selected Category: ${issue.category || "Unspecified"}
 - Location / Landmark: ${issue.address_text || issue.location_text || "Not provided"}
 - GPS Coordinates: ${issue.latitude && issue.longitude ? `${issue.latitude}, ${issue.longitude}` : "Not provided"}

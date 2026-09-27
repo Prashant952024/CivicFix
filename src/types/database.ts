@@ -60,6 +60,7 @@ export interface Database {
           institution_id: string | null;
           organization_id: string | null;
           joined_at: string | null;
+          preferred_language: string;
           created_at: string;
           updated_at: string;
         };
@@ -78,6 +79,7 @@ export interface Database {
           institution_id?: string | null;
           organization_id?: string | null;
           joined_at?: string | null;
+          preferred_language?: string;
           created_at?: string;
           updated_at?: string;
         };
@@ -96,6 +98,7 @@ export interface Database {
           institution_id?: string | null;
           organization_id?: string | null;
           joined_at?: string | null;
+          preferred_language?: string;
           created_at?: string;
           updated_at?: string;
         };
@@ -180,6 +183,13 @@ export interface Database {
           address_text: string | null;
           department_id: string | null;
           resolved_at: string | null;
+          original_language: string;
+          detected_language: string;
+          input_method: "TEXT" | "VOICE";
+          original_title: string | null;
+          original_description: string | null;
+          english_title: string | null;
+          english_description: string | null;
           ai_issue_type: "SIMPLE" | "COMPLEX" | null;
           ai_complexity_score: number | null;
           ai_complexity_reasoning: string | null;
@@ -213,6 +223,13 @@ export interface Database {
           address_text?: string | null;
           department_id?: string | null;
           resolved_at?: string | null;
+          original_language?: string;
+          detected_language?: string;
+          input_method?: "TEXT" | "VOICE";
+          original_title?: string | null;
+          original_description?: string | null;
+          english_title?: string | null;
+          english_description?: string | null;
           ai_issue_type?: "SIMPLE" | "COMPLEX" | null;
           ai_complexity_score?: number | null;
           ai_complexity_reasoning?: string | null;
@@ -246,6 +263,13 @@ export interface Database {
           address_text?: string | null;
           department_id?: string | null;
           resolved_at?: string | null;
+          original_language?: string;
+          detected_language?: string;
+          input_method?: "TEXT" | "VOICE";
+          original_title?: string | null;
+          original_description?: string | null;
+          english_title?: string | null;
+          english_description?: string | null;
           ai_issue_type?: "SIMPLE" | "COMPLEX" | null;
           ai_complexity_score?: number | null;
           ai_complexity_reasoning?: string | null;

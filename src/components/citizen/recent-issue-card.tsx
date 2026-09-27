@@ -5,6 +5,7 @@ import { IssueImage } from "@/components/issues/issue-image";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { useTranslation } from "@/lib/i18n";
 import type { Database } from "@/types/database";
 
 type IssueImageRow = Database["public"]["Tables"]["issue_images"]["Row"];
@@ -32,10 +33,6 @@ function formatDate(value: string) {
   }).format(new Date(value));
 }
 
-function formatPriorityLabel(priority: CitizenIssueCardItem["priority"]) {
-  return priority.charAt(0) + priority.slice(1).toLowerCase();
-}
-
 export function RecentIssueCard({
   issue,
   statusLabel,
@@ -43,6 +40,7 @@ export function RecentIssueCard({
   thumbnailUrl,
   viewDetailsHref,
 }: RecentIssueCardProps) {
+  const { t } = useTranslation();
   const locationText = issue.address_text?.trim() || issue.location_text?.trim();
 
   return (
@@ -70,10 +68,10 @@ export function RecentIssueCard({
                 {statusLabel}
               </Badge>
               <Badge variant="outline" size="sm" className="bg-white/80">
-                {issue.category}
+                {t(`categories.${issue.category}`)}
               </Badge>
               <Badge variant="default" size="sm" className="text-muted-foreground">
-                Priority: {formatPriorityLabel(issue.priority)}
+                {t(`priorities.${issue.priority}`)}
               </Badge>
             </div>
 
@@ -107,7 +105,7 @@ export function RecentIssueCard({
 
             <Button asChild size="sm" variant="outline" className="shrink-0 ml-auto group-hover:border-teal-300">
               <Link to={viewDetailsHref}>
-                <span>View Details</span>
+                <span>{t("common.viewDetails")}</span>
                 <MoveRight className="h-3.5 w-3.5" aria-hidden="true" />
               </Link>
             </Button>

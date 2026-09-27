@@ -2,18 +2,28 @@ import { createContext, useContext, useEffect, useMemo, useState, type ReactNode
 import enLocale from "./locales/en.json";
 import hiLocale from "./locales/hi.json";
 import mrLocale from "./locales/mr.json";
+import {
+  LANGUAGE_CONFIG,
+  SUPPORTED_INDIC_LANGUAGES,
+  isRtlLanguage,
+  type LanguageCode,
+  type LanguageConfig,
+} from "@/lib/languages";
 
-export type SupportedLanguage = "en" | "hi" | "mr";
+export type SupportedLanguage = LanguageCode;
 
-export const SUPPORTED_LANGUAGES: Array<{ code: SupportedLanguage; label: string; nativeLabel: string }> = [
-  { code: "en", label: "English", nativeLabel: "English" },
-  { code: "hi", label: "Hindi", nativeLabel: "हिन्दी" },
-  { code: "mr", label: "Marathi", nativeLabel: "मराठी" },
-];
+export const SUPPORTED_LANGUAGES: Array<{ code: SupportedLanguage; label: string; nativeLabel: string; direction: "ltr" | "rtl" }> =
+  SUPPORTED_INDIC_LANGUAGES.map((l) => ({
+    code: l.code,
+    label: l.name,
+    nativeLabel: l.nativeName,
+    direction: l.direction,
+  }));
 
 const LOCAL_STORAGE_KEY = "civicfix_language";
 
-const localeDictionaries: Record<SupportedLanguage, Record<string, unknown>> = {
+// Static dictionaries available
+const staticLocaleDictionaries: Record<string, Record<string, unknown>> = {
   en: enLocale,
   hi: hiLocale,
   mr: mrLocale,
@@ -45,6 +55,8 @@ type I18nContextType = {
   setLanguage: (lang: SupportedLanguage) => void;
   t: (key: string, params?: Record<string, string | number>) => string;
   languages: typeof SUPPORTED_LANGUAGES;
+  direction: "ltr" | "rtl";
+  isRtl: boolean;
 };
 
 const I18nContext = createContext<I18nContextType | null>(null);
@@ -53,7 +65,7 @@ function getInitialLanguage(): SupportedLanguage {
   if (typeof window === "undefined") return "en";
   try {
     const saved = localStorage.getItem(LOCAL_STORAGE_KEY) as SupportedLanguage | null;
-    if (saved && (saved === "en" || saved === "hi" || saved === "mr")) {
+    if (saved && saved in LANGUAGE_CONFIG) {
       return saved;
     }
   } catch {
@@ -65,11 +77,13 @@ function getInitialLanguage(): SupportedLanguage {
 export function I18nProvider({ children }: { children: ReactNode }) {
   const [language, setLanguageState] = useState<SupportedLanguage>(getInitialLanguage);
 
+  const direction: "ltr" | "rtl" = useMemo(() => (isRtlLanguage(language) ? "rtl" : "ltr"), [language]);
+  const isRtl = direction === "rtl";
+
   const setLanguage = (nextLang: SupportedLanguage) => {
     setLanguageState(nextLang);
     try {
       localStorage.setItem(LOCAL_STORAGE_KEY, nextLang);
-      document.documentElement.lang = nextLang;
     } catch {
       // ignore storage access errors
     }
@@ -78,15 +92,16 @@ export function I18nProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (typeof document !== "undefined") {
       document.documentElement.lang = language;
+      document.documentElement.dir = direction;
     }
-  }, [language]);
+  }, [language, direction]);
 
   const t = useMemo(() => {
     return (key: string, params?: Record<string, string | number>): string => {
-      const currentDict = localeDictionaries[language];
-      const enDict = localeDictionaries.en;
+      const currentDict = staticLocaleDictionaries[language];
+      const enDict = staticLocaleDictionaries.en;
 
-      let rawVal = getNestedValue(currentDict, key);
+      let rawVal = currentDict ? getNestedValue(currentDict, key) : undefined;
       if (typeof rawVal !== "string") {
         rawVal = getNestedValue(enDict, key);
       }
@@ -106,8 +121,10 @@ export function I18nProvider({ children }: { children: ReactNode }) {
       setLanguage,
       t,
       languages: SUPPORTED_LANGUAGES,
+      direction,
+      isRtl,
     }),
-    [language, t],
+    [language, direction, isRtl, t],
   );
 
   return <I18nContext.Provider value={value}>{children}</I18nContext.Provider>;
@@ -116,7 +133,6 @@ export function I18nProvider({ children }: { children: ReactNode }) {
 export function useTranslation() {
   const context = useContext(I18nContext);
   if (!context) {
-    // Provide a fallback if rendered outside provider
     return {
       language: "en" as SupportedLanguage,
       setLanguage: () => {},
@@ -128,12 +144,14 @@ export function useTranslation() {
         return key;
       },
       languages: SUPPORTED_LANGUAGES,
+      direction: "ltr" as const,
+      isRtl: false,
     };
   }
   return context;
 }
 
 export function useLanguage() {
-  const { language, setLanguage, languages } = useTranslation();
-  return { language, setLanguage, languages };
+  const { language, setLanguage, languages, direction, isRtl } = useTranslation();
+  return { language, setLanguage, languages, direction, isRtl };
 }

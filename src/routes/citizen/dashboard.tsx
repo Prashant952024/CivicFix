@@ -18,6 +18,7 @@ import { useAppSession } from "@/auth/app-session";
 import { CitizenEmptyState } from "@/components/citizen/citizen-empty-state";
 import { CitizenSummaryCard } from "@/components/citizen/citizen-summary-card";
 import { RecentIssueCard, type CitizenIssueCardItem } from "@/components/citizen/recent-issue-card";
+import { LanguageSelector } from "@/components/citizen/language-selector";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import {
@@ -254,6 +255,11 @@ export function CitizenDashboardPage() {
             <p className="text-sm sm:text-base leading-relaxed text-muted-foreground">
               {t("citizen.dashboard.subtitle")}
             </p>
+
+            <div className="pt-1 flex items-center gap-2">
+              <span className="text-xs font-semibold text-muted-foreground">{t("languages.selectLanguage")}:</span>
+              <LanguageSelector variant="pill" className="inline-flex" />
+            </div>
           </div>
 
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 shrink-0">

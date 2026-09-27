@@ -18,6 +18,9 @@ import {
   Sparkles,
   ThumbsDown,
   ThumbsUp,
+  Languages,
+  Mic,
+  FileText,
 } from "lucide-react";
 import { Link, useParams } from "react-router-dom";
 
@@ -45,6 +48,7 @@ import {
   getDepartmentAssignmentStatusTone,
 } from "@/lib/department-issues";
 import { useTranslation } from "@/lib/i18n";
+import { getLanguageDisplayName, getLanguageNativeLabel, getLocalizedDepartmentName } from "@/lib/translation";
 import { supabase } from "@/lib/supabase";
 import type { Database } from "@/types/database";
 
@@ -69,6 +73,13 @@ type IssueRow = Pick<
   | "resolved_at"
   | "canonical_issue_id"
   | "duplicate_status"
+  | "original_language"
+  | "detected_language"
+  | "input_method"
+  | "original_title"
+  | "original_description"
+  | "english_title"
+  | "english_description"
   | "created_at"
   | "updated_at"
 > & {
@@ -145,6 +156,7 @@ export function CitizenIssueDetailsPage() {
   const [actionState, setActionState] = useState<"idle" | "verifying-yes" | "verifying-no" | "reopening">("idle");
   const [actionError, setActionError] = useState<string | null>(null);
   const [actionMessage, setActionMessage] = useState<string | null>(null);
+  const [showCanonicalEnglish, setShowCanonicalEnglish] = useState(false);
   const profileId = profile?.id;
   const sessionProblem = sessionStatus === "error" ? sessionError ?? "CivicFix profile is unavailable." : null;
 
@@ -165,7 +177,7 @@ export function CitizenIssueDetailsPage() {
         supabase
           .from("issues")
           .select(
-            "id, title, description, category, priority, status, latitude, longitude, location_text, address_text, resolved_at, canonical_issue_id, duplicate_status, duplicate_confidence, created_at, updated_at, issue_images(id, issue_id, storage_bucket, storage_path, image_type, uploaded_by_profile_id, created_at), issue_status_history(id, old_status, new_status, notes, created_at)",
+            "id, title, description, category, priority, status, latitude, longitude, location_text, address_text, resolved_at, canonical_issue_id, duplicate_status, duplicate_confidence, original_language, detected_language, input_method, original_title, original_description, english_title, english_description, created_at, updated_at, issue_images(id, issue_id, storage_bucket, storage_path, image_type, uploaded_by_profile_id, created_at), issue_status_history(id, old_status, new_status, notes, created_at)",
           )
           .eq("id", currentIssueId)
           .eq("reporter_profile_id", currentProfileId)
@@ -580,11 +592,62 @@ export function CitizenIssueDetailsPage() {
               variant="hero"
             />
             <div className="p-5 sm:p-6 space-y-4">
-              <div className="space-y-1">
-                <h3 className="text-lg font-bold text-foreground">{t("citizen.issueDetails.descriptionSection")}</h3>
-                <p className="text-sm leading-relaxed text-muted-foreground whitespace-pre-wrap">
-                  {issue.description}
-                </p>
+              <div className="space-y-3">
+                <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border/50 pb-3">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <h3 className="text-lg font-bold text-foreground">{t("citizen.issueDetails.descriptionSection")}</h3>
+                    {issue.input_method === "VOICE" ? (
+                      <Badge variant="teal" size="sm" className="flex items-center gap-1 py-0.5">
+                        <Mic className="h-3 w-3" aria-hidden="true" />
+                        <span>{t("citizen.issueDetails.voiceInput")}</span>
+                      </Badge>
+                    ) : (
+                      <Badge variant="outline" size="sm" className="flex items-center gap-1 py-0.5 bg-muted/40">
+                        <FileText className="h-3 w-3" aria-hidden="true" />
+                        <span>{t("citizen.issueDetails.textInput")}</span>
+                      </Badge>
+                    )}
+                    {issue.original_language && issue.original_language !== "en" && (
+                      <Badge variant="outline" size="sm" className="flex items-center gap-1 py-0.5 bg-sky-50 border-sky-200 text-sky-900">
+                        <Languages className="h-3 w-3 text-sky-700" aria-hidden="true" />
+                        <span>{getLanguageDisplayName(issue.original_language)}</span>
+                      </Badge>
+                    )}
+                  </div>
+
+                  {/* Translation toggle when original is non-English and English canonical is available */}
+                  {issue.original_language && issue.original_language !== "en" && issue.english_description && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="xs"
+                      onClick={() => setShowCanonicalEnglish((prev) => !prev)}
+                      className="flex items-center gap-1.5 text-xs text-primary border-teal-200 bg-teal-50/60 hover:bg-teal-100"
+                    >
+                      <Languages className="h-3.5 w-3.5" aria-hidden="true" />
+                      <span>
+                        {showCanonicalEnglish
+                          ? t("citizen.issueDetails.viewOriginal", { lang: getLanguageNativeLabel(issue.original_language) })
+                          : t("citizen.issueDetails.viewEnglish")}
+                      </span>
+                    </Button>
+                  )}
+                </div>
+
+                {showCanonicalEnglish && issue.english_description ? (
+                  <div className="space-y-2">
+                    <div className="rounded-xl border border-sky-200/80 bg-sky-50/60 px-3 py-2 text-xs font-medium text-sky-900">
+                      {t("citizen.issueDetails.canonicalNotice", { lang: getLanguageDisplayName(issue.original_language) })}
+                    </div>
+                    <p className="text-sm leading-relaxed text-foreground whitespace-pre-wrap font-medium">
+                      {issue.english_description}
+                    </p>
+                  </div>
+                ) : (
+                  <p className="text-sm leading-relaxed text-muted-foreground whitespace-pre-wrap">
+                    {issue.original_description || issue.description}
+                  </p>
+                )}
               </div>
 
               {/* Location Details */}
