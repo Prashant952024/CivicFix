@@ -28,6 +28,7 @@ import { useAppSession } from "@/auth/app-session";
 import { Button } from "@/components/ui/button";
 import { BrandMark } from "@/components/layout/brand-mark";
 import { civicFixNavItems, civicFixRoleConfigs, type CivicFixRoleCode, type CivicFixRoleNavItem } from "@/lib/civicfix";
+import { useTranslation } from "@/lib/i18n";
 import { supabase } from "@/lib/supabase";
 
 type AppSidebarProps = {
@@ -123,10 +124,21 @@ function getNavIcon(item: CivicFixRoleNavItem) {
 }
 
 export function AppSidebar({ roleCode, mobileOpen, onClose }: AppSidebarProps) {
+  const { t } = useTranslation();
   const location = useLocation();
   const { profile } = useAppSession();
   const role = civicFixRoleConfigs[roleCode];
   const navItems = civicFixNavItems[roleCode];
+
+  const getLocalizedNavLabel = (item: CivicFixRoleNavItem) => {
+    if (roleCode === "CITIZEN") {
+      if (item.path === "/app/citizen") return t("nav.dashboard");
+      if (item.path === "/app/citizen/report") return t("nav.reportIssue");
+      if (item.path === "/app/citizen/issues") return t("nav.myIssues");
+      if (item.path === "/app/citizen/notifications") return t("nav.notifications");
+    }
+    return item.label;
+  };
 
   const [proposalsNeedingReview, setProposalsNeedingReview] = useState<number>(0);
   const [pilotsNeedingReview, setPilotsNeedingReview] = useState<number>(0);
@@ -248,11 +260,11 @@ export function AppSidebar({ roleCode, mobileOpen, onClose }: AppSidebarProps) {
 
         <div className="mt-5 rounded-2xl border border-teal-100/80 bg-gradient-to-br from-[#0f766e]/10 via-[#0284c7]/10 to-white p-3.5 sm:p-4 shadow-sm shadow-teal-950/5">
           <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-muted-foreground">
-            Active role
+            {t("common.activeRole")}
           </p>
           <p className="mt-1.5 text-base sm:text-lg font-bold text-foreground">{role.label}</p>
           <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-            CivicFix workspace for {role.label.toLowerCase()} operations.
+            {t("nav.activeRoleDesc", { role: role.label.toLowerCase() })}
           </p>
         </div>
 
@@ -276,6 +288,7 @@ export function AppSidebar({ roleCode, mobileOpen, onClose }: AppSidebarProps) {
 
             const isProblemsItem = item.path === "/app/innovation/problems";
             const isProblemsActive = location.pathname.startsWith("/app/innovation/problems");
+            const label = getLocalizedNavLabel(item);
 
             return (
               <div key={item.path} className="space-y-1">
@@ -293,7 +306,7 @@ export function AppSidebar({ roleCode, mobileOpen, onClose }: AppSidebarProps) {
                   end={item.path.split("/").length <= 3}
                 >
                   <Icon className="h-4.5 w-4.5 shrink-0" aria-hidden={true} />
-                  <span className="flex-1 truncate">{item.label}</span>
+                  <span className="flex-1 truncate">{label}</span>
                   {badgeCount > 0 && (
                     <span
                       className={`ml-auto inline-flex items-center justify-center rounded-full px-2 py-0.5 text-[10px] shadow-xs ${badgeClass}`}
@@ -337,7 +350,7 @@ export function AppSidebar({ roleCode, mobileOpen, onClose }: AppSidebarProps) {
 
         <div className="mt-4 rounded-2xl border border-teal-100/80 bg-gradient-to-br from-surface-elevated via-teal-50/70 to-sky-50/70 p-3.5 shadow-sm shadow-teal-950/5">
           <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-muted-foreground">
-            Workflow pipeline
+            {t("common.workflowPipeline")}
           </p>
           <div className="mt-2.5 flex flex-wrap gap-1.5">
             {["REPORT", "ANALYZE", "PRIORITIZE", "ASSIGN", "RESOLVE", "VERIFY"].map((step) => (

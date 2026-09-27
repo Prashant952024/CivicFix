@@ -101,8 +101,14 @@ const ISSUE_PRIORITY_TONES: Record<CitizenIssuePriority, "default" | "success" |
   URGENT: "danger",
 };
 
-export function getCitizenIssueStatusLabel(status: CitizenIssueStatus) {
-  return ISSUE_STATUS_LABELS[status];
+export function getCitizenIssueStatusLabel(status: CitizenIssueStatus, t?: (key: string) => string) {
+  if (t) {
+    const translated = t(`statuses.${status}`);
+    if (translated && translated !== `statuses.${status}`) {
+      return translated;
+    }
+  }
+  return ISSUE_STATUS_LABELS[status] ?? status;
 }
 
 export function getCitizenIssueStatusTone(status: CitizenIssueStatus) {
@@ -171,8 +177,14 @@ export function formatCitizenIssueDateTime(value: string) {
   }).format(new Date(value));
 }
 
-export function formatCitizenIssuePriority(priority: CitizenIssuePriority) {
-  return ISSUE_PRIORITY_LABELS[priority];
+export function formatCitizenIssuePriority(priority: CitizenIssuePriority, t?: (key: string) => string) {
+  if (t) {
+    const translated = t(`priorities.${priority}`);
+    if (translated && translated !== `priorities.${priority}`) {
+      return translated;
+    }
+  }
+  return ISSUE_PRIORITY_LABELS[priority] ?? priority;
 }
 
 export function getCitizenIssuePriorityTone(priority: CitizenIssuePriority) {

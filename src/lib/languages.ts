@@ -76,7 +76,7 @@ export const LANGUAGE_CONFIG: Record<LanguageCode, LanguageConfig> = {
     script: "Bengali",
     direction: "ltr",
     voiceSupported: true,
-    uiTranslationAvailable: false,
+    uiTranslationAvailable: true,
     dynamicTranslationAvailable: true,
   },
   gu: {
@@ -87,7 +87,7 @@ export const LANGUAGE_CONFIG: Record<LanguageCode, LanguageConfig> = {
     script: "Gujarati",
     direction: "ltr",
     voiceSupported: true,
-    uiTranslationAvailable: false,
+    uiTranslationAvailable: true,
     dynamicTranslationAvailable: true,
   },
   pa: {
@@ -98,7 +98,7 @@ export const LANGUAGE_CONFIG: Record<LanguageCode, LanguageConfig> = {
     script: "Gurmukhi",
     direction: "ltr",
     voiceSupported: true,
-    uiTranslationAvailable: false,
+    uiTranslationAvailable: true,
     dynamicTranslationAvailable: true,
   },
   ta: {
@@ -109,7 +109,7 @@ export const LANGUAGE_CONFIG: Record<LanguageCode, LanguageConfig> = {
     script: "Tamil",
     direction: "ltr",
     voiceSupported: true,
-    uiTranslationAvailable: false,
+    uiTranslationAvailable: true,
     dynamicTranslationAvailable: true,
   },
   te: {
@@ -120,7 +120,7 @@ export const LANGUAGE_CONFIG: Record<LanguageCode, LanguageConfig> = {
     script: "Telugu",
     direction: "ltr",
     voiceSupported: true,
-    uiTranslationAvailable: false,
+    uiTranslationAvailable: true,
     dynamicTranslationAvailable: true,
   },
   kn: {
@@ -131,7 +131,7 @@ export const LANGUAGE_CONFIG: Record<LanguageCode, LanguageConfig> = {
     script: "Kannada",
     direction: "ltr",
     voiceSupported: true,
-    uiTranslationAvailable: false,
+    uiTranslationAvailable: true,
     dynamicTranslationAvailable: true,
   },
   ml: {
@@ -142,7 +142,7 @@ export const LANGUAGE_CONFIG: Record<LanguageCode, LanguageConfig> = {
     script: "Malayalam",
     direction: "ltr",
     voiceSupported: true,
-    uiTranslationAvailable: false,
+    uiTranslationAvailable: true,
     dynamicTranslationAvailable: true,
   },
   or: {
@@ -153,7 +153,7 @@ export const LANGUAGE_CONFIG: Record<LanguageCode, LanguageConfig> = {
     script: "Odia",
     direction: "ltr",
     voiceSupported: true,
-    uiTranslationAvailable: false,
+    uiTranslationAvailable: true,
     dynamicTranslationAvailable: true,
   },
   as: {
@@ -164,7 +164,7 @@ export const LANGUAGE_CONFIG: Record<LanguageCode, LanguageConfig> = {
     script: "Assamese",
     direction: "ltr",
     voiceSupported: true,
-    uiTranslationAvailable: false,
+    uiTranslationAvailable: true,
     dynamicTranslationAvailable: true,
   },
   ur: {
@@ -175,7 +175,7 @@ export const LANGUAGE_CONFIG: Record<LanguageCode, LanguageConfig> = {
     script: "Arabic",
     direction: "rtl",
     voiceSupported: true,
-    uiTranslationAvailable: false,
+    uiTranslationAvailable: true,
     dynamicTranslationAvailable: true,
   },
   sa: {
@@ -186,7 +186,7 @@ export const LANGUAGE_CONFIG: Record<LanguageCode, LanguageConfig> = {
     script: "Devanagari",
     direction: "ltr",
     voiceSupported: true,
-    uiTranslationAvailable: false,
+    uiTranslationAvailable: true,
     dynamicTranslationAvailable: true,
   },
   ne: {
@@ -197,7 +197,7 @@ export const LANGUAGE_CONFIG: Record<LanguageCode, LanguageConfig> = {
     script: "Devanagari",
     direction: "ltr",
     voiceSupported: true,
-    uiTranslationAvailable: false,
+    uiTranslationAvailable: true,
     dynamicTranslationAvailable: true,
   },
   kok: {
@@ -208,7 +208,7 @@ export const LANGUAGE_CONFIG: Record<LanguageCode, LanguageConfig> = {
     script: "Devanagari",
     direction: "ltr",
     voiceSupported: true,
-    uiTranslationAvailable: false,
+    uiTranslationAvailable: true,
     dynamicTranslationAvailable: true,
   },
   ks: {
@@ -219,7 +219,7 @@ export const LANGUAGE_CONFIG: Record<LanguageCode, LanguageConfig> = {
     script: "Arabic/Devanagari",
     direction: "rtl",
     voiceSupported: true,
-    uiTranslationAvailable: false,
+    uiTranslationAvailable: true,
     dynamicTranslationAvailable: true,
   },
   sd: {
@@ -230,7 +230,7 @@ export const LANGUAGE_CONFIG: Record<LanguageCode, LanguageConfig> = {
     script: "Arabic/Devanagari",
     direction: "rtl",
     voiceSupported: true,
-    uiTranslationAvailable: false,
+    uiTranslationAvailable: true,
     dynamicTranslationAvailable: true,
   },
   mai: {
@@ -241,7 +241,7 @@ export const LANGUAGE_CONFIG: Record<LanguageCode, LanguageConfig> = {
     script: "Devanagari",
     direction: "ltr",
     voiceSupported: true,
-    uiTranslationAvailable: false,
+    uiTranslationAvailable: true,
     dynamicTranslationAvailable: true,
   },
   mni: {
@@ -252,7 +252,7 @@ export const LANGUAGE_CONFIG: Record<LanguageCode, LanguageConfig> = {
     script: "Meetei Mayek",
     direction: "ltr",
     voiceSupported: true,
-    uiTranslationAvailable: false,
+    uiTranslationAvailable: true,
     dynamicTranslationAvailable: true,
   },
 };

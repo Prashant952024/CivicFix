@@ -14,7 +14,18 @@
     "all": "All",
     "viewDetails": "View Details",
     "backToDashboard": "Back to Dashboard",
-    "workspace": "CivicFix workspace"
+    "workspace": "CivicFix workspace",
+    "close": "Close",
+    "activeRole": "Active role",
+    "workflowPipeline": "Workflow pipeline"
+  },
+  "nav": {
+    "dashboard": "Dashboard",
+    "reportIssue": "Report Issue",
+    "myIssues": "My Issues",
+    "notifications": "Notifications",
+    "signOut": "Sign out",
+    "activeRoleDesc": "CivicFix workspace for {{role}} operations."
   },
   "languages": {
     "en": "English",
@@ -38,7 +49,8 @@
     "mai": "मैथिली",
     "mni": "মৈতৈলোন্",
     "selectLanguage": "Language",
-    "more": "More (20+)"
+    "more": "More (20+)",
+    "searchLanguage": "Search language..."
   },
   "categories": {
     "Pothole": "Pothole",
@@ -52,10 +64,17 @@
   },
   "statuses": {
     "SUBMITTED": "Submitted",
+    "AI_ANALYZED": "AI Analyzed",
+    "AWAITING_ADMIN_CLASSIFICATION": "Pending Classification",
+    "CLASSIFIED_SIMPLE": "Classified (Simple)",
+    "CLASSIFIED_COMPLEX": "Complex Challenge",
+    "UNDER_REVIEW": "Under Review",
     "TRIAGED": "Triaged",
     "ASSIGNED": "Assigned",
     "IN_PROGRESS": "In Progress",
+    "PARTIALLY_COMPLETED": "Partially Completed",
     "RESOLVED": "Resolved",
+    "CITIZEN_VERIFIED": "Citizen Verified",
     "VERIFIED": "Verified",
     "REOPENED": "Reopened",
     "REJECTED": "Rejected",
@@ -67,6 +86,15 @@
     "HIGH": "High",
     "URGENT": "Urgent",
     "all": "All priorities"
+  },
+  "departments": {
+    "Roads & Infrastructure": "Roads & Infrastructure",
+    "Sanitation & Waste Management": "Sanitation & Waste Management",
+    "Electricity & Lighting": "Electricity & Lighting",
+    "Water Supply & Sewerage": "Water Supply & Sewerage",
+    "Public Safety & Traffic": "Public Safety & Traffic",
+    "Health & Environment": "Health & Environment",
+    "General Administration": "General Administration"
   },
   "citizen": {
     "dashboard": {
@@ -273,7 +301,18 @@
       "title": "Citizen Alerts & Updates",
       "description": "Stay updated on the status of your reported civic issues and municipal actions.",
       "emptyTitle": "No notifications yet",
-      "emptyDescription": "You are all caught up! Updates regarding your reported issues will appear here."
+      "emptyDescription": "You are all caught up! Updates regarding your reported issues will appear here.",
+      "today": "Today",
+      "earlier": "Earlier",
+      "total": "total",
+      "unread": "unread",
+      "read": "Read",
+      "unreadBadge": "Unread",
+      "loadError": "Unable to load your notifications right now."
+    },
+    "userMenu": {
+      "accountMenu": "User account menu",
+      "signOut": "Sign out"
     }
   }
 }

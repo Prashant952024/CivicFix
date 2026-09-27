@@ -2,12 +2,28 @@ import { createContext, useContext, useEffect, useMemo, useState, type ReactNode
 import enLocale from "./locales/en.json";
 import hiLocale from "./locales/hi.json";
 import mrLocale from "./locales/mr.json";
+import bnLocale from "./locales/bn.json";
+import guLocale from "./locales/gu.json";
+import paLocale from "./locales/pa.json";
+import taLocale from "./locales/ta.json";
+import teLocale from "./locales/te.json";
+import knLocale from "./locales/kn.json";
+import mlLocale from "./locales/ml.json";
+import orLocale from "./locales/or.json";
+import asLocale from "./locales/as.json";
+import urLocale from "./locales/ur.json";
+import saLocale from "./locales/sa.json";
+import neLocale from "./locales/ne.json";
+import kokLocale from "./locales/kok.json";
+import ksLocale from "./locales/ks.json";
+import sdLocale from "./locales/sd.json";
+import maiLocale from "./locales/mai.json";
+import mniLocale from "./locales/mni.json";
 import {
   LANGUAGE_CONFIG,
   SUPPORTED_INDIC_LANGUAGES,
   isRtlLanguage,
   type LanguageCode,
-  type LanguageConfig,
 } from "@/lib/languages";
 
 export type SupportedLanguage = LanguageCode;
@@ -22,11 +38,28 @@ export const SUPPORTED_LANGUAGES: Array<{ code: SupportedLanguage; label: string
 
 const LOCAL_STORAGE_KEY = "civicfix_language";
 
-// Static dictionaries available
+// All 20 static locale dictionaries available synchronously
 const staticLocaleDictionaries: Record<string, Record<string, unknown>> = {
   en: enLocale,
   hi: hiLocale,
   mr: mrLocale,
+  bn: bnLocale,
+  gu: guLocale,
+  pa: paLocale,
+  ta: taLocale,
+  te: teLocale,
+  kn: knLocale,
+  ml: mlLocale,
+  or: orLocale,
+  as: asLocale,
+  ur: urLocale,
+  sa: saLocale,
+  ne: neLocale,
+  kok: kokLocale,
+  ks: ksLocale,
+  sd: sdLocale,
+  mai: maiLocale,
+  mni: mniLocale,
 };
 
 function getNestedValue(obj: unknown, path: string): unknown {
@@ -151,7 +184,5 @@ export function useTranslation() {
   return context;
 }
 
-export function useLanguage() {
-  const { language, setLanguage, languages, direction, isRtl } = useTranslation();
-  return { language, setLanguage, languages, direction, isRtl };
-}
+export const useI18n = useTranslation;
+export const useLanguage = useTranslation;

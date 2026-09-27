@@ -410,7 +410,7 @@ export function CitizenIssuesPage() {
 
           <div>
             <label className="block text-xs font-bold uppercase tracking-wider text-muted-foreground mb-1.5">
-              Priority
+              {t("priorities.all")}
             </label>
             <select
               className="w-full rounded-xl border border-border/80 bg-background/80 px-3.5 py-3 text-sm font-medium text-foreground outline-none"
@@ -427,7 +427,7 @@ export function CitizenIssuesPage() {
 
           <div>
             <label className="block text-xs font-bold uppercase tracking-wider text-muted-foreground mb-1.5">
-              Sort Order
+              {t("citizen.issues.filtersSort")}
             </label>
             <select
               className="w-full rounded-xl border border-border/80 bg-background/80 px-3.5 py-3 text-sm font-medium text-foreground outline-none"
@@ -445,7 +445,7 @@ export function CitizenIssuesPage() {
               onClick={() => setMobileFiltersOpen(false)}
               type="button"
             >
-              Apply
+              {t("common.submit")}
             </Button>
             <Button
               variant="outline"

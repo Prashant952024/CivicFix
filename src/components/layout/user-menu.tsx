@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import { useClerk, useUser } from "@clerk/react";
 import { ChevronDown, LogOut, Shield } from "lucide-react";
 import { getCivicFixRoleLabel, type CivicFixRoleCode } from "@/lib/civicfix";
+import { useTranslation } from "@/lib/i18n";
 
 type UserMenuProps = {
   roleCode: CivicFixRoleCode | null;
@@ -24,6 +25,7 @@ function getInitials(name: string | null | undefined) {
 }
 
 export function UserMenu({ roleCode }: UserMenuProps) {
+  const { t } = useTranslation();
   const { user } = useUser();
   const clerk = useClerk();
   const [isOpen, setIsOpen] = useState(false);
@@ -65,7 +67,7 @@ export function UserMenu({ roleCode }: UserMenuProps) {
         type="button"
         aria-haspopup="menu"
         aria-expanded={isOpen}
-        aria-label="User account menu"
+        aria-label={t("citizen.userMenu.accountMenu")}
         className={[
           "flex h-10 sm:h-11 items-center gap-2 sm:gap-3 rounded-full border border-border/70 bg-surface/90 px-2 sm:px-3 text-sm shadow-sm shadow-emerald-950/5 transition hover:bg-surface-elevated focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background cursor-pointer",
         ].join(" ")}
@@ -123,7 +125,7 @@ export function UserMenu({ roleCode }: UserMenuProps) {
               }}
             >
               <LogOut className="h-4 w-4 shrink-0" aria-hidden="true" />
-              Sign out
+              {t("nav.signOut")}
             </button>
           </div>
         </div>

@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
+    "validate-i18n": "node scripts/validate-locales.cjs",
     "lint": "eslint .",
     "preview": "vite preview"
   },

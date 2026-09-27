@@ -6,6 +6,8 @@ import { UserMenu } from "@/components/layout/user-menu";
 import { LanguageSelector } from "@/components/citizen/language-selector";
 import { getCivicFixRoleLabel, type CivicFixRoleCode } from "@/lib/civicfix";
 
+import { useTranslation } from "@/lib/i18n";
+
 type AppNavbarProps = {
   title: string;
   subtitle: string;
@@ -14,6 +16,7 @@ type AppNavbarProps = {
 };
 
 export function AppNavbar({ title, subtitle, roleCode, onMenuClick }: AppNavbarProps) {
+  const { t } = useTranslation();
   const notificationPath = roleCode === "CITIZEN" 
     ? "/app/citizen/notifications" 
     : roleCode === "MUNICIPAL_OFFICER" 
@@ -42,7 +45,7 @@ export function AppNavbar({ title, subtitle, roleCode, onMenuClick }: AppNavbarP
           <div className="min-w-0 flex-1">
             <div className="hidden xs:flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.22em] text-muted-foreground">
               <Sparkles className="h-3 w-3 text-[#0f766e] shrink-0" aria-hidden="true" />
-              <span>CivicFix workspace</span>
+              <span>{t("common.workspace")}</span>
             </div>
             <div className="flex items-center gap-2 min-w-0">
               <h1 className="truncate text-base font-bold text-foreground sm:text-lg lg:text-xl">{title}</h1>
@@ -56,7 +59,7 @@ export function AppNavbar({ title, subtitle, roleCode, onMenuClick }: AppNavbarP
 
         <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
           <LanguageSelector />
-          <Button asChild aria-label="Notifications" size="icon" variant="ghost" className="h-10 w-10 text-muted-foreground hover:text-foreground">
+          <Button asChild aria-label={t("nav.notifications")} size="icon" variant="ghost" className="h-10 w-10 text-muted-foreground hover:text-foreground">
             <Link to={notificationPath}>
               <Bell className="h-4 w-4" aria-hidden="true" />
             </Link>

@@ -95,13 +95,13 @@ type TimelineItem = {
   tone: "default" | "success" | "warning" | "danger" | "info";
 };
 
-function formatStatusPair(history: IssueHistoryRow) {
-  const oldStatus = history.old_status ? getCitizenIssueStatusLabel(history.old_status) : "Created";
-  const newStatus = getCitizenIssueStatusLabel(history.new_status);
+function formatStatusPair(history: IssueHistoryRow, t: (key: string) => string) {
+  const oldStatus = history.old_status ? getCitizenIssueStatusLabel(history.old_status, t) : t("statuses.SUBMITTED");
+  const newStatus = getCitizenIssueStatusLabel(history.new_status, t);
   return `${oldStatus} → ${newStatus}`;
 }
 
-function buildTimeline(issue: IssueRow): TimelineItem[] {
+function buildTimeline(issue: IssueRow, t: (key: string, params?: Record<string, string | number>) => string): TimelineItem[] {
   const historyItems = [...(issue.issue_status_history ?? [])].sort(
     (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime(),
   );
@@ -110,8 +110,8 @@ function buildTimeline(issue: IssueRow): TimelineItem[] {
     return [
       {
         id: "submitted",
-        title: "Report Submitted",
-        description: `Current status: ${getCitizenIssueStatusLabel(issue.status)}`,
+        title: t("statuses.SUBMITTED"),
+        description: t("statuses.SUBMITTED"),
         timestamp: issue.created_at,
         tone: "default",
       },
@@ -121,15 +121,15 @@ function buildTimeline(issue: IssueRow): TimelineItem[] {
   return [
     {
       id: "submitted",
-      title: "Report Submitted",
-      description: "Citizen report created in CivicFix registry.",
+      title: t("statuses.SUBMITTED"),
+      description: t("citizen.dashboard.impact.registry"),
       timestamp: issue.created_at,
       tone: "default",
     },
     ...historyItems.map((history) => ({
       id: history.id,
-      title: getCitizenIssueStatusLabel(history.new_status),
-      description: history.notes || formatStatusPair(history),
+      title: getCitizenIssueStatusLabel(history.new_status, t),
+      description: history.notes || formatStatusPair(history, t),
       timestamp: history.created_at,
       tone: getCitizenIssueStatusTone(history.new_status),
     })),
@@ -301,9 +301,9 @@ export function CitizenIssueDetailsPage() {
   const resolutionImage = issue ? pickCitizenIssueImageByType(issue, "RESOLUTION_EVIDENCE") : null;
   const locationText = issue ? issue.address_text?.trim() || issue.location_text?.trim() || null : null;
   const coordinates = issue ? formatCitizenIssueCoordinates(issue.latitude, issue.longitude) : null;
-  const timelineItems = issue ? buildTimeline(issue) : [];
+  const timelineItems = issue ? buildTimeline(issue, t) : [];
   const statusTone = issue ? getCitizenIssueStatusTone(issue.status) : "default";
-  const statusLabel = issue ? getCitizenIssueStatusLabel(issue.status) : "";
+  const statusLabel = issue ? getCitizenIssueStatusLabel(issue.status, t) : "";
   const resolvedLike = issue ? isCitizenIssueResolvedLike(issue.status) : false;
   const shortRef = issue?.id.slice(0, 8).toUpperCase() ?? "";
 

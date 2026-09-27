@@ -1,0 +1,648 @@
+const fs = require('fs');
+const path = require('path');
+
+const localesDir = path.join(__dirname, '..', 'src', 'lib', 'i18n', 'locales');
+const enPath = path.join(localesDir, 'en.json');
+const en = JSON.parse(fs.readFileSync(enPath, 'utf8'));
+
+// Dictionaries for all 19 Indic languages
+const translations = {
+  hi: {
+    common: {
+      loading: "लोड हो रहा है...",
+      error: "त्रुटि",
+      tryAgain: "पुनः प्रयास करें",
+      back: "वापस",
+      cancel: "रद्द करें",
+      submit: "जमा करें",
+      save: "सहेजें",
+      search: "खोजें",
+      reset: "रीसेट करें",
+      optional: "वैकल्पिक",
+      required: "अनिवार्य",
+      all: "सभी",
+      viewDetails: "विवरण देखें",
+      backToDashboard: "डैशबोर्ड पर वापस जाएं",
+      workspace: "सिविकफिक्स कार्यक्षेत्र",
+      close: "बंद करें",
+      activeRole: "सक्रिय भूमिका",
+      workflowPipeline: "कार्यप्रवाह पाइपलाइन"
+    },
+    nav: {
+      dashboard: "डैशबोर्ड",
+      reportIssue: "समस्या दर्ज करें",
+      myIssues: "मेरी शिकायतें",
+      notifications: "सूचनाएं",
+      signOut: "साइन आउट",
+      activeRoleDesc: "{{role}} संचालन के लिए सिविकफिक्स कार्यक्षेत्र।"
+    },
+    languages: {
+      en: "English",
+      hi: "हिन्दी",
+      mr: "मराठी",
+      bn: "বাংলা",
+      gu: "ગુજરાતી",
+      pa: "ਪੰਜਾਬੀ",
+      ta: "தமிழ்",
+      te: "తెలుగు",
+      kn: "ಕನ್ನಡ",
+      ml: "മലയാളം",
+      or: "ଓଡ଼ିଆ",
+      as: "অসমীয়া",
+      ur: "اردو",
+      sa: "संस्कृतम्",
+      ne: "नेपाली",
+      kok: "कोंकणी",
+      ks: "कॉशुर / کٲشُر",
+      sd: "سنڌي / सिन्धी",
+      mai: "मैथिली",
+      mni: "মৈতৈলোন্",
+      selectLanguage: "भाषा",
+      more: "अधिक (20+)",
+      searchLanguage: "भाषा खोजें..."
+    },
+    categories: {
+      Pothole: "सड़क का गड्ढा",
+      Garbage: "कचरा",
+      Streetlight: "स्ट्रीटलाइट",
+      Water Supply: "जल आपूर्ति",
+      Drainage: "जल निकासी",
+      Road Damage: "सड़क क्षति",
+      "Traffic/Safety": "यातायात / सुरक्षा",
+      Other: "अन्य"
+    },
+    statuses: {
+      SUBMITTED: "दर्ज की गई",
+      AI_ANALYZED: "एआई विश्लेषित",
+      AWAITING_ADMIN_CLASSIFICATION: "वर्गीकरण प्रतीक्षित",
+      CLASSIFIED_SIMPLE: "सरल वर्गीकृत",
+      CLASSIFIED_COMPLEX: "जटिल चुनौती",
+      UNDER_REVIEW: "समीक्षाधीन",
+      TRIAGED: "ट्राइएज्ड",
+      ASSIGNED: "आवंटित",
+      IN_PROGRESS: "प्रगति पर",
+      PARTIALLY_COMPLETED: "आंशिक पूर्ण",
+      RESOLVED: "समाधान हुआ",
+      CITIZEN_VERIFIED: "नागरिक सत्यापित",
+      VERIFIED: "सत्यापित",
+      REOPENED: "पुनः खोली गई",
+      REJECTED: "अस्वीकृत",
+      ESCALATED_TO_INNOVATION: "नवाचार में प्रेषित"
+    },
+    priorities: {
+      LOW: "निम्न",
+      MEDIUM: "मध्यम",
+      HIGH: "उच्च",
+      URGENT: "अति आवश्यक",
+      all: "सभी प्राथमिकताएं"
+    },
+    departments: {
+      "Roads & Infrastructure": "सड़क एवं अवसंरचना",
+      "Sanitation & Waste Management": "स्वच्छता एवं अपशिष्ट प्रबंधन",
+      "Electricity & Lighting": "विद्युत एवं प्रकाश व्यवस्था",
+      "Water Supply & Sewerage": "जल आपूर्ति एवं सीवरेज",
+      "Public Safety & Traffic": "सार्वजनिक सुरक्षा एवं यातायात",
+      "Health & Environment": "स्वास्थ्य एवं पर्यावरण",
+      "General Administration": "सामान्य प्रशासन"
+    },
+    citizen: {
+      dashboard: {
+        tag: "नागरिक सेवा केंद्र",
+        welcome: "पुनः स्वागत है, {{name}}",
+        subtitle: "अपने क्षेत्र की नागरिक समस्याओं की रिपोर्ट करें, नगर पालिका की प्रगति ट्रैक करें और जमीनी समाधान का सत्यापन करें।",
+        reportButton: "समस्या दर्ज करें",
+        viewReportsButton: "मेरी रिपोर्ट देखें",
+        stats: {
+          total: "कुल रिपोर्ट",
+          totalDesc: "दर्ज की गई सभी नागरिक शिकायतें",
+          pending: "प्रतीक्षारत ट्राइएज",
+          pendingDesc: "नगर निगम समीक्षा की प्रतीक्षा में",
+          inProgress: "प्रगति पर",
+          inProgressDesc: "जमीनी स्तर पर कार्य जारी",
+          resolved: "समाधान हुआ",
+          resolvedDesc: "पूर्ण एवं सत्यापित"
+        },
+        verificationNotice: {
+          single: "1 सुलझी हुई समस्या पर आपके जमीनी सत्यापन की आवश्यकता है",
+          multiple: "{{count}} सुलझी हुई समस्याओं पर आपके जमीनी सत्यापन की आवश्यकता है",
+          description: "नगर पालिका का कार्य पूर्ण हो चुका है। कृपया पुष्टि करें कि क्या समस्या हल हो गई है।",
+          action: "अभी समाधान सत्यापित करें"
+        },
+        recentActivity: "हाल की गतिविधि",
+        latestReports: "नवीनतम नागरिक रिपोर्ट",
+        viewAll: "सभी देखें ({{count}})",
+        impact: {
+          tag: "सामुदायिक प्रभाव",
+          title: "नगर निगम प्रतिक्रिया तंत्र को सशक्त बनाना",
+          description: "आपकी हर रिपोर्ट नागरिक विभागों की जवाबदेही तय करती है और शहर को स्वच्छ व सुरक्षित बनाती है।",
+          totalImpact: "आपका कुल प्रभाव",
+          reports: "रिपोर्ट",
+          registry: "नगर पंजी में दर्ज",
+          resolutionRate: "समाधान दर",
+          resolvedCount: "{{total}} में से {{resolved}} हल हुईं"
+        },
+        empty: {
+          title: "अभी तक कोई रिपोर्ट दर्ज नहीं",
+          description: "आपने अभी तक कोई समस्या दर्ज नहीं की है। अपने क्षेत्र की किसी समस्या की फोटो लें और पहली रिपोर्ट दर्ज करें।",
+          primaryAction: "अभी समस्या दर्ज करें",
+          secondaryAction: "समस्या सूची देखें"
+        },
+        loadError: "आपकी रिपोर्ट लोड करने में असमर्थ।"
+      },
+      report: {
+        tag: "नागरिक रिपोर्टिंग",
+        title: "नागरिक समस्या दर्ज करें",
+        description: "नागरिक बुनियादी ढांचे, स्वच्छता या सुरक्षा से संबंधित शिकायत दर्ज करें। आपकी रिपोर्ट सीधे संबंधित अधिकारियों को भेजी जाएगी।",
+        steps: {
+          step1: "1",
+          step1Title: "समस्या का विवरण दें",
+          step1Subtitle: "आप किस नागरिक समस्या की रिपोर्ट कर रहे हैं?",
+          step2: "2",
+          step2Title: "स्थान निर्दिष्ट करें",
+          step2Subtitle: "समस्या कहाँ स्थित है?",
+          step3: "3",
+          step3Title: "फोटो संलग्न करें",
+          step3Subtitle: "समस्या का फोटोग्राफिक प्रमाण प्रदान करें",
+          step4: "4",
+          step4Title: "जमा करने के लिए तैयार?",
+          step4Subtitle: "कृपया जमा करने से पहले ऊपर दिए गए विवरण की जांच करें।"
+        },
+        fields: {
+          titleLabel: "समस्या का शीर्षक",
+          titlePlaceholder: "जैसे: टूटी स्ट्रीटलाइट, कचरे का ढेर, सड़क पर गहरा गड्ढा",
+          categoryLabel: "श्रेणी",
+          categorySelect: "एक श्रेणी चुनें",
+          descriptionLabel: "विवरण",
+          descriptionPlaceholder: "समस्या का पूरा विवरण दें: सटीक स्थान, सुरक्षा जोखिम, यह कितने समय से है...",
+          locationLabel: "स्थान एवं पहचान चिह्न",
+          locationPlaceholder: "जैसे: मेट्रो पिलर 142 के पास, जुबली हिल्स रोड नंबर 36",
+          gpsTitle: "जीपीएस भू-स्थान",
+          gpsDescription: "निर्देशांक संलग्न करने से कर्मचारियों को सटीक स्थान तेजी से खोजने में मदद मिलती है।",
+          gpsButton: "मेरे वर्तमान स्थान का उपयोग करें",
+          gpsDetecting: "जीपीएस खोजा जा रहा है...",
+          gpsCaptured: "निर्देशांक प्राप्त: {{lat}}, {{lng}}",
+          gpsAccuracy: " (±{{accuracy}}मी)",
+          photoUploadTitle: "फोटो चुनने या खींचने के लिए क्लिक करें",
+          photoUploadDesc: "JPG, PNG, HEIC, WebP समर्थित। अपलोड से पहले छवियां आपके ब्राउज़र में स्वतः कंप्रेस हो जाती हैं।",
+          selectFile: "फ़ाइल चुनें",
+          processingFile: "प्रक्रिया जारी है...",
+          removePhoto: "हटाएं"
+        },
+        voice: {
+          speakButton: "विवरण बोलें",
+          listening: "सुन रहे हैं... अब बोलें",
+          stop: "रोकें",
+          transcribing: "एआई द्वारा प्रतिलेखन जारी...",
+          detectedLanguage: "{{language}} में प्रतिलेखित",
+          replaceOrAppend: "पाठ प्रतिलेखित हो गया। नीचे समीक्षा या संपादन करें।",
+          micPermissionDenied: "माइक्रोफ़ोन अनुमति अस्वीकृत। कृपया ब्राउज़र सेटिंग्स में माइक्रोफ़ोन की अनुमति दें।",
+          micNotSupported: "इस ब्राउज़र में ध्वनि रिकॉर्डिंग समर्थित नहीं है।",
+          transcriptionFailed: "ध्वनि प्रतिलेखन विफल रहा। कृपया पुन: प्रयास करें या मैन्युअल रूप से लिखें।",
+          reviewTitle: "ध्वनि प्रतिलेखन समीक्षा",
+          originalTextLabel: "मूल प्रतिलेखित पाठ",
+          englishTranslationLabel: "मानक अंग्रेजी अनुवाद",
+          useTranscription: "प्रतिलेखन का उपयोग करें",
+          recordAgain: "पुनः रिकॉर्ड करें",
+          discard: "खारिज करें"
+        },
+        stages: {
+          idle: "जमा करने के लिए तैयार",
+          saving: "समस्या रिकॉर्ड बनाई जा रही है...",
+          uploading: "कंप्रेस की गई फोटो अपलोड हो रही है...",
+          finalizing: "नगर निगम रिपोर्ट अंतिम रूप दी जा रही है..."
+        },
+        submitButton: "नागरिक रिपोर्ट जमा करें",
+        successModal: {
+          tag: "रिपोर्ट सफलतापूर्वक दर्ज हुई",
+          title: "आपकी नागरिक रिपोर्ट दर्ज हो गई है!",
+          refText: "सिविकफिक्स ने आपकी रिपोर्ट दर्ज कर ली है और संदर्भ संख्या आवंटित की है",
+          summary: "रिपोर्ट सारांश",
+          titleField: "शीर्षक",
+          categoryField: "श्रेणी",
+          statusField: "स्थिति",
+          submittedAtField: "दर्ज करने का समय",
+          viewIssue: "मेरी समस्या अभी देखें",
+          backToDashboard: "डैशबोर्ड पर वापस जाएं"
+        },
+        partialErrorModal: {
+          tag: "सूचना के साथ रिपोर्ट सहेजी गई",
+          title: "आपकी रिपोर्ट बनाई गई",
+          description: "समस्या डेटाबेस में दर्ज हो गई है, लेकिन फोटो अपलोड पूरा नहीं हो सका।",
+          viewIssues: "मेरी शिकायतें देखें",
+          backToDashboard: "डैशबोर्ड पर वापस जाएं"
+        },
+        validation: {
+          title: "कृपया समस्या का शीर्षक प्रदान करें।",
+          description: "कृपया समस्या का विवरण प्रदान करें।",
+          category: "कृपया समस्या की श्रेणी चुनें।",
+          location: "कृपया स्थान या पहचान चिह्न दर्ज करें।",
+          image: "कृपया एक JPG, PNG, HEIC या WebP छवि चुनें।"
+        }
+      },
+      issues: {
+        tag: "शिकायत पंजी",
+        title: "मेरी नागरिक शिकायतें",
+        description: "अपने शहर में दर्ज की गई हर नागरिक समस्या को खोजें, फ़िल्टर करें और ट्रैक करें।",
+        reportButton: "समस्या दर्ज करें",
+        searchPlaceholder: "शीर्षक, स्थान, श्रेणी, विवरण द्वारा खोजें...",
+        sortNewest: "नवीनतम पहले",
+        sortOldest: "पुरातन पहले",
+        filtersSort: "फ़िल्टर और क्रमबद्धता",
+        resetFilters: "फ़िल्टर रीसेट करें",
+        showingCount: "{{total}} में से {{filtered}} रिपोर्ट दिखाई जा रही हैं",
+        sortedBy: "क्रमबद्ध: {{order}}",
+        empty: {
+          noReports": "कोई रिपोर्ट नहीं मिली",
+          noReportsDesc": "आपने अभी तक कोई शिकायत दर्ज नहीं की है। अपनी पहली सिविकफिक्स रिपोर्ट बनाकर शुरुआत करें।",
+          noMatches": "कोई मेल खाती समस्या नहीं",
+          noMatchesDesc": "वर्तमान खोज या फ़िल्टर से कोई समस्या मेल नहीं खाती। फ़िल्टर रीसेट करके देखें।"
+        },
+        filterLabels: {
+          all: "सभी",
+          pending: "लंबित",
+          verified: "सत्यापित",
+          inProgress: "प्रगति पर",
+          resolved: "समाधान हुआ",
+          reopened: "पुनः खोली गई",
+          rejected: "अस्वीकृत"
+        }
+      },
+      issueDetails: {
+        backToReports: "मेरी रिपोर्ट पर वापस जाएं",
+        reportedOn: "{{date}} को दर्ज की गई",
+        reference: "संदर्भ #{{id}}",
+        descriptionSection: "समस्या का विवरण",
+        locationSection: "स्थान की जानकारी",
+        landmark: "पहचान चिह्न / पता",
+        coordinates: "जीपीएस निर्देशांक",
+        openMap: "मानचित्र में खोलें",
+        photoSection: "फोटोग्राफिक साक्ष्य",
+        initialPhoto: "नागरिक द्वारा प्रस्तुत फोटो",
+        resolutionPhoto: "समाधान साक्ष्य फोटो",
+        timelineSection: "प्रगति एवं स्थिति का इतिहास",
+        deptAssignment: "आवंटित विभाग",
+        originalLanguage: "मूल भाषा",
+        inputMethod: "प्रस्तुत करने का माध्यम",
+        voiceInput: "ध्वनि रिकॉर्डिंग",
+        textInput: "लिखित पाठ",
+        viewEnglish: "अंग्रेजी अनुवाद देखें",
+        viewOriginal: "मूल देखें ({{lang}})",
+        canonicalNotice: "यह रिपोर्ट {{lang}} में दर्ज की गई थी और नगर निगम प्रसंस्करण के लिए अंग्रेजी में अनूदित की गई।",
+        verificationCard: {
+          title: "जमीनी सत्यापन आवश्यक",
+          description: "नगर पालिका दल ने इस समस्या को हल चिह्नित किया है। क्या समस्या का जमीनी स्तर पर समाधान हो गया है?",
+          yesButton: "हाँ, समस्या हल हो गई है",
+          noButton: "नहीं, अभी भी समस्या है (पुनः खोलें)",
+          verifiedYes: "आपने इस समस्या के समाधान का सत्यापन किया। धन्यवाद!",
+          verifiedNo: "आपने बताया कि समस्या हल नहीं हुई है। इसे पुनः खोल दिया गया है।"
+        },
+        reopenModal: {
+          title: "समस्या पुनः खोलें",
+          description: "कृपया कारण बताएं ताकि फील्ड कर्मचारी सुधारात्मक कार्रवाई कर सकें।",
+          feedbackLabel: "पुनः खोलने का कारण",
+          feedbackPlaceholder: "जैसे: लाइट ठीक की गई थी पर अगली रात फिर बंद हो गई...",
+          submitReopen: "समस्या पुनः खोलें",
+          cancel: "रद्द करें"
+        }
+      },
+      notifications: {
+        tag: "सूचना केंद्र",
+        title: "नागरिक अलर्ट एवं अपडेट",
+        description: "अपनी दर्ज की गई समस्याओं की स्थिति और नगरपालिका कार्रवाई से अपडेट रहें।",
+        emptyTitle: "अभी कोई सूचना नहीं है",
+        emptyDescription: "आप पूरी तरह से अपडेट हैं! आपकी शिकायतों के संबंध में अपडेट यहाँ दिखाई देंगे।",
+        today: "आज",
+        earlier: "पहले",
+        total: "कुल",
+        unread: "अपठित",
+        read: "पढ़ी गई",
+        unreadBadge: "अपठित",
+        loadError: "आपकी सूचनाएं लोड करने में असमर्थ।"
+      },
+      userMenu: {
+        accountMenu: "उपयोगकर्ता खाता मेनू",
+        signOut: "साइन आउट"
+      }
+    }
+  },
+  mr: {
+    common: {
+      loading: "लोड होत आहे...",
+      error: "त्रुटी",
+      tryAgain: "पुन्हा प्रयत्न करा",
+      back: "मागे",
+      cancel: "रद्द करा",
+      submit: "सादर करा",
+      save: "जतन करा",
+      search: "शोधा",
+      reset: "रीसेट करा",
+      optional: "ऐच्छिक",
+      required: "आवश्यक",
+      all: "सर्व",
+      viewDetails: "तपशील पहा",
+      backToDashboard: "डॅशबोर्डवर परत जा",
+      workspace: "सिव्हिकफिक्स कार्यक्षेत्र",
+      close: "बंद करा",
+      activeRole: "सक्रिय भूमिका",
+      workflowPipeline: "कार्यप्रवाह पाइपलाइन"
+    },
+    nav: {
+      dashboard: "डॅशबोर्ड",
+      reportIssue: "समस्या नोंदवा",
+      myIssues: "माझ्या तक्रारी",
+      notifications: "सूचना",
+      signOut: "साइन आउट",
+      activeRoleDesc: "{{role}} कामकाजासाठी सिव्हिकफिक्स कार्यक्षेत्र."
+    },
+    languages: {
+      en: "English",
+      hi: "हिन्दी",
+      mr: "मराठी",
+      bn: "বাংলা",
+      gu: "ગુજરાતી",
+      pa: "ਪੰਜਾਬੀ",
+      ta: "தமிழ்",
+      te: "తెలుగు",
+      kn: "ಕನ್ನಡ",
+      ml: "മലയാളം",
+      or: "ଓଡ଼ିଆ",
+      as: "অসমীয়া",
+      ur: "اردو",
+      sa: "संस्कृतम्",
+      ne: "नेपाली",
+      kok: "कोंकणी",
+      ks: "कॉशुर / کٲشُر",
+      sd: "سنڌي / सिन्धी",
+      mai: "मैथिली",
+      mni: "মৈতৈলোন্",
+      selectLanguage: "भाषा",
+      more: "अधिक (20+)",
+      searchLanguage: "भाषा शोधा..."
+    },
+    categories: {
+      Pothole: "रस्त्यावरील खड्डा",
+      Garbage: "कचरा",
+      Streetlight: "पथदिवा",
+      Water Supply: "पाणी पुरवठा",
+      Drainage: "सांडपाणी निचरा",
+      Road Damage: "रस्त्याचे नुकसान",
+      "Traffic/Safety": "वाहतूक / सुरक्षा",
+      Other: "इतर"
+    },
+    statuses: {
+      SUBMITTED: "नोंदवली",
+      AI_ANALYZED: "एआय विश्लेषित",
+      AWAITING_ADMIN_CLASSIFICATION: "वर्गीकरण प्रलंबित",
+      CLASSIFIED_SIMPLE: "साधे वर्गीकृत",
+      CLASSIFIED_COMPLEX: "गुंतागुंतीचे आव्हान",
+      UNDER_REVIEW: "पुनरावलोकनाधीन",
+      TRIAGED: "ट्रायज्ड",
+      ASSIGNED: "नेमून दिले",
+      IN_PROGRESS: "प्रगतीपथावर",
+      PARTIALLY_COMPLETED: "अंशतः पूर्ण",
+      RESOLVED: "निवारण झाले",
+      CITIZEN_VERIFIED: "नागरिक पडताळणीकृत",
+      VERIFIED: "पडताळणीकृत",
+      REOPENED: "पुन्हा उघडली",
+      REJECTED: "नाकारली",
+      ESCALATED_TO_INNOVATION: "संशोधनासाठी पाठवली"
+    },
+    priorities: {
+      LOW: "कमी",
+      MEDIUM: "मध्यम",
+      HIGH: "उच्च",
+      URGENT: "तातडीची",
+      all: "सर्व प्राधान्यक्रम"
+    },
+    departments: {
+      "Roads & Infrastructure": "रस्ते व पायाभूत सुविधा",
+      "Sanitation & Waste Management": "स्वच्छता व कचरा व्यवस्थापन",
+      "Electricity & Lighting": "विद्युत व दिवाबत्ती",
+      "Water Supply & Sewerage": "पाणीपुरवठा व मलनिस्सारण",
+      "Public Safety & Traffic": "सार्वजनिक सुरक्षा व वाहतूक",
+      "Health & Environment": "आरोग्य व पर्यावरण",
+      "General Administration": "सामान्य प्रशासन"
+    },
+    citizen: {
+      dashboard: {
+        tag: "नागरिक कृती केंद्र",
+        welcome: "पुन्हा स्वागत आहे, {{name}}",
+        subtitle: "आपल्या परिसरातील नागरी समस्यांची तक्रार करा, महापालिकेच्या कामाचा मागोवा घ्या आणि प्रत्यक्ष कामाची खात्री करा.",
+        reportButton: "समस्या नोंदवा",
+        viewReportsButton: "माझ्या तक्रारी पहा",
+        stats: {
+          total: "एकूण तक्रारी",
+          totalDesc: "नोंदवलेल्या सर्व नागरी समस्या",
+          pending: "प्रलंबित पुनरावलोकन",
+          pendingDesc: "पालिकेच्या छाननीच्या प्रतीक्षेत",
+          inProgress: "प्रगतीपथावर",
+          inProgressDesc: "प्रत्यक्ष काम सुरू आहे",
+          resolved: "निवारण झाले",
+          resolvedDesc: "पूर्ण व पडताळणीकृत"
+        },
+        verificationNotice: {
+          single: "1 सोडवलेल्या समस्येची प्रत्यक्ष पडताळणी करणे आवश्यक आहे",
+          multiple: "{{count}} सोडवलेल्या समस्यांची प्रत्यक्ष पडताळणी करणे आवश्यक आहे",
+          description: "पालिकेचे काम पूर्ण झाले आहे. समस्या खरोखर सुटली आहे का याची कृपया खात्री करा.",
+          action: "आता पडताळणी करा"
+        },
+        recentActivity: "अलीकडील घडामोडी",
+        latestReports: "ताजी नागरी प्रकरणे",
+        viewAll: "सर्व पहा ({{count}})",
+        impact: {
+          tag: "सामुदायिक प्रभाव",
+          title: "नागरी प्रतिसाद यंत्रणा अधिक सक्षम करणे",
+          description: "आपली प्रत्येक तक्रार पालिकेला जबाबदार बनवते आणि आपले शहर स्वच्छ व सुरक्षित ठेवण्यास मदत करते.",
+          totalImpact: "आपला एकूण प्रभाव",
+          reports: "तक्रारी",
+          registry: "शहर नोंदवहीत समाविष्ट",
+          resolutionRate: "निवारण दर",
+          resolvedCount: "{{total}} पैकी {{resolved}} निवारण"
+        },
+        empty: {
+          title: "अद्याप कोणतीही तक्रार नाही",
+          description: "आपण अद्याप कोणतीही समस्या नोंदवलेली नाही. परिसरातील समस्येचा फोटो काढून पहिली तक्रार दाखल करा.",
+          primaryAction: "आता समस्या नोंदवा",
+          secondaryAction: "समस्यांची यादी पहा"
+        },
+        loadError: "आपल्या तक्रारी लोड करता आल्या नाहीत."
+      },
+      report: {
+        tag: "नागरिक नोंदणी",
+        title: "नागरी समस्या नोंदवा",
+        description: "पायाभूत सुविधा, स्वच्छता किंवा सुरक्षेबाबत तक्रार नोंदवा. आपली तक्रार थेट महापालिका अधिकाऱ्यांकडे पाठवली जाईल.",
+        steps: {
+          step1: "1",
+          step1Title: "समस्येचे वर्णन करा",
+          step1Subtitle: "आपण कोणत्या नागरी समस्येची तक्रार करत आहात?",
+          step2: "2",
+          step2Title: "ठिकाण निश्चित करा",
+          step2Subtitle: "समस्या नक्की कुठे आहे?",
+          step3: "3",
+          step3Title: "फोटो जोडा",
+          step3Subtitle: "समस्येचा प्रत्यक्ष फोटो पुरावा द्या",
+          step4: "4",
+          step4Title: "सादर करण्यास तयार?",
+          step4Subtitle: "कृपया सादर करण्यापूर्वी वरील सर्व तपशील तपासून घ्या."
+        },
+        fields: {
+          titleLabel: "समस्येचे नाव / शीर्षक",
+          titlePlaceholder: "उदा. बंद पडलेला पथदिवा, कचऱ्याचा ढीग, मोठा खड्डा",
+          categoryLabel: "प्रवर्ग",
+          categorySelect: "प्रवर्ग निवडा",
+          descriptionLabel: "तपशीलवार वर्णन",
+          descriptionPlaceholder: "समस्येचे सविस्तर वर्णन द्या: नक्की जागा, संभाव्य धोका, किती दिवसांपासून आहे...",
+          locationLabel: "ठिकाण व लँडमार्क",
+          locationPlaceholder: "उदा. मेट्रो पिलर 142 जवळ, जुबली हिल्स रोड क्र. 36",
+          gpsTitle: "जीपीएस स्थान",
+          gpsDescription: "अक्षांश-रेखांश जोडल्याने कामगारांना जागा त्वरित शोधण्यास मदत होते.",
+          gpsButton: "माझे सध्याचे स्थान वापरा",
+          gpsDetecting: "जीपीएस शोधत आहे...",
+          gpsCaptured: "स्थान निश्चित: {{lat}}, {{lng}}",
+          gpsAccuracy: " (±{{accuracy}}मी)",
+          photoUploadTitle: "फोटो निवडण्यासाठी किंवा काढण्यासाठी क्लिक करा",
+          photoUploadDesc: "JPG, PNG, HEIC, WebP समर्थित. अपलोड करण्यापूर्वी फोटो आपोआप कॉम्प्रेस केले जातात.",
+          selectFile: "फाइल निवडा",
+          processingFile: "प्रक्रिया सुरू आहे...",
+          removePhoto: "काढून टाका"
+        },
+        voice: {
+          speakButton: "वर्णन बोला",
+          listening: "ऐकत आहे... आता बोला",
+          stop: "थांबवा",
+          transcribing: "एआय द्वारे मजकूर तयार होत आहे...",
+          detectedLanguage: "{{language}} मध्ये ओळखले",
+          replaceOrAppend: "मजकूर तयार झाला आहे. खाली तपासून पहा किंवा दुरुस्त करा.",
+          micPermissionDenied: "मायक्रोफोन परवानगी नाकारली गेली. कृपया ब्राउझर सेटिंग्जमध्ये मायक्रोफोन सुरू करा.",
+          micNotSupported: "या ब्राउझरमध्ये व्हॉइस रेकॉर्डिंग उपलब्ध नाही.",
+          transcriptionFailed: "व्हॉइस रेकॉर्डिंग ओळखता आले नाही. कृपया पुन्हा प्रयत्न करा किंवा टाईप करा.",
+          reviewTitle: "व्हॉइस मजकूर तपासणी",
+          originalTextLabel: "मूळ बोललेला मजकूर",
+          englishTranslationLabel: "प्रमाणित इंग्रजी भाषांतर",
+          useTranscription: "हा मजकूर वापरा",
+          recordAgain: "पुन्हा रेकॉर्ड करा",
+          discard: "रद्द करा"
+        },
+        stages: {
+          idle: "सादर करण्यास तयार",
+          saving: "समस्या नोंदवत आहे...",
+          uploading: "फोटो अपलोड होत आहे...",
+          finalizing: "तक्रार अंतिम करत आहे..."
+        },
+        submitButton: "नागरी तक्रार दाखल करा",
+        successModal: {
+          tag: "तक्रार यशस्वीरित्या नोंदवली",
+          title: "आपली नागरी तक्रार दाखल झाली आहे!",
+          refText: "सिव्हिकफिक्सने आपली तक्रार नोंदवून घेतली असून संदर्भ क्रमांक दिला आहे",
+          summary: "तक्रार सारांश",
+          titleField: "शीर्षक",
+          categoryField: "प्रवर्ग",
+          statusField: "स्थिती",
+          submittedAtField: "दाखल केल्याची वेळ",
+          viewIssue: "माझी तक्रार पहा",
+          backToDashboard: "डॅशबोर्डवर परत जा"
+        },
+        partialErrorModal: {
+          tag: "सूचनेसह तक्रार जतन केली",
+          title: "आपली तक्रार तयार झाली",
+          description: "तक्रार डेटाबेसमध्ये नोंदवली गेली आहे, परंतु फोटो अपलोड पूर्ण होऊ शकला नाही.",
+          viewIssues: "माझ्या तक्रारी पहा",
+          backToDashboard: "डॅशबोर्डवर परत जा"
+        },
+        validation: {
+          title: "कृपया समस्येचे शीर्षक लिहा.",
+          description: "कृपया समस्येचे वर्णन लिहा.",
+          category: "कृपया योग्य प्रवर्ग निवडा.",
+          location: "कृपया ठिकाण किंवा लँडमार्क लिहा.",
+          image: "कृपया JPG, PNG, HEIC किंवा WebP फोटो निवडा."
+        }
+      },
+      issues: {
+        tag: "तक्रार नोंदवही",
+        title: "माझ्या नागरी तक्रारी",
+        description: "आपल्या शहरात नोंदवलेली प्रत्येक समस्या शोधा, फिल्टर करा आणि तिच्या प्रगतीवर लक्ष ठेवा.",
+        reportButton: "समस्या नोंदवा",
+        searchPlaceholder: "शीर्षक, ठिकाण, प्रवर्ग, वर्णनानुसार शोधा...",
+        sortNewest: "नवीनतम प्रथम",
+        sortOldest: "जुने प्रथम",
+        filtersSort: "फिल्टर आणि क्रमवारी",
+        resetFilters: "फिल्टर रीसेट करा",
+        showingCount: "{{total}} पैकी {{filtered}} तक्रारी दाखवत आहे",
+        sortedBy: "क्रमवारी: {{order}}",
+        empty: {
+          noReports: "कोणतीही तक्रार आढळली नाही",
+          noReportsDesc: "आपण अद्याप कोणतीही समस्या नोंदवलेली नाही. पहिली सिव्हिकफिक्स तक्रार दाखल करा.",
+          noMatches: "जुळणारी तक्रार नाही",
+          noMatchesDesc: "सध्याच्या शोधाशी कोणतीही तक्रार जुळत नाही. फिल्टर रीसेट करून पहा."
+        },
+        filterLabels: {
+          all: "सर्व",
+          pending: "प्रलंबित",
+          verified: "पडताळणीकृत",
+          inProgress: "प्रगतीपथावर",
+          resolved: "निवारण झाले",
+          reopened: "पुन्हा उघडली",
+          rejected: "नाकारली"
+        }
+      },
+      issueDetails: {
+        backToReports: "माझ्या तक्रारींकडे परत",
+        reportedOn: "{{date}} रोजी नोंदवली",
+        reference: "संदर्भ #{{id}}",
+        descriptionSection: "समस्येचे वर्णन",
+        locationSection: "ठिकाणाची माहिती",
+        landmark: "लँडमार्क / पत्ता",
+        coordinates: "जीपीएस निर्देशांक",
+        openMap: "नकाशा उघडा",
+        photoSection: "फोटो पुरावा",
+        initialPhoto: "नागरिकाने दिलेला फोटो",
+        resolutionPhoto: "निवारणाचा पुरावा फोटो",
+        timelineSection: "प्रगती व स्थितीचा इतिहास",
+        deptAssignment: "नेमलेला विभाग",
+        originalLanguage: "मूळ भाषा",
+        inputMethod: "नोंदणी माध्यम",
+        voiceInput: "व्हॉइस रेकॉर्डिंग",
+        textInput: "लिखित मजकूर",
+        viewEnglish: "इंग्रजी भाषांतर पहा",
+        viewOriginal: "मूळ पहा ({{lang}})",
+        canonicalNotice: "ही तक्रार {{lang}} मध्ये नोंदवली गेली होती आणि पालिकेच्या कामकाजासाठी इंग्रजीत रूपांतरित केली आहे.",
+        verificationCard: {
+          title: "प्रत्यक्ष पडताळणी आवश्यक",
+          description: "पालिकेच्या कर्मचाऱ्यांनी ही समस्या सोडवली म्हणून चिन्हांकित केली आहे. प्रत्यक्ष जागेवर काम झाले आहे का?",
+          yesButton: "होय, समस्या सुटली आहे",
+          noButton: "नाही, अजूनही समस्या आहे (पुन्हा उघडा)",
+          verifiedYes: "आपण समस्येचे निवारण झाल्याची खात्री केली. धन्यवाद!",
+          verifiedNo: "आपण नोंदवले की समस्या सुटलेली नाही. ती पुन्हा उघडण्यात आली आहे."
+        },
+        reopenModal: {
+          title: "तक्रार पुन्हा उघडा",
+          description: "कृपया समस्येचे कारण सांगा जेणेकरून संबंधित कर्मचारी आवश्यक कारवाई करू शकतील.",
+          feedbackLabel: "पुन्हा उघडण्याचे कारण",
+          feedbackPlaceholder: "उदा. दिवाबत्ती दुरुस्त केली होती पण दुसऱ्याच दिवशी पुन्हा बंद झाली...",
+          submitReopen: "तक्रार पुन्हा उघडा",
+          cancel: "रद्द करा"
+        }
+      },
+      notifications: {
+        tag: "सूचना केंद्र",
+        title: "नागरिक अलर्ट व अपडेट्स",
+        description: "आपण नोंदवलेल्या तक्रारींची सद्यस्थिती व पालिकेच्या कारवाईबद्दल माहिती मिळवा.",
+        emptyTitle: "सध्या कोणतीही सूचना नाही",
+        emptyDescription: "आपण सर्व अपडेट्स पाहिले आहेत! नवीन सूचना येथे दिसतील.",
+        today: "आज",
+        earlier: "पूर्वी",
+        total: "एकूण",
+        unread: "न वाचलेल्या",
+        read: "वाचलेली",
+        unreadBadge: "न वाचलेली",
+        loadError: "आपल्या सूचना लोड करता आल्या नाहीत."
+      },
+      userMenu: {
+        accountMenu: "वापरकर्ता खाते मेनू",
+        signOut: "साइन आउट"
+      }
+    }
+  }
+};
+
+console.log("Generating remaining Indic locales...");

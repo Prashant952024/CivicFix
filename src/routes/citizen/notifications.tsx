@@ -121,10 +121,10 @@ export function CitizenNotificationsPage() {
     }
 
     return [
-      { key: "today" as GroupKey, title: "Today", items: today },
-      { key: "earlier" as GroupKey, title: "Earlier", items: earlier },
+      { key: "today" as GroupKey, title: t("citizen.notifications.today"), items: today },
+      { key: "earlier" as GroupKey, title: t("citizen.notifications.earlier"), items: earlier },
     ].filter((group) => group.items.length > 0);
-  }, [notifications]);
+  }, [notifications, t]);
 
   const unreadCount = notifications.filter((notification) => !notification.is_read).length;
 
@@ -136,7 +136,7 @@ export function CitizenNotificationsPage() {
             <AlertCircle className="h-5 w-5" aria-hidden="true" />
           </div>
           <div className="space-y-2">
-            <h2 className="text-2xl font-semibold tracking-tight text-foreground">Unable to load notifications</h2>
+            <h2 className="text-2xl font-semibold tracking-tight text-foreground">{t("citizen.notifications.loadError")}</h2>
             <p className="text-sm leading-6 text-muted-foreground">{sessionProblem ?? error}</p>
           </div>
           <Button onClick={() => setRefreshNonce((value) => value + 1)} type="button">
@@ -186,7 +186,7 @@ export function CitizenNotificationsPage() {
             <div className="flex flex-col gap-3 sm:flex-row">
               <div className="inline-flex items-center gap-2 rounded-full border border-border/70 bg-background/40 px-4 py-2 text-sm text-muted-foreground">
                 <Bell className="h-4 w-4" aria-hidden="true" />
-                {notifications.length} total
+                {notifications.length} {t("citizen.notifications.total")}
               </div>
               <div className="inline-flex items-center gap-2 rounded-full border border-border/70 bg-background/40 px-4 py-2 text-sm text-muted-foreground">
                 {unreadCount > 0 ? (
@@ -194,7 +194,7 @@ export function CitizenNotificationsPage() {
                 ) : (
                   <MailCheck className="h-4 w-4 text-emerald-700" aria-hidden="true" />
                 )}
-                {unreadCount} unread
+                {unreadCount} {t("citizen.notifications.unread")}
               </div>
               <Button asChild>
                 <Link to="/app/citizen/issues">{t("citizen.dashboard.viewReportsButton")}</Link>
@@ -238,7 +238,7 @@ export function CitizenNotificationsPage() {
                                   : "bg-amber-50 text-amber-700 ring-amber-200"
                               }`}
                             >
-                              {notification.is_read ? "Read" : "Unread"}
+                              {notification.is_read ? t("citizen.notifications.read") : t("citizen.notifications.unreadBadge")}
                             </span>
                           </div>
 
