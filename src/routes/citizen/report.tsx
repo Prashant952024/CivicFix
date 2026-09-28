@@ -918,6 +918,11 @@ function CitizenReportComposer({ profileId }: { profileId: string }) {
                 <VoiceInputButton
                   fieldMode="title"
                   buttonLabel={t("citizen.report.voice.speakTitle")}
+                  currentValue={title}
+                  onLiveTranscript={(liveText) => {
+                    setTitle(liveText);
+                    setTitleModality("VOICE");
+                  }}
                   onTranscription={handleTitleVoiceTranscription}
                   disabled={submissionStage !== "idle"}
                 />
@@ -970,6 +975,11 @@ function CitizenReportComposer({ profileId }: { profileId: string }) {
                 <VoiceInputButton
                   fieldMode="description"
                   buttonLabel={t("citizen.report.voice.speakButton")}
+                  currentValue={description}
+                  onLiveTranscript={(liveText) => {
+                    setDescription(liveText);
+                    setDescriptionModality("VOICE");
+                  }}
                   onTranscription={handleDescriptionVoiceTranscription}
                   disabled={submissionStage !== "idle"}
                 />
@@ -1014,6 +1024,11 @@ function CitizenReportComposer({ profileId }: { profileId: string }) {
                 <VoiceInputButton
                   fieldMode="notes"
                   buttonLabel={t("citizen.report.voice.speakNotes")}
+                  currentValue={locationText}
+                  onLiveTranscript={(liveText) => {
+                    setLocationText(liveText);
+                    setLocationModality("VOICE");
+                  }}
                   onTranscription={handleLocationVoiceTranscription}
                   disabled={submissionStage !== "idle"}
                 />

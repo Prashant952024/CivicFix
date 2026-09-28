@@ -16,6 +16,11 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog } from "@/components/ui/dialog";
 import { useTranslation } from "@/lib/i18n";
 import { getLanguageDisplayName, getLanguageNativeLabel, isRtlLanguage } from "@/lib/languages";
+import {
+  LiveSpeechRecognizer,
+  isSpeechRecognitionSupported,
+  getSpeechRecognitionLocale,
+} from "@/lib/speech-recognition";
 
 export type VoiceTranscriptionPayload = {
   transcription: string;
@@ -49,6 +54,8 @@ export type VoiceErrorCode =
 
 type VoiceInputButtonProps = {
   onTranscription: (payload: VoiceTranscriptionPayload) => void;
+  onLiveTranscript?: (liveText: string) => void;
+  currentValue?: string;
   fieldMode?: "title" | "description" | "notes" | "general";
   disabled?: boolean;
   className?: string;
@@ -68,6 +75,8 @@ type RecordingState =
 
 export function VoiceInputButton({
   onTranscription,
+  onLiveTranscript,
+  currentValue = "",
   fieldMode = "description",
   disabled = false,
   className = "",
@@ -90,12 +99,18 @@ export function VoiceInputButton({
   const timerRef = useRef<number | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const recordingStartTimeRef = useRef<number>(0);
+  const liveRecognizerRef = useRef<LiveSpeechRecognizer | null>(null);
+  const baseTextRef = useRef<string>("");
+  const liveAccumulatedRef = useRef<string>("");
 
-  // Clean up media stream and timer on unmount
+  // Clean up media stream, speech recognizer, and timer on unmount
   useEffect(() => {
     return () => {
       if (timerRef.current) {
         window.clearInterval(timerRef.current);
+      }
+      if (liveRecognizerRef.current) {
+        liveRecognizerRef.current.abort();
       }
       if (streamRef.current) {
         streamRef.current.getTracks().forEach((track) => track.stop());
@@ -146,6 +161,9 @@ export function VoiceInputButton({
     setPendingPayload(null);
     setIsReviewOpen(false);
 
+    baseTextRef.current = (currentValue || "").trim();
+    liveAccumulatedRef.current = "";
+
     if (typeof navigator === "undefined" || !navigator.mediaDevices?.getUserMedia) {
       setState("error");
       setErrorCode("UNSUPPORTED_BROWSER");
@@ -163,6 +181,42 @@ export function VoiceInputButton({
         },
       });
       streamRef.current = stream;
+
+      // Start Browser Live Speech Recognition if supported (Fast Path: Google-Search Style)
+      if (isSpeechRecognitionSupported()) {
+        try {
+          const recognizer = new LiveSpeechRecognizer();
+          liveRecognizerRef.current = recognizer;
+          recognizer.start({
+            lang: getSpeechRecognitionLocale(language),
+            onInterim: (_interimChunk, fullLiveText) => {
+              if (!fullLiveText) return;
+              const combined = baseTextRef.current
+                ? (fieldMode === "description" ? `${baseTextRef.current}\n\n${fullLiveText}` : `${baseTextRef.current} ${fullLiveText}`)
+                : fullLiveText;
+              onLiveTranscript?.(combined);
+            },
+            onFinalSegment: (_finalChunk, fullAccumulated) => {
+              if (!fullAccumulated) return;
+              liveAccumulatedRef.current = fullAccumulated;
+              const combined = baseTextRef.current
+                ? (fieldMode === "description" ? `${baseTextRef.current}\n\n${fullAccumulated}` : `${baseTextRef.current} ${fullAccumulated}`)
+                : fullAccumulated;
+              onLiveTranscript?.(combined);
+            },
+            onEnd: (finalFullText) => {
+              if (finalFullText) {
+                liveAccumulatedRef.current = finalFullText;
+              }
+            },
+            onError: (recErr) => {
+              console.warn("[VoiceInput] Live recognition notice:", recErr);
+            },
+          });
+        } catch (recInitErr) {
+          console.warn("[VoiceInput] Live speech recognizer failed to start, continuing with audio recorder fallback:", recInitErr);
+        }
+      }
 
       const detectedMimeType = getSupportedMimeType();
       const options: MediaRecorderOptions = detectedMimeType ? { mimeType: detectedMimeType } : {};
@@ -192,8 +246,9 @@ export function VoiceInputButton({
         const durationMs = Date.now() - recordingStartTimeRef.current;
         const effectiveMime = recorder.mimeType || detectedMimeType || "audio/webm";
         const recordedBlob = new Blob(audioChunksRef.current, { type: effectiveMime });
+        const liveText = liveAccumulatedRef.current.trim();
 
-        if (durationMs < 600 || recordedBlob.size < 300) {
+        if (durationMs < 500 && !liveText && recordedBlob.size < 250) {
           console.warn("[VoiceInput] Audio recording is too short or empty:", recordedBlob.size, "bytes,", durationMs, "ms");
           setState("error");
           setErrorCode("AUDIO_TOO_SHORT");
@@ -201,7 +256,7 @@ export function VoiceInputButton({
           return;
         }
 
-        await processAudioTranscription(recordedBlob, effectiveMime);
+        await processAudioTranscription(recordedBlob, effectiveMime, liveText);
       };
 
       recorder.start(250); // Collect chunks every 250ms
@@ -232,6 +287,16 @@ export function VoiceInputButton({
   }
 
   function stopRecording() {
+    if (liveRecognizerRef.current && liveRecognizerRef.current.isListening()) {
+      try {
+        const finalTxt = liveRecognizerRef.current.stop();
+        if (finalTxt) {
+          liveAccumulatedRef.current = finalTxt;
+        }
+      } catch (e) {
+        console.warn("[VoiceInput] Error stopping LiveSpeechRecognizer:", e);
+      }
+    }
     if (mediaRecorderRef.current && mediaRecorderRef.current.state === "recording") {
       try {
         mediaRecorderRef.current.stop();
@@ -258,7 +323,7 @@ export function VoiceInputButton({
     });
   }
 
-  async function processAudioTranscription(audioBlob: Blob, mimeType: string) {
+  async function processAudioTranscription(audioBlob: Blob, mimeType: string, liveRecognizedText?: string) {
     setState("transcribing");
     setErrorMessage(null);
     setErrorCode(null);
@@ -288,6 +353,25 @@ export function VoiceInputButton({
       });
 
       if (!response.ok) {
+        if (liveRecognizedText && liveRecognizedText.trim()) {
+          console.warn("[VoiceInput] Edge Function failed, but browser live text is available. Using live text as fallback.");
+          const transcription = liveRecognizedText.trim();
+          const payload: VoiceTranscriptionPayload = {
+            transcription,
+            englishTranslation: transcription,
+            detectedLanguage: language || "en",
+            languageName: getLanguageDisplayName(language),
+            confidence: 0.85,
+            fieldMode,
+          };
+          setPendingPayload(payload);
+          setEditableTranscription(transcription);
+          setEditableEnglishTranslation(transcription);
+          setState("reviewing");
+          setIsReviewOpen(true);
+          return;
+        }
+
         const errPayload = await response.json().catch(() => ({}));
         const returnedCode = (errPayload.errorCode as VoiceErrorCode) || "EDGE_FUNCTION_FAILED";
         setErrorCode(returnedCode);
@@ -297,11 +381,29 @@ export function VoiceInputButton({
       const data = await response.json();
 
       if (!data.success && data.errorCode) {
+        if (liveRecognizedText && liveRecognizedText.trim()) {
+          console.warn("[VoiceInput] Gemini returned non-success, using browser live transcript fallback.");
+          const transcription = liveRecognizedText.trim();
+          const payload: VoiceTranscriptionPayload = {
+            transcription,
+            englishTranslation: transcription,
+            detectedLanguage: language || "en",
+            languageName: getLanguageDisplayName(language),
+            confidence: 0.85,
+            fieldMode,
+          };
+          setPendingPayload(payload);
+          setEditableTranscription(transcription);
+          setEditableEnglishTranslation(transcription);
+          setState("reviewing");
+          setIsReviewOpen(true);
+          return;
+        }
         setErrorCode(data.errorCode as VoiceErrorCode);
         throw new Error(data.userMessage || getLocalizedErrorMessage(data.errorCode));
       }
 
-      const rawText = data.transcription || data.text;
+      const rawText = data.transcription || data.text || liveRecognizedText;
       if (!rawText || String(rawText).trim().length === 0) {
         setErrorCode("NO_SPEECH_DETECTED");
         throw new Error(getLocalizedErrorMessage("NO_SPEECH_DETECTED"));
@@ -339,6 +441,23 @@ export function VoiceInputButton({
       setIsReviewOpen(true);
     } catch (err: unknown) {
       console.error("[VoiceInput] Transcription failed:", err);
+      if (liveRecognizedText && liveRecognizedText.trim()) {
+        const transcription = liveRecognizedText.trim();
+        const payload: VoiceTranscriptionPayload = {
+          transcription,
+          englishTranslation: transcription,
+          detectedLanguage: language || "en",
+          languageName: getLanguageDisplayName(language),
+          confidence: 0.85,
+          fieldMode,
+        };
+        setPendingPayload(payload);
+        setEditableTranscription(transcription);
+        setEditableEnglishTranslation(transcription);
+        setState("reviewing");
+        setIsReviewOpen(true);
+        return;
+      }
       setState("error");
       if (!errorCode) {
         setErrorCode("GEMINI_API_FAILED");

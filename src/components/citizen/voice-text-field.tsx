@@ -79,6 +79,8 @@ export function VoiceTextField({
         <VoiceInputButton
           fieldMode={fieldMode}
           disabled={disabled}
+          currentValue={value}
+          onLiveTranscript={onChange}
           onTranscription={handleTranscription}
           size="xs"
         />

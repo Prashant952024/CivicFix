@@ -15,6 +15,7 @@ import {
   ThumbsDown,
   ThumbsUp,
   User,
+  Languages,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { Link, useParams } from "react-router-dom";
@@ -26,6 +27,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PageHeader } from "@/components/ui/page-header";
+import { getLanguageDisplayName } from "@/lib/languages";
 import {
   formatAdminDate,
   formatAdminDateTime,
@@ -77,6 +79,13 @@ type IssueRow = Pick<
   | "address_text"
   | "department_id"
   | "resolved_at"
+  | "original_language"
+  | "detected_language"
+  | "original_title"
+  | "original_description"
+  | "english_title"
+  | "english_description"
+  | "input_method"
   | "created_at"
   | "updated_at"
 > & {
@@ -232,6 +241,13 @@ export function AdminIssueDetailPage() {
           address_text,
           department_id,
           resolved_at,
+          original_language,
+          detected_language,
+          original_title,
+          original_description,
+          english_title,
+          english_description,
+          input_method,
           created_at,
           updated_at,
           issue_images(id, issue_id, storage_bucket, storage_path, image_type, uploaded_by_profile_id, created_at),
@@ -466,9 +482,32 @@ export function AdminIssueDetailPage() {
               )}
 
               <div>
-                <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-1">Description</p>
+                <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-1">Description (Canonical English)</p>
                 <p className="text-sm text-foreground/90 leading-relaxed whitespace-pre-wrap">{issue.description}</p>
               </div>
+
+              {issue.original_language && issue.original_language !== "en" && issue.original_description && (
+                <div className="rounded-xl border border-sky-200 bg-sky-50/70 p-3.5 space-y-1.5 text-xs">
+                  <div className="flex items-center justify-between text-sky-900 font-semibold">
+                    <span className="flex items-center gap-1.5">
+                      <Languages className="h-3.5 w-3.5 text-sky-700" aria-hidden="true" />
+                      Original Citizen Input ({getLanguageDisplayName(issue.original_language)})
+                    </span>
+                    {issue.input_method === "VOICE" ? (
+                      <Badge variant="teal" size="sm" className="py-0 px-1.5 text-[10px]">
+                        Voice Dictated
+                      </Badge>
+                    ) : issue.input_method === "MIXED" ? (
+                      <Badge variant="outline" size="sm" className="py-0 px-1.5 text-[10px] bg-teal-50 border-teal-300 text-teal-800">
+                        Mixed Voice & Text
+                      </Badge>
+                    ) : null}
+                  </div>
+                  <p className="text-foreground whitespace-pre-wrap leading-relaxed">
+                    {issue.original_description}
+                  </p>
+                </div>
+              )}
 
               <div className="grid gap-3 sm:grid-cols-2 pt-3 border-t border-border/60 text-xs">
                 <div>
