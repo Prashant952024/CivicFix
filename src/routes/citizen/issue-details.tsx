@@ -601,6 +601,11 @@ export function CitizenIssueDetailsPage() {
                         <Mic className="h-3 w-3" aria-hidden="true" />
                         <span>{t("citizen.issueDetails.voiceInput")}</span>
                       </Badge>
+                    ) : issue.input_method === "MIXED" ? (
+                      <Badge variant="teal" size="sm" className="flex items-center gap-1 py-0.5 border-teal-300 bg-teal-50 text-teal-900">
+                        <Mic className="h-3 w-3 text-teal-700" aria-hidden="true" />
+                        <span>{t("citizen.issueDetails.mixedInput")}</span>
+                      </Badge>
                     ) : (
                       <Badge variant="outline" size="sm" className="flex items-center gap-1 py-0.5 bg-muted/40">
                         <FileText className="h-3 w-3" aria-hidden="true" />

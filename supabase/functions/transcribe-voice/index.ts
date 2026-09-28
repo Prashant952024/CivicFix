@@ -229,20 +229,53 @@ Field Context: ${fieldMode.toUpperCase()}.
 Citizen UI Language Hint: '${languageHint}'.
 Remember: The citizen may be speaking in ANY of the 20 supported Indic languages. Detect the spoken language from the audio itself. Output strictly valid JSON.`;
 
+function categorizeGeminiError(status: number, message: string): string {
+  const lower = (message || "").toLowerCase();
+  if (status === 404 || lower.includes("not found") || lower.includes("no longer available")) {
+    return "MODEL_NOT_FOUND";
+  }
+  if (status === 403 || lower.includes("permission") || lower.includes("access denied")) {
+    return "MODEL_ACCESS_DENIED";
+  }
+  if (status === 401 || lower.includes("api key") || lower.includes("unauthenticated")) {
+    return "GEMINI_AUTH_ERROR";
+  }
+  if (status === 429 || lower.includes("resource_exhausted") || lower.includes("quota")) {
+    return "GEMINI_RATE_LIMITED";
+  }
+  if (status === 400 || lower.includes("invalid argument")) {
+    return "GEMINI_INVALID_REQUEST";
+  }
+  if (status >= 500) {
+    return "GEMINI_SERVER_ERROR";
+  }
+  return "GEMINI_ERROR";
+}
+
   const preferredModels = [
+    "gemini-3.5-flash-lite",
+    "gemini-flash-lite-latest",
+    "gemini-3.5-flash",
     "gemini-2.5-flash",
+    "gemini-2.5-flash-lite",
+    "gemini-3.1-pro-preview",
     "gemini-2.0-flash",
     "gemini-1.5-flash",
-    "gemini-2.5-pro",
-    "gemini-1.5-pro",
   ];
 
+  type DiagnosticEntry = {
+    model: string;
+    status: number;
+    category: string;
+  };
+
+  const diagnostics: DiagnosticEntry[] = [];
   let transcriptionResult: GeminiTranscriptionOutput | null = null;
   let successfulModel = "";
   let lastErrorDetails = "";
   let lastHttpStatus = 0;
 
-  // 1. Try preferred Gemini models
+  // 1. Try preferred Gemini models in sequence
   for (const modelName of preferredModels) {
     try {
       const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${geminiApiKey}`;
@@ -283,16 +316,21 @@ Remember: The citizen may be speaking in ANY of the 20 supported Indic languages
 
       if (!response.ok) {
         const errorText = await response.text();
-        console.warn(`[transcribe-voice:${requestId}] Model ${modelName} returned status ${response.status}:`, errorText);
-        lastErrorDetails = `Model ${modelName}: HTTP ${response.status} - ${errorText}`;
+        const category = categorizeGeminiError(response.status, errorText);
+        console.warn(`[transcribe-voice:${requestId}] ${modelName} -> ${response.status} -> ${category}`);
+        diagnostics.push({ model: modelName, status: response.status, category });
+        lastErrorDetails = `${modelName}: HTTP ${response.status} [${category}]`;
         continue;
       }
+
+      console.log(`[transcribe-voice:${requestId}] ${modelName} -> 200 -> GEMINI_SUCCESS`);
 
       const responseData = await response.json();
       const rawOutputText = responseData.candidates?.[0]?.content?.parts?.[0]?.text;
 
       if (!rawOutputText) {
-        console.warn(`[transcribe-voice:${requestId}] Model ${modelName} returned empty candidate parts.`);
+        console.warn(`[transcribe-voice:${requestId}] ${modelName} -> Empty candidate parts -> GEMINI_INVALID_RESPONSE`);
+        diagnostics.push({ model: modelName, status: 200, category: "EMPTY_CANDIDATES" });
         lastErrorDetails = `Model ${modelName}: Empty candidate response`;
         continue;
       }
@@ -311,7 +349,7 @@ Remember: The citizen may be speaking in ANY of the 20 supported Indic languages
         successfulModel = modelName;
         break;
       } catch (parseError) {
-        console.warn(`[transcribe-voice:${requestId}] Model ${modelName} JSON parse failed:`, parseError);
+        console.warn(`[transcribe-voice:${requestId}] ${modelName} JSON parse fallback:`, parseError);
         if (rawOutputText.trim()) {
           transcriptionResult = {
             transcription: rawOutputText.trim(),
@@ -325,7 +363,8 @@ Remember: The citizen may be speaking in ANY of the 20 supported Indic languages
         }
       }
     } catch (fetchError) {
-      console.warn(`[transcribe-voice:${requestId}] Network error calling ${modelName}:`, fetchError);
+      console.warn(`[transcribe-voice:${requestId}] ${modelName} -> Network Error -> GEMINI_SERVER_ERROR`);
+      diagnostics.push({ model: modelName, status: 0, category: "GEMINI_SERVER_ERROR" });
       lastErrorDetails = `Model ${modelName}: Network error: ${String(fetchError)}`;
     }
   }
@@ -336,13 +375,18 @@ Remember: The citizen may be speaking in ANY of the 20 supported Indic languages
       const modelsListRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${geminiApiKey}`);
       if (modelsListRes.ok) {
         const modelsListData = await modelsListRes.json();
-        const availableModels: string[] = (modelsListData.models || [])
+        const candidateModels: string[] = (modelsListData.models || [])
           .map((m: any) => m.name.replace(/^models\//, ""))
-          .filter((name: string) => name.includes("flash") || name.includes("gemini"));
+          .filter((name: string) => {
+            const lower = name.toLowerCase();
+            const isExcluded = lower.includes("image") || lower.includes("tts") || lower.includes("banana") || lower.includes("veo") || lower.includes("lyria") || lower.includes("embed");
+            const isCandidate = lower.includes("flash") || lower.includes("gemini") || lower.includes("pro");
+            return isCandidate && !isExcluded;
+          });
 
-        console.log(`[transcribe-voice:${requestId}] Dynamically discovered fallback models:`, availableModels);
+        console.log(`[transcribe-voice:${requestId}] Dynamically discovered fallback candidates:`, candidateModels);
 
-        for (const modelName of availableModels) {
+        for (const modelName of candidateModels) {
           if (preferredModels.includes(modelName)) continue; // already tried
 
           const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${geminiApiKey}`;
@@ -363,13 +407,23 @@ Remember: The citizen may be speaking in ANY of the 20 supported Indic languages
             },
           };
 
-          const response = await fetch(endpoint, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(requestPayload),
-          });
+          try {
+            const response = await fetch(endpoint, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(requestPayload),
+            });
 
-          if (response.ok) {
+            if (!response.ok) {
+              const errTxt = await response.text();
+              const category = categorizeGeminiError(response.status, errTxt);
+              console.warn(`[transcribe-voice:${requestId}] Dynamic ${modelName} -> ${response.status} -> ${category}`);
+              diagnostics.push({ model: modelName, status: response.status, category });
+              continue;
+            }
+
+            console.log(`[transcribe-voice:${requestId}] Dynamic ${modelName} -> 200 -> GEMINI_SUCCESS`);
+
             const data = await response.json();
             const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
             if (text) {
@@ -400,6 +454,9 @@ Remember: The citizen may be speaking in ANY of the 20 supported Indic languages
                 }
               }
             }
+          } catch (dynErr) {
+            console.warn(`[transcribe-voice:${requestId}] Dynamic ${modelName} fetch error:`, dynErr);
+            diagnostics.push({ model: modelName, status: 0, category: "GEMINI_SERVER_ERROR" });
           }
         }
       }
@@ -410,12 +467,13 @@ Remember: The citizen may be speaking in ANY of the 20 supported Indic languages
 
   // 3. Structured Error Handling
   if (!transcriptionResult) {
-    console.error(`[transcribe-voice:${requestId}] All Gemini models failed. Last error: ${lastErrorDetails}`);
+    console.error(`[transcribe-voice:${requestId}] All Gemini models failed (${diagnostics.length} attempts). Last: ${lastErrorDetails}`);
 
     let errorCode = "GEMINI_API_FAILED";
     let userMessage = "Voice processing is temporarily unavailable. You can type your response instead.";
 
-    if (lastHttpStatus === 429) {
+    const hasRateLimit = diagnostics.some((d) => d.category === "GEMINI_RATE_LIMITED" || d.status === 429);
+    if (hasRateLimit) {
       errorCode = "GEMINI_API_FAILED";
       userMessage = "Voice processing rate limit reached. Please wait a moment and try again.";
     }
@@ -427,7 +485,7 @@ Remember: The citizen may be speaking in ANY of the 20 supported Indic languages
         errorCode,
         userMessage,
         requestId,
-        devDetails: lastErrorDetails,
+        diagnostics,
       },
       origin,
     );
@@ -465,7 +523,9 @@ Remember: The citizen may be speaking in ANY of the 20 supported Indic languages
       suggestedEnglishTitle: transcriptionResult.suggestedEnglishTitle?.trim() || "",
       detectedLanguage: detectedLang,
       detectedLanguageName: transcriptionResult.languageName || "Detected",
+      languageName: transcriptionResult.languageName || "Detected",
       detectedScript: transcriptionResult.script || "Standard",
+      script: transcriptionResult.script || "Standard",
       isRtl: Boolean(transcriptionResult.isRtl || detectedLang === "ur" || detectedLang === "ks" || detectedLang === "sd"),
       confidence,
       modelUsed: successfulModel,

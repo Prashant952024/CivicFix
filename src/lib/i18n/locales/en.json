@@ -320,7 +320,8 @@
         "feedbackPlaceholder": "e.g. Streetlight was fixed but went out again the next night...",
         "submitReopen": "Reopen Issue",
         "cancel": "Cancel"
-      }
+      },
+      "mixedInput": "Mixed Input (Voice + Text)"
     },
     "notifications": {
       "tag": "Notification Center",

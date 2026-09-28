@@ -493,11 +493,14 @@ Respond ONLY with a valid JSON object matching this exact structure:
 
     // 7. Invoke Google Gemini API with intelligent model selection
     const preferredOrder = [
+      "gemini-3.5-flash-lite",
+      "gemini-flash-lite-latest",
+      "gemini-3.5-flash",
       "gemini-2.5-flash",
+      "gemini-2.5-flash-lite",
+      "gemini-3.1-pro-preview",
       "gemini-2.0-flash",
       "gemini-1.5-flash",
-      "gemini-2.5-pro",
-      "gemini-1.5-pro",
     ];
 
     let geminiResult: any = null;

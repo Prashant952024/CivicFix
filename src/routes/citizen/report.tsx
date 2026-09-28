@@ -81,7 +81,10 @@ type CitizenReportDraft = {
   locationStatus: LocationStatus;
   rawImage: File | null;
   compressedImage: File | null;
-  inputMethod: "TEXT" | "VOICE";
+  inputMethod: "TEXT" | "VOICE" | "MIXED";
+  titleModality?: "TEXT" | "VOICE";
+  descriptionModality?: "TEXT" | "VOICE";
+  locationModality?: "TEXT" | "VOICE";
   originalLanguage: string;
   detectedLanguage: string;
   originalTitle: string;
@@ -105,6 +108,9 @@ function createEmptyCitizenReportDraft(defaultLang = "en"): CitizenReportDraft {
     rawImage: null,
     compressedImage: null,
     inputMethod: "TEXT",
+    titleModality: "TEXT",
+    descriptionModality: "TEXT",
+    locationModality: "TEXT",
     originalLanguage: defaultLang,
     detectedLanguage: defaultLang,
     originalTitle: "",
@@ -316,7 +322,9 @@ function CitizenReportComposer({ profileId }: { profileId: string }) {
   const [locationStatus, setLocationStatus] = useState<LocationStatus>(initialDraft.locationStatus);
   const [rawImage, setRawImage] = useState<File | null>(initialDraft.rawImage);
   const [compressedImage, setCompressedImage] = useState<File | null>(initialDraft.compressedImage);
-  const [inputMethod, setInputMethod] = useState<"TEXT" | "VOICE">(initialDraft.inputMethod || "TEXT");
+  const [titleModality, setTitleModality] = useState<"TEXT" | "VOICE">(initialDraft.titleModality || "TEXT");
+  const [descriptionModality, setDescriptionModality] = useState<"TEXT" | "VOICE">(initialDraft.descriptionModality || "TEXT");
+  const [locationModality, setLocationModality] = useState<"TEXT" | "VOICE">(initialDraft.locationModality || "TEXT");
   const [originalLanguage, setOriginalLanguage] = useState<string>(initialDraft.originalLanguage || language);
   const [detectedLanguage, setDetectedLanguage] = useState<string>(initialDraft.detectedLanguage || language);
   const [originalTitle, setOriginalTitle] = useState<string>(initialDraft.originalTitle || "");
@@ -343,13 +351,13 @@ function CitizenReportComposer({ profileId }: { profileId: string }) {
     }
     setOriginalLanguage(payload.detectedLanguage || language);
     setDetectedLanguage(payload.detectedLanguage || language);
-    setInputMethod("VOICE");
+    setTitleModality("VOICE");
     setErrors((current) => ({ ...current, title: undefined }));
   }
 
   function handleDescriptionVoiceTranscription(payload: VoiceTranscriptionPayload) {
     if (!payload.transcription.trim()) return;
-    setInputMethod("VOICE");
+    setDescriptionModality("VOICE");
     setOriginalLanguage(payload.detectedLanguage || language);
     setDetectedLanguage(payload.detectedLanguage || language);
     setOriginalDescription((prev) => (prev ? `${prev}\n\n${payload.transcription.trim()}` : payload.transcription.trim()));
@@ -375,6 +383,7 @@ function CitizenReportComposer({ profileId }: { profileId: string }) {
   function handleLocationVoiceTranscription(payload: VoiceTranscriptionPayload) {
     if (!payload.transcription.trim()) return;
     setLocationText(payload.transcription.trim());
+    setLocationModality("VOICE");
     setErrors((current) => ({ ...current, location: undefined }));
   }
 
@@ -408,7 +417,12 @@ function CitizenReportComposer({ profileId }: { profileId: string }) {
         locationStatus,
         rawImage,
         compressedImage,
-        inputMethod,
+        inputMethod: titleModality === "VOICE" || descriptionModality === "VOICE" || locationModality === "VOICE"
+          ? ((titleModality === "VOICE" && descriptionModality === "VOICE" && (locationModality === "VOICE" || !locationText)) ? "VOICE" : "MIXED")
+          : "TEXT",
+        titleModality,
+        descriptionModality,
+        locationModality,
         originalLanguage,
         detectedLanguage,
         originalTitle,
@@ -421,12 +435,13 @@ function CitizenReportComposer({ profileId }: { profileId: string }) {
     category,
     compressedImage,
     description,
+    descriptionModality,
     detectedLanguage,
     englishDescription,
     englishTitle,
-    inputMethod,
     latitude,
     locationAccuracyMeters,
+    locationModality,
     locationStatus,
     locationText,
     longitude,
@@ -436,6 +451,7 @@ function CitizenReportComposer({ profileId }: { profileId: string }) {
     profileId,
     rawImage,
     title,
+    titleModality,
   ]);
 
   function resetImageSelection({ clearError = false }: { clearError?: boolean } = {}) {
@@ -567,6 +583,22 @@ function CitizenReportComposer({ profileId }: { profileId: string }) {
       const finalEnglishTitle = englishTitle.trim() || trimmedTitle;
       const finalEnglishDescription = englishDescription.trim() || trimmedDescription;
 
+      const isTitleVoice = titleModality === "VOICE";
+      const isDescVoice = descriptionModality === "VOICE";
+      const isLocVoice = locationModality === "VOICE";
+
+      const hasVoice = isTitleVoice || isDescVoice || isLocVoice;
+      const hasText = !isTitleVoice || !isDescVoice || (!isLocVoice && trimmedLocation.length > 0);
+
+      let finalInputMethod: "TEXT" | "VOICE" | "MIXED" = "TEXT";
+      if (hasVoice && hasText) {
+        finalInputMethod = "MIXED";
+      } else if (hasVoice) {
+        finalInputMethod = "VOICE";
+      } else {
+        finalInputMethod = "TEXT";
+      }
+
       const issueInsertPayload = {
         id: issueId,
         reporter_profile_id: profileId,
@@ -578,7 +610,7 @@ function CitizenReportComposer({ profileId }: { profileId: string }) {
         longitude,
         original_language: originalLanguage || language,
         detected_language: detectedLanguage || originalLanguage || language,
-        input_method: inputMethod,
+        input_method: finalInputMethod,
         original_title: finalOriginalTitle,
         original_description: finalOriginalDescription,
         english_title: finalEnglishTitle,
@@ -895,7 +927,10 @@ function CitizenReportComposer({ profileId }: { profileId: string }) {
                 id="issue-title"
                 className="mt-1.5 w-full rounded-xl border border-border/80 bg-background/60 px-4 py-3 text-sm text-foreground outline-none transition placeholder:text-muted-foreground focus:border-primary focus:ring-2 focus:ring-primary/20"
                 maxLength={120}
-                onChange={(event) => setTitle(event.target.value)}
+                onChange={(event) => {
+                  setTitle(event.target.value);
+                  setTitleModality("TEXT");
+                }}
                 placeholder={t("citizen.report.fields.titlePlaceholder")}
                 value={title}
               />
@@ -944,7 +979,10 @@ function CitizenReportComposer({ profileId }: { profileId: string }) {
                 id="issue-description"
                 className="mt-1.5 min-h-32 w-full resize-y rounded-xl border border-border/80 bg-background/60 px-4 py-3 text-sm text-foreground outline-none transition placeholder:text-muted-foreground focus:border-primary focus:ring-2 focus:ring-primary/20 leading-relaxed"
                 maxLength={1200}
-                onChange={(event) => setDescription(event.target.value)}
+                onChange={(event) => {
+                  setDescription(event.target.value);
+                  setDescriptionModality("TEXT");
+                }}
                 placeholder={t("citizen.report.fields.descriptionPlaceholder")}
                 value={description}
               />
@@ -985,7 +1023,10 @@ function CitizenReportComposer({ profileId }: { profileId: string }) {
                 id="issue-location"
                 className="mt-1.5 w-full rounded-xl border border-border/80 bg-background/60 px-4 py-3 text-sm text-foreground outline-none transition placeholder:text-muted-foreground focus:border-primary focus:ring-2 focus:ring-primary/20"
                 maxLength={160}
-                onChange={(event) => setLocationText(event.target.value)}
+                onChange={(event) => {
+                  setLocationText(event.target.value);
+                  setLocationModality("TEXT");
+                }}
                 placeholder={t("citizen.report.fields.locationPlaceholder")}
                 value={locationText}
               />

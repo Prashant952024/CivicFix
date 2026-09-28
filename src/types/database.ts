@@ -185,7 +185,7 @@ export interface Database {
           resolved_at: string | null;
           original_language: string;
           detected_language: string;
-          input_method: "TEXT" | "VOICE";
+          input_method: "TEXT" | "VOICE" | "MIXED";
           original_title: string | null;
           original_description: string | null;
           english_title: string | null;
@@ -225,7 +225,7 @@ export interface Database {
           resolved_at?: string | null;
           original_language?: string;
           detected_language?: string;
-          input_method?: "TEXT" | "VOICE";
+          input_method?: "TEXT" | "VOICE" | "MIXED";
           original_title?: string | null;
           original_description?: string | null;
           english_title?: string | null;
@@ -265,7 +265,7 @@ export interface Database {
           resolved_at?: string | null;
           original_language?: string;
           detected_language?: string;
-          input_method?: "TEXT" | "VOICE";
+          input_method?: "TEXT" | "VOICE" | "MIXED";
           original_title?: string | null;
           original_description?: string | null;
           english_title?: string | null;

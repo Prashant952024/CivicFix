@@ -82,6 +82,7 @@ export function VoiceInputButton({
   const [errorCode, setErrorCode] = useState<VoiceErrorCode | null>(null);
   const [pendingPayload, setPendingPayload] = useState<VoiceTranscriptionPayload | null>(null);
   const [editableTranscription, setEditableTranscription] = useState("");
+  const [editableEnglishTranslation, setEditableEnglishTranslation] = useState("");
   const [isReviewOpen, setIsReviewOpen] = useState(false);
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
@@ -326,8 +327,14 @@ export function VoiceInputButton({
         fieldMode,
       };
 
+      const initialEnglish =
+        fieldMode === "title" && payload.suggestedEnglishTitle
+          ? payload.suggestedEnglishTitle
+          : englishTranslation;
+
       setPendingPayload(payload);
       setEditableTranscription(transcription);
+      setEditableEnglishTranslation(initialEnglish);
       setState("reviewing");
       setIsReviewOpen(true);
     } catch (err: unknown) {
@@ -344,9 +351,18 @@ export function VoiceInputButton({
 
   function handleAcceptReview() {
     if (!pendingPayload) return;
+    const finalOriginal = editableTranscription.trim() || pendingPayload.transcription;
+    const finalEnglish =
+      pendingPayload.detectedLanguage === "en"
+        ? finalOriginal
+        : editableEnglishTranslation.trim() || finalOriginal || pendingPayload.englishTranslation;
+
     const finalPayload: VoiceTranscriptionPayload = {
       ...pendingPayload,
-      transcription: editableTranscription.trim() || pendingPayload.transcription,
+      transcription: finalOriginal,
+      englishTranslation: finalEnglish,
+      suggestedTitle: fieldMode === "title" ? finalOriginal : pendingPayload.suggestedTitle,
+      suggestedEnglishTitle: fieldMode === "title" ? finalEnglish : pendingPayload.suggestedEnglishTitle,
     };
     onTranscription(finalPayload);
     setIsReviewOpen(false);
@@ -520,16 +536,18 @@ export function VoiceInputButton({
               />
             </div>
 
-            {pendingPayload.detectedLanguage !== "en" && pendingPayload.englishTranslation && (
-              <div className="rounded-xl border border-sky-200/70 bg-sky-50/60 p-3 text-xs">
-                <span className="font-bold text-sky-900 block mb-0.5">
-                  {t("citizen.report.voice.englishTranslationLabel")}:
-                </span>
-                <p className="text-sky-950 leading-relaxed font-medium">
-                  {fieldMode === "title" && pendingPayload.suggestedEnglishTitle
-                    ? pendingPayload.suggestedEnglishTitle
-                    : pendingPayload.englishTranslation}
-                </p>
+            {pendingPayload.detectedLanguage !== "en" && (
+              <div>
+                <label className="block text-xs font-semibold text-sky-900 uppercase tracking-wider mb-1">
+                  {t("citizen.report.voice.englishTranslationLabel")} (Canonical English)
+                </label>
+                <textarea
+                  value={editableEnglishTranslation}
+                  onChange={(e) => setEditableEnglishTranslation(e.target.value)}
+                  rows={fieldMode === "title" ? 2 : 3}
+                  className="w-full rounded-xl border border-sky-300/80 bg-sky-50/50 px-3 py-2 text-sm text-sky-950 focus:border-sky-500 focus:ring-2 focus:ring-sky-200 leading-relaxed outline-none"
+                  placeholder="English translation for municipal triage..."
+                />
               </div>
             )}
 
