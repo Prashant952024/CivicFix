@@ -8,6 +8,8 @@ import {
   Building2,
   Check,
   CheckCircle2,
+  ChevronLeft,
+  ChevronRight,
   Clock,
   Eye,
   FileText,
@@ -51,6 +53,7 @@ import {
   getOfficerIssueSeverityLabel,
   getOfficerIssueSeverityTone,
 } from "@/lib/officer-issues";
+import { buildPostgrestIlikeOr } from "@/lib/security";
 import { supabase } from "@/lib/supabase";
 import type { ComplexityFactors, Database } from "@/types/database";
 
@@ -200,6 +203,8 @@ function getComplexityScale(score: number | null | undefined): {
   };
 }
 
+const PAGE_SIZE = 25;
+
 export function AdminClassificationPage() {
   const { profile } = useAppSession();
   const [issues, setIssues] = useState<IssueRow[]>([]);
@@ -210,6 +215,20 @@ export function AdminClassificationPage() {
   const [sortBy, setSortBy] = useState<SortOption>("attention");
   const [selectedIssueId, setSelectedIssueId] = useState<string | null>(null);
   const [previewImage, setPreviewImage] = useState<string | null>(null);
+
+  // Pagination state
+  const [page, setPage] = useState(1);
+  const [totalMatchingCount, setTotalMatchingCount] = useState(0);
+
+  // Real-time KPI summary counts state
+  const [stats, setStats] = useState({
+    awaitingReview: 0,
+    aiSimple: 0,
+    aiComplex: 0,
+    infraCount: 0,
+    overrides: 0,
+    total: 0,
+  });
 
   // Admin decision state
   type DecisionType = "SIMPLE" | "COMPLEX" | "INFRASTRUCTURE";
@@ -244,7 +263,7 @@ export function AdminClassificationPage() {
     void loadReferenceData();
   }, []);
 
-  // Load issues with full AI diagnostics and status history
+  // Load issues with full AI diagnostics and status history using server-side filtering and pagination
   useEffect(() => {
     let cancelled = false;
 
@@ -252,7 +271,7 @@ export function AdminClassificationPage() {
       setLoading(true);
       setError(null);
 
-      const { data, error: fetchErr } = await supabase
+      let query = supabase
         .from("issues")
         .select(`
           *,
@@ -287,21 +306,120 @@ export function AdminClassificationPage() {
             created_at,
             changed_by_profile:profiles!issue_status_history_changed_by_profile_id_fkey(full_name, email)
           )
-        `)
-        .is("canonical_issue_id", null)
-        .order("created_at", { ascending: false });
+        `, { count: "exact" })
+        .is("canonical_issue_id", null);
+
+      // Server-side filter tabs
+      if (filterTab === "awaiting") {
+        query = query.or("status.eq.AWAITING_ADMIN_CLASSIFICATION,and(status.eq.AI_ANALYZED,final_issue_type.is.null)");
+      } else if (filterTab === "infrastructure") {
+        query = query.or("final_issue_type.eq.INFRASTRUCTURE,status.in.(CLASSIFIED_INFRASTRUCTURE,INFRASTRUCTURE_REVIEW,INFRASTRUCTURE_ACCEPTED,INFRASTRUCTURE_REJECTED),ai_issue_type.eq.INFRASTRUCTURE");
+      } else if (filterTab === "ai_simple") {
+        query = query.eq("ai_issue_type", "SIMPLE");
+      } else if (filterTab === "ai_complex") {
+        query = query.eq("ai_issue_type", "COMPLEX");
+      } else if (filterTab === "high_complexity") {
+        query = query.gte("ai_complexity_score", 66);
+      } else if (filterTab === "low_confidence") {
+        query = query.lt("ai_classification_confidence", 0.7);
+      } else if (filterTab === "overridden") {
+        query = query.not("classification_override_reason", "is", null).neq("classification_override_reason", "");
+      }
+
+      // Server-side search filter
+      if (search.trim()) {
+        const searchOr = buildPostgrestIlikeOr(
+          ["title", "description", "category", "location_text", "address_text"],
+          search,
+        );
+        if (searchOr) {
+          query = query.or(searchOr);
+        }
+      }
+
+      // Server-side sorting
+      if (sortBy === "attention" || sortBy === "newest") {
+        query = query.order("created_at", { ascending: false });
+      } else if (sortBy === "oldest") {
+        query = query.order("created_at", { ascending: true });
+      } else if (sortBy === "score_desc") {
+        query = query.order("ai_complexity_score", { ascending: false, nullsFirst: false });
+      } else if (sortBy === "score_asc") {
+        query = query.order("ai_complexity_score", { ascending: true, nullsFirst: false });
+      } else if (sortBy === "confidence_desc") {
+        query = query.order("ai_classification_confidence", { ascending: false, nullsFirst: false });
+      } else if (sortBy === "confidence_asc") {
+        query = query.order("ai_classification_confidence", { ascending: true, nullsFirst: false });
+      }
+
+      // Server-side range pagination (PAGE_SIZE = 25)
+      const from = (page - 1) * PAGE_SIZE;
+      const to = from + PAGE_SIZE - 1;
+      query = query.range(from, to);
+
+      // Fetch paginated issues and aggregate stats counts concurrently using head: true
+      const [
+        listRes,
+        totalRes,
+        awaitingRes,
+        infraRes,
+        simpleRes,
+        complexRes,
+        overrideRes,
+      ] = await Promise.all([
+        query,
+        supabase.from("issues").select("id", { count: "exact", head: true }).is("canonical_issue_id", null),
+        supabase
+          .from("issues")
+          .select("id", { count: "exact", head: true })
+          .is("canonical_issue_id", null)
+          .or("status.eq.AWAITING_ADMIN_CLASSIFICATION,and(status.eq.AI_ANALYZED,final_issue_type.is.null)"),
+        supabase
+          .from("issues")
+          .select("id", { count: "exact", head: true })
+          .is("canonical_issue_id", null)
+          .or("final_issue_type.eq.INFRASTRUCTURE,status.in.(CLASSIFIED_INFRASTRUCTURE,INFRASTRUCTURE_REVIEW,INFRASTRUCTURE_ACCEPTED,INFRASTRUCTURE_REJECTED),ai_issue_type.eq.INFRASTRUCTURE"),
+        supabase
+          .from("issues")
+          .select("id", { count: "exact", head: true })
+          .is("canonical_issue_id", null)
+          .eq("ai_issue_type", "SIMPLE"),
+        supabase
+          .from("issues")
+          .select("id", { count: "exact", head: true })
+          .is("canonical_issue_id", null)
+          .eq("ai_issue_type", "COMPLEX"),
+        supabase
+          .from("issues")
+          .select("id", { count: "exact", head: true })
+          .is("canonical_issue_id", null)
+          .not("classification_override_reason", "is", null)
+          .neq("classification_override_reason", ""),
+      ]);
 
       if (cancelled) return;
 
-      if (fetchErr) {
-        if (import.meta.env.DEV) console.error("Failed to load classification queue", fetchErr);
+      if (listRes.error) {
+        if (import.meta.env.DEV) console.error("Failed to load classification queue", listRes.error);
         setError("Unable to load the classification queue.");
+        setIssues([]);
+        setTotalMatchingCount(0);
         setLoading(false);
         return;
       }
 
-      const loadedIssues = (data ?? []) as IssueRow[];
+      const loadedIssues = (listRes.data ?? []) as IssueRow[];
       setIssues(loadedIssues);
+      setTotalMatchingCount(listRes.count ?? 0);
+
+      setStats({
+        total: totalRes.count ?? 0,
+        awaitingReview: awaitingRes.count ?? 0,
+        infraCount: infraRes.count ?? 0,
+        aiSimple: simpleRes.count ?? 0,
+        aiComplex: complexRes.count ?? 0,
+        overrides: overrideRes.count ?? 0,
+      });
 
       // Auto-select first issue if none selected
       setSelectedIssueId((prev) => {
@@ -319,7 +437,7 @@ export function AdminClassificationPage() {
     return () => {
       cancelled = true;
     };
-  }, [refreshNonce]);
+  }, [page, filterTab, search, sortBy, refreshNonce]);
 
   // Derive the currently selected issue
   const selectedIssue = useMemo(() => {
@@ -347,143 +465,6 @@ export function AdminClassificationPage() {
     setActionSuccess(null);
     setActionError(null);
   }
-
-  // Real-time KPI summary counts
-  const stats = useMemo(() => {
-    let awaitingReview = 0;
-    let aiSimple = 0;
-    let aiComplex = 0;
-    let infraCount = 0;
-    let overrides = 0;
-
-    for (const issue of issues) {
-      const isAwaiting =
-        issue.status === "AWAITING_ADMIN_CLASSIFICATION" ||
-        (issue.status === "AI_ANALYZED" && !issue.final_issue_type);
-      if (isAwaiting) awaitingReview += 1;
-
-      if (issue.ai_issue_type === "SIMPLE") aiSimple += 1;
-      else if (issue.ai_issue_type === "COMPLEX") aiComplex += 1;
-
-      const isInfra =
-        issue.final_issue_type === "INFRASTRUCTURE" ||
-        issue.status === "CLASSIFIED_INFRASTRUCTURE" ||
-        issue.status === "INFRASTRUCTURE_REVIEW" ||
-        issue.status === "INFRASTRUCTURE_ACCEPTED" ||
-        issue.status === "INFRASTRUCTURE_REJECTED" ||
-        issue.ai_issue_type === "INFRASTRUCTURE";
-      if (isInfra) infraCount += 1;
-
-      const hasOverride =
-        (issue.classification_override_reason &&
-          issue.classification_override_reason.trim().length > 0) ||
-        (issue.final_issue_type &&
-          issue.ai_issue_type &&
-          issue.final_issue_type !== issue.ai_issue_type);
-      if (hasOverride) overrides += 1;
-    }
-
-    return {
-      awaitingReview,
-      aiSimple,
-      aiComplex,
-      infraCount,
-      overrides,
-      total: issues.length,
-    };
-  }, [issues]);
-
-  // Filtered and sorted issues queue
-  const filteredIssues = useMemo(() => {
-    const q = search.trim().toLowerCase();
-
-    return issues
-      .filter((issue) => {
-        const isAwaiting =
-          issue.status === "AWAITING_ADMIN_CLASSIFICATION" ||
-          (issue.status === "AI_ANALYZED" && !issue.final_issue_type);
-        const score = issue.ai_complexity_score ?? 0;
-        const confidence = issue.ai_classification_confidence ?? 1;
-        const isOverridden =
-          Boolean(issue.classification_override_reason?.trim()) ||
-          (Boolean(issue.final_issue_type) &&
-            Boolean(issue.ai_issue_type) &&
-            issue.final_issue_type !== issue.ai_issue_type);
-        const isInfra =
-          issue.final_issue_type === "INFRASTRUCTURE" ||
-          issue.status === "CLASSIFIED_INFRASTRUCTURE" ||
-          issue.status === "INFRASTRUCTURE_REVIEW" ||
-          issue.status === "INFRASTRUCTURE_ACCEPTED" ||
-          issue.status === "INFRASTRUCTURE_REJECTED" ||
-          issue.ai_issue_type === "INFRASTRUCTURE";
-
-        if (filterTab === "awaiting" && !isAwaiting) return false;
-        if (filterTab === "infrastructure" && !isInfra) return false;
-        if (filterTab === "ai_simple" && issue.ai_issue_type !== "SIMPLE") return false;
-        if (filterTab === "ai_complex" && issue.ai_issue_type !== "COMPLEX") return false;
-        if (filterTab === "high_complexity" && score < 66) return false;
-        if (filterTab === "low_confidence" && confidence >= 0.7) return false;
-        if (filterTab === "overridden" && !isOverridden) return false;
-
-        if (q) {
-          const matchId = issue.id.toLowerCase().includes(q);
-          const matchTitle = issue.title.toLowerCase().includes(q);
-          const matchDesc = issue.description.toLowerCase().includes(q);
-          const matchCategory = (issue.category || "").toLowerCase().includes(q);
-          const matchLocation = `${issue.location_text || ""} ${issue.address_text || ""}`
-            .toLowerCase()
-            .includes(q);
-
-          if (!matchId && !matchTitle && !matchDesc && !matchCategory && !matchLocation) {
-            return false;
-          }
-        }
-
-        return true;
-      })
-      .sort((a, b) => {
-        if (sortBy === "attention") {
-          const aAwaiting =
-            a.status === "AWAITING_ADMIN_CLASSIFICATION" ||
-            (a.status === "AI_ANALYZED" && !a.final_issue_type);
-          const bAwaiting =
-            b.status === "AWAITING_ADMIN_CLASSIFICATION" ||
-            (b.status === "AI_ANALYZED" && !b.final_issue_type);
-          if (aAwaiting !== bAwaiting) return aAwaiting ? -1 : 1;
-
-          const aLowConf = (a.ai_classification_confidence ?? 1) < 0.7;
-          const bLowConf = (b.ai_classification_confidence ?? 1) < 0.7;
-          if (aLowConf !== bLowConf) return aLowConf ? -1 : 1;
-
-          const aScore = a.ai_complexity_score ?? 0;
-          const bScore = b.ai_complexity_score ?? 0;
-          if (aScore !== bScore) return bScore - aScore;
-
-          return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
-        }
-
-        if (sortBy === "newest") {
-          return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
-        }
-        if (sortBy === "oldest") {
-          return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
-        }
-        if (sortBy === "score_desc") {
-          return (b.ai_complexity_score ?? 0) - (a.ai_complexity_score ?? 0);
-        }
-        if (sortBy === "score_asc") {
-          return (a.ai_complexity_score ?? 0) - (b.ai_complexity_score ?? 0);
-        }
-        if (sortBy === "confidence_desc") {
-          return (b.ai_classification_confidence ?? 0) - (a.ai_classification_confidence ?? 0);
-        }
-        if (sortBy === "confidence_asc") {
-          return (a.ai_classification_confidence ?? 0) - (b.ai_classification_confidence ?? 0);
-        }
-
-        return 0;
-      });
-  }, [issues, filterTab, search, sortBy]);
 
   // Selected issue AI analysis diagnostics
   const latestAi = selectedIssue?.issue_ai_analysis?.[0];
@@ -811,7 +792,10 @@ export function AdminClassificationPage() {
             </span>
             <button
               type="button"
-              onClick={() => setFilterTab("awaiting")}
+              onClick={() => {
+                setFilterTab("awaiting");
+                setPage(1);
+              }}
               className={`px-3 py-1 rounded-full text-xs font-semibold transition-all ${
                 filterTab === "awaiting"
                   ? "bg-amber-600 text-white shadow-sm"
@@ -822,7 +806,10 @@ export function AdminClassificationPage() {
             </button>
             <button
               type="button"
-              onClick={() => setFilterTab("infrastructure")}
+              onClick={() => {
+                setFilterTab("infrastructure");
+                setPage(1);
+              }}
               className={`px-3 py-1 rounded-full text-xs font-semibold transition-all flex items-center gap-1 ${
                 filterTab === "infrastructure"
                   ? "bg-indigo-600 text-white shadow-sm"
@@ -834,7 +821,10 @@ export function AdminClassificationPage() {
             </button>
             <button
               type="button"
-              onClick={() => setFilterTab("all")}
+              onClick={() => {
+                setFilterTab("all");
+                setPage(1);
+              }}
               className={`px-3 py-1 rounded-full text-xs font-semibold transition-all ${
                 filterTab === "all"
                   ? "bg-teal-700 text-white shadow-sm"
@@ -845,7 +835,10 @@ export function AdminClassificationPage() {
             </button>
             <button
               type="button"
-              onClick={() => setFilterTab("ai_simple")}
+              onClick={() => {
+                setFilterTab("ai_simple");
+                setPage(1);
+              }}
               className={`px-3 py-1 rounded-full text-xs font-semibold transition-all ${
                 filterTab === "ai_simple"
                   ? "bg-emerald-600 text-white shadow-sm"
@@ -856,7 +849,10 @@ export function AdminClassificationPage() {
             </button>
             <button
               type="button"
-              onClick={() => setFilterTab("ai_complex")}
+              onClick={() => {
+                setFilterTab("ai_complex");
+                setPage(1);
+              }}
               className={`px-3 py-1 rounded-full text-xs font-semibold transition-all ${
                 filterTab === "ai_complex"
                   ? "bg-teal-700 text-white shadow-sm"
@@ -867,7 +863,10 @@ export function AdminClassificationPage() {
             </button>
             <button
               type="button"
-              onClick={() => setFilterTab("high_complexity")}
+              onClick={() => {
+                setFilterTab("high_complexity");
+                setPage(1);
+              }}
               className={`px-3 py-1 rounded-full text-xs font-semibold transition-all ${
                 filterTab === "high_complexity"
                   ? "bg-teal-900 text-white shadow-sm"
@@ -878,7 +877,10 @@ export function AdminClassificationPage() {
             </button>
             <button
               type="button"
-              onClick={() => setFilterTab("low_confidence")}
+              onClick={() => {
+                setFilterTab("low_confidence");
+                setPage(1);
+              }}
               className={`px-3 py-1 rounded-full text-xs font-semibold transition-all ${
                 filterTab === "low_confidence"
                   ? "bg-amber-700 text-white shadow-sm"
@@ -889,7 +891,10 @@ export function AdminClassificationPage() {
             </button>
             <button
               type="button"
-              onClick={() => setFilterTab("overridden")}
+              onClick={() => {
+                setFilterTab("overridden");
+                setPage(1);
+              }}
               className={`px-3 py-1 rounded-full text-xs font-semibold transition-all ${
                 filterTab === "overridden"
                   ? "bg-sky-700 text-white shadow-sm"
@@ -907,7 +912,10 @@ export function AdminClassificationPage() {
               <input
                 type="text"
                 value={search}
-                onChange={(e) => setSearch(e.target.value)}
+                onChange={(e) => {
+                  setSearch(e.target.value);
+                  setPage(1);
+                }}
                 placeholder="Search ID, title, location, category..."
                 className="w-full text-xs pl-8 pr-3 py-1.5 rounded-lg border border-input bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
               />
@@ -917,7 +925,10 @@ export function AdminClassificationPage() {
               <SlidersHorizontal className="h-3.5 w-3.5 text-muted-foreground" />
               <select
                 value={sortBy}
-                onChange={(e) => setSortBy(e.target.value as SortOption)}
+                onChange={(e) => {
+                  setSortBy(e.target.value as SortOption);
+                  setPage(1);
+                }}
                 className="text-xs py-1.5 px-2 rounded-lg border border-input bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
               >
                 <option value="attention">Sort: Priority Attention</option>
@@ -943,7 +954,7 @@ export function AdminClassificationPage() {
                 <Layers className="h-4 w-4 text-teal-700" />
                 <span>Classification Queue</span>
                 <Badge variant="outline" size="sm" className="text-[10px] font-bold">
-                  {filteredIssues.length}
+                  {totalMatchingCount}
                 </Badge>
               </div>
               <span className="text-[11px] text-muted-foreground font-medium">Select an issue to govern</span>
@@ -955,7 +966,7 @@ export function AdminClassificationPage() {
                   <Loader2 className="h-6 w-6 animate-spin text-primary" />
                   <span>Loading classification queue...</span>
                 </div>
-              ) : filteredIssues.length === 0 ? (
+              ) : issues.length === 0 ? (
                 <div className="p-8 text-center">
                   <EmptyState
                     title="No grievances match your filter"
@@ -963,7 +974,7 @@ export function AdminClassificationPage() {
                   />
                 </div>
               ) : (
-                filteredIssues.map((issue) => {
+                issues.map((issue) => {
                   const isSelected = selectedIssue?.id === issue.id;
                   const itemAi = issue.issue_ai_analysis?.[0];
                   const itemAiType = issue.ai_issue_type || itemAi?.issue_type || "SIMPLE";
@@ -1063,6 +1074,40 @@ export function AdminClassificationPage() {
                   );
                 })
               )}
+            </div>
+
+            {/* Pagination Controls */}
+            <div className="p-3 border-t border-border/70 bg-muted/20 flex items-center justify-between text-xs">
+              <span className="text-muted-foreground">
+                {totalMatchingCount === 0
+                  ? "Showing 0 of 0"
+                  : `Showing ${(page - 1) * PAGE_SIZE + 1}–${Math.min(page * PAGE_SIZE, totalMatchingCount)} of ${totalMatchingCount}`}
+              </span>
+              <div className="flex items-center gap-1.5">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-7 text-xs gap-1"
+                  disabled={page <= 1 || loading}
+                  onClick={() => setPage((p) => Math.max(1, p - 1))}
+                >
+                  <ChevronLeft className="h-3.5 w-3.5" />
+                  <span>Prev</span>
+                </Button>
+                <span className="font-semibold text-muted-foreground px-1">
+                  {page} / {Math.max(1, Math.ceil(totalMatchingCount / PAGE_SIZE))}
+                </span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-7 text-xs gap-1"
+                  disabled={page * PAGE_SIZE >= totalMatchingCount || loading}
+                  onClick={() => setPage((p) => p + 1)}
+                >
+                  <span>Next</span>
+                  <ChevronRight className="h-3.5 w-3.5" />
+                </Button>
+              </div>
             </div>
           </Card>
         </div>

@@ -5,6 +5,8 @@ import {
   Bot,
   Building2,
   Calendar,
+  ChevronLeft,
+  ChevronRight,
   MapPin,
   Search,
   SlidersHorizontal,
@@ -39,6 +41,7 @@ import {
   type OfficerIssuePriority,
   type OfficerIssueSeverity,
 } from "@/lib/officer-issues";
+import { buildPostgrestIlikeOr } from "@/lib/security";
 import { supabase } from "@/lib/supabase";
 import type { Database } from "@/types/database";
 
@@ -73,13 +76,7 @@ type OfficerIssueListRow = Pick<
 
 type CategoryOption = { key: string; label: string };
 
-function priorityRank(priority: OfficerIssuePriority) {
-  return priority === "URGENT" ? 3 : priority === "HIGH" ? 2 : priority === "MEDIUM" ? 1 : 0;
-}
-
-function severityRank(severity: OfficerIssueSeverity) {
-  return severity === "CRITICAL" ? 3 : severity === "HIGH" ? 2 : severity === "MEDIUM" ? 1 : 0;
-}
+const PAGE_SIZE = 25;
 
 export function OfficerIssuesPage() {
   const { profile, status: sessionStatus, error: sessionError } = useAppSession();
@@ -91,11 +88,60 @@ export function OfficerIssuesPage() {
   const [priorityFilter, setPriorityFilter] = useState<"all" | OfficerIssuePriority>("all");
   const [categoryFilter, setCategoryFilter] = useState("all");
   const [sortOrder, setSortOrder] = useState<SortOrder>("newest");
+  const [page, setPage] = useState(1);
+  const [totalMatchingCount, setTotalMatchingCount] = useState(0);
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
   const [refreshNonce, setRefreshNonce] = useState(0);
+
+  // Queue KPI counts
+  const [queueMetrics, setQueueMetrics] = useState({
+    total: 0,
+    pending: 0,
+    assigned: 0,
+    inProgress: 0,
+    verified: 0,
+    resolved: 0,
+    reopened: 0,
+    rejected: 0,
+  });
+
+  const [categories, setCategories] = useState<CategoryOption[]>([
+    { key: "all", label: "All categories" },
+  ]);
+
   const profileId = profile?.id;
   const sessionProblem = sessionStatus === "error" ? sessionError ?? "CivicFix profile is unavailable." : null;
 
+  // Load distinct categories
+  useEffect(() => {
+    async function loadCategories() {
+      try {
+        const { data } = await supabase
+          .from("issues")
+          .select("category")
+          .not("category", "is", null)
+          .limit(200);
+
+        if (data) {
+          const unique = new Set(data.map((i) => i.category).filter(Boolean));
+          setCategories([
+            { key: "all", label: "All categories" },
+            ...Array.from(unique).sort().map((cat) => ({ key: cat as string, label: cat as string })),
+          ]);
+        }
+      } catch (err) {
+        if (import.meta.env.DEV) console.warn("Could not load categories", err);
+      }
+    }
+    void loadCategories();
+  }, []);
+
+  // Reset page to 1 whenever filters or sorting change
+  useEffect(() => {
+    setPage(1);
+  }, [search, statusFilter, priorityFilter, categoryFilter, sortOrder]);
+
+  // Load bounded issues page & queue counts
   useEffect(() => {
     if (sessionStatus !== "ready" || !profileId) {
       return;
@@ -103,121 +149,204 @@ export function OfficerIssuesPage() {
 
     let cancelled = false;
 
-    async function loadIssues() {
+    async function loadOfficerIssues() {
       setLoading(true);
       setError(null);
 
-      const { data, error: loadError } = await supabase
-        .from("issues")
-        .select(
-          `
-          id,
-          title,
-          description,
-          category,
-          severity,
-          priority,
-          status,
-          latitude,
-          longitude,
-          location_text,
-          address_text,
-          created_at,
-          updated_at,
-          issue_images(id, storage_bucket, storage_path, image_type, created_at),
-          issue_assignments(
+      try {
+        // 1. Build paginated issues query
+        let query = supabase
+          .from("issues")
+          .select(
+            `
             id,
-            issue_id,
-            department_id,
-            worker_id,
-            assigned_by_profile_id,
+            title,
+            description,
+            category,
+            severity,
+            priority,
             status,
-            assigned_at,
-            unassigned_at,
-            department:departments(id, name),
-            worker:profiles!issue_assignments_worker_id_fkey(id, full_name, email)
-          ),
-          issue_ai_analysis(id, provider, model, category_recommendation, severity_recommendation, priority_recommendation, department_recommendation, confidence_score, created_at),
-          reporter_profile:profiles!issues_reporter_profile_id_fkey(id, full_name, email, phone)
-        `,
-        )
-        .order("created_at", { ascending: false });
+            latitude,
+            longitude,
+            location_text,
+            address_text,
+            created_at,
+            updated_at,
+            issue_images(id, storage_bucket, storage_path, image_type, created_at),
+            issue_assignments(
+              id,
+              issue_id,
+              department_id,
+              worker_id,
+              assigned_by_profile_id,
+              status,
+              assigned_at,
+              unassigned_at,
+              department:departments(id, name),
+              worker:profiles!issue_assignments_worker_id_fkey(id, full_name, email)
+            ),
+            issue_ai_analysis(id, provider, model, category_recommendation, severity_recommendation, priority_recommendation, department_recommendation, confidence_score, created_at),
+            reporter_profile:profiles!issues_reporter_profile_id_fkey(id, full_name, email, phone)
+          `,
+            { count: "exact" },
+          );
 
-      if (cancelled) {
-        return;
-      }
-
-      if (loadError) {
-        if (import.meta.env.DEV) {
-          console.error("Officer issues load failed", loadError);
+        // Apply status filter
+        if (statusFilter === "pending") {
+          query = query.in("status", [
+            "SUBMITTED",
+            "AI_ANALYZED",
+            "AWAITING_ADMIN_CLASSIFICATION",
+            "CLASSIFIED_SIMPLE",
+            "CLASSIFIED_COMPLEX",
+            "CLASSIFIED_INFRASTRUCTURE",
+            "UNDER_REVIEW",
+          ]);
+        } else if (statusFilter === "verified") {
+          query = query.in("status", ["VERIFIED", "CITIZEN_VERIFIED"]);
+        } else if (statusFilter === "inProgress") {
+          query = query.in("status", ["ASSIGNED", "IN_PROGRESS", "PARTIALLY_COMPLETED", "INFRASTRUCTURE_REVIEW", "INFRASTRUCTURE_ACCEPTED"]);
+        } else if (statusFilter === "resolved") {
+          query = query.in("status", ["RESOLVED", "CITIZEN_VERIFIED", "INFRASTRUCTURE_DEFERRED", "INFRASTRUCTURE_REJECTED"]);
+        } else if (statusFilter === "reopened") {
+          query = query.eq("status", "REOPENED");
+        } else if (statusFilter === "rejected") {
+          query = query.in("status", ["REJECTED", "INFRASTRUCTURE_REJECTED"]);
         }
-        setError("Unable to load the officer queue right now.");
-        setIssues([]);
-        setLoading(false);
-        return;
-      }
 
-      setIssues((data ?? []) as OfficerIssueListRow[]);
-      setLoading(false);
+        // Apply priority filter
+        if (priorityFilter !== "all") {
+          query = query.eq("priority", priorityFilter);
+        }
+
+        // Apply category filter
+        if (categoryFilter !== "all") {
+          query = query.eq("category", categoryFilter);
+        }
+
+        // Apply search filter securely
+        if (search.trim()) {
+          const searchOr = buildPostgrestIlikeOr(
+            ["title", "description", "category", "location_text", "address_text"],
+            search,
+          );
+          if (searchOr) {
+            query = query.or(searchOr);
+          }
+        }
+
+        // Apply sorting
+        switch (sortOrder) {
+          case "oldest":
+            query = query.order("created_at", { ascending: true });
+            break;
+          case "priority":
+            query = query.order("priority", { ascending: false }).order("created_at", { ascending: false });
+            break;
+          case "severity":
+            query = query.order("severity", { ascending: false }).order("created_at", { ascending: false });
+            break;
+          case "newest":
+          default:
+            query = query.order("created_at", { ascending: false });
+            break;
+        }
+
+        // Apply range pagination
+        const from = (page - 1) * PAGE_SIZE;
+        const to = from + PAGE_SIZE - 1;
+        query = query.range(from, to);
+
+        // Run issue list query and metrics count queries concurrently
+        const [
+          listRes,
+          totalRes,
+          pendingRes,
+          assignedRes,
+          inProgressRes,
+          verifiedRes,
+          resolvedRes,
+          reopenedRes,
+          rejectedRes,
+        ] = await Promise.all([
+          query,
+          supabase.from("issues").select("id", { count: "exact", head: true }),
+          supabase.from("issues").select("id", { count: "exact", head: true }).in("status", [
+            "SUBMITTED",
+            "AI_ANALYZED",
+            "AWAITING_ADMIN_CLASSIFICATION",
+            "CLASSIFIED_SIMPLE",
+            "CLASSIFIED_COMPLEX",
+            "CLASSIFIED_INFRASTRUCTURE",
+            "UNDER_REVIEW",
+          ]),
+          supabase.from("issues").select("id", { count: "exact", head: true }).eq("status", "ASSIGNED"),
+          supabase.from("issues").select("id", { count: "exact", head: true }).in("status", [
+            "ASSIGNED",
+            "IN_PROGRESS",
+            "PARTIALLY_COMPLETED",
+            "INFRASTRUCTURE_REVIEW",
+            "INFRASTRUCTURE_ACCEPTED",
+          ]),
+          supabase.from("issues").select("id", { count: "exact", head: true }).in("status", ["VERIFIED", "CITIZEN_VERIFIED"]),
+          supabase.from("issues").select("id", { count: "exact", head: true }).in("status", ["RESOLVED", "CITIZEN_VERIFIED"]),
+          supabase.from("issues").select("id", { count: "exact", head: true }).eq("status", "REOPENED"),
+          supabase.from("issues").select("id", { count: "exact", head: true }).in("status", ["REJECTED", "INFRASTRUCTURE_REJECTED"]),
+        ]);
+
+        if (cancelled) return;
+
+        if (listRes.error) {
+          if (import.meta.env.DEV) {
+            console.error("Officer issues load failed", listRes.error);
+          }
+          setError("Unable to load the officer queue right now.");
+          setIssues([]);
+          setTotalMatchingCount(0);
+          setLoading(false);
+          return;
+        }
+
+        setIssues((listRes.data ?? []) as OfficerIssueListRow[]);
+        setTotalMatchingCount(listRes.count ?? 0);
+
+        setQueueMetrics({
+          total: totalRes.count ?? 0,
+          pending: pendingRes.count ?? 0,
+          assigned: assignedRes.count ?? 0,
+          inProgress: inProgressRes.count ?? 0,
+          verified: verifiedRes.count ?? 0,
+          resolved: resolvedRes.count ?? 0,
+          reopened: reopenedRes.count ?? 0,
+          rejected: rejectedRes.count ?? 0,
+        });
+
+        setLoading(false);
+      } catch (err) {
+        if (!cancelled) {
+          console.error("Officer issues load error:", err);
+          setError("Unable to load the officer queue right now.");
+          setLoading(false);
+        }
+      }
     }
 
-    void loadIssues();
+    void loadOfficerIssues();
 
     return () => {
       cancelled = true;
     };
-  }, [profileId, refreshNonce, sessionStatus]);
+  }, [profileId, refreshNonce, sessionStatus, page, search, statusFilter, priorityFilter, categoryFilter, sortOrder]);
 
-  const categories = useMemo<CategoryOption[]>(() => {
-    const unique = new Set(issues.map((issue) => issue.category).filter(Boolean));
-    return [{ key: "all", label: "All categories" }, ...Array.from(unique).sort().map((category) => ({ key: category, label: category }))];
-  }, [issues]);
+  const hasFiltersActive =
+    search.trim().length > 0 ||
+    statusFilter !== "all" ||
+    priorityFilter !== "all" ||
+    categoryFilter !== "all" ||
+    sortOrder !== "newest";
 
-  const filteredIssues = useMemo(() => {
-    const query = search.trim().toLowerCase();
-
-    const nextIssues = issues.filter((issue) => {
-      const assignment = issue.issue_assignments?.find((entry) => entry.unassigned_at === null) ?? issue.issue_assignments?.[0] ?? null;
-      const searchFields = [
-        issue.title,
-        issue.description,
-        issue.category,
-        issue.location_text,
-        issue.address_text,
-        issue.reporter_profile?.full_name,
-        issue.reporter_profile?.email,
-        assignment?.department?.name,
-        assignment?.worker?.full_name,
-      ]
-        .filter(Boolean)
-        .map((value) => String(value).toLowerCase());
-
-      const matchesSearch = !query || searchFields.some((value) => value.includes(query));
-      const matchesStatus = statusFilter === "all" || getOfficerIssueStatusFilterBucket(issue.status) === statusFilter;
-      const matchesPriority = priorityFilter === "all" || issue.priority === priorityFilter;
-      const matchesCategory = categoryFilter === "all" || issue.category === categoryFilter;
-
-      return matchesSearch && matchesStatus && matchesPriority && matchesCategory;
-    });
-
-    return nextIssues.sort((a, b) => {
-      switch (sortOrder) {
-        case "oldest":
-          return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
-        case "priority":
-          return priorityRank(b.priority) - priorityRank(a.priority) || new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
-        case "severity":
-          return severityRank(b.severity) - severityRank(a.severity) || new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
-        case "newest":
-        default:
-          return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
-      }
-    });
-  }, [categoryFilter, issues, priorityFilter, search, sortOrder, statusFilter]);
-
-  const hasFiltersActive = search.trim().length > 0 || statusFilter !== "all" || priorityFilter !== "all" || categoryFilter !== "all" || sortOrder !== "newest";
   const statusFilters = getOfficerIssueStatusOptions();
-  const totalCount = issues.length;
+  const totalPages = Math.max(1, Math.ceil(totalMatchingCount / PAGE_SIZE));
 
   function clearFilters() {
     setSearch("");
@@ -225,6 +354,7 @@ export function OfficerIssuesPage() {
     setPriorityFilter("all");
     setCategoryFilter("all");
     setSortOrder("newest");
+    setPage(1);
     setMobileFiltersOpen(false);
   }
 
@@ -247,7 +377,7 @@ export function OfficerIssuesPage() {
     );
   }
 
-  if (loading) {
+  if (loading && issues.length === 0) {
     return (
       <div className="page-container-standard space-y-6">
         <Card className="p-6 sm:p-8">
@@ -284,25 +414,19 @@ export function OfficerIssuesPage() {
         <div className="grid gap-3 sm:grid-cols-2 md:grid-cols-4">
           <Card className="p-4 border-l-4 border-l-teal-500">
             <p className="text-xs font-semibold text-muted-foreground">Total In Queue</p>
-            <p className="mt-1 text-2xl font-bold text-foreground">{totalCount}</p>
+            <p className="mt-1 text-2xl font-bold text-foreground">{queueMetrics.total}</p>
           </Card>
           <Card className="p-4 border-l-4 border-l-amber-500">
             <p className="text-xs font-semibold text-muted-foreground">Pending Verification</p>
-            <p className="mt-1 text-2xl font-bold text-amber-700">
-              {issues.filter((issue) => getOfficerIssueStatusFilterBucket(issue.status) === "pending").length}
-            </p>
+            <p className="mt-1 text-2xl font-bold text-amber-700">{queueMetrics.pending}</p>
           </Card>
           <Card className="p-4 border-l-4 border-l-sky-500">
             <p className="text-xs font-semibold text-muted-foreground">Assigned to Workers</p>
-            <p className="mt-1 text-2xl font-bold text-sky-700">
-              {issues.filter((issue) => issue.status === "ASSIGNED").length}
-            </p>
+            <p className="mt-1 text-2xl font-bold text-sky-700">{queueMetrics.assigned}</p>
           </Card>
           <Card className="p-4 border-l-4 border-l-orange-500">
             <p className="text-xs font-semibold text-muted-foreground">In Progress / Field Work</p>
-            <p className="mt-1 text-2xl font-bold text-orange-700">
-              {issues.filter((issue) => getOfficerIssueStatusFilterBucket(issue.status) === "inProgress").length}
-            </p>
+            <p className="mt-1 text-2xl font-bold text-orange-700">{queueMetrics.inProgress}</p>
           </Card>
         </div>
       </section>
@@ -420,10 +544,13 @@ export function OfficerIssuesPage() {
         <div className="mt-4 pt-3.5 border-t border-border/60 flex items-center gap-1.5 overflow-x-auto pb-1 -mb-1">
           {statusFilters.map((filter) => {
             const isActive = statusFilter === filter.key;
-            const count =
-              filter.key === "all"
-                ? issues.length
-                : issues.filter((issue) => getOfficerIssueStatusFilterBucket(issue.status) === filter.key).length;
+            let count = queueMetrics.total;
+            if (filter.key === "pending") count = queueMetrics.pending;
+            else if (filter.key === "verified") count = queueMetrics.verified;
+            else if (filter.key === "inProgress") count = queueMetrics.inProgress;
+            else if (filter.key === "resolved") count = queueMetrics.resolved;
+            else if (filter.key === "reopened") count = queueMetrics.reopened;
+            else if (filter.key === "rejected") count = queueMetrics.rejected;
 
             return (
               <button
@@ -548,12 +675,13 @@ export function OfficerIssuesPage() {
       </Dialog>
 
       {/* Work Queue Cards List */}
-      {filteredIssues.length > 0 ? (
+      {issues.length > 0 ? (
         <div className="space-y-4">
-          <div className="flex items-center justify-between gap-3 text-xs sm:text-sm text-muted-foreground px-1">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs sm:text-sm text-muted-foreground px-1">
             <p>
-              Showing <span className="font-bold text-foreground">{filteredIssues.length}</span> of{" "}
-              <span className="font-bold text-foreground">{totalCount}</span> issues in queue
+              Showing <span className="font-bold text-foreground">{totalMatchingCount > 0 ? (page - 1) * PAGE_SIZE + 1 : 0}</span>–
+              <span className="font-bold text-foreground">{Math.min(page * PAGE_SIZE, totalMatchingCount)}</span> of{" "}
+              <span className="font-bold text-foreground">{totalMatchingCount}</span> matching issues
             </p>
             <span className="font-medium">
               Sorted by: {sortOrder.charAt(0).toUpperCase() + sortOrder.slice(1)}
@@ -561,7 +689,7 @@ export function OfficerIssuesPage() {
           </div>
 
           <div className="grid gap-4">
-            {filteredIssues.map((issue) => {
+            {issues.map((issue) => {
               const assignment = issue.issue_assignments?.find((entry) => entry.unassigned_at === null) ?? issue.issue_assignments?.[0] ?? null;
               const assignmentSummary = formatOfficerAssignmentSummary(assignment);
               const thumb = pickOfficerIssueThumbnail(issue);
@@ -685,13 +813,45 @@ export function OfficerIssuesPage() {
               );
             })}
           </div>
+
+          {/* Pagination Controls */}
+          {totalPages > 1 && (
+            <div className="flex items-center justify-between pt-4 border-t border-border/60 text-xs">
+              <p className="text-muted-foreground">
+                Page <span className="font-bold text-foreground">{page}</span> of{" "}
+                <span className="font-bold text-foreground">{totalPages}</span>
+              </p>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={page <= 1 || loading}
+                  onClick={() => setPage((p) => Math.max(1, p - 1))}
+                  className="gap-1 h-8 text-xs font-semibold"
+                >
+                  <ChevronLeft className="h-3.5 w-3.5" />
+                  <span>Previous</span>
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={page >= totalPages || loading}
+                  onClick={() => setPage((p) => p + 1)}
+                  className="gap-1 h-8 text-xs font-semibold"
+                >
+                  <span>Next</span>
+                  <ChevronRight className="h-3.5 w-3.5" />
+                </Button>
+              </div>
+            </div>
+          )}
         </div>
       ) : (
         <EmptyState
           icon={SlidersHorizontal}
-          title={totalCount === 0 ? "No issues in queue" : "No matching issues"}
+          title={queueMetrics.total === 0 ? "No issues in queue" : "No matching issues"}
           description={
-            totalCount === 0
+            queueMetrics.total === 0
               ? "The municipal work queue is currently empty. Incoming reports will appear here."
               : "No issues match your current filter and search criteria."
           }
@@ -711,4 +871,3 @@ export function OfficerIssuesPage() {
     </div>
   );
 }
-
