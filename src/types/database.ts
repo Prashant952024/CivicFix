@@ -182,7 +182,7 @@ export interface Database {
           location_text: string | null;
           address_text: string | null;
           district_id: string | null;
-          district_resolution_method: "CITIZEN_SELECTED" | "AI_ADDRESS_PARSED" | "ADMIN_MANUAL" | "GPS_POSTGIS" | null;
+          district_resolution_method: "CITIZEN_SELECTED" | "AI_ADDRESS_PARSED" | "ADMIN_MANUAL" | null;
           department_id: string | null;
           resolved_at: string | null;
           original_language: string;
@@ -224,7 +224,7 @@ export interface Database {
           location_text?: string | null;
           address_text?: string | null;
           district_id?: string | null;
-          district_resolution_method?: "CITIZEN_SELECTED" | "AI_ADDRESS_PARSED" | "ADMIN_MANUAL" | "GPS_POSTGIS" | null;
+          district_resolution_method?: "CITIZEN_SELECTED" | "AI_ADDRESS_PARSED" | "ADMIN_MANUAL" | null;
           department_id?: string | null;
           resolved_at?: string | null;
           original_language?: string;
@@ -266,7 +266,7 @@ export interface Database {
           location_text?: string | null;
           address_text?: string | null;
           district_id?: string | null;
-          district_resolution_method?: "CITIZEN_SELECTED" | "AI_ADDRESS_PARSED" | "ADMIN_MANUAL" | "GPS_POSTGIS" | null;
+          district_resolution_method?: "CITIZEN_SELECTED" | "AI_ADDRESS_PARSED" | "ADMIN_MANUAL" | null;
           department_id?: string | null;
           resolved_at?: string | null;
           original_language?: string;

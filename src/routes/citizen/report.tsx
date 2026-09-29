@@ -22,7 +22,7 @@ import { Card } from "@/components/ui/card";
 import { PageHeader } from "@/components/ui/page-header";
 import { citizenIssueCategories, formatCitizenIssueDate, type CitizenIssueCategory } from "@/lib/citizen-issues";
 import { useTranslation } from "@/lib/i18n";
-import { resolveDistrictFromGps } from "@/lib/infrastructure-context";
+import { fetchCanonicalDistricts, type CanonicalDistrictOption } from "@/lib/infrastructure-context";
 import { supabase } from "@/lib/supabase";
 import type { Database } from "@/types/database";
 
@@ -75,6 +75,7 @@ type CitizenReportDraft = {
   title: string;
   description: string;
   category: CitizenIssueCategory | "";
+  districtId: string;
   locationText: string;
   latitude: string | null;
   longitude: string | null;
@@ -101,6 +102,7 @@ function createEmptyCitizenReportDraft(defaultLang = "en"): CitizenReportDraft {
     title: "",
     description: "",
     category: "",
+    districtId: "",
     locationText: "",
     latitude: null,
     longitude: null,
@@ -316,6 +318,9 @@ function CitizenReportComposer({ profileId }: { profileId: string }) {
   const [title, setTitle] = useState(initialDraft.title);
   const [description, setDescription] = useState(initialDraft.description);
   const [category, setCategory] = useState<CitizenIssueCategory | "">(initialDraft.category);
+  const [districtId, setDistrictId] = useState<string>(initialDraft.districtId || "");
+  const [districtsList, setDistrictsList] = useState<CanonicalDistrictOption[]>([]);
+  const [districtsLoading, setDistrictsLoading] = useState(false);
   const [locationText, setLocationText] = useState(initialDraft.locationText);
   const [latitude, setLatitude] = useState<string | null>(initialDraft.latitude);
   const [longitude, setLongitude] = useState<string | null>(initialDraft.longitude);
@@ -405,12 +410,36 @@ function CitizenReportComposer({ profileId }: { profileId: string }) {
   }, [previewUrl]);
 
   useEffect(() => {
+    let isMounted = true;
+    async function loadDistricts() {
+      setDistrictsLoading(true);
+      try {
+        const list = await fetchCanonicalDistricts(supabase);
+        if (isMounted) {
+          setDistrictsList(list);
+        }
+      } catch {
+        // Graceful fallback
+      } finally {
+        if (isMounted) {
+          setDistrictsLoading(false);
+        }
+      }
+    }
+    loadDistricts();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  useEffect(() => {
     citizenReportDraftCache.set(
       profileId,
       {
         title,
         description,
         category,
+        districtId,
         locationText,
         latitude,
         longitude,
@@ -438,6 +467,7 @@ function CitizenReportComposer({ profileId }: { profileId: string }) {
     description,
     descriptionModality,
     detectedLanguage,
+    districtId,
     englishDescription,
     englishTitle,
     latitude,
@@ -600,21 +630,11 @@ function CitizenReportComposer({ profileId }: { profileId: string }) {
         finalInputMethod = "TEXT";
       }
 
-      // Attempt automatic GPS -> Canonical District resolution if GPS coordinates are present
-      let resolvedDistrictId: string | null = null;
-      let resolvedDistrictMethod: Database["public"]["Tables"]["issues"]["Insert"]["district_resolution_method"] = null;
-
-      if (latitude && longitude) {
-        try {
-          const gpsResolution = await resolveDistrictFromGps({ latitude, longitude }, supabase);
-          if (gpsResolution?.district_id) {
-            resolvedDistrictId = gpsResolution.district_id;
-            resolvedDistrictMethod = "GPS_POSTGIS";
-          }
-        } catch {
-          // GPS resolution error must never block issue submission
-        }
-      }
+      // Assign explicit citizen-selected district if chosen
+      const trimmedDistrictId = districtId.trim();
+      const resolvedDistrictId = trimmedDistrictId || null;
+      const resolvedDistrictMethod: Database["public"]["Tables"]["issues"]["Insert"]["district_resolution_method"] =
+        trimmedDistrictId ? "CITIZEN_SELECTED" : null;
 
       const issueInsertPayload: Database["public"]["Tables"]["issues"]["Insert"] = {
         id: issueId,
@@ -1065,6 +1085,32 @@ function CitizenReportComposer({ profileId }: { profileId: string }) {
                 value={locationText}
               />
               {errors.location ? <p className="mt-1.5 text-xs font-medium text-red-600">{errors.location}</p> : null}
+            </div>
+
+            {/* Canonical District Selector */}
+            <div>
+              <label htmlFor="issue-district" className="block text-sm font-semibold text-foreground pb-1">
+                District / प्रशासनिक जिला <span className="text-xs font-normal text-muted-foreground">(Optional / Required for Infrastructure Context)</span>
+              </label>
+              <select
+                id="issue-district"
+                className="mt-1 w-full rounded-xl border border-border/80 bg-background/60 px-4 py-3 text-sm text-foreground outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20 disabled:opacity-50"
+                value={districtId}
+                onChange={(event) => setDistrictId(event.target.value)}
+                disabled={submissionStage !== "idle" || districtsLoading}
+              >
+                <option value="">
+                  {districtsLoading ? "Loading canonical districts..." : "-- Select District / जिला चुनें --"}
+                </option>
+                {districtsList.map((d) => (
+                  <option key={d.id} value={d.id}>
+                    {d.district_name} {d.state_name ? `(${d.state_name})` : ""}
+                  </option>
+                ))}
+              </select>
+              <p className="mt-1.5 text-xs text-muted-foreground">
+                Select your administrative district to enable demographic, budgetary, and infrastructure planning context.
+              </p>
             </div>
 
             {/* GPS Capture Button & Information */}

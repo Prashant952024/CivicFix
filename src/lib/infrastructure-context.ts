@@ -21,9 +21,9 @@ import type {
   IssueInfrastructureContextResult,
   DepartmentPlanningSectorMapping,
   CanonicalDistrict,
+  CanonicalDistrictOption,
   DistrictResolutionMethod,
   IssueInfrastructureReadinessResult,
-  GpsDistrictResolutionResult,
 } from "@/types/infrastructure-context";
 
 export * from "@/types/infrastructure-context";
@@ -384,71 +384,38 @@ export async function validateIssueInfrastructureReadiness(
 }
 
 /**
- * Resolves canonical district identity from GPS latitude/longitude using PostGIS point-in-polygon.
- * Invokes public.resolve_district_from_gps RPC.
- *
- * Invariants:
- * - Read-only STABLE execution.
- * - Handles latitude range [-90, 90] and longitude range [-180, 180].
- * - Returns null gracefully when point is outside all known canonical district polygons.
- * - Never guesses or fabricates fallback districts.
+ * Fetches the active canonical districts list for UI selection dropdowns.
+ * Queries public.districts ordered alphabetically by district_name.
  */
-export async function resolveDistrictFromGps(
-  params: {
-    latitude: number | string | null | undefined;
-    longitude: number | string | null | undefined;
-  },
+export async function fetchCanonicalDistricts(
   client: SupabaseClient = defaultSupabase
-): Promise<GpsDistrictResolutionResult | null> {
-  if (params.latitude === null || params.latitude === undefined || params.longitude === null || params.longitude === undefined) {
-    return null;
-  }
-
-  const lat = typeof params.latitude === "string" ? parseFloat(params.latitude) : params.latitude;
-  const lng = typeof params.longitude === "string" ? parseFloat(params.longitude) : params.longitude;
-
-  if (isNaN(lat) || isNaN(lng) || lat < -90 || lat > 90 || lng < -180 || lng > 180) {
-    return null;
-  }
-
+): Promise<CanonicalDistrictOption[]> {
   try {
     const { data, error } = await client
-      .rpc("resolve_district_from_gps", {
-        p_latitude: lat,
-        p_longitude: lng,
-      })
-      .maybeSingle();
+      .from("districts")
+      .select("id, district_name, state_name, state_code, official_district_code")
+      .eq("is_active", true)
+      .order("district_name", { ascending: true });
 
     if (error) {
       if (import.meta.env.DEV) {
-        console.warn("GPS PostGIS district resolution RPC error:", error);
+        console.warn("Error fetching canonical districts list:", error);
       }
-      return null;
+      return [];
     }
 
-    const resolved = data as {
-      district_id?: string;
-      district_name?: string;
-      state_name?: string;
-      state_code?: string | null;
-    } | null;
-
-    if (!resolved || !resolved.district_id || !resolved.district_name || !resolved.state_name) {
-      return null;
-    }
-
-    return {
-      district_id: resolved.district_id,
-      district_name: resolved.district_name,
-      state_name: resolved.state_name,
-      state_code: resolved.state_code ?? null,
-      resolution_method: "GPS_POSTGIS",
-    };
+    return (data || []).map((row) => ({
+      id: row.id,
+      district_name: row.district_name,
+      state_name: row.state_name,
+      state_code: row.state_code ?? null,
+      official_district_code: row.official_district_code ?? null,
+    }));
   } catch (err) {
     if (import.meta.env.DEV) {
-      console.warn("GPS resolution error:", err);
+      console.warn("fetchCanonicalDistricts unexpected error:", err);
     }
-    return null;
+    return [];
   }
 }
 

@@ -247,18 +247,17 @@ export interface DepartmentPlanningSectorMapping {
 export type DistrictResolutionMethod =
   | "CITIZEN_SELECTED"
   | "AI_ADDRESS_PARSED"
-  | "ADMIN_MANUAL"
-  | "GPS_POSTGIS";
+  | "ADMIN_MANUAL";
 
 /**
- * Result of GPS-based PostGIS district resolution
+ * Canonical district item representation for dropdown selection and context
  */
-export interface GpsDistrictResolutionResult {
-  district_id: string;
+export interface CanonicalDistrictOption {
+  id: string;
   district_name: string;
   state_name: string;
-  state_code: string | null;
-  resolution_method: "GPS_POSTGIS";
+  state_code?: string | null;
+  official_district_code?: string | null;
 }
 
 /**
