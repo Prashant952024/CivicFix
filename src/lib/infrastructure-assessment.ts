@@ -143,15 +143,15 @@ export function generateDeterministicAssessmentSummary(
   context: DistrictInfrastructureContext,
   issueTitle: string
 ): string {
-  const districtName = context.district.district_name;
-  const stateName = context.district.state_name;
-  const pop = context.population.total_population ? context.population.total_population.toLocaleString("en-IN") : "N/A";
-  const sector = context.budget.planning_sector_name;
-  const unspent = context.budget.unspent_budget_crore;
+  const districtName = context.district?.district_name || "Unknown District";
+  const stateName = context.district?.state_name || "Unknown State";
+  const pop = context.population?.total_population ? context.population.total_population.toLocaleString("en-IN") : "N/A";
+  const sector = context.budget?.planning_sector_name || context.query?.planning_sector_code || "General Infrastructure";
+  const unspent = context.budget?.unspent_budget_crore != null ? `${context.budget.unspent_budget_crore} Cr` : "N/A";
   const assetCount = Array.isArray(context.infrastructure_assets) ? context.infrastructure_assets.length : 0;
-  const histCount = context.historical_projects.project_count;
+  const histCount = context.historical_projects?.project_count ?? 0;
 
-  return `Infrastructure decision-support assessment compiled for issue "${issueTitle}" located in ${districtName}, ${stateName} (Population: ${pop}). Planning sector "${sector}" has ${unspent} Cr available budget for new capital works. Identified ${assetCount} infrastructure asset categories and ${histCount} historical project execution precedents.`;
+  return `Infrastructure decision-support assessment compiled for issue "${issueTitle}" located in ${districtName}, ${stateName} (Population: ${pop}). Planning sector "${sector}" has ${unspent} available budget for new capital works. Identified ${assetCount} infrastructure asset categories and ${histCount} historical project execution precedents.`;
 }
 
 /**
@@ -205,7 +205,7 @@ export function computeDeterministicSustainabilityIndicators(
     literacy_rate_percentage: pop?.literacy_rate_percentage ?? null,
     worker_participation_rate_percentage: pop?.worker_participation_rate_percentage ?? null,
     rural_population_percentage:
-      pop?.total_population > 0 && pop?.rural_population != null
+      (pop?.total_population ?? 0) > 0 && pop?.rural_population != null
         ? Math.round((pop.rural_population / pop.total_population) * 100)
         : null,
   };
@@ -425,27 +425,27 @@ export async function generateAndSaveInfrastructureAssessment(
     estimated_beneficiaries:
       typeof options?.estimatedBeneficiaries === "number"
         ? Math.round(options.estimatedBeneficiaries)
-        : ctx.population?.total_population > 0
+        : (ctx.population?.total_population ?? 0) > 0
         ? Math.round(ctx.population.total_population * 0.05)
         : null,
     affected_households:
       typeof options?.affectedHouseholds === "number"
         ? Math.round(options.affectedHouseholds)
-        : ctx.population?.total_households > 0
+        : (ctx.population?.total_households ?? 0) > 0
         ? Math.round(ctx.population.total_households * 0.05)
         : null,
     data_completeness_score: completenessScore,
-    demographic_context: ctx.population as unknown as Record<string, unknown>,
-    budget_context: ctx.budget as unknown as Record<string, unknown>,
-    geography_context: ctx.geography as unknown as Record<string, unknown>,
+    demographic_context: (ctx.population || {}) as unknown as Record<string, unknown>,
+    budget_context: (ctx.budget || {}) as unknown as Record<string, unknown>,
+    geography_context: (ctx.geography || {}) as unknown as Record<string, unknown>,
     infrastructure_context: {
-      assets: ctx.infrastructure_assets,
-      count: ctx.infrastructure_assets.length,
-      filtered_category: ctx.query.infrastructure_id,
+      assets: ctx.infrastructure_assets || [],
+      count: Array.isArray(ctx.infrastructure_assets) ? ctx.infrastructure_assets.length : 0,
+      filtered_category: ctx.query?.infrastructure_id || null,
     } as unknown as Record<string, unknown>,
-    accessibility_context: ctx.accessibility as unknown as Record<string, unknown>,
-    socioeconomic_context: ctx.socioeconomic as unknown as Record<string, unknown>,
-    historical_cost_context: ctx.historical_projects as unknown as Record<string, unknown>,
+    accessibility_context: (ctx.accessibility || {}) as unknown as Record<string, unknown>,
+    socioeconomic_context: (ctx.socioeconomic || {}) as unknown as Record<string, unknown>,
+    historical_cost_context: (ctx.historical_projects || {}) as unknown as Record<string, unknown>,
     similar_requests_context: {
       notice: "D8 synthetic benchmark isolated from operational decision support.",
       synthetic_benchmark_used: false,
