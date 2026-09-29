@@ -8,6 +8,7 @@ import {
   MapPin,
   Navigation2,
   Paperclip,
+  Search,
   Sparkles,
   X,
 } from "lucide-react";
@@ -321,6 +322,8 @@ function CitizenReportComposer({ profileId }: { profileId: string }) {
   const [districtId, setDistrictId] = useState<string>(initialDraft.districtId || "");
   const [districtsList, setDistrictsList] = useState<CanonicalDistrictOption[]>([]);
   const [districtsLoading, setDistrictsLoading] = useState(false);
+  const [districtSearchQuery, setDistrictSearchQuery] = useState("");
+  const [selectedStateFilter, setSelectedStateFilter] = useState("");
   const [locationText, setLocationText] = useState(initialDraft.locationText);
   const [latitude, setLatitude] = useState<string | null>(initialDraft.latitude);
   const [longitude, setLongitude] = useState<string | null>(initialDraft.longitude);
@@ -431,6 +434,27 @@ function CitizenReportComposer({ profileId }: { profileId: string }) {
       isMounted = false;
     };
   }, []);
+
+  const selectedDistrict = useMemo(() => {
+    return districtsList.find((d) => d.id === districtId) ?? null;
+  }, [districtsList, districtId]);
+
+  const uniqueStates = useMemo(() => {
+    const states = Array.from(new Set(districtsList.map((d) => d.state_name))).filter(Boolean);
+    return states.sort((a, b) => a.localeCompare(b));
+  }, [districtsList]);
+
+  const filteredDistricts = useMemo(() => {
+    return districtsList.filter((d) => {
+      if (selectedStateFilter && d.state_name !== selectedStateFilter) return false;
+      if (!districtSearchQuery.trim()) return true;
+      const q = districtSearchQuery.toLowerCase().trim();
+      return (
+        d.district_name.toLowerCase().includes(q) ||
+        (d.state_name && d.state_name.toLowerCase().includes(q))
+      );
+    });
+  }, [districtsList, selectedStateFilter, districtSearchQuery]);
 
   useEffect(() => {
     citizenReportDraftCache.set(
@@ -1088,29 +1112,106 @@ function CitizenReportComposer({ profileId }: { profileId: string }) {
             </div>
 
             {/* Canonical District Selector */}
-            <div>
-              <label htmlFor="issue-district" className="block text-sm font-semibold text-foreground pb-1">
-                District / प्रशासनिक जिला <span className="text-xs font-normal text-muted-foreground">(Optional / Required for Infrastructure Context)</span>
-              </label>
-              <select
-                id="issue-district"
-                className="mt-1 w-full rounded-xl border border-border/80 bg-background/60 px-4 py-3 text-sm text-foreground outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20 disabled:opacity-50"
-                value={districtId}
-                onChange={(event) => setDistrictId(event.target.value)}
-                disabled={submissionStage !== "idle" || districtsLoading}
-              >
-                <option value="">
-                  {districtsLoading ? "Loading canonical districts..." : "-- Select District / जिला चुनें --"}
-                </option>
-                {districtsList.map((d) => (
-                  <option key={d.id} value={d.id}>
-                    {d.district_name} {d.state_name ? `(${d.state_name})` : ""}
+            <div className="rounded-2xl border border-border/70 bg-surface/50 p-4 sm:p-5 space-y-3">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
+                <label htmlFor="issue-district-select" className="text-sm font-semibold text-foreground">
+                  District / प्रशासनिक जिला
+                </label>
+                <span className="text-xs text-muted-foreground">
+                  (Optional • India-wide registry: 786 districts)
+                </span>
+              </div>
+
+              {/* State Filter & Search Row */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                <div>
+                  <label htmlFor="issue-state-filter" className="sr-only">
+                    Filter by State / UT
+                  </label>
+                  <select
+                    id="issue-state-filter"
+                    className="w-full rounded-xl border border-border/80 bg-background/80 px-3 py-2 text-xs sm:text-sm text-foreground outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20 disabled:opacity-50"
+                    value={selectedStateFilter}
+                    onChange={(e) => setSelectedStateFilter(e.target.value)}
+                    disabled={submissionStage !== "idle" || districtsLoading}
+                  >
+                    <option value="">All States & UTs (36)</option>
+                    {uniqueStates.map((st) => (
+                      <option key={st} value={st}>
+                        {st}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
+                  <input
+                    type="text"
+                    placeholder="Search district name..."
+                    value={districtSearchQuery}
+                    onChange={(e) => setDistrictSearchQuery(e.target.value)}
+                    disabled={submissionStage !== "idle" || districtsLoading}
+                    className="w-full pl-9 pr-8 py-2 rounded-xl border border-border/80 bg-background/80 text-xs sm:text-sm text-foreground outline-none transition placeholder:text-muted-foreground focus:border-primary focus:ring-2 focus:ring-primary/20 disabled:opacity-50"
+                  />
+                  {districtSearchQuery && (
+                    <button
+                      type="button"
+                      onClick={() => setDistrictSearchQuery("")}
+                      className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                    >
+                      <X className="h-3.5 w-3.5" />
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {/* District Select */}
+              <div>
+                <select
+                  id="issue-district-select"
+                  className="w-full rounded-xl border border-border/80 bg-background px-4 py-2.5 text-sm text-foreground outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20 disabled:opacity-50"
+                  value={districtId}
+                  onChange={(event) => setDistrictId(event.target.value)}
+                  disabled={submissionStage !== "idle" || districtsLoading}
+                >
+                  <option value="">
+                    {districtsLoading
+                      ? "Loading India canonical districts..."
+                      : `-- Select District (${filteredDistricts.length} available) / जिला चुनें --`}
                   </option>
-                ))}
-              </select>
-              <p className="mt-1.5 text-xs text-muted-foreground">
-                Select your administrative district to enable demographic, budgetary, and infrastructure planning context.
-              </p>
+                  {filteredDistricts.map((d) => (
+                    <option key={d.id} value={d.id}>
+                      {d.district_name} ({d.state_name || "India"})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Selected District Badge / Feedback */}
+              {selectedDistrict ? (
+                <div className="flex items-center justify-between gap-2 rounded-xl border border-teal-200 bg-teal-50/70 dark:bg-teal-950/30 px-3.5 py-2 text-xs sm:text-sm text-teal-900 dark:text-teal-200">
+                  <div className="flex items-center gap-2">
+                    <MapPin className="h-4 w-4 text-teal-600 dark:text-teal-400 shrink-0" />
+                    <span>
+                      Selected: <strong>{selectedDistrict.district_name}</strong>, {selectedDistrict.state_name}
+                      <span className="ml-1.5 font-mono text-xs opacity-75">({selectedDistrict.id})</span>
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setDistrictId("")}
+                    className="rounded-md p-1 text-teal-700 hover:bg-teal-100 hover:text-teal-900 dark:text-teal-300 dark:hover:bg-teal-900"
+                    title="Clear district"
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              ) : (
+                <p className="text-xs text-muted-foreground">
+                  Select your administrative district to enable demographic, budgetary, and infrastructure planning context.
+                </p>
+              )}
             </div>
 
             {/* GPS Capture Button & Information */}
