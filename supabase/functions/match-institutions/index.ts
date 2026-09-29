@@ -3,6 +3,7 @@
 import { createClient } from "npm:@supabase/supabase-js";
 import { createRemoteJWKSet, jwtVerify } from "npm:jose";
 import { verifyToken } from "npm:@clerk/backend";
+import { checkRateLimits, createRateLimitResponse, getClientIp } from "../_shared/rate-limiter.ts";
 
 type MatchInstitutionsRequestBody = {
   challenge_id?: string;
@@ -483,7 +484,26 @@ Deno.serve(async (req: Request) => {
   }
 
   // =========================================================================
-  // 3. PARSE AND VALIDATE REQUEST BODY (ONLY AFTER AUTHORIZATION SUCCEEDS)
+  // 3. ENFORCE SERVER-SIDE RATE LIMITS (USER: 3/min)
+  // =========================================================================
+  const clientIp = getClientIp(req);
+  const rateLimitResult = await checkRateLimits(supabaseAdmin, {
+    endpoint: "match-institutions",
+    userId: verifiedUserId,
+    clientIp,
+    isServiceRole,
+    rules: [
+      { scope: "user", limit: 3, windowSeconds: 60 },
+    ],
+    failClosedOnDbError: false,
+  });
+
+  if (!rateLimitResult.allowed) {
+    return createRateLimitResponse(rateLimitResult.retryAfterSeconds, origin);
+  }
+
+  // =========================================================================
+  // 4. PARSE AND VALIDATE REQUEST BODY (ONLY AFTER AUTHORIZATION SUCCEEDS)
   // =========================================================================
   let body: MatchInstitutionsRequestBody = {};
   try {

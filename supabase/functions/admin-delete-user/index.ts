@@ -2,6 +2,7 @@
 
 import { createClerkClient } from "npm:@clerk/backend";
 import { createClient } from "npm:@supabase/supabase-js";
+import { checkRateLimits, createRateLimitResponse, getClientIp } from "../_shared/rate-limiter.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL");
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
@@ -110,6 +111,22 @@ Deno.serve(async (request: Request) => {
   const roleCode = (adminProfile?.role as { code?: string } | null)?.code;
   if (roleCode !== "ADMIN") {
     return json(403, { error: "Admin access required." }, origin);
+  }
+
+  // Enforce server-side rate limits (Admin user: 10/min)
+  const clientIp = getClientIp(request);
+  const rateLimitResult = await checkRateLimits(supabase, {
+    endpoint: "admin-delete-user",
+    userId: currentUserId,
+    clientIp,
+    rules: [
+      { scope: "user", limit: 10, windowSeconds: 60 },
+    ],
+    failClosedOnDbError: false,
+  });
+
+  if (!rateLimitResult.allowed) {
+    return createRateLimitResponse(rateLimitResult.retryAfterSeconds, origin);
   }
 
   let body: { profileId?: string };

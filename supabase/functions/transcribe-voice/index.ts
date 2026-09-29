@@ -3,6 +3,7 @@
 import { createClient } from "npm:@supabase/supabase-js";
 import { createRemoteJWKSet, jwtVerify } from "npm:jose";
 import { verifyToken } from "npm:@clerk/backend";
+import { checkRateLimits, createRateLimitResponse, getClientIp } from "../_shared/rate-limiter.ts";
 
 function json(status: number, body: Record<string, unknown>, origin: string | null = "*") {
   return new Response(JSON.stringify(body), {
@@ -176,15 +177,28 @@ Deno.serve(async (req: Request) => {
   const supabaseUrl = Deno.env.get("SUPABASE_URL");
   const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
 
+  if (!supabaseUrl || !supabaseServiceKey) {
+    console.error(`[transcribe-voice:${requestId}] Missing Supabase credentials`);
+    return json(500, {
+      success: false,
+      errorCode: "INTERNAL_ERROR",
+      userMessage: "Internal database service configuration error.",
+      requestId,
+    }, origin);
+  }
+
+  const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
+    auth: { persistSession: false },
+  });
+
   let isServiceRole = false;
-  if (supabaseServiceKey && token === supabaseServiceKey) {
+  let verifiedUserId: string | null = null;
+
+  if (token === supabaseServiceKey) {
     isServiceRole = true;
   } else {
-    let verifiedUserId: string | null = await verifyClerkSessionToken(token);
-    if (!verifiedUserId && supabaseUrl && supabaseServiceKey) {
-      const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
-        auth: { persistSession: false },
-      });
+    verifiedUserId = await verifyClerkSessionToken(token);
+    if (!verifiedUserId) {
       verifiedUserId = await verifySupabaseAuthToken(token, supabaseAdmin);
     }
 
@@ -196,6 +210,26 @@ Deno.serve(async (req: Request) => {
         requestId,
       }, origin);
     }
+  }
+
+  // =========================================================================
+  // 2. ENFORCE SERVER-SIDE RATE LIMITS (IP: 10/min, USER: 30/hour)
+  // =========================================================================
+  const clientIp = getClientIp(req);
+  const rateLimitResult = await checkRateLimits(supabaseAdmin, {
+    endpoint: "transcribe-voice",
+    userId: verifiedUserId,
+    clientIp,
+    isServiceRole,
+    rules: [
+      { scope: "ip", limit: 10, windowSeconds: 60 },
+      { scope: "user", limit: 30, windowSeconds: 3600 },
+    ],
+    failClosedOnDbError: false,
+  });
+
+  if (!rateLimitResult.allowed) {
+    return createRateLimitResponse(rateLimitResult.retryAfterSeconds, origin);
   }
 
   const geminiApiKey = Deno.env.get("GEMINI_API_KEY");

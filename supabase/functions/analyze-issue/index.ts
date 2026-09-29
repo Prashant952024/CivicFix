@@ -3,6 +3,7 @@
 import { createClient } from "npm:@supabase/supabase-js";
 import { createRemoteJWKSet, jwtVerify } from "npm:jose";
 import { verifyToken } from "npm:@clerk/backend";
+import { checkRateLimits, createRateLimitResponse, getClientIp } from "../_shared/rate-limiter.ts";
 
 function getClerkDomain(): string {
   const pk = Deno.env.get("CLERK_PUBLISHABLE_KEY") || "pk_test_bmV1dHJhbC1zbmFpbC00NTE4LmNsZXJrLmFjY291bnRzLmRldiQ";
@@ -342,7 +343,27 @@ Deno.serve(async (req: Request) => {
   }
 
   // =========================================================================
-  // 3. PARSE AND VALIDATE REQUEST BODY
+  // 3. ENFORCE SERVER-SIDE RATE LIMITS (IP: 15/min, USER: 60/hour)
+  // =========================================================================
+  const clientIp = getClientIp(req);
+  const rateLimitResult = await checkRateLimits(supabaseAdmin, {
+    endpoint: "analyze-issue",
+    userId: verifiedUserId,
+    clientIp,
+    isServiceRole,
+    rules: [
+      { scope: "ip", limit: 15, windowSeconds: 60 },
+      { scope: "user", limit: 60, windowSeconds: 3600 },
+    ],
+    failClosedOnDbError: false,
+  });
+
+  if (!rateLimitResult.allowed) {
+    return createRateLimitResponse(rateLimitResult.retryAfterSeconds, origin);
+  }
+
+  // =========================================================================
+  // 4. PARSE AND VALIDATE REQUEST BODY
   // =========================================================================
   let body: AnalyzeIssueRequestBody = {};
   try {

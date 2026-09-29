@@ -2,6 +2,7 @@
 
 import { createClerkClient } from "npm:@clerk/backend";
 import { createClient } from "npm:@supabase/supabase-js";
+import { checkRateLimits, createRateLimitResponse, getClientIp } from "../_shared/rate-limiter.ts";
 
 const ALLOWED_ROLE_CODES = new Set([
   "MUNICIPAL_OFFICER",
@@ -385,6 +386,22 @@ Deno.serve(async (request: Request) => {
 
   if (profileErr || !adminProfile || roleCodeVal !== "ADMIN") {
     return json(403, { error: "Admin access required to create staff accounts." }, origin);
+  }
+
+  // Enforce server-side rate limits (Admin user: 10/min)
+  const clientIp = getClientIp(request);
+  const rateLimitResult = await checkRateLimits(supabase, {
+    endpoint: "admin-create-user",
+    userId: currentUserId,
+    clientIp,
+    rules: [
+      { scope: "user", limit: 10, windowSeconds: 60 },
+    ],
+    failClosedOnDbError: false,
+  });
+
+  if (!rateLimitResult.allowed) {
+    return createRateLimitResponse(rateLimitResult.retryAfterSeconds, origin);
   }
 
   let body: CreateUserBody;

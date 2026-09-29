@@ -3,6 +3,7 @@
 import { createClient } from "npm:@supabase/supabase-js";
 import { createRemoteJWKSet, jwtVerify } from "npm:jose";
 import { verifyToken } from "npm:@clerk/backend";
+import { checkRateLimits, createRateLimitResponse, getClientIp } from "../_shared/rate-limiter.ts";
 
 function getClerkDomain(): string {
   const pk = Deno.env.get("CLERK_PUBLISHABLE_KEY") || "pk_test_bmV1dHJhbC1zbmFpbC00NTE4LmNsZXJrLmFjY291bnRzLmRldiQ";
@@ -581,7 +582,26 @@ Deno.serve(async (req: Request) => {
   }
 
   // =========================================================================
-  // 3. PARSE AND VALIDATE REQUEST BODY
+  // 3. ENFORCE SERVER-SIDE RATE LIMITS (IP: 20/min)
+  // =========================================================================
+  const clientIp = getClientIp(req);
+  const rateLimitResult = await checkRateLimits(supabaseAdmin, {
+    endpoint: "detect-duplicates",
+    userId: verifiedUserId,
+    clientIp,
+    isServiceRole,
+    rules: [
+      { scope: "ip", limit: 20, windowSeconds: 60 },
+    ],
+    failClosedOnDbError: false,
+  });
+
+  if (!rateLimitResult.allowed) {
+    return createRateLimitResponse(rateLimitResult.retryAfterSeconds, origin);
+  }
+
+  // =========================================================================
+  // 4. PARSE AND VALIDATE REQUEST BODY
   // =========================================================================
   let body: DetectDuplicatesRequestBody = {};
   try {
