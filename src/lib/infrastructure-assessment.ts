@@ -355,50 +355,7 @@ export async function generateAndSaveInfrastructureAssessment(
     throw new InfrastructureAssessmentError(message, "CONTEXT_RETRIEVAL_ERROR", err);
   }
 
-  // 2. Determine next assessment version
-  const { data: existingVersions, error: versionError } = await client
-    .from("infrastructure_assessments")
-    .select("assessment_version")
-    .eq("issue_id", trimmedIssueId)
-    .order("assessment_version", { ascending: false })
-    .limit(1);
-
-  if (versionError) {
-    throw new InfrastructureAssessmentError(
-      versionError.message || `Failed to check existing assessment versions for issue '${trimmedIssueId}'.`,
-      versionError.code,
-      versionError.details
-    );
-  }
-
-  const latestVersionNumber =
-    Array.isArray(existingVersions) && existingVersions.length > 0
-      ? existingVersions[0].assessment_version
-      : 0;
-
-  const nextVersion = latestVersionNumber + 1;
-
-  // 3. Demote existing latest assessment (to satisfy idx_infra_assessments_latest unique constraint)
-  if (latestVersionNumber > 0) {
-    const { error: demoteError } = await client
-      .from("infrastructure_assessments")
-      .update({
-        is_latest: false,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("issue_id", trimmedIssueId)
-      .eq("is_latest", true);
-
-    if (demoteError) {
-      throw new InfrastructureAssessmentError(
-        demoteError.message || `Failed to demote prior assessment version for issue '${trimmedIssueId}'.`,
-        demoteError.code,
-        demoteError.details
-      );
-    }
-  }
-
-  // 4. Construct factual snapshot payloads
+  // 2. Construct factual snapshot payloads
   const ctx = issueContext.context;
   const completenessScore = calculateDataCompletenessScore(ctx);
   const summary =
@@ -408,80 +365,77 @@ export async function generateAndSaveInfrastructureAssessment(
   const autoSustainability = computeDeterministicSustainabilityIndicators(ctx);
   const autoRisks = computeDeterministicRisks(ctx);
 
-  const insertPayload = {
-    issue_id: trimmedIssueId,
-    district_id: issueContext.district_id,
-    planning_sector_code: issueContext.planning_sector_code,
-    assessment_version: nextVersion,
-    is_latest: true,
-    estimated_project_cost_crore:
+  const rpcParams = {
+    p_issue_id: trimmedIssueId,
+    p_district_id: issueContext.district_id,
+    p_planning_sector_code: issueContext.planning_sector_code,
+    p_estimated_project_cost_crore:
       typeof options?.estimatedProjectCostCrore === "number"
         ? options.estimatedProjectCostCrore
         : ctx.historical_projects?.average_actual_cost_crore ?? null,
-    estimated_project_duration_months:
+    p_estimated_project_duration_months:
       typeof options?.estimatedProjectDurationMonths === "number"
         ? Math.round(options.estimatedProjectDurationMonths)
         : null,
-    estimated_beneficiaries:
+    p_estimated_beneficiaries:
       typeof options?.estimatedBeneficiaries === "number"
         ? Math.round(options.estimatedBeneficiaries)
         : (ctx.population?.total_population ?? 0) > 0
         ? Math.round(ctx.population.total_population * 0.05)
         : null,
-    affected_households:
+    p_affected_households:
       typeof options?.affectedHouseholds === "number"
         ? Math.round(options.affectedHouseholds)
         : (ctx.population?.total_households ?? 0) > 0
         ? Math.round(ctx.population.total_households * 0.05)
         : null,
-    data_completeness_score: completenessScore,
-    demographic_context: (ctx.population || {}) as unknown as Record<string, unknown>,
-    budget_context: (ctx.budget || {}) as unknown as Record<string, unknown>,
-    geography_context: (ctx.geography || {}) as unknown as Record<string, unknown>,
-    infrastructure_context: {
+    p_data_completeness_score: completenessScore,
+    p_demographic_context: (ctx.population || {}) as unknown as Record<string, unknown>,
+    p_budget_context: (ctx.budget || {}) as unknown as Record<string, unknown>,
+    p_geography_context: (ctx.geography || {}) as unknown as Record<string, unknown>,
+    p_infrastructure_context: {
       assets: ctx.infrastructure_assets || [],
       count: Array.isArray(ctx.infrastructure_assets) ? ctx.infrastructure_assets.length : 0,
       filtered_category: ctx.query?.infrastructure_id || null,
     } as unknown as Record<string, unknown>,
-    accessibility_context: (ctx.accessibility || {}) as unknown as Record<string, unknown>,
-    socioeconomic_context: (ctx.socioeconomic || {}) as unknown as Record<string, unknown>,
-    historical_cost_context: (ctx.historical_projects || {}) as unknown as Record<string, unknown>,
-    similar_requests_context: {
+    p_accessibility_context: (ctx.accessibility || {}) as unknown as Record<string, unknown>,
+    p_socioeconomic_context: (ctx.socioeconomic || {}) as unknown as Record<string, unknown>,
+    p_historical_cost_context: (ctx.historical_projects || {}) as unknown as Record<string, unknown>,
+    p_similar_requests_context: {
       notice: "D8 synthetic benchmark isolated from operational decision support.",
       synthetic_benchmark_used: false,
     },
-    feasibility_indicators: options?.feasibilityIndicators && Object.keys(options.feasibilityIndicators).length > 0
+    p_feasibility_indicators: options?.feasibilityIndicators && Object.keys(options.feasibilityIndicators).length > 0
       ? options.feasibilityIndicators
       : autoFeasibility,
-    sustainability_indicators: options?.sustainabilityIndicators && Object.keys(options.sustainabilityIndicators).length > 0
+    p_sustainability_indicators: options?.sustainabilityIndicators && Object.keys(options.sustainabilityIndicators).length > 0
       ? options.sustainabilityIndicators
       : autoSustainability,
-    risks_and_missing_info: Array.isArray(options?.risksAndMissingInfo) && options.risksAndMissingInfo.length > 0
+    p_risks_and_missing_info: Array.isArray(options?.risksAndMissingInfo) && options.risksAndMissingInfo.length > 0
       ? options.risksAndMissingInfo
       : autoRisks,
-    assessment_summary: summary,
-    generated_by: generatedByProfileId || null,
+    p_assessment_summary: summary,
+    p_generated_by: generatedByProfileId || null,
   };
 
-  // 5. Insert new latest assessment record
-  const { data: createdRecord, error: insertError } = await client
-    .from("infrastructure_assessments")
-    .insert(insertPayload)
-    .select()
-    .single();
+  // 3. Atomically allocate version and insert assessment snapshot via PostgreSQL function
+  const { data: createdRecord, error: rpcError } = await client.rpc(
+    "create_atomic_infrastructure_assessment",
+    rpcParams
+  );
 
-  if (insertError) {
+  if (rpcError) {
     throw new InfrastructureAssessmentError(
-      insertError.message || `Failed to create infrastructure assessment for issue '${trimmedIssueId}'.`,
-      insertError.code,
-      insertError.details
+      rpcError.message || `Failed to create atomic infrastructure assessment for issue '${trimmedIssueId}'.`,
+      rpcError.code,
+      rpcError.details
     );
   }
 
   if (!createdRecord) {
     throw new InfrastructureAssessmentError(
-      `No assessment record returned after insertion for issue '${trimmedIssueId}'.`,
-      "INSERTION_FAILED"
+      `No assessment record returned after atomic creation for issue '${trimmedIssueId}'.`,
+      "CREATION_FAILED"
     );
   }
 
