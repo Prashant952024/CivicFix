@@ -43,6 +43,11 @@ const AdminInstitutionsPage = lazy(() => import("@/routes/admin/institutions/ind
 const AdminNewInstitutionPage = lazy(() => import("@/routes/admin/institutions/new").then((module) => ({ default: module.AdminNewInstitutionPage })));
 const AdminInstitutionDetailPage = lazy(() => import("@/routes/admin/institutions/detail").then((module) => ({ default: module.AdminInstitutionDetailPage })));
 const AdminIssueDetailPage = lazy(() => import("@/routes/admin/issue-details").then((module) => ({ default: module.AdminIssueDetailPage })));
+const AdminInfrastructureAssessmentReviewPage = lazy(() =>
+  import("@/routes/admin/infrastructure-assessment").then((module) => ({
+    default: module.AdminInfrastructureAssessmentReviewPage,
+  }))
+);
 const AdminUsersPage = lazy(() => import("@/routes/admin/users").then((module) => ({ default: module.AdminUsersPage })));
 const AdminIssuesPage = lazy(() => import("@/routes/admin/issues").then((module) => ({ default: module.AdminIssuesPage })));
 const AdminAnalyticsPage = lazy(() => import("@/routes/admin/analytics").then((module) => ({ default: module.AdminAnalyticsPage })));
@@ -310,6 +315,7 @@ export function AppRoutes() {
             <Route path="departments" element={<AdminDepartmentsPage />} />
             <Route path="issues" element={<AdminIssuesPage />} />
             <Route path="issues/:issueId" element={<AdminIssueDetailPage />} />
+            <Route path="infrastructure/:issueId" element={<AdminInfrastructureAssessmentReviewPage />} />
             <Route path="analytics" element={<AdminAnalyticsPage />} />
             <Route path="activity" element={<AdminActivityPage />} />
             <Route path="notifications" element={<AdminNotificationsPage />} />

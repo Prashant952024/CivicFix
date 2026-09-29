@@ -417,6 +417,14 @@ export function AdminIssueDetailPage() {
             <Badge variant={severityTone} size="default">
               Severity: {issue.severity}
             </Badge>
+            {issue.status === "CLASSIFIED_INFRASTRUCTURE" ? (
+              <Button asChild size="sm" variant="outline" className="gap-1.5 border-indigo-200 text-indigo-700 hover:bg-indigo-50">
+                <Link to={`/app/admin/infrastructure/${issue.id}`}>
+                  <Building2 className="h-3.5 w-3.5 text-indigo-600" />
+                  <span>Infrastructure Dossier</span>
+                </Link>
+              </Button>
+            ) : null}
             <Button onClick={() => setRefreshNonce((value) => value + 1)} size="sm" type="button" variant="ghost">
               <RefreshCw className="h-4 w-4" />
             </Button>

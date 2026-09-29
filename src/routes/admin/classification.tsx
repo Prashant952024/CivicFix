@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 import {
   AlertCircle,
   AlertTriangle,
@@ -1507,6 +1508,16 @@ export function AdminClassificationPage() {
                       {selectedIssue.classification_override_reason ? (
                         <div className="text-amber-900 italic pt-0.5">
                           Override Note: {selectedIssue.classification_override_reason}
+                        </div>
+                      ) : null}
+                      {selectedIssue.final_issue_type === "INFRASTRUCTURE" ? (
+                        <div className="pt-2 flex justify-end">
+                          <Button asChild size="sm" variant="outline" className="gap-1.5 h-7 text-[10px] border-indigo-200 text-indigo-700 hover:bg-indigo-50">
+                            <Link to={`/app/admin/infrastructure/${selectedIssue.id}`}>
+                              <Building2 className="h-3 w-3 text-indigo-600" />
+                              <span>View Infrastructure Assessment Dossier</span>
+                            </Link>
+                          </Button>
                         </div>
                       ) : null}
                     </div>

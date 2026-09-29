@@ -1,0 +1,1331 @@
+import { useEffect, useMemo, useState } from "react";
+import { Link, useParams } from "react-router-dom";
+import {
+  AlertCircle,
+  AlertTriangle,
+  ArrowLeft,
+  BadgeCheck,
+  BarChart3,
+  Building2,
+  Calendar,
+  Check,
+  CheckCircle2,
+  ChevronDown,
+  ChevronUp,
+  Clock,
+  Coins,
+  Compass,
+  Database as DatabaseIcon,
+  FileSpreadsheet,
+  FileText,
+  Globe,
+  HelpCircle,
+  History,
+  Info,
+  Layers,
+  Loader2,
+  MapPin,
+  RefreshCw,
+  Scale,
+  Shield,
+  ShieldAlert,
+  ShieldCheck,
+  Sparkles,
+  TrendingUp,
+  User,
+  Users,
+  Wrench,
+  X,
+} from "lucide-react";
+
+import { useAppSession } from "@/auth/app-session";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { EmptyState } from "@/components/ui/empty-state";
+import { PageHeader } from "@/components/ui/page-header";
+import {
+  formatCitizenIssueDateTime,
+  formatCitizenIssueImageUrl,
+  getCitizenIssueStatusLabel,
+} from "@/lib/citizen-issues";
+import {
+  getLatestInfrastructureAssessment,
+  listInfrastructureAssessmentsForIssue,
+  type InfrastructureAssessmentRecord,
+} from "@/lib/infrastructure-assessment";
+import { supabase } from "@/lib/supabase";
+import type { Database } from "@/types/database";
+import type {
+  AccessibilityContext,
+  DemographicContext,
+  DepartmentBudgetContext,
+  GeographyContext,
+  HistoricalProjectContext,
+  HistoricalProjectsAggregateContext,
+  InfrastructureAssetContext,
+  SocioeconomicGapContext,
+} from "@/types/infrastructure-context";
+
+type IssueRecord = Database["public"]["Tables"]["issues"]["Row"] & {
+  reporter_profile?: Pick<Database["public"]["Tables"]["profiles"]["Row"], "id" | "full_name" | "email"> | null;
+  decided_by_profile?: Pick<Database["public"]["Tables"]["profiles"]["Row"], "id" | "full_name" | "email"> | null;
+  issue_images?: Array<{
+    id: string;
+    storage_bucket: string;
+    storage_path: string;
+    image_type: string;
+    created_at: string;
+  }> | null;
+};
+
+type AuthorProfile = Pick<Database["public"]["Tables"]["profiles"]["Row"], "id" | "full_name" | "email">;
+
+export function AdminInfrastructureAssessmentReviewPage() {
+  const { issueId } = useParams<{ issueId: string }>();
+  const { profile } = useAppSession();
+
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [refreshNonce, setRefreshNonce] = useState(0);
+
+  const [issue, setIssue] = useState<IssueRecord | null>(null);
+  const [allAssessments, setAllAssessments] = useState<InfrastructureAssessmentRecord[]>([]);
+  const [selectedVersion, setSelectedVersion] = useState<number | null>(null);
+  const [authorProfile, setAuthorProfile] = useState<AuthorProfile | null>(null);
+
+  // Section collapse state
+  const [collapsedSections, setCollapsedSections] = useState<Record<string, boolean>>({
+    d1: false,
+    d2: false,
+    d3: false,
+    d4: false,
+    d5: false,
+    d6: false,
+    d7: false,
+  });
+
+  function toggleSection(key: string) {
+    setCollapsedSections((prev) => ({ ...prev, [key]: !prev[key] }));
+  }
+
+  // Load Issue and Assessment snapshot
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadData() {
+      if (!issueId) {
+        setError("Missing required Issue ID parameter.");
+        setLoading(false);
+        return;
+      }
+
+      setLoading(true);
+      setError(null);
+
+      try {
+        // 1. Fetch Issue record
+        const { data: issueData, error: issueError } = await supabase
+          .from("issues")
+          .select(`
+            *,
+            reporter_profile:profiles!issues_reporter_profile_id_fkey(id, full_name, email),
+            decided_by_profile:profiles!issues_classification_decided_by_fkey(id, full_name, email),
+            issue_images(id, storage_bucket, storage_path, image_type, created_at)
+          `)
+          .eq("id", issueId.trim())
+          .maybeSingle();
+
+        if (issueError) throw issueError;
+        if (!issueData) {
+          if (!cancelled) {
+            setError(`Issue with ID "${issueId}" was not found.`);
+            setLoading(false);
+          }
+          return;
+        }
+
+        if (cancelled) return;
+        setIssue(issueData as IssueRecord);
+
+        // 2. Fetch all assessments for this issue
+        const assessments = await listInfrastructureAssessmentsForIssue(issueId.trim(), supabase);
+        if (cancelled) return;
+
+        setAllAssessments(assessments);
+
+        // Default to latest version, or first in list
+        const active = assessments.find((a) => a.is_latest) || assessments[0] || null;
+        if (active) {
+          setSelectedVersion(active.assessment_version);
+
+          // If author exists, fetch profile
+          if (active.generated_by) {
+            const { data: profData } = await supabase
+              .from("profiles")
+              .select("id, full_name, email")
+              .eq("id", active.generated_by)
+              .maybeSingle();
+
+            if (!cancelled && profData) {
+              setAuthorProfile(profData);
+            }
+          } else {
+            setAuthorProfile(null);
+          }
+        }
+      } catch (err) {
+        if (!cancelled) {
+          if (import.meta.env.DEV) console.error("Failed to load infrastructure assessment dossier:", err);
+          setError(err instanceof Error ? err.message : "Failed to load infrastructure assessment dossier.");
+        }
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
+        }
+      }
+    }
+
+    void loadData();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [issueId, refreshNonce]);
+
+  // Derived current assessment
+  const currentAssessment = useMemo(() => {
+    if (!allAssessments.length) return null;
+    if (selectedVersion === null) {
+      return allAssessments.find((a) => a.is_latest) || allAssessments[0] || null;
+    }
+    return allAssessments.find((a) => a.assessment_version === selectedVersion) || allAssessments[0] || null;
+  }, [allAssessments, selectedVersion]);
+
+  // Handle version switcher
+  function handleSelectVersion(version: number) {
+    setSelectedVersion(version);
+    const target = allAssessments.find((a) => a.assessment_version === version);
+    if (target?.generated_by) {
+      void supabase
+        .from("profiles")
+        .select("id, full_name, email")
+        .eq("id", target.generated_by)
+        .maybeSingle()
+        .then(({ data }) => {
+          if (data) setAuthorProfile(data);
+          else setAuthorProfile(null);
+        });
+    } else {
+      setAuthorProfile(null);
+    }
+  }
+
+  // Cast context objects safely
+  const d1 = currentAssessment?.demographic_context as unknown as DemographicContext | undefined;
+  const d2 = currentAssessment?.budget_context as unknown as DepartmentBudgetContext | undefined;
+  const d3 = currentAssessment?.geography_context as unknown as GeographyContext | undefined;
+  const d4Assets = (
+    currentAssessment?.infrastructure_context &&
+    Array.isArray((currentAssessment.infrastructure_context as Record<string, unknown>).assets)
+      ? (currentAssessment.infrastructure_context as Record<string, unknown>).assets
+      : []
+  ) as InfrastructureAssetContext[];
+  const d5 = currentAssessment?.accessibility_context as unknown as AccessibilityContext | undefined;
+  const d6 = currentAssessment?.socioeconomic_context as unknown as SocioeconomicGapContext | undefined;
+  const d7History = currentAssessment?.historical_cost_context as unknown as HistoricalProjectsAggregateContext | undefined;
+  const d7Projects = (
+    d7History?.projects && Array.isArray(d7History.projects) ? d7History.projects : []
+  ) as HistoricalProjectContext[];
+
+  // Completeness score styling
+  const completeness = currentAssessment?.data_completeness_score ?? 0;
+  const completenessBadgeVariant = completeness >= 75 ? "emerald" : completeness >= 50 ? "amber" : "rose";
+
+  if (loading) {
+    return (
+      <div className="flex min-h-[50vh] flex-col items-center justify-center gap-3">
+        <Loader2 className="h-8 w-8 animate-spin text-indigo-600" />
+        <p className="text-sm font-medium text-muted-foreground">
+          Loading Infrastructure Assessment Dossier...
+        </p>
+      </div>
+    );
+  }
+
+  if (error || !issue) {
+    return (
+      <div className="space-y-4">
+        <PageHeader
+          title="Infrastructure Assessment Dossier"
+          description="Factual multi-dataset decision-support snapshot"
+          backHref="/app/admin/classification"
+          backLabel="Classification Queue"
+          tag="Infrastructure Governance"
+        />
+        <EmptyState
+          icon={AlertCircle}
+          variant="error"
+          title="Dossier Unavailable"
+          description={error || "The requested issue or its infrastructure dossier could not be loaded."}
+          action={
+            <div className="flex gap-2">
+              <Button onClick={() => setRefreshNonce((v) => v + 1)} variant="outline" size="sm">
+                <RefreshCw className="mr-1.5 h-4 w-4" />
+                Retry
+              </Button>
+              <Button asChild size="sm">
+                <Link to="/app/admin/classification">Return to Classification</Link>
+              </Button>
+            </div>
+          }
+        />
+      </div>
+    );
+  }
+
+  if (!currentAssessment) {
+    return (
+      <div className="space-y-6">
+        <PageHeader
+          title="Infrastructure Assessment Dossier"
+          description={`Review multi-dataset context for issue "${issue.title}"`}
+          backHref="/app/admin/classification"
+          backLabel="Classification Queue"
+          tag="Infrastructure Track"
+        />
+        <EmptyState
+          icon={Building2}
+          variant="default"
+          title="Infrastructure Assessment Not Available"
+          description={`This issue is in status ${getCitizenIssueStatusLabel(
+            issue.status
+          )}, but no persisted D1–D7 infrastructure assessment snapshot was found in public.infrastructure_assessments. Please ensure the issue has been classified as INFRASTRUCTURE.`}
+          action={
+            <div className="flex gap-2">
+              <Button asChild size="sm">
+                <Link to="/app/admin/classification">Go to Classification Workspace</Link>
+              </Button>
+              <Button asChild variant="outline" size="sm">
+                <Link to={`/app/admin/issues/${issue.id}`}>View General Issue Details</Link>
+              </Button>
+            </div>
+          }
+        />
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6 pb-12">
+      {/* 1. PAGE HEADER */}
+      <PageHeader
+        title="Infrastructure Assessment Dossier"
+        description="Authoritative read-only review of integrated D1–D7 district demographic, budgetary, geographic, accessibility, and historical precedents."
+        backHref="/app/admin/classification"
+        backLabel="Classification & Routing"
+        tag="Administrative Evidence Dossier • Read-Only"
+        actions={
+          <div className="flex flex-wrap items-center gap-2">
+            {/* Version Switcher if multiple versions exist */}
+            {allAssessments.length > 1 ? (
+              <div className="flex items-center gap-1.5 bg-card border border-border/80 rounded-lg px-2.5 py-1 text-xs shadow-sm">
+                <History className="h-3.5 w-3.5 text-muted-foreground" />
+                <span className="text-muted-foreground font-medium text-[11px]">Version:</span>
+                <select
+                  value={currentAssessment.assessment_version}
+                  onChange={(e) => handleSelectVersion(Number(e.target.value))}
+                  className="bg-transparent font-bold text-foreground focus:outline-none cursor-pointer text-xs"
+                >
+                  {allAssessments.map((a) => (
+                    <option key={a.id} value={a.assessment_version}>
+                      v{a.assessment_version} {a.is_latest ? "(Latest)" : ""}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            ) : null}
+
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setRefreshNonce((v) => v + 1)}
+              className="gap-1.5 text-xs"
+            >
+              <RefreshCw className="h-3.5 w-3.5" />
+              Refresh Dossier
+            </Button>
+          </div>
+        }
+      />
+
+      {/* READ-ONLY GOVERNANCE STAGE NOTICE */}
+      <div className="flex items-center justify-between gap-3 p-3.5 rounded-xl border border-indigo-200/90 bg-indigo-50/70 text-indigo-950 text-xs shadow-sm">
+        <div className="flex items-center gap-2.5">
+          <ShieldCheck className="h-5 w-5 text-indigo-700 shrink-0" />
+          <div>
+            <span className="font-bold">Governance Stage: Assessment & Evidence Review (Read-Only)</span>
+            <p className="text-[11px] text-indigo-900/80 mt-0.5">
+              Reviewing immutable D1–D7 baseline context snapshot for diagnostic assessment. Decision recording (Accept / Defer / Reject) is handled in the subsequent decision workflow.
+            </p>
+          </div>
+        </div>
+        <Badge variant="indigo" size="sm" className="shrink-0 font-bold uppercase tracking-wider">
+          Read-Only Ledger
+        </Badge>
+      </div>
+
+      {/* 2. ISSUE & ASSESSMENT METADATA STRIP */}
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-4">
+        {/* Issue Identification Card */}
+        <Card className="rounded-2xl border border-border/80 shadow-sm lg:col-span-2">
+          <CardHeader className="py-3 px-4 bg-muted/20 border-b border-border/70 flex flex-row items-center justify-between">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+              Civic Issue Profile
+            </span>
+            <Badge variant="indigo" size="sm">
+              {getCitizenIssueStatusLabel(issue.status)}
+            </Badge>
+          </CardHeader>
+          <CardContent className="p-4 space-y-2 text-xs">
+            <div className="font-bold text-sm text-foreground">{issue.title}</div>
+            <p className="text-muted-foreground text-[11px] line-clamp-2 leading-relaxed">
+              {issue.description}
+            </p>
+            <div className="grid grid-cols-2 gap-2 pt-2 border-t border-border/60 text-[11px]">
+              <div>
+                <span className="text-muted-foreground block text-[10px]">Category</span>
+                <span className="font-semibold text-foreground">{issue.category}</span>
+              </div>
+              <div>
+                <span className="text-muted-foreground block text-[10px]">Location</span>
+                <span className="font-semibold text-foreground truncate block">
+                  {issue.address_text || issue.location_text || "Geographic Coordinates"}
+                </span>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Snapshot Identity Card */}
+        <Card className="rounded-2xl border border-border/80 shadow-sm">
+          <CardHeader className="py-3 px-4 bg-muted/20 border-b border-border/70 flex flex-row items-center justify-between">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+              Dossier Metadata
+            </span>
+            <Badge variant={currentAssessment.is_latest ? "emerald" : "outline"} size="sm">
+              {currentAssessment.is_latest ? "Active Latest" : "Historical Archive"}
+            </Badge>
+          </CardHeader>
+          <CardContent className="p-4 space-y-2.5 text-xs">
+            <div className="flex items-center justify-between">
+              <span className="text-muted-foreground text-[11px]">Snapshot Version</span>
+              <span className="font-mono font-bold text-xs bg-muted px-2 py-0.5 rounded">
+                v{currentAssessment.assessment_version}
+              </span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-muted-foreground text-[11px]">District ID</span>
+              <span className="font-mono font-semibold text-foreground">
+                {currentAssessment.district_id}
+              </span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-muted-foreground text-[11px]">Planning Sector</span>
+              <span className="font-semibold text-indigo-900 bg-indigo-50 px-2 py-0.5 rounded border border-indigo-200/60">
+                {currentAssessment.planning_sector_code}
+              </span>
+            </div>
+            <div className="flex items-center justify-between pt-1 border-t border-border/60 text-[10px] text-muted-foreground">
+              <span>Generated At</span>
+              <span>{formatCitizenIssueDateTime(currentAssessment.created_at)}</span>
+            </div>
+            {authorProfile ? (
+              <div className="flex items-center justify-between text-[10px] text-muted-foreground">
+                <span>Generated By</span>
+                <span className="font-medium text-foreground truncate max-w-[140px]">
+                  {authorProfile.full_name || authorProfile.email}
+                </span>
+              </div>
+            ) : null}
+          </CardContent>
+        </Card>
+
+        {/* Data Completeness Score Card */}
+        <Card className="rounded-2xl border border-border/80 shadow-sm bg-gradient-to-br from-background via-card to-muted/20 flex flex-col justify-between">
+          <CardHeader className="py-3 px-4 bg-muted/20 border-b border-border/70 flex flex-row items-center justify-between">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+              Data Completeness
+            </span>
+            <Badge variant={completenessBadgeVariant} size="sm">
+              {completeness >= 75 ? "Comprehensive" : completeness >= 50 ? "Moderate" : "Low Data"}
+            </Badge>
+          </CardHeader>
+          <CardContent className="p-4 space-y-3 text-xs">
+            <div className="flex items-baseline justify-between">
+              <div className="flex items-baseline gap-1">
+                <span className="text-3xl font-black text-foreground">{completeness}</span>
+                <span className="text-sm font-semibold text-muted-foreground">/ 100</span>
+              </div>
+              <span className="text-[11px] font-semibold text-muted-foreground">D1–D7 Index</span>
+            </div>
+            <div className="h-2 w-full rounded-full bg-muted overflow-hidden">
+              <div
+                className={`h-full rounded-full transition-all duration-500 ${
+                  completeness >= 75
+                    ? "bg-emerald-600"
+                    : completeness >= 50
+                      ? "bg-amber-500"
+                      : "bg-rose-500"
+                }`}
+                style={{ width: `${Math.min(100, Math.max(0, completeness))}%` }}
+              />
+            </div>
+            <p className="text-[10px] text-muted-foreground leading-relaxed">
+              Deterministic index evaluating factual completeness across demographics, budget, spatial assets, and precedents.
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* 3. EXECUTIVE ASSESSMENT SUMMARY */}
+      {currentAssessment.assessment_summary ? (
+        <Card className="rounded-2xl border-2 border-indigo-200 bg-gradient-to-r from-indigo-50/60 via-background to-indigo-50/30 shadow-sm overflow-hidden">
+          <CardHeader className="py-3 px-4 bg-indigo-100/50 border-b border-indigo-200/80 flex flex-row items-center justify-between">
+            <div className="flex items-center gap-2 text-indigo-950 font-bold text-xs">
+              <FileText className="h-4 w-4 text-indigo-700" />
+              <span>Executive Factual Summary</span>
+            </div>
+            <Badge variant="indigo" size="sm" className="font-mono text-[10px]">
+              D1–D7 Aggregation
+            </Badge>
+          </CardHeader>
+          <CardContent className="p-4 space-y-2 text-xs">
+            <p className="text-foreground text-xs leading-relaxed font-medium">
+              {currentAssessment.assessment_summary}
+            </p>
+            <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground pt-1">
+              <Info className="h-3 w-3 shrink-0 text-indigo-600" />
+              <span>
+                Factual diagnostic compiled deterministically from canonical district datasets D1–D7. Does not constitute financial approval or project sanction.
+              </span>
+            </div>
+          </CardContent>
+        </Card>
+      ) : null}
+
+      {/* 4. PRELIMINARY PROJECT ESTIMATES (UNCOMMITTED ESTIMATES) */}
+      <Card className="rounded-2xl border border-border/80 shadow-sm overflow-hidden">
+        <CardHeader className="py-3 px-4 bg-muted/30 border-b border-border/70 flex flex-row items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Coins className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-xs font-bold text-foreground uppercase tracking-wider">
+              Preliminary Project Estimates (Uncommitted Reference)
+            </CardTitle>
+          </div>
+          <span className="text-[10px] text-muted-foreground italic">
+            Diagnostic reference only • Not sanctioned budget
+          </span>
+        </CardHeader>
+        <CardContent className="p-4 text-xs">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            {/* Cost Estimate */}
+            <div className="p-3 rounded-xl border border-border/70 bg-card">
+              <span className="text-[10px] text-muted-foreground uppercase font-medium block">
+                Estimated Project Cost
+              </span>
+              <div className="text-base font-bold text-foreground mt-0.5">
+                {currentAssessment.estimated_project_cost_crore !== null
+                  ? `₹${currentAssessment.estimated_project_cost_crore} Cr`
+                  : "Not estimated"}
+              </div>
+              <span className="text-[10px] text-muted-foreground block mt-0.5">
+                {currentAssessment.estimated_project_cost_crore !== null
+                  ? "Preliminary indicative capital outlay"
+                  : "Requires detailed project report"}
+              </span>
+            </div>
+
+            {/* Duration Estimate */}
+            <div className="p-3 rounded-xl border border-border/70 bg-card">
+              <span className="text-[10px] text-muted-foreground uppercase font-medium block">
+                Estimated Duration
+              </span>
+              <div className="text-base font-bold text-foreground mt-0.5">
+                {currentAssessment.estimated_project_duration_months !== null
+                  ? `${currentAssessment.estimated_project_duration_months} Months`
+                  : "Not estimated"}
+              </div>
+              <span className="text-[10px] text-muted-foreground block mt-0.5">
+                {currentAssessment.estimated_project_duration_months !== null
+                  ? "Execution timeframe estimate"
+                  : "Scope pending formal engineering"}
+              </span>
+            </div>
+
+            {/* Beneficiaries */}
+            <div className="p-3 rounded-xl border border-border/70 bg-card">
+              <span className="text-[10px] text-muted-foreground uppercase font-medium block">
+                Estimated Beneficiaries
+              </span>
+              <div className="text-base font-bold text-foreground mt-0.5">
+                {currentAssessment.estimated_beneficiaries !== null
+                  ? `${currentAssessment.estimated_beneficiaries.toLocaleString()} Citizens`
+                  : "Not estimated"}
+              </div>
+              <span className="text-[10px] text-muted-foreground block mt-0.5">
+                Catchment population scope
+              </span>
+            </div>
+
+            {/* Affected Households */}
+            <div className="p-3 rounded-xl border border-border/70 bg-card">
+              <span className="text-[10px] text-muted-foreground uppercase font-medium block">
+                Affected Households
+              </span>
+              <div className="text-base font-bold text-foreground mt-0.5">
+                {currentAssessment.affected_households !== null
+                  ? `${currentAssessment.affected_households.toLocaleString()} Households`
+                  : "Not estimated"}
+              </div>
+              <span className="text-[10px] text-muted-foreground block mt-0.5">
+                Direct service coverage
+              </span>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* 5. MULTI-DATASET (D1–D7) PERSISTED SNAPSHOT EXPLORER */}
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <DatabaseIcon className="h-4 w-4 text-indigo-700" />
+            <h3 className="font-bold text-sm text-foreground">
+              Multi-Dataset Context Breakdown (D1 to D7)
+            </h3>
+          </div>
+          <span className="text-[11px] text-muted-foreground">
+            Snapshot state captured at assessment creation
+          </span>
+        </div>
+
+        {/* D1: Demographics */}
+        <Card className="rounded-2xl border border-border/80 shadow-sm overflow-hidden">
+          <CardHeader
+            onClick={() => toggleSection("d1")}
+            className="py-3 px-4 bg-muted/20 border-b border-border/70 flex flex-row items-center justify-between cursor-pointer hover:bg-muted/30 transition"
+          >
+            <div className="flex items-center gap-2 text-xs font-bold text-foreground">
+              <Users className="h-4 w-4 text-blue-600" />
+              <span>D1 — Demographic Profile & Population</span>
+              {d1?.total_population ? (
+                <Badge variant="blue" size="sm" className="font-mono text-[10px]">
+                  Pop: {d1.total_population.toLocaleString()}
+                </Badge>
+              ) : null}
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] text-muted-foreground">
+                {d1?.source_dataset || "Canonical D1"}
+              </span>
+              {collapsedSections.d1 ? (
+                <ChevronDown className="h-4 w-4 text-muted-foreground" />
+              ) : (
+                <ChevronUp className="h-4 w-4 text-muted-foreground" />
+              )}
+            </div>
+          </CardHeader>
+          {!collapsedSections.d1 ? (
+            <CardContent className="p-4 text-xs space-y-3">
+              {d1 ? (
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                  <div className="p-3 rounded-lg border border-border/60 bg-card">
+                    <span className="text-[10px] text-muted-foreground uppercase block">Total Population</span>
+                    <span className="text-sm font-bold text-foreground mt-0.5 block">
+                      {d1.total_population?.toLocaleString() || "N/A"}
+                    </span>
+                    <span className="text-[10px] text-muted-foreground">
+                      Households: {d1.total_households?.toLocaleString() || "N/A"}
+                    </span>
+                  </div>
+
+                  <div className="p-3 rounded-lg border border-border/60 bg-card">
+                    <span className="text-[10px] text-muted-foreground uppercase block">Urban / Rural Split</span>
+                    <span className="text-sm font-bold text-foreground mt-0.5 block">
+                      {d1.urban_population && d1.total_population
+                        ? `${Math.round((d1.urban_population / d1.total_population) * 100)}% Urban`
+                        : "N/A"}
+                    </span>
+                    <span className="text-[10px] text-muted-foreground">
+                      Rural: {d1.rural_population?.toLocaleString() || "N/A"}
+                    </span>
+                  </div>
+
+                  <div className="p-3 rounded-lg border border-border/60 bg-card">
+                    <span className="text-[10px] text-muted-foreground uppercase block">Vulnerable Demographics</span>
+                    <span className="text-sm font-bold text-foreground mt-0.5 block">
+                      SC: {d1.sc_population?.toLocaleString() || "N/A"}
+                    </span>
+                    <span className="text-[10px] text-muted-foreground">
+                      ST: {d1.st_population?.toLocaleString() || "N/A"}
+                    </span>
+                  </div>
+
+                  <div className="p-3 rounded-lg border border-border/60 bg-card">
+                    <span className="text-[10px] text-muted-foreground uppercase block">Literacy & Access Index</span>
+                    <span className="text-sm font-bold text-foreground mt-0.5 block">
+                      {d1.literacy_rate_percentage !== null ? `${d1.literacy_rate_percentage}% Literacy` : "N/A"}
+                    </span>
+                    <span className="text-[10px] text-muted-foreground">
+                      Service Gap Score: {d1.overall_service_gap_score ?? "N/A"}
+                    </span>
+                  </div>
+                </div>
+              ) : (
+                <p className="text-muted-foreground text-xs italic">
+                  Demographic context not recorded in snapshot.
+                </p>
+              )}
+            </CardContent>
+          ) : null}
+        </Card>
+
+        {/* D2: Department Budget */}
+        <Card className="rounded-2xl border border-border/80 shadow-sm overflow-hidden">
+          <CardHeader
+            onClick={() => toggleSection("d2")}
+            className="py-3 px-4 bg-muted/20 border-b border-border/70 flex flex-row items-center justify-between cursor-pointer hover:bg-muted/30 transition"
+          >
+            <div className="flex items-center gap-2 text-xs font-bold text-foreground">
+              <Coins className="h-4 w-4 text-emerald-600" />
+              <span>D2 — Departmental Budget Provisions & Outlay</span>
+              {d2?.unspent_budget_crore !== undefined ? (
+                <Badge variant="emerald" size="sm" className="font-mono text-[10px]">
+                  Unspent: ₹{d2.unspent_budget_crore} Cr
+                </Badge>
+              ) : null}
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] text-muted-foreground">
+                {d2?.source_dataset || "Canonical D2"}
+              </span>
+              {collapsedSections.d2 ? (
+                <ChevronDown className="h-4 w-4 text-muted-foreground" />
+              ) : (
+                <ChevronUp className="h-4 w-4 text-muted-foreground" />
+              )}
+            </div>
+          </CardHeader>
+          {!collapsedSections.d2 ? (
+            <CardContent className="p-4 text-xs space-y-3">
+              {d2 ? (
+                <>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                    <div className="p-3 rounded-lg border border-border/60 bg-card">
+                      <span className="text-[10px] text-muted-foreground uppercase block">Sector & FY</span>
+                      <span className="text-sm font-bold text-foreground mt-0.5 block">
+                        {d2.planning_sector_name || d2.planning_sector_code}
+                      </span>
+                      <span className="text-[10px] text-muted-foreground">FY {d2.financial_year}</span>
+                    </div>
+
+                    <div className="p-3 rounded-lg border border-border/60 bg-card">
+                      <span className="text-[10px] text-muted-foreground uppercase block">Allocated Budget</span>
+                      <span className="text-sm font-bold text-foreground mt-0.5 block">
+                        ₹{d2.allocated_budget_crore} Cr
+                      </span>
+                      <span className="text-[10px] text-muted-foreground">Total Sanctioned Outlay</span>
+                    </div>
+
+                    <div className="p-3 rounded-lg border border-border/60 bg-card">
+                      <span className="text-[10px] text-muted-foreground uppercase block">Spent Budget</span>
+                      <span className="text-sm font-bold text-foreground mt-0.5 block">
+                        ₹{d2.spent_budget_crore} Cr
+                      </span>
+                      <span className="text-[10px] text-muted-foreground">
+                        Utilization: {d2.budget_utilization_percentage ?? "N/A"}%
+                      </span>
+                    </div>
+
+                    <div className="p-3 rounded-lg border border-border/60 bg-card">
+                      <span className="text-[10px] text-muted-foreground uppercase block">Available for Capital Works</span>
+                      <span className="text-sm font-bold text-emerald-800 mt-0.5 block">
+                        ₹{d2.unspent_budget_crore} Cr
+                      </span>
+                      <span className="text-[10px] text-muted-foreground">Uncommitted Aggregate Balance</span>
+                    </div>
+                  </div>
+
+                  <div className="p-2.5 rounded-lg border border-amber-200 bg-amber-50/70 text-amber-950 text-[11px] flex items-start gap-2">
+                    <Info className="h-3.5 w-3.5 text-amber-700 shrink-0 mt-0.5" />
+                    <span>
+                      <strong>Administrative Notice:</strong> Unspent departmental budget reflects aggregate sectoral provisions across the district. Availability of funds does not imply project sanctioning or approval.
+                    </span>
+                  </div>
+                </>
+              ) : (
+                <p className="text-muted-foreground text-xs italic">
+                  Budget context not recorded in snapshot.
+                </p>
+              )}
+            </CardContent>
+          ) : null}
+        </Card>
+
+        {/* D3: Geography & Terrain */}
+        <Card className="rounded-2xl border border-border/80 shadow-sm overflow-hidden">
+          <CardHeader
+            onClick={() => toggleSection("d3")}
+            className="py-3 px-4 bg-muted/20 border-b border-border/70 flex flex-row items-center justify-between cursor-pointer hover:bg-muted/30 transition"
+          >
+            <div className="flex items-center gap-2 text-xs font-bold text-foreground">
+              <Compass className="h-4 w-4 text-teal-600" />
+              <span>D3 — Geography, Terrain & Spatial Footprint</span>
+              {d3?.area_sq_km ? (
+                <Badge variant="teal" size="sm" className="font-mono text-[10px]">
+                  Area: {d3.area_sq_km} sq km
+                </Badge>
+              ) : null}
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] text-muted-foreground">
+                {d3?.source_dataset || "Canonical D3"}
+              </span>
+              {collapsedSections.d3 ? (
+                <ChevronDown className="h-4 w-4 text-muted-foreground" />
+              ) : (
+                <ChevronUp className="h-4 w-4 text-muted-foreground" />
+              )}
+            </div>
+          </CardHeader>
+          {!collapsedSections.d3 ? (
+            <CardContent className="p-4 text-xs space-y-3">
+              {d3 ? (
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                  <div className="p-3 rounded-lg border border-border/60 bg-card">
+                    <span className="text-[10px] text-muted-foreground uppercase block">Area & Extent</span>
+                    <span className="text-sm font-bold text-foreground mt-0.5 block">
+                      {d3.area_sq_km ? `${d3.area_sq_km} sq km` : "N/A"}
+                    </span>
+                    <span className="text-[10px] text-muted-foreground">
+                      Region: {d3.geographic_region || "N/A"}
+                    </span>
+                  </div>
+
+                  <div className="p-3 rounded-lg border border-border/60 bg-card">
+                    <span className="text-[10px] text-muted-foreground uppercase block">Centroid Coordinates</span>
+                    <span className="text-sm font-bold text-foreground mt-0.5 block font-mono">
+                      {d3.centroid_latitude?.toFixed(4)}, {d3.centroid_longitude?.toFixed(4)}
+                    </span>
+                    <span className="text-[10px] text-muted-foreground">
+                      HQ: {d3.district_headquarters || "N/A"}
+                    </span>
+                  </div>
+
+                  <div className="p-3 rounded-lg border border-border/60 bg-card">
+                    <span className="text-[10px] text-muted-foreground uppercase block">Terrain Classification</span>
+                    <span className="text-sm font-bold text-foreground mt-0.5 block">
+                      {d3.terrain_type || "Mixed Plain/Plateau"}
+                    </span>
+                    <span className="text-[10px] text-muted-foreground">
+                      Character: {d3.rural_urban_character || "Rural-Centric"}
+                    </span>
+                  </div>
+
+                  <div className="p-3 rounded-lg border border-border/60 bg-card">
+                    <span className="text-[10px] text-muted-foreground uppercase block">Neighboring Districts</span>
+                    <span className="text-sm font-bold text-foreground mt-0.5 block">
+                      {d3.neighbor_count || (d3.neighboring_districts?.length ?? 0)} Connected
+                    </span>
+                    <span className="text-[10px] text-muted-foreground truncate block">
+                      {d3.neighboring_districts?.slice(0, 3).join(", ") || "N/A"}
+                    </span>
+                  </div>
+                </div>
+              ) : (
+                <p className="text-muted-foreground text-xs italic">
+                  Geography context not recorded in snapshot.
+                </p>
+              )}
+            </CardContent>
+          ) : null}
+        </Card>
+
+        {/* D4: Existing Infrastructure Assets */}
+        <Card className="rounded-2xl border border-border/80 shadow-sm overflow-hidden">
+          <CardHeader
+            onClick={() => toggleSection("d4")}
+            className="py-3 px-4 bg-muted/20 border-b border-border/70 flex flex-row items-center justify-between cursor-pointer hover:bg-muted/30 transition"
+          >
+            <div className="flex items-center gap-2 text-xs font-bold text-foreground">
+              <Building2 className="h-4 w-4 text-indigo-600" />
+              <span>D4 — Existing Infrastructure Assets & Capacity</span>
+              <Badge variant="indigo" size="sm" className="font-mono text-[10px]">
+                {d4Assets.length} Categories Cataloged
+              </Badge>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] text-muted-foreground">Canonical D4</span>
+              {collapsedSections.d4 ? (
+                <ChevronDown className="h-4 w-4 text-muted-foreground" />
+              ) : (
+                <ChevronUp className="h-4 w-4 text-muted-foreground" />
+              )}
+            </div>
+          </CardHeader>
+          {!collapsedSections.d4 ? (
+            <CardContent className="p-4 text-xs space-y-3">
+              {d4Assets.length > 0 ? (
+                <div className="overflow-x-auto rounded-xl border border-border/70">
+                  <table className="w-full text-left text-xs border-collapse">
+                    <thead>
+                      <tr className="bg-muted/40 border-b border-border text-[11px] text-muted-foreground">
+                        <th className="py-2.5 px-3 font-semibold">Infrastructure Category</th>
+                        <th className="py-2.5 px-3 font-semibold">Asset Count</th>
+                        <th className="py-2.5 px-3 font-semibold">Functional Count</th>
+                        <th className="py-2.5 px-3 font-semibold">Utilization Rate</th>
+                        <th className="py-2.5 px-3 font-semibold">Gap Score</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-border/60">
+                      {d4Assets.map((asset, idx) => (
+                        <tr key={asset.infrastructure_id || idx} className="hover:bg-muted/20">
+                          <td className="py-2.5 px-3 font-semibold text-foreground">
+                            {asset.infrastructure_category || asset.infrastructure_type || asset.infrastructure_id}
+                          </td>
+                          <td className="py-2.5 px-3 font-mono">{asset.existing_asset_count ?? "N/A"}</td>
+                          <td className="py-2.5 px-3 font-mono text-emerald-700">
+                            {asset.functional_asset_count ?? "N/A"}
+                          </td>
+                          <td className="py-2.5 px-3 font-mono">
+                            {asset.utilization_percentage !== null && asset.utilization_percentage !== undefined
+                              ? `${asset.utilization_percentage}%`
+                              : "N/A"}
+                          </td>
+                          <td className="py-2.5 px-3 font-mono">
+                            <span
+                              className={`px-2 py-0.5 rounded text-[11px] font-bold ${
+                                (asset.infrastructure_gap_score ?? 0) > 60
+                                  ? "bg-rose-100 text-rose-800"
+                                  : (asset.infrastructure_gap_score ?? 0) > 30
+                                    ? "bg-amber-100 text-amber-800"
+                                    : "bg-emerald-100 text-emerald-800"
+                              }`}
+                            >
+                              {asset.infrastructure_gap_score ?? "N/A"}
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <p className="text-muted-foreground text-xs italic">
+                  No specific infrastructure asset entries cataloged in snapshot.
+                </p>
+              )}
+            </CardContent>
+          ) : null}
+        </Card>
+
+        {/* D5: Accessibility */}
+        <Card className="rounded-2xl border border-border/80 shadow-sm overflow-hidden">
+          <CardHeader
+            onClick={() => toggleSection("d5")}
+            className="py-3 px-4 bg-muted/20 border-b border-border/70 flex flex-row items-center justify-between cursor-pointer hover:bg-muted/30 transition"
+          >
+            <div className="flex items-center gap-2 text-xs font-bold text-foreground">
+              <Globe className="h-4 w-4 text-sky-600" />
+              <span>D5 — Spatial Accessibility & Service Distance</span>
+              {d5?.overall_accessibility_gap_score !== undefined ? (
+                <Badge variant="sky" size="sm" className="font-mono text-[10px]">
+                  Gap: {d5.overall_accessibility_gap_score}/100
+                </Badge>
+              ) : null}
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] text-muted-foreground">
+                {d5?.source_dataset || "Canonical D5"}
+              </span>
+              {collapsedSections.d5 ? (
+                <ChevronDown className="h-4 w-4 text-muted-foreground" />
+              ) : (
+                <ChevronUp className="h-4 w-4 text-muted-foreground" />
+              )}
+            </div>
+          </CardHeader>
+          {!collapsedSections.d5 ? (
+            <CardContent className="p-4 text-xs space-y-3">
+              {d5 ? (
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                  <div className="p-3 rounded-lg border border-border/60 bg-card">
+                    <span className="text-[10px] text-muted-foreground uppercase block">Road Connectivity</span>
+                    <span className="text-sm font-bold text-foreground mt-0.5 block">
+                      {d5.all_weather_access_percentage !== null && d5.all_weather_access_percentage !== undefined
+                        ? `${d5.all_weather_access_percentage}% All-Weather`
+                        : "N/A"}
+                    </span>
+                    <span className="text-[10px] text-muted-foreground">
+                      Paved Road: {d5.paved_road_coverage_percentage ?? "N/A"}%
+                    </span>
+                  </div>
+
+                  <div className="p-3 rounded-lg border border-border/60 bg-card">
+                    <span className="text-[10px] text-muted-foreground uppercase block">Avg Travel Time</span>
+                    <span className="text-sm font-bold text-foreground mt-0.5 block">
+                      {d5.average_travel_time_minutes ? `${d5.average_travel_time_minutes} mins` : "N/A"}
+                    </span>
+                    <span className="text-[10px] text-muted-foreground">To Major Service Node</span>
+                  </div>
+
+                  <div className="p-3 rounded-lg border border-border/60 bg-card">
+                    <span className="text-[10px] text-muted-foreground uppercase block">Distance to Center</span>
+                    <span className="text-sm font-bold text-foreground mt-0.5 block">
+                      {d5.average_distance_to_service_center_km ? `${d5.average_distance_to_service_center_km} km` : "N/A"}
+                    </span>
+                    <span className="text-[10px] text-muted-foreground">Average Sector Radius</span>
+                  </div>
+
+                  <div className="p-3 rounded-lg border border-border/60 bg-card">
+                    <span className="text-[10px] text-muted-foreground uppercase block">Remote Population</span>
+                    <span className="text-sm font-bold text-foreground mt-0.5 block">
+                      {d5.remote_population_percentage !== null && d5.remote_population_percentage !== undefined
+                        ? `${d5.remote_population_percentage}% Remote`
+                        : "N/A"}
+                    </span>
+                    <span className="text-[10px] text-muted-foreground">
+                      Transport Gap: {d5.transport_access_gap_score ?? "N/A"}
+                    </span>
+                  </div>
+                </div>
+              ) : (
+                <p className="text-muted-foreground text-xs italic">
+                  Accessibility context not recorded in snapshot.
+                </p>
+              )}
+            </CardContent>
+          ) : null}
+        </Card>
+
+        {/* D6: Socioeconomic Context */}
+        <Card className="rounded-2xl border border-border/80 shadow-sm overflow-hidden">
+          <CardHeader
+            onClick={() => toggleSection("d6")}
+            className="py-3 px-4 bg-muted/20 border-b border-border/70 flex flex-row items-center justify-between cursor-pointer hover:bg-muted/30 transition"
+          >
+            <div className="flex items-center gap-2 text-xs font-bold text-foreground">
+              <Scale className="h-4 w-4 text-violet-600" />
+              <span>D6 — Socioeconomic Need & Deprivation Indices</span>
+              {d6?.overall_development_context_score !== undefined ? (
+                <Badge variant="violet" size="sm" className="font-mono text-[10px]">
+                  Need Score: {d6.overall_development_context_score}/100
+                </Badge>
+              ) : null}
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] text-muted-foreground">
+                {d6?.source_dataset || "Canonical D6"}
+              </span>
+              {collapsedSections.d6 ? (
+                <ChevronDown className="h-4 w-4 text-muted-foreground" />
+              ) : (
+                <ChevronUp className="h-4 w-4 text-muted-foreground" />
+              )}
+            </div>
+          </CardHeader>
+          {!collapsedSections.d6 ? (
+            <CardContent className="p-4 text-xs space-y-3">
+              {d6 ? (
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                  <div className="p-3 rounded-lg border border-border/60 bg-card">
+                    <span className="text-[10px] text-muted-foreground uppercase block">Economic Vulnerability</span>
+                    <span className="text-sm font-bold text-foreground mt-0.5 block">
+                      Score: {d6.economic_vulnerability_score ?? "N/A"}
+                    </span>
+                    <span className="text-[10px] text-muted-foreground">
+                      Low Income: {d6.estimated_low_income_population_percentage ?? "N/A"}%
+                    </span>
+                  </div>
+
+                  <div className="p-3 rounded-lg border border-border/60 bg-card">
+                    <span className="text-[10px] text-muted-foreground uppercase block">Healthcare Gap</span>
+                    <span className="text-sm font-bold text-foreground mt-0.5 block">
+                      Score: {d6.healthcare_service_gap_score ?? "N/A"}
+                    </span>
+                    <span className="text-[10px] text-muted-foreground">Clinical Facility Index</span>
+                  </div>
+
+                  <div className="p-3 rounded-lg border border-border/60 bg-card">
+                    <span className="text-[10px] text-muted-foreground uppercase block">Water & Sanitation Gap</span>
+                    <span className="text-sm font-bold text-foreground mt-0.5 block">
+                      Score: {d6.water_sanitation_service_gap_score ?? "N/A"}
+                    </span>
+                    <span className="text-[10px] text-muted-foreground">WASH Deprivation</span>
+                  </div>
+
+                  <div className="p-3 rounded-lg border border-border/60 bg-card">
+                    <span className="text-[10px] text-muted-foreground uppercase block">Overall Deprivation Score</span>
+                    <span className="text-sm font-bold text-foreground mt-0.5 block">
+                      Score: {d6.overall_development_context_score ?? "N/A"}
+                    </span>
+                    <span className="text-[10px] text-muted-foreground">
+                      Pressure: {d6.socioeconomic_pressure_score ?? "N/A"}
+                    </span>
+                  </div>
+                </div>
+              ) : (
+                <p className="text-muted-foreground text-xs italic">
+                  Socioeconomic gap context not recorded in snapshot.
+                </p>
+              )}
+            </CardContent>
+          ) : null}
+        </Card>
+
+        {/* D7: Historical Projects */}
+        <Card className="rounded-2xl border border-border/80 shadow-sm overflow-hidden">
+          <CardHeader
+            onClick={() => toggleSection("d7")}
+            className="py-3 px-4 bg-muted/20 border-b border-border/70 flex flex-row items-center justify-between cursor-pointer hover:bg-muted/30 transition"
+          >
+            <div className="flex items-center gap-2 text-xs font-bold text-foreground">
+              <History className="h-4 w-4 text-amber-600" />
+              <span>D7 — Historical Project Execution Precedents & Cost Benchmarks</span>
+              <Badge variant="amber" size="sm" className="font-mono text-[10px]">
+                {d7Projects.length} Precedent Projects
+              </Badge>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] text-muted-foreground">
+                Canonical D7
+              </span>
+              {collapsedSections.d7 ? (
+                <ChevronDown className="h-4 w-4 text-muted-foreground" />
+              ) : (
+                <ChevronUp className="h-4 w-4 text-muted-foreground" />
+              )}
+            </div>
+          </CardHeader>
+          {!collapsedSections.d7 ? (
+            <CardContent className="p-4 text-xs space-y-3">
+              {d7History ? (
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-3">
+                  <div className="p-2.5 rounded-lg border border-border/60 bg-card">
+                    <span className="text-[10px] text-muted-foreground uppercase block">Precedents In Sector</span>
+                    <span className="text-sm font-bold text-foreground">
+                      {d7History.project_count ?? d7Projects.length} Projects
+                    </span>
+                  </div>
+                  <div className="p-2.5 rounded-lg border border-border/60 bg-card">
+                    <span className="text-[10px] text-muted-foreground uppercase block">Average Historical Cost</span>
+                    <span className="text-sm font-bold text-foreground">
+                      {d7History.average_actual_cost_crore !== null && d7History.average_actual_cost_crore !== undefined
+                        ? `₹${d7History.average_actual_cost_crore} Cr`
+                        : "N/A"}
+                    </span>
+                  </div>
+                  <div className="p-2.5 rounded-lg border border-border/60 bg-card">
+                    <span className="text-[10px] text-muted-foreground uppercase block">Cost Variance Rate</span>
+                    <span className="text-sm font-bold text-foreground">
+                      {d7History.average_cost_variance_percentage !== null && d7History.average_cost_variance_percentage !== undefined
+                        ? `${d7History.average_cost_variance_percentage}%`
+                        : "N/A"}
+                    </span>
+                  </div>
+                </div>
+              ) : null}
+
+              {d7Projects.length > 0 ? (
+                <div className="overflow-x-auto rounded-xl border border-border/70">
+                  <table className="w-full text-left text-xs border-collapse">
+                    <thead>
+                      <tr className="bg-muted/40 border-b border-border text-[11px] text-muted-foreground">
+                        <th className="py-2 px-3 font-semibold">Project Title / Type</th>
+                        <th className="py-2 px-3 font-semibold">Status</th>
+                        <th className="py-2 px-3 font-semibold">Approved Cost</th>
+                        <th className="py-2 px-3 font-semibold">Actual Cost</th>
+                        <th className="py-2 px-3 font-semibold">Duration</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-border/60">
+                      {d7Projects.map((proj, idx) => (
+                        <tr key={proj.project_id || idx} className="hover:bg-muted/20">
+                          <td className="py-2 px-3">
+                            <span className="font-semibold text-foreground block">
+                              {proj.project_name || proj.project_type || "Historical Capital Project"}
+                            </span>
+                            <span className="text-[10px] text-muted-foreground">
+                              {proj.planning_sector_name || proj.project_sector} • FY {proj.financial_year || "N/A"}
+                            </span>
+                          </td>
+                          <td className="py-2 px-3">
+                            <Badge variant="outline" size="sm" className="text-[10px]">
+                              {proj.project_status || "COMPLETED"}
+                            </Badge>
+                          </td>
+                          <td className="py-2 px-3 font-mono">₹{proj.approved_cost_crore ?? "N/A"} Cr</td>
+                          <td className="py-2 px-3 font-mono text-emerald-800">
+                            ₹{proj.actual_cost_crore ?? "N/A"} Cr
+                          </td>
+                          <td className="py-2 px-3 font-mono">
+                            {proj.actual_duration_months ? `${proj.actual_duration_months} mo` : "N/A"}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <p className="text-muted-foreground text-xs italic">
+                  No historical project execution records found for this district and sector.
+                </p>
+              )}
+            </CardContent>
+          ) : null}
+        </Card>
+      </div>
+
+      {/* 6. DATASET D8 ISOLATION & SIMILAR REQUESTS */}
+      <Card className="rounded-2xl border border-border/80 shadow-sm bg-muted/10">
+        <CardHeader className="py-3 px-4 bg-muted/20 border-b border-border/70 flex flex-row items-center justify-between">
+          <div className="flex items-center gap-2 text-xs font-bold text-foreground">
+            <Layers className="h-4 w-4 text-muted-foreground" />
+            <span>Similar Requests Context & Benchmark Safety Notice</span>
+          </div>
+          <Badge variant="default" size="sm" className="font-mono text-[10px]">
+            D8 Isolated
+          </Badge>
+        </CardHeader>
+        <CardContent className="p-4 text-xs space-y-2">
+          <div className="flex items-start gap-2.5">
+            <ShieldCheck className="h-4 w-4 text-emerald-600 shrink-0 mt-0.5" />
+            <div>
+              <span className="font-semibold text-foreground">
+                Synthetic Benchmark Isolation Enforced
+              </span>
+              <p className="text-[11px] text-muted-foreground mt-0.5 leading-relaxed">
+                Dataset D8 synthetic benchmark data is strictly excluded from operational assessment calculations. No synthetic or simulated records were ingested into this assessment snapshot.
+              </p>
+            </div>
+          </div>
+          <div className="text-[10px] text-muted-foreground font-mono bg-muted/30 p-2 rounded-lg border border-border/60">
+            synthetic_benchmark_used: false • D8 benchmark requests table isolated
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* 7. FEASIBILITY & SUSTAINABILITY INDICATORS */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        {/* Feasibility Indicators */}
+        <Card className="rounded-2xl border border-border/80 shadow-sm">
+          <CardHeader className="py-3 px-4 bg-muted/20 border-b border-border/70 flex flex-row items-center justify-between">
+            <div className="flex items-center gap-2 text-xs font-bold text-foreground">
+              <BarChart3 className="h-4 w-4 text-muted-foreground" />
+              <span>Feasibility Indicators</span>
+            </div>
+          </CardHeader>
+          <CardContent className="p-4 text-xs">
+            {currentAssessment.feasibility_indicators &&
+            Object.keys(currentAssessment.feasibility_indicators).length > 0 ? (
+              <div className="space-y-2">
+                {Object.entries(currentAssessment.feasibility_indicators).map(([k, v]) => (
+                  <div key={k} className="flex items-center justify-between py-1 border-b border-border/40 text-[11px]">
+                    <span className="text-muted-foreground capitalize">{k.replace(/_/g, " ")}</span>
+                    <span className="font-semibold text-foreground">{String(v)}</span>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-4 text-muted-foreground text-xs italic">
+                Not available • No custom feasibility indicators recorded in baseline snapshot.
+              </div>
+            )}
+            <p className="text-[10px] text-muted-foreground mt-3 pt-2 border-t border-border/50">
+              Zero algorithmic assumptions applied. Feasibility indicators must be empirically verified during formal technical vetting.
+            </p>
+          </CardContent>
+        </Card>
+
+        {/* Sustainability Indicators */}
+        <Card className="rounded-2xl border border-border/80 shadow-sm">
+          <CardHeader className="py-3 px-4 bg-muted/20 border-b border-border/70 flex flex-row items-center justify-between">
+            <div className="flex items-center gap-2 text-xs font-bold text-foreground">
+              <Sparkles className="h-4 w-4 text-muted-foreground" />
+              <span>Sustainability Indicators</span>
+            </div>
+          </CardHeader>
+          <CardContent className="p-4 text-xs">
+            {currentAssessment.sustainability_indicators &&
+            Object.keys(currentAssessment.sustainability_indicators).length > 0 ? (
+              <div className="space-y-2">
+                {Object.entries(currentAssessment.sustainability_indicators).map(([k, v]) => (
+                  <div key={k} className="flex items-center justify-between py-1 border-b border-border/40 text-[11px]">
+                    <span className="text-muted-foreground capitalize">{k.replace(/_/g, " ")}</span>
+                    <span className="font-semibold text-foreground">{String(v)}</span>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-4 text-muted-foreground text-xs italic">
+                Not available • No custom sustainability indicators recorded in baseline snapshot.
+              </div>
+            )}
+            <p className="text-[10px] text-muted-foreground mt-3 pt-2 border-t border-border/50">
+              Long-term maintenance and environmental impact indicators require field validation.
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* 8. RISKS AND MISSING INFORMATION */}
+      <Card className="rounded-2xl border border-amber-200/90 bg-amber-50/30 shadow-sm">
+        <CardHeader className="py-3 px-4 bg-amber-100/50 border-b border-amber-200/80 flex flex-row items-center justify-between">
+          <div className="flex items-center gap-2 text-amber-950 font-bold text-xs">
+            <AlertTriangle className="h-4 w-4 text-amber-700" />
+            <span>Identified Data Gaps & Information Needs</span>
+          </div>
+          <Badge variant="amber" size="sm">
+            Audit Checklist
+          </Badge>
+        </CardHeader>
+        <CardContent className="p-4 text-xs space-y-2">
+          {Array.isArray(currentAssessment.risks_and_missing_info) &&
+          currentAssessment.risks_and_missing_info.length > 0 ? (
+            <ul className="space-y-1.5 list-disc list-inside text-[11px] text-amber-950">
+              {currentAssessment.risks_and_missing_info.map((item, idx) => (
+                <li key={idx} className="leading-relaxed">
+                  {item}
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <div className="flex items-center gap-2 text-muted-foreground text-xs">
+              <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
+              <span>No critical data gaps or missing information flagged in this baseline snapshot.</span>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* 9. BOTTOM NAVIGATION BAR (READ-ONLY) */}
+      <div className="flex items-center justify-between pt-4 border-t border-border/70">
+        <Button asChild variant="outline" size="sm" className="gap-1.5 text-xs">
+          <Link to="/app/admin/classification">
+            <ArrowLeft className="h-4 w-4" />
+            Back to Classification
+          </Link>
+        </Button>
+
+        <div className="flex items-center gap-2">
+          <Button asChild variant="outline" size="sm" className="text-xs">
+            <Link to={`/app/admin/issues/${issue.id}`}>
+              View Operational Issue Card
+            </Link>
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}
