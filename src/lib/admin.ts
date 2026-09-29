@@ -99,3 +99,13 @@ export function getAdminInitials(value: string | null | undefined) {
     .slice(0, 2);
 }
 
+export function isInfrastructureStatus(status: AdminIssueStatus): boolean {
+  return (
+    status === "CLASSIFIED_INFRASTRUCTURE" ||
+    status === "INFRASTRUCTURE_REVIEW" ||
+    status === "INFRASTRUCTURE_ACCEPTED" ||
+    status === "INFRASTRUCTURE_REJECTED" ||
+    status === "INFRASTRUCTURE_DEFERRED"
+  );
+}
+

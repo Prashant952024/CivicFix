@@ -365,5 +365,17 @@
       "accountMenu": "User account menu",
       "signOut": "Sign out"
     }
+  },
+  "admin": {
+    "issues": {
+      "infraTrackTag": "Infrastructure Track",
+      "openAssessment": "Open Infrastructure Assessment",
+      "infraDossier": "Infrastructure Dossier",
+      "infraOverviewTitle": "Infrastructure Capital Development Track",
+      "infraOverviewDescReview": "This issue is on the Infrastructure Development Track and is currently undergoing multi-dataset (D1–D7) assessment review. Authorized Administrators can inspect the evidence dossier and record a screening decision.",
+      "infraOverviewDescAccepted": "This infrastructure request has been officially reviewed and passed administrative screening (accepted into capital works pipeline).",
+      "infraOverviewDescRejected": "This infrastructure request has been officially reviewed and did not pass administrative screening for the current cycle.",
+      "infraOverviewDescDefault": "This civic issue is managed under the Infrastructure Capital Development pipeline."
+    }
   }
 }

@@ -1,10 +1,12 @@
 import { useEffect, useState } from "react";
 import {
   AlertCircle,
+  ArrowRight,
   BadgeCheck,
   Building2,
   CheckCircle2,
   Clock3,
+  FileText,
   History,
   ImageIcon,
   MapPin,
@@ -36,6 +38,7 @@ import {
   getAdminIssueStatusTone,
   getAdminPriorityTone,
   getAdminSeverityTone,
+  isInfrastructureStatus,
 } from "@/lib/admin";
 import {
   formatCitizenIssueCoordinates,
@@ -159,7 +162,64 @@ const WORKFLOW_STAGES: WorkflowStage[] = [
   },
 ];
 
+const INFRASTRUCTURE_WORKFLOW_STAGES: WorkflowStage[] = [
+  {
+    key: "intake",
+    label: "Intake & Classification",
+    description: "Issue routed to Infrastructure Track; baseline district snapshot compiled.",
+    matchedStatuses: [
+      "CLASSIFIED_INFRASTRUCTURE",
+      "INFRASTRUCTURE_REVIEW",
+      "INFRASTRUCTURE_ACCEPTED",
+      "INFRASTRUCTURE_REJECTED",
+      "INFRASTRUCTURE_DEFERRED",
+    ],
+    icon: Building2,
+  },
+  {
+    key: "assessment",
+    label: "Context Assessment Dossier",
+    description: "Factual D1–D7 multi-dataset baselines and completeness score generated.",
+    matchedStatuses: [
+      "CLASSIFIED_INFRASTRUCTURE",
+      "INFRASTRUCTURE_REVIEW",
+      "INFRASTRUCTURE_ACCEPTED",
+      "INFRASTRUCTURE_REJECTED",
+      "INFRASTRUCTURE_DEFERRED",
+    ],
+    icon: FileText,
+  },
+  {
+    key: "review",
+    label: "Administrative Screening",
+    description: "Admin reviews factual district planning evidence & feasibility.",
+    matchedStatuses: [
+      "INFRASTRUCTURE_REVIEW",
+      "INFRASTRUCTURE_ACCEPTED",
+      "INFRASTRUCTURE_REJECTED",
+      "INFRASTRUCTURE_DEFERRED",
+    ],
+    icon: ShieldCheck,
+  },
+  {
+    key: "decision",
+    label: "Governance Decision Ledger",
+    description: "Authoritative Admin Pass / Not-Pass decision recorded with justification.",
+    matchedStatuses: [
+      "INFRASTRUCTURE_ACCEPTED",
+      "INFRASTRUCTURE_REJECTED",
+      "INFRASTRUCTURE_DEFERRED",
+    ],
+    icon: BadgeCheck,
+  },
+];
+
 function getTimelineIcon(status: Database["public"]["Enums"]["issue_status"]) {
+  if (status === "CLASSIFIED_INFRASTRUCTURE") return Building2;
+  if (status === "INFRASTRUCTURE_REVIEW") return FileText;
+  if (status === "INFRASTRUCTURE_ACCEPTED") return BadgeCheck;
+  if (status === "INFRASTRUCTURE_REJECTED") return ThumbsDown;
+  if (status === "INFRASTRUCTURE_DEFERRED") return Clock3;
   if (status === "AI_ANALYZED") return ShieldAlert;
   if (status === "VERIFIED" || status === "RESOLVED" || status === "CITIZEN_VERIFIED") return BadgeCheck;
   if (status === "ASSIGNED") return Building2;
@@ -388,7 +448,9 @@ export function AdminIssueDetailPage() {
   }
 
   const issueImages = issue.issue_images ?? [];
-  const stageCards = WORKFLOW_STAGES.map((stage) => ({
+  const isInfra = isInfrastructureStatus(issue.status);
+  const activeStages = isInfra ? INFRASTRUCTURE_WORKFLOW_STAGES : WORKFLOW_STAGES;
+  const stageCards = activeStages.map((stage) => ({
     ...stage,
     completed: stage.matchedStatuses.some((entry) => entry === issue.status || (entry === "RESOLVED" && isCitizenIssueResolvedLike(issue.status))),
   }));
@@ -417,11 +479,12 @@ export function AdminIssueDetailPage() {
             <Badge variant={severityTone} size="default">
               Severity: {issue.severity}
             </Badge>
-            {issue.status === "CLASSIFIED_INFRASTRUCTURE" ? (
-              <Button asChild size="sm" variant="outline" className="gap-1.5 border-indigo-200 text-indigo-700 hover:bg-indigo-50">
+            {isInfra ? (
+              <Button asChild size="sm" className="gap-1.5 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold">
                 <Link to={`/app/admin/infrastructure/${issue.id}`}>
-                  <Building2 className="h-3.5 w-3.5 text-indigo-600" />
-                  <span>Infrastructure Dossier</span>
+                  <Building2 className="h-3.5 w-3.5" />
+                  <span>Open Infrastructure Assessment</span>
+                  <ArrowRight className="h-3.5 w-3.5 ml-0.5" />
                 </Link>
               </Button>
             ) : null}
@@ -431,6 +494,47 @@ export function AdminIssueDetailPage() {
           </div>
         }
       />
+
+      {/* Infrastructure Track Overview Banner & Direct CTA */}
+      {isInfra && (
+        <Card className="rounded-2xl border-2 border-indigo-200/90 bg-gradient-to-r from-indigo-50/90 via-sky-50/40 to-indigo-50/90 p-5 sm:p-6 shadow-sm">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="flex items-start gap-3.5">
+              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-indigo-600 text-white shadow-sm">
+                <Building2 className="h-6 w-6" aria-hidden="true" />
+              </div>
+              <div className="space-y-1">
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-indigo-700 bg-indigo-100/90 px-2 py-0.5 rounded-md">
+                    Infrastructure Capital Development Track
+                  </span>
+                  <Badge variant={statusTone} size="sm">
+                    {formatAdminIssueStatusLabel(issue.status)}
+                  </Badge>
+                </div>
+                <h3 className="text-base sm:text-lg font-bold text-foreground">
+                  Infrastructure Assessment & Decision Workspace
+                </h3>
+                <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed max-w-2xl">
+                  {issue.status === "INFRASTRUCTURE_ACCEPTED"
+                    ? "This infrastructure request has been officially reviewed and passed administrative screening (accepted into capital works pipeline)."
+                    : issue.status === "INFRASTRUCTURE_REJECTED"
+                      ? "This infrastructure request has been officially reviewed and did not pass administrative screening for the current cycle."
+                      : "This issue is on the Infrastructure Development Track and is currently undergoing multi-dataset (D1–D7) assessment review. Authorized Administrators can inspect the evidence dossier and record a screening decision."}
+                </p>
+              </div>
+            </div>
+
+            <Button asChild size="default" className="shrink-0 gap-2 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold shadow-xs">
+              <Link to={`/app/admin/infrastructure/${issue.id}`}>
+                <Building2 className="h-4 w-4" />
+                <span>Open Infrastructure Assessment</span>
+                <ArrowRight className="h-4 w-4 ml-0.5" />
+              </Link>
+            </Button>
+          </div>
+        </Card>
+      )}
 
       {/* 2. Top Summary KPI Cards */}
       <div className="grid gap-3.5 sm:grid-cols-2 lg:grid-cols-5">

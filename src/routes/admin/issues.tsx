@@ -32,6 +32,7 @@ import {
   getAdminIssueStatusTone,
   getAdminPriorityTone,
   getAdminSeverityTone,
+  isInfrastructureStatus,
 } from "@/lib/admin";
 import { pickCitizenIssueThumbnail } from "@/lib/citizen-issues";
 import { supabase } from "@/lib/supabase";
@@ -72,6 +73,13 @@ const STATUS_OPTIONS: Array<{ key: "all" | Database["public"]["Enums"]["issue_st
   { key: "all", label: "All Statuses" },
   { key: "SUBMITTED", label: "Submitted" },
   { key: "AI_ANALYZED", label: "AI Analyzed" },
+  { key: "AWAITING_ADMIN_CLASSIFICATION", label: "Awaiting Classification" },
+  { key: "CLASSIFIED_SIMPLE", label: "Classified (Simple)" },
+  { key: "CLASSIFIED_COMPLEX", label: "Complex Challenge" },
+  { key: "CLASSIFIED_INFRASTRUCTURE", label: "Classified (Infrastructure)" },
+  { key: "INFRASTRUCTURE_REVIEW", label: "Infrastructure Review" },
+  { key: "INFRASTRUCTURE_ACCEPTED", label: "Infrastructure Accepted" },
+  { key: "INFRASTRUCTURE_REJECTED", label: "Infrastructure Rejected" },
   { key: "UNDER_REVIEW", label: "Under Review" },
   { key: "VERIFIED", label: "Verified" },
   { key: "REJECTED", label: "Rejected" },
@@ -619,12 +627,22 @@ export function AdminIssuesPage() {
                         <h3 className="text-base sm:text-lg font-bold text-foreground mt-1.5">{issue.title}</h3>
                       </div>
 
-                      <Button asChild size="sm" variant="default" className="shrink-0 text-xs">
-                        <Link to={`/app/admin/issues/${issue.id}`}>
-                          Inspect Issue
-                          <ArrowRight className="h-3.5 w-3.5 ml-1" />
-                        </Link>
-                      </Button>
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        {isInfrastructureStatus(issue.status) && (
+                          <Button asChild size="sm" variant="outline" className="text-xs gap-1 border-indigo-200 text-indigo-700 hover:bg-indigo-50">
+                            <Link to={`/app/admin/infrastructure/${issue.id}`}>
+                              <Building2 className="h-3.5 w-3.5 text-indigo-600" />
+                              <span>Infrastructure</span>
+                            </Link>
+                          </Button>
+                        )}
+                        <Button asChild size="sm" variant="default" className="text-xs">
+                          <Link to={`/app/admin/issues/${issue.id}`}>
+                            Inspect Issue
+                            <ArrowRight className="h-3.5 w-3.5 ml-1" />
+                          </Link>
+                        </Button>
+                      </div>
                     </div>
 
                     <p className="text-xs sm:text-sm text-muted-foreground line-clamp-2 leading-relaxed">
