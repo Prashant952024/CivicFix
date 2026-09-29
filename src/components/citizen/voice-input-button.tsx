@@ -21,6 +21,7 @@ import {
   isSpeechRecognitionSupported,
   getSpeechRecognitionLocale,
 } from "@/lib/speech-recognition";
+import { supabase } from "@/lib/supabase";
 
 export type VoiceTranscriptionPayload = {
   transcription: string;
@@ -330,29 +331,33 @@ export function VoiceInputButton({
 
     try {
       const audioBase64 = await blobToBase64(audioBlob);
-      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-      const anonKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
 
-      if (!supabaseUrl || !anonKey) {
-        throw new Error("Client configuration missing.");
-      }
-
-      const response = await fetch(`${supabaseUrl}/functions/v1/transcribe-voice`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          apikey: anonKey,
-          Authorization: `Bearer ${anonKey}`,
-        },
-        body: JSON.stringify({
+      const invokeRes = await supabase.functions.invoke<{
+        success?: boolean;
+        errorCode?: string;
+        userMessage?: string;
+        transcription?: string;
+        text?: string;
+        englishTranslation?: string;
+        suggestedTitle?: string;
+        suggestedEnglishTitle?: string;
+        detectedLanguage?: string;
+        detectedLanguageName?: string;
+        languageName?: string;
+        detectedScript?: string;
+        script?: string;
+        isRtl?: boolean;
+        confidence?: number;
+      }>("transcribe-voice", {
+        body: {
           audioBase64,
           mimeType,
           languageHint: language,
           fieldMode,
-        }),
+        },
       });
 
-      if (!response.ok) {
+      if (invokeRes.error) {
         if (liveRecognizedText && liveRecognizedText.trim()) {
           console.warn("[VoiceInput] Edge Function failed, but browser live text is available. Using live text as fallback.");
           const transcription = liveRecognizedText.trim();
@@ -372,13 +377,12 @@ export function VoiceInputButton({
           return;
         }
 
-        const errPayload = await response.json().catch(() => ({}));
-        const returnedCode = (errPayload.errorCode as VoiceErrorCode) || "EDGE_FUNCTION_FAILED";
+        const returnedCode: VoiceErrorCode = "EDGE_FUNCTION_FAILED";
         setErrorCode(returnedCode);
-        throw new Error(errPayload.userMessage || getLocalizedErrorMessage(returnedCode));
+        throw new Error(invokeRes.error.message || getLocalizedErrorMessage(returnedCode));
       }
 
-      const data = await response.json();
+      const data = invokeRes.data || {};
 
       if (!data.success && data.errorCode) {
         if (liveRecognizedText && liveRecognizedText.trim()) {
@@ -399,8 +403,9 @@ export function VoiceInputButton({
           setIsReviewOpen(true);
           return;
         }
-        setErrorCode(data.errorCode as VoiceErrorCode);
-        throw new Error(data.userMessage || getLocalizedErrorMessage(data.errorCode));
+        const code = (data.errorCode as VoiceErrorCode) || "EDGE_FUNCTION_FAILED";
+        setErrorCode(code);
+        throw new Error(data.userMessage || getLocalizedErrorMessage(code));
       }
 
       const rawText = data.transcription || data.text || liveRecognizedText;

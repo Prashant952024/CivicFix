@@ -1,5 +1,9 @@
 /// <reference path="../deno.d.ts" />
 
+import { createClient } from "npm:@supabase/supabase-js";
+import { createRemoteJWKSet, jwtVerify } from "npm:jose";
+import { verifyToken } from "npm:@clerk/backend";
+
 function json(status: number, body: Record<string, unknown>, origin: string | null = "*") {
   return new Response(JSON.stringify(body), {
     status,
@@ -12,6 +16,63 @@ function json(status: number, body: Record<string, unknown>, origin: string | nu
       Vary: "Origin",
     },
   });
+}
+
+function getClerkDomain(): string {
+  const pk = Deno.env.get("CLERK_PUBLISHABLE_KEY") || "pk_test_bmV1dHJhbC1zbmFpbC00NTE4LmNsZXJrLmFjY291bnRzLmRldiQ";
+  try {
+    const raw = pk.replace(/^pk_(test|live)_/, "");
+    const decoded = atob(raw).replace(/\$$/, "");
+    if (decoded.includes(".")) {
+      return decoded;
+    }
+  } catch {
+    // fallback
+  }
+  return "neutral-snail-4518.clerk.accounts.dev";
+}
+
+const CLERK_DOMAIN = getClerkDomain();
+const CLERK_JWKS_URL = `https://${CLERK_DOMAIN}/.well-known/jwks.json`;
+const clerkJwks = createRemoteJWKSet(new URL(CLERK_JWKS_URL));
+
+async function verifyClerkSessionToken(token: string): Promise<string | null> {
+  const clerkSecretKey = Deno.env.get("CLERK_SECRET_KEY");
+  if (clerkSecretKey) {
+    try {
+      const payload = await verifyToken(token, { secretKey: clerkSecretKey });
+      if (payload && typeof payload.sub === "string" && payload.sub.trim().length > 0) {
+        return payload.sub.trim();
+      }
+    } catch {
+      // Fall through to direct JWKS verification
+    }
+  }
+
+  try {
+    const { payload } = await jwtVerify(token, clerkJwks, {
+      issuer: (iss) => !iss || iss.includes("clerk") || iss.includes(CLERK_DOMAIN),
+    });
+    if (payload && typeof payload.sub === "string" && payload.sub.trim().length > 0) {
+      return payload.sub.trim();
+    }
+  } catch {
+    // Invalid signature, expired, or malformed
+  }
+
+  return null;
+}
+
+async function verifySupabaseAuthToken(token: string, supabaseAdmin: ReturnType<typeof createClient>): Promise<string | null> {
+  try {
+    const { data: userData, error: userError } = await supabaseAdmin.auth.getUser(token);
+    if (!userError && userData?.user?.id) {
+      return userData.user.id;
+    }
+  } catch {
+    // Not a valid Supabase auth token
+  }
+  return null;
 }
 
 type TranscribeRequestBody = {
@@ -87,6 +148,54 @@ Deno.serve(async (req: Request) => {
       userMessage: "Method not allowed. Use POST.",
       requestId,
     }, origin);
+  }
+
+  // =========================================================================
+  // 1. AUTHENTICATE CALLER — STRICT FAIL-CLOSED
+  // =========================================================================
+  const authHeader = req.headers.get("Authorization") || req.headers.get("authorization");
+  if (!authHeader || !authHeader.startsWith("Bearer ")) {
+    return json(401, {
+      success: false,
+      errorCode: "UNAUTHORIZED",
+      userMessage: "Authentication required to transcribe voice audio.",
+      requestId,
+    }, origin);
+  }
+
+  const token = authHeader.slice(7).trim();
+  if (!token) {
+    return json(401, {
+      success: false,
+      errorCode: "UNAUTHORIZED",
+      userMessage: "Authentication token missing.",
+      requestId,
+    }, origin);
+  }
+
+  const supabaseUrl = Deno.env.get("SUPABASE_URL");
+  const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+
+  let isServiceRole = false;
+  if (supabaseServiceKey && token === supabaseServiceKey) {
+    isServiceRole = true;
+  } else {
+    let verifiedUserId: string | null = await verifyClerkSessionToken(token);
+    if (!verifiedUserId && supabaseUrl && supabaseServiceKey) {
+      const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
+        auth: { persistSession: false },
+      });
+      verifiedUserId = await verifySupabaseAuthToken(token, supabaseAdmin);
+    }
+
+    if (!verifiedUserId) {
+      return json(401, {
+        success: false,
+        errorCode: "UNAUTHORIZED",
+        userMessage: "Invalid, forged, or expired authentication token.",
+        requestId,
+      }, origin);
+    }
   }
 
   const geminiApiKey = Deno.env.get("GEMINI_API_KEY");

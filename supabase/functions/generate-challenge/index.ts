@@ -1,6 +1,65 @@
 /// <reference path="../deno.d.ts" />
 
 import { createClient } from "npm:@supabase/supabase-js";
+import { createRemoteJWKSet, jwtVerify } from "npm:jose";
+import { verifyToken } from "npm:@clerk/backend";
+
+function getClerkDomain(): string {
+  const pk = Deno.env.get("CLERK_PUBLISHABLE_KEY") || "pk_test_bmV1dHJhbC1zbmFpbC00NTE4LmNsZXJrLmFjY291bnRzLmRldiQ";
+  try {
+    const raw = pk.replace(/^pk_(test|live)_/, "");
+    const decoded = atob(raw).replace(/\$$/, "");
+    if (decoded.includes(".")) {
+      return decoded;
+    }
+  } catch {
+    // fallback
+  }
+  return "neutral-snail-4518.clerk.accounts.dev";
+}
+
+const CLERK_DOMAIN = getClerkDomain();
+const CLERK_JWKS_URL = `https://${CLERK_DOMAIN}/.well-known/jwks.json`;
+const clerkJwks = createRemoteJWKSet(new URL(CLERK_JWKS_URL));
+
+async function verifyClerkSessionToken(token: string): Promise<string | null> {
+  const clerkSecretKey = Deno.env.get("CLERK_SECRET_KEY");
+  if (clerkSecretKey) {
+    try {
+      const payload = await verifyToken(token, { secretKey: clerkSecretKey });
+      if (payload && typeof payload.sub === "string" && payload.sub.trim().length > 0) {
+        return payload.sub.trim();
+      }
+    } catch {
+      // Fall through to direct JWKS verification
+    }
+  }
+
+  try {
+    const { payload } = await jwtVerify(token, clerkJwks, {
+      issuer: (iss) => !iss || iss.includes("clerk") || iss.includes(CLERK_DOMAIN),
+    });
+    if (payload && typeof payload.sub === "string" && payload.sub.trim().length > 0) {
+      return payload.sub.trim();
+    }
+  } catch {
+    // Invalid signature, expired, or malformed
+  }
+
+  return null;
+}
+
+async function verifySupabaseAuthToken(token: string, supabaseAdmin: ReturnType<typeof createClient>): Promise<string | null> {
+  try {
+    const { data: userData, error: userError } = await supabaseAdmin.auth.getUser(token);
+    if (!userError && userData?.user?.id) {
+      return userData.user.id;
+    }
+  } catch {
+    // Not a valid Supabase auth token
+  }
+  return null;
+}
 
 type GenerateChallengeRequestBody = {
   issue_id?: string;
@@ -49,20 +108,6 @@ function base64Encode(bytes: Uint8Array): string {
   return btoa(binary);
 }
 
-function extractClerkUserIdFromJwt(authHeader: string | null): string | null {
-  if (!authHeader || !authHeader.startsWith("Bearer ")) return null;
-  const token = authHeader.slice(7).trim();
-  try {
-    const parts = token.split(".");
-    if (parts.length !== 3) return null;
-    const payloadJson = atob(parts[1].replace(/-/g, "+").replace(/_/g, "/"));
-    const payload = JSON.parse(payloadJson);
-    return payload.sub ?? null;
-  } catch {
-    return null;
-  }
-}
-
 Deno.serve(async (req: Request) => {
   const origin = req.headers.get("origin");
 
@@ -89,6 +134,80 @@ Deno.serve(async (req: Request) => {
     return json(500, { error: "Internal database service configuration error." }, origin);
   }
 
+  // =========================================================================
+  // 1. AUTHENTICATE CALLER — STRICT FAIL-CLOSED
+  // =========================================================================
+  const authHeader = req.headers.get("Authorization") || req.headers.get("authorization");
+  if (!authHeader || !authHeader.startsWith("Bearer ")) {
+    return json(401, { error: "Unauthorized. Missing Bearer authentication token." }, origin);
+  }
+
+  const token = authHeader.slice(7).trim();
+  if (!token) {
+    return json(401, { error: "Unauthorized. Empty Bearer authentication token." }, origin);
+  }
+
+  const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
+    auth: { persistSession: false },
+  });
+
+  let verifiedUserId: string | null = await verifyClerkSessionToken(token);
+  let authType: "clerk" | "supabase" = "clerk";
+
+  if (!verifiedUserId) {
+    verifiedUserId = await verifySupabaseAuthToken(token, supabaseAdmin);
+    if (verifiedUserId) {
+      authType = "supabase";
+    }
+  }
+
+  if (!verifiedUserId) {
+    return json(401, { error: "Unauthorized. Invalid, forged, or expired authentication token." }, origin);
+  }
+
+  // =========================================================================
+  // 2. AUTHORIZE CALLER — STRICT INNOVATION_MANAGER OR ADMIN ONLY
+  // =========================================================================
+  let callerProfile: { id: string; role?: { code: string } } | null = null;
+
+  if (authType === "clerk") {
+    const { data: profile } = await supabaseAdmin
+      .from("profiles")
+      .select("id, role:roles!profiles_role_id_fkey(code)")
+      .eq("clerk_user_id", verifiedUserId)
+      .maybeSingle();
+
+    if (profile) {
+      callerProfile = profile as unknown as { id: string; role?: { code: string } };
+    }
+  } else {
+    const { data: profile } = await supabaseAdmin
+      .from("profiles")
+      .select("id, role:roles!profiles_role_id_fkey(code)")
+      .or(`id.eq.${verifiedUserId},clerk_user_id.eq.${verifiedUserId}`)
+      .maybeSingle();
+
+    if (profile) {
+      callerProfile = profile as unknown as { id: string; role?: { code: string } };
+    }
+  }
+
+  if (!callerProfile) {
+    return json(403, { error: "Forbidden. User profile not found in system." }, origin);
+  }
+
+  const callerRole = (callerProfile.role as { code?: string } | null)?.code;
+  if (!callerRole || !["ADMIN", "INNOVATION_MANAGER"].includes(callerRole)) {
+    return json(
+      403,
+      { error: "Forbidden. Only Innovation Managers and Platform Administrators can generate innovation challenges." },
+      origin
+    );
+  }
+
+  // =========================================================================
+  // 3. PARSE AND VALIDATE REQUEST BODY
+  // =========================================================================
   let body: GenerateChallengeRequestBody = {};
   try {
     body = await req.json();
@@ -99,63 +218,6 @@ Deno.serve(async (req: Request) => {
   const targetIssueId = (body.issue_id || body.issueId || "").trim();
   if (!targetIssueId) {
     return json(400, { error: "Missing required field: issue_id" }, origin);
-  }
-
-  const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
-    auth: { persistSession: false },
-  });
-
-  // 1. Authorize Caller: ensure the requester has INNOVATION_MANAGER or ADMIN role
-  const authHeader = req.headers.get("Authorization") || req.headers.get("authorization");
-  const clerkUserId = extractClerkUserIdFromJwt(authHeader);
-
-  let callerProfile: { id: string; role?: { code: string } } | null = null;
-
-  if (clerkUserId) {
-    const { data: profile } = await supabaseAdmin
-      .from("profiles")
-      .select("id, role:roles!profiles_role_id_fkey(code)")
-      .eq("clerk_user_id", clerkUserId)
-      .maybeSingle();
-
-    if (profile) {
-      callerProfile = profile as unknown as { id: string; role?: { code: string } };
-    }
-  }
-
-  // Fallback: Check if caller is authenticated via Supabase auth token
-  if (!callerProfile && authHeader?.startsWith("Bearer ")) {
-    try {
-      const token = authHeader.slice(7).trim();
-      const { data: userData } = await supabaseAdmin.auth.getUser(token);
-      if (userData?.user?.id) {
-        const { data: profile } = await supabaseAdmin
-          .from("profiles")
-          .select("id, role:roles!profiles_role_id_fkey(code)")
-          .eq("id", userData.user.id)
-          .maybeSingle();
-        if (profile) {
-          callerProfile = profile as unknown as { id: string; role?: { code: string } };
-        }
-      }
-    } catch {
-      // Ignored, proceed to fallback lookup
-    }
-  }
-
-  // If callerProfile still null, find any active innovation manager as creator fallback
-  if (!callerProfile) {
-    const { data: defaultMgr } = await supabaseAdmin
-      .from("profiles")
-      .select("id, role:roles!profiles_role_id_fkey(code)")
-      .eq("role.code", "INNOVATION_MANAGER")
-      .eq("is_active", true)
-      .limit(1)
-      .maybeSingle();
-
-    if (defaultMgr) {
-      callerProfile = defaultMgr as unknown as { id: string; role?: { code: string } };
-    }
   }
 
   try {

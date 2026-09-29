@@ -1,6 +1,65 @@
 /// <reference path="../deno.d.ts" />
 
 import { createClient } from "npm:@supabase/supabase-js";
+import { createRemoteJWKSet, jwtVerify } from "npm:jose";
+import { verifyToken } from "npm:@clerk/backend";
+
+function getClerkDomain(): string {
+  const pk = Deno.env.get("CLERK_PUBLISHABLE_KEY") || "pk_test_bmV1dHJhbC1zbmFpbC00NTE4LmNsZXJrLmFjY291bnRzLmRldiQ";
+  try {
+    const raw = pk.replace(/^pk_(test|live)_/, "");
+    const decoded = atob(raw).replace(/\$$/, "");
+    if (decoded.includes(".")) {
+      return decoded;
+    }
+  } catch {
+    // fallback
+  }
+  return "neutral-snail-4518.clerk.accounts.dev";
+}
+
+const CLERK_DOMAIN = getClerkDomain();
+const CLERK_JWKS_URL = `https://${CLERK_DOMAIN}/.well-known/jwks.json`;
+const clerkJwks = createRemoteJWKSet(new URL(CLERK_JWKS_URL));
+
+async function verifyClerkSessionToken(token: string): Promise<string | null> {
+  const clerkSecretKey = Deno.env.get("CLERK_SECRET_KEY");
+  if (clerkSecretKey) {
+    try {
+      const payload = await verifyToken(token, { secretKey: clerkSecretKey });
+      if (payload && typeof payload.sub === "string" && payload.sub.trim().length > 0) {
+        return payload.sub.trim();
+      }
+    } catch {
+      // Fall through to direct JWKS verification
+    }
+  }
+
+  try {
+    const { payload } = await jwtVerify(token, clerkJwks, {
+      issuer: (iss) => !iss || iss.includes("clerk") || iss.includes(CLERK_DOMAIN),
+    });
+    if (payload && typeof payload.sub === "string" && payload.sub.trim().length > 0) {
+      return payload.sub.trim();
+    }
+  } catch {
+    // Invalid signature, expired, or malformed
+  }
+
+  return null;
+}
+
+async function verifySupabaseAuthToken(token: string, supabaseAdmin: ReturnType<typeof createClient>): Promise<string | null> {
+  try {
+    const { data: userData, error: userError } = await supabaseAdmin.auth.getUser(token);
+    if (!userError && userData?.user?.id) {
+      return userData.user.id;
+    }
+  } catch {
+    // Not a valid Supabase auth token
+  }
+  return null;
+}
 
 const ALLOWED_CATEGORIES = [
   "Pothole",
@@ -208,6 +267,83 @@ Deno.serve(async (req: Request) => {
     return json(500, { error: "Internal database service configuration error." }, origin);
   }
 
+  // =========================================================================
+  // 1. AUTHENTICATE CALLER — STRICT FAIL-CLOSED
+  // =========================================================================
+  const authHeader = req.headers.get("Authorization") || req.headers.get("authorization");
+  if (!authHeader || !authHeader.startsWith("Bearer ")) {
+    return json(401, { error: "Unauthorized. Missing Bearer authentication token." }, origin);
+  }
+
+  const token = authHeader.slice(7).trim();
+  if (!token) {
+    return json(401, { error: "Unauthorized. Empty Bearer authentication token." }, origin);
+  }
+
+  const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
+    auth: { persistSession: false },
+  });
+
+  let isServiceRole = false;
+  let verifiedUserId: string | null = null;
+  let authType: "clerk" | "supabase" = "clerk";
+
+  if (token === supabaseServiceKey) {
+    isServiceRole = true;
+  } else {
+    verifiedUserId = await verifyClerkSessionToken(token);
+    if (!verifiedUserId) {
+      verifiedUserId = await verifySupabaseAuthToken(token, supabaseAdmin);
+      if (verifiedUserId) {
+        authType = "supabase";
+      }
+    }
+
+    if (!verifiedUserId) {
+      return json(401, { error: "Unauthorized. Invalid, forged, or expired authentication token." }, origin);
+    }
+  }
+
+  // =========================================================================
+  // 2. AUTHORIZE CALLER — STRICT PROFILE & ROLE CHECK
+  // =========================================================================
+  let callerProfile: { id: string; clerk_user_id: string; role?: { code: string } } | null = null;
+  let callerRole: string | null = null;
+
+  if (!isServiceRole && verifiedUserId) {
+    if (authType === "clerk") {
+      const { data: profile } = await supabaseAdmin
+        .from("profiles")
+        .select("id, clerk_user_id, role:roles!profiles_role_id_fkey(code)")
+        .eq("clerk_user_id", verifiedUserId)
+        .maybeSingle();
+      if (profile) {
+        callerProfile = profile as unknown as { id: string; clerk_user_id: string; role?: { code: string } };
+      }
+    } else {
+      const { data: profile } = await supabaseAdmin
+        .from("profiles")
+        .select("id, clerk_user_id, role:roles!profiles_role_id_fkey(code)")
+        .or(`id.eq.${verifiedUserId},clerk_user_id.eq.${verifiedUserId}`)
+        .maybeSingle();
+      if (profile) {
+        callerProfile = profile as unknown as { id: string; clerk_user_id: string; role?: { code: string } };
+      }
+    }
+
+    if (!callerProfile) {
+      return json(403, { error: "Forbidden. User profile not found in system." }, origin);
+    }
+
+    callerRole = (callerProfile.role as { code?: string } | null)?.code || null;
+    if (!callerRole) {
+      return json(403, { error: "Forbidden. User has no assigned system role." }, origin);
+    }
+  }
+
+  // =========================================================================
+  // 3. PARSE AND VALIDATE REQUEST BODY
+  // =========================================================================
   let body: AnalyzeIssueRequestBody = {};
   try {
     body = await req.json();
@@ -216,14 +352,17 @@ Deno.serve(async (req: Request) => {
   }
 
   const isDryRun = Boolean(body.dry_run && body.benchmark_issue);
+  if (isDryRun) {
+    // Restrict dry-run benchmark mode to staff and admin roles
+    if (!isServiceRole && !["ADMIN", "MUNICIPAL_OFFICER", "DEPARTMENT_MANAGER", "INNOVATION_MANAGER"].includes(callerRole || "")) {
+      return json(403, { error: "Forbidden. Only authorized municipal staff and administrators can run dry-run benchmark analysis." }, origin);
+    }
+  }
+
   const targetIssueId = (body.issue_id || body.issueId || (isDryRun ? "benchmark-dry-run" : "")).trim();
   if (!targetIssueId) {
     return json(400, { error: "Missing required field: issue_id" }, origin);
   }
-
-  const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
-    auth: { persistSession: false },
-  });
 
   try {
     let issue: {
@@ -238,6 +377,7 @@ Deno.serve(async (req: Request) => {
       address_text?: string | null;
       latitude?: number | null;
       longitude?: number | null;
+      reporter_profile_id?: string | null;
       created_at?: string;
     };
 
@@ -287,13 +427,22 @@ Deno.serve(async (req: Request) => {
       // 2. Fetch the target issue record
       const { data: dbIssue, error: issueError } = await supabaseAdmin
         .from("issues")
-        .select("id, title, description, category, priority, severity, status, location_text, address_text, latitude, longitude, original_language, original_title, original_description, english_title, english_description, created_at")
+        .select("id, title, description, category, priority, severity, status, location_text, address_text, latitude, longitude, original_language, original_title, original_description, english_title, english_description, reporter_profile_id, created_at")
         .eq("id", targetIssueId)
         .maybeSingle();
 
       if (issueError || !dbIssue) {
         console.error(`[analyze-issue] Issue ${targetIssueId} not found:`, issueError);
         return json(404, { error: `Issue not found: ${targetIssueId}` }, origin);
+      }
+
+      // Authorization Check:
+      // Staff (ADMIN, MUNICIPAL_OFFICER, DEPARTMENT_MANAGER, INNOVATION_MANAGER, FIELD_WORKER) can analyze any issue.
+      // CITIZEN can only trigger AI analysis on their own reported grievance.
+      if (!isServiceRole && callerRole === "CITIZEN") {
+        if (dbIssue.reporter_profile_id && callerProfile && dbIssue.reporter_profile_id !== callerProfile.id) {
+          return json(403, { error: "Forbidden. Citizens can only trigger AI analysis on their own reported grievances." }, origin);
+        }
       }
 
       issue = dbIssue;

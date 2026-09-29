@@ -104,30 +104,23 @@ export function ProblemFormulationSection({
     setActionSuccess(null);
 
     try {
-      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-      const anonKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
-
-      const response = await fetch(`${supabaseUrl}/functions/v1/generate-challenge`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          apikey: anonKey,
-          Authorization: `Bearer ${anonKey}`,
-        },
-        body: JSON.stringify({
-          issue_id: problem.id,
-          save_draft: true,
-        }),
-      });
-
-      const resData = (await response.json()) as {
+      const response = await supabase.functions.invoke<{
         success?: boolean;
         challenge?: { id: string };
         error?: string;
-      };
+      }>("generate-challenge", {
+        body: {
+          issue_id: problem.id,
+          save_draft: true,
+        },
+      });
 
-      if (!response.ok || !resData.success) {
-        throw new Error(resData.error || "Failed to formulate challenge with AI.");
+      if (response.error) {
+        throw new Error(response.error.message || "Failed to formulate challenge with AI.");
+      }
+
+      if (!response.data?.success) {
+        throw new Error(response.data?.error || "Failed to formulate challenge with AI.");
       }
 
       setActionSuccess("AI Formulation successfully synthesized and saved as draft.");

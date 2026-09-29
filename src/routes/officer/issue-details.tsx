@@ -532,23 +532,16 @@ export function OfficerIssueDetailsPage() {
     setActionMessage(null);
 
     try {
-      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-      const anonKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
-      const response = await fetch(`${supabaseUrl}/functions/v1/analyze-issue`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          apikey: anonKey,
-          Authorization: `Bearer ${anonKey}`,
-        },
-        body: JSON.stringify({ issue_id: issue.id }),
+      const response = await supabase.functions.invoke<{ success?: boolean; error?: string }>("analyze-issue", {
+        body: { issue_id: issue.id },
       });
 
-      const resData = (await response.json()) as { success?: boolean; error?: string };
-      if (response.ok && resData.success) {
+      if (response.error) {
+        setActionError(response.error.message || "AI analysis failed. Please try again.");
+      } else if (response.data?.success) {
         refreshIssue("Gemini AI analysis completed and recommendations updated.");
       } else {
-        setActionError(typeof resData.error === "string" ? resData.error : "AI analysis failed. Please try again.");
+        setActionError(typeof response.data?.error === "string" ? response.data.error : "AI analysis failed. Please try again.");
       }
     } catch (triggerErr) {
       setActionError("Failed to trigger AI analysis service.");
@@ -626,32 +619,25 @@ export function OfficerIssueDetailsPage() {
     setActionMessage(null);
 
     try {
-      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-      const anonKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
-      if (!supabaseUrl || !anonKey) {
-        throw new Error("Missing Supabase configuration.");
-      }
-
-      const res = await fetch(`${supabaseUrl}/functions/v1/detect-duplicates`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          apikey: anonKey,
-          Authorization: `Bearer ${anonKey}`,
-        },
-        body: JSON.stringify({ issue_id: issue.id }),
+      const res = await supabase.functions.invoke<{
+        success?: boolean;
+        potential_duplicates_found?: number;
+        error?: string;
+      }>("detect-duplicates", {
+        body: { issue_id: issue.id },
       });
 
-      const data = (await res.json()) as { success?: boolean; potential_duplicates_found?: number; error?: string };
-      if (res.ok && data.success) {
-        const found = data.potential_duplicates_found || 0;
+      if (res.error) {
+        setActionError(res.error.message || "Duplicate scan service encountered an issue.");
+      } else if (res.data?.success) {
+        const found = res.data.potential_duplicates_found || 0;
         refreshIssue(
           found > 0
             ? `Duplicate scan completed: found ${found} potential duplicate candidate(s).`
             : "Duplicate scan completed: no duplicates detected.",
         );
       } else {
-        setActionError(typeof data.error === "string" ? data.error : "Duplicate scan service encountered an issue.");
+        setActionError(typeof res.data?.error === "string" ? res.data.error : "Duplicate scan service encountered an issue.");
       }
     } catch (err: unknown) {
       setActionError(`Duplicate scan failed: ${err instanceof Error ? err.message : String(err)}`);
