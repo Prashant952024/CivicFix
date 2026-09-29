@@ -4,6 +4,7 @@ import {
   AlertTriangle,
   ArrowRight,
   Bot,
+  Building2,
   Check,
   CheckCircle2,
   Clock,
@@ -38,6 +39,7 @@ import {
   getCitizenIssueStatusLabel,
   type CitizenIssueImageRow,
 } from "@/lib/citizen-issues";
+import { generateAndSaveInfrastructureAssessment } from "@/lib/infrastructure-assessment";
 import {
   formatOfficerIssuePriority,
   getOfficerIssuePriorityTone,
@@ -204,7 +206,8 @@ export function AdminClassificationPage() {
   const [previewImage, setPreviewImage] = useState<string | null>(null);
 
   // Admin decision state
-  const [decisionType, setDecisionType] = useState<"SIMPLE" | "COMPLEX">("SIMPLE");
+  type DecisionType = "SIMPLE" | "COMPLEX" | "INFRASTRUCTURE";
+  const [decisionType, setDecisionType] = useState<DecisionType>("SIMPLE");
   const [overrideReason, setOverrideReason] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [actionSuccess, setActionSuccess] = useState<string | null>(null);
@@ -296,7 +299,10 @@ export function AdminClassificationPage() {
 
   function handleSelectIssue(issue: IssueRow) {
     setSelectedIssueId(issue.id);
-    const defaultDecision = issue.final_issue_type || issue.ai_issue_type || "SIMPLE";
+    const defaultDecision =
+      (issue.final_issue_type as DecisionType | null) ||
+      (issue.ai_issue_type as DecisionType | null) ||
+      "SIMPLE";
     setDecisionType(defaultDecision);
     setOverrideReason(issue.classification_override_reason || "");
     setActionSuccess(null);
@@ -487,7 +493,12 @@ export function AdminClassificationPage() {
     setActionError(null);
     setActionSuccess(null);
 
-    const targetStatus = decisionType === "SIMPLE" ? "CLASSIFIED_SIMPLE" : "CLASSIFIED_COMPLEX";
+    const targetStatus =
+      decisionType === "SIMPLE"
+        ? "CLASSIFIED_SIMPLE"
+        : decisionType === "COMPLEX"
+          ? "CLASSIFIED_COMPLEX"
+          : "CLASSIFIED_INFRASTRUCTURE";
     const nowIso = new Date().toISOString();
 
     try {
@@ -543,7 +554,7 @@ export function AdminClassificationPage() {
 
           await supabase.from("notifications").insert(notificationsPayload);
         }
-      } else {
+      } else if (decisionType === "SIMPLE") {
         const { data: officers } = await supabase
           .from("profiles")
           .select("id, role:roles!inner(code)")
@@ -564,7 +575,31 @@ export function AdminClassificationPage() {
         }
       }
 
-      setActionSuccess(`Issue successfully classified as ${decisionType} and routed!`);
+      // 4. If classified as INFRASTRUCTURE, generate and persist baseline D1-D7 assessment snapshot
+      if (decisionType === "INFRASTRUCTURE") {
+        try {
+          const assessment = await generateAndSaveInfrastructureAssessment(
+            {
+              issueId: selectedIssue.id,
+              generatedByProfileId: profile.id,
+            },
+            supabase
+          );
+          setActionSuccess(
+            `Issue successfully classified as INFRASTRUCTURE and initial assessment v${assessment.assessment_version} snapshot generated (Data Completeness: ${assessment.data_completeness_score}%).`
+          );
+        } catch (assessmentErr) {
+          if (import.meta.env.DEV) console.error("Infrastructure assessment generation failed:", assessmentErr);
+          setActionError(
+            `Issue classified as INFRASTRUCTURE, but baseline assessment snapshot creation failed: ${
+              assessmentErr instanceof Error ? assessmentErr.message : "Unknown error"
+            }`
+          );
+        }
+      } else {
+        setActionSuccess(`Issue successfully classified as ${decisionType} and routed!`);
+      }
+
       setConfirmDialogOpen(false);
       setRefreshNonce((prev) => prev + 1);
 
@@ -1102,7 +1137,7 @@ export function AdminClassificationPage() {
 
                   <div className="flex items-center gap-2">
                     <Badge
-                      variant={aiType === "COMPLEX" ? "teal" : "emerald"}
+                      variant={aiType === "INFRASTRUCTURE" ? "indigo" : aiType === "COMPLEX" ? "teal" : "emerald"}
                       size="default"
                       className="font-bold text-xs uppercase px-2.5 py-0.5"
                     >
@@ -1308,7 +1343,7 @@ export function AdminClassificationPage() {
 
                 <CardContent className="space-y-5 pt-4 text-xs">
                   {/* Decision Radio Selectors */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                     {/* SIMPLE Track Card */}
                     <button
                       type="button"
@@ -1368,6 +1403,36 @@ export function AdminClassificationPage() {
                         Systemic, multi-domain, research, or sensor/data challenge requiring innovation intervention.
                       </p>
                     </button>
+
+                    {/* INFRASTRUCTURE Track Card */}
+                    <button
+                      type="button"
+                      onClick={() => setDecisionType("INFRASTRUCTURE")}
+                      className={`p-4 rounded-xl border-2 text-left transition-all relative ${
+                        decisionType === "INFRASTRUCTURE"
+                          ? "border-indigo-600 bg-indigo-50/70 shadow-sm ring-1 ring-indigo-600/20"
+                          : "border-border/80 hover:border-muted-foreground/40 bg-card"
+                      }`}
+                    >
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="font-bold text-sm text-indigo-950 flex items-center gap-2">
+                          <Building2 className="h-4 w-4 text-indigo-700" />
+                          INFRASTRUCTURE
+                        </span>
+                        <div
+                          className={`h-4 w-4 rounded-full border-2 flex items-center justify-center ${
+                            decisionType === "INFRASTRUCTURE"
+                              ? "border-indigo-600 bg-indigo-600 text-white"
+                              : "border-muted-foreground/40"
+                          }`}
+                        >
+                          {decisionType === "INFRASTRUCTURE" && <Check className="h-2.5 w-2.5" />}
+                        </div>
+                      </div>
+                      <p className="text-[11px] text-muted-foreground leading-relaxed">
+                        Capital infrastructure work requiring district context, feasibility indicators, and dossier planning.
+                      </p>
+                    </button>
                   </div>
 
                   {/* Dynamic Decision Preview */}
@@ -1375,12 +1440,19 @@ export function AdminClassificationPage() {
                     <ArrowRight className="h-4 w-4 text-teal-700 shrink-0 mt-0.5" />
                     <div>
                       <div className="font-bold text-xs text-foreground">
-                        Next Destination: {decisionType === "SIMPLE" ? "Municipal Officer Triage Queue" : "Innovation Manager Command Center"}
+                        Next Destination:{" "}
+                        {decisionType === "SIMPLE"
+                          ? "Municipal Officer Triage Queue"
+                          : decisionType === "COMPLEX"
+                            ? "Innovation Manager Command Center"
+                            : "Admin Infrastructure Assessment & Dossier Workspace"}
                       </div>
                       <p className="text-[11px] text-muted-foreground mt-0.5">
                         {decisionType === "SIMPLE"
                           ? "This complaint will be routed to the Municipal Officer for department assignment, field repair dispatch, and resolution verification."
-                          : "This complaint will be routed to the Innovation Manager to formulate strategic research challenges, engage academic/startup pilots, and oversee innovative solutions."}
+                          : decisionType === "COMPLEX"
+                            ? "This complaint will be routed to the Innovation Manager to formulate strategic research challenges, engage academic/startup pilots, and oversee innovative solutions."
+                            : "This issue will be routed to the Infrastructure Development track. An initial D1–D7 context snapshot and feasibility assessment will be initialized."}
                       </p>
                     </div>
                   </div>
@@ -1539,7 +1611,11 @@ export function AdminClassificationPage() {
                 <span className="text-muted-foreground block text-[10px] uppercase font-medium">
                   AI Recommendation
                 </span>
-                <Badge variant={aiType === "COMPLEX" ? "teal" : "emerald"} size="sm" className="mt-1 font-bold">
+                <Badge
+                  variant={aiType === "INFRASTRUCTURE" ? "indigo" : aiType === "COMPLEX" ? "teal" : "emerald"}
+                  size="sm"
+                  className="mt-1 font-bold"
+                >
                   {aiType} ({complexityScore}/100)
                 </Badge>
               </div>
@@ -1547,7 +1623,11 @@ export function AdminClassificationPage() {
                 <span className="text-muted-foreground block text-[10px] uppercase font-medium">
                   Admin Final Decision
                 </span>
-                <Badge variant={decisionType === "COMPLEX" ? "teal" : "emerald"} size="sm" className="mt-1 font-bold">
+                <Badge
+                  variant={decisionType === "INFRASTRUCTURE" ? "indigo" : decisionType === "COMPLEX" ? "teal" : "emerald"}
+                  size="sm"
+                  className="mt-1 font-bold"
+                >
                   {decisionType}
                 </Badge>
               </div>
@@ -1558,12 +1638,18 @@ export function AdminClassificationPage() {
                 Target Operational Route
               </span>
               <span className="font-semibold text-foreground text-xs mt-0.5 block">
-                {decisionType === "SIMPLE" ? "Municipal Officer Triage Queue" : "Innovation Manager Command Center"}
+                {decisionType === "SIMPLE"
+                  ? "Municipal Officer Triage Queue"
+                  : decisionType === "COMPLEX"
+                    ? "Innovation Manager Command Center"
+                    : "Admin Infrastructure Assessment & Dossier Workspace"}
               </span>
               <p className="text-[11px] text-muted-foreground mt-0.5">
                 {decisionType === "SIMPLE"
                   ? "Assigned to the municipal workflow for department assignment and routine worker dispatch."
-                  : "Assigned to the innovation pipeline for multi-disciplinary challenge formulation and pilot testing."}
+                  : decisionType === "COMPLEX"
+                    ? "Assigned to the innovation pipeline for multi-disciplinary challenge formulation and pilot testing."
+                    : "Assigned to the infrastructure track. An initial D1–D7 assessment snapshot will be generated."}
               </p>
             </div>
 

@@ -190,13 +190,13 @@ export interface Database {
           original_description: string | null;
           english_title: string | null;
           english_description: string | null;
-          ai_issue_type: "SIMPLE" | "COMPLEX" | null;
+          ai_issue_type: "SIMPLE" | "COMPLEX" | "INFRASTRUCTURE" | null;
           ai_complexity_score: number | null;
           ai_complexity_reasoning: string | null;
           ai_required_expertise: string[];
           ai_classification_confidence: number | null;
           ai_complexity_factors?: ComplexityFactors | null;
-          final_issue_type: "SIMPLE" | "COMPLEX" | null;
+          final_issue_type: "SIMPLE" | "COMPLEX" | "INFRASTRUCTURE" | null;
           classification_decided_by: string | null;
           classification_decided_at: string | null;
           classification_override_reason: string | null;
@@ -230,13 +230,13 @@ export interface Database {
           original_description?: string | null;
           english_title?: string | null;
           english_description?: string | null;
-          ai_issue_type?: "SIMPLE" | "COMPLEX" | null;
+          ai_issue_type?: "SIMPLE" | "COMPLEX" | "INFRASTRUCTURE" | null;
           ai_complexity_score?: number | null;
           ai_complexity_reasoning?: string | null;
           ai_required_expertise?: string[];
           ai_classification_confidence?: number | null;
           ai_complexity_factors?: ComplexityFactors | null;
-          final_issue_type?: "SIMPLE" | "COMPLEX" | null;
+          final_issue_type?: "SIMPLE" | "COMPLEX" | "INFRASTRUCTURE" | null;
           classification_decided_by?: string | null;
           classification_decided_at?: string | null;
           classification_override_reason?: string | null;
@@ -270,13 +270,13 @@ export interface Database {
           original_description?: string | null;
           english_title?: string | null;
           english_description?: string | null;
-          ai_issue_type?: "SIMPLE" | "COMPLEX" | null;
+          ai_issue_type?: "SIMPLE" | "COMPLEX" | "INFRASTRUCTURE" | null;
           ai_complexity_score?: number | null;
           ai_complexity_reasoning?: string | null;
           ai_required_expertise?: string[];
           ai_classification_confidence?: number | null;
           ai_complexity_factors?: ComplexityFactors | null;
-          final_issue_type?: "SIMPLE" | "COMPLEX" | null;
+          final_issue_type?: "SIMPLE" | "COMPLEX" | "INFRASTRUCTURE" | null;
           classification_decided_by?: string | null;
           classification_decided_at?: string | null;
           classification_override_reason?: string | null;
@@ -367,7 +367,7 @@ export interface Database {
           severity_recommendation: Database["public"]["Enums"]["issue_severity"] | null;
           priority_recommendation: Database["public"]["Enums"]["issue_priority"] | null;
           department_recommendation: string | null;
-          issue_type?: "SIMPLE" | "COMPLEX" | null;
+          issue_type?: "SIMPLE" | "COMPLEX" | "INFRASTRUCTURE" | null;
           complexity_score?: number | null;
           complexity_reasoning?: string | null;
           required_expertise?: string[];
@@ -387,7 +387,7 @@ export interface Database {
           severity_recommendation?: Database["public"]["Enums"]["issue_severity"] | null;
           priority_recommendation?: Database["public"]["Enums"]["issue_priority"] | null;
           department_recommendation?: string | null;
-          issue_type?: "SIMPLE" | "COMPLEX" | null;
+          issue_type?: "SIMPLE" | "COMPLEX" | "INFRASTRUCTURE" | null;
           complexity_score?: number | null;
           complexity_reasoning?: string | null;
           required_expertise?: string[];
@@ -407,7 +407,7 @@ export interface Database {
           severity_recommendation?: Database["public"]["Enums"]["issue_severity"] | null;
           priority_recommendation?: Database["public"]["Enums"]["issue_priority"] | null;
           department_recommendation?: string | null;
-          issue_type?: "SIMPLE" | "COMPLEX" | null;
+          issue_type?: "SIMPLE" | "COMPLEX" | "INFRASTRUCTURE" | null;
           complexity_score?: number | null;
           complexity_reasoning?: string | null;
           required_expertise?: string[];
@@ -4450,6 +4450,11 @@ export interface Database {
         | "AWAITING_ADMIN_CLASSIFICATION"
         | "CLASSIFIED_SIMPLE"
         | "CLASSIFIED_COMPLEX"
+        | "CLASSIFIED_INFRASTRUCTURE"
+        | "INFRASTRUCTURE_REVIEW"
+        | "INFRASTRUCTURE_ACCEPTED"
+        | "INFRASTRUCTURE_DEFERRED"
+        | "INFRASTRUCTURE_REJECTED"
         | "UNDER_REVIEW"
         | "VERIFIED"
         | "REJECTED"
