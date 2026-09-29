@@ -1263,28 +1263,28 @@ export function AdminClassificationPage() {
 
                 <CardContent className="space-y-4 pt-4 text-xs">
                   {/* Score & Confidence Metric Box */}
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 p-3.5 rounded-xl border border-border/70 bg-muted/20">
-                    <div>
-                      <div className="text-[10px] font-semibold text-muted-foreground uppercase">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 p-3.5 rounded-xl border border-border/70 bg-muted/20 min-w-0">
+                    <div className="min-w-0">
+                      <div className="text-[10px] font-semibold text-muted-foreground uppercase truncate">
                         Complexity Score
                       </div>
                       <div className="flex items-baseline gap-1 mt-0.5">
                         <span className="text-2xl font-black text-foreground">{complexityScore}</span>
                         <span className="text-xs text-muted-foreground">/ 100</span>
                       </div>
-                      <span className={`inline-block text-[10px] font-semibold px-2 py-0.5 rounded-full border mt-1 ${scoreScale.badgeBg} ${scoreScale.badgeText}`}>
+                      <span className={`inline-block text-[10px] font-semibold px-2 py-0.5 rounded-full border mt-1 max-w-full truncate ${scoreScale.badgeBg} ${scoreScale.badgeText}`}>
                         {scoreScale.label}
                       </span>
                     </div>
 
-                    <div>
-                      <div className="text-[10px] font-semibold text-muted-foreground uppercase">
+                    <div className="min-w-0">
+                      <div className="text-[10px] font-semibold text-muted-foreground uppercase truncate">
                         AI Confidence
                       </div>
                       <div className="text-2xl font-black text-foreground mt-0.5">
                         {Math.round(confidenceScore * 100)}%
                       </div>
-                      <p className="text-[10px] text-muted-foreground mt-1">
+                      <p className="text-[10px] text-muted-foreground mt-1 leading-snug">
                         {confidenceScore >= 0.85
                           ? "High semantic certainty"
                           : confidenceScore >= 0.7
@@ -1293,14 +1293,14 @@ export function AdminClassificationPage() {
                       </p>
                     </div>
 
-                    <div>
-                      <div className="text-[10px] font-semibold text-muted-foreground uppercase">
+                    <div className="min-w-0">
+                      <div className="text-[10px] font-semibold text-muted-foreground uppercase truncate">
                         Suggested Department
                       </div>
-                      <div className="font-bold text-foreground text-sm mt-0.5 truncate">
+                      <div className="font-bold text-foreground text-sm mt-0.5 truncate" title={latestAi?.department_recommendation || "Municipal Operations"}>
                         {latestAi?.department_recommendation || "Municipal Operations"}
                       </div>
-                      <p className="text-[10px] text-muted-foreground mt-1">
+                      <p className="text-[10px] text-muted-foreground mt-1 leading-snug">
                         Primary municipal operational unit
                       </p>
                     </div>
@@ -1463,19 +1463,19 @@ export function AdminClassificationPage() {
                     <button
                       type="button"
                       onClick={() => setDecisionType("SIMPLE")}
-                      className={`p-4 rounded-xl border-2 text-left transition-all relative ${
+                      className={`p-4 rounded-xl border-2 text-left transition-all relative min-w-0 ${
                         decisionType === "SIMPLE"
                           ? "border-emerald-600 bg-emerald-50/70 shadow-sm ring-1 ring-emerald-600/20"
                           : "border-border/80 hover:border-muted-foreground/40 bg-card"
                       }`}
                     >
-                      <div className="flex items-center justify-between mb-2">
-                        <span className="font-bold text-sm text-emerald-950 flex items-center gap-2">
-                          <Wrench className="h-4 w-4 text-emerald-700" />
+                      <div className="flex items-center justify-between mb-2 gap-2">
+                        <span className="font-bold text-sm text-emerald-950 flex items-center gap-2 truncate">
+                          <Wrench className="h-4 w-4 text-emerald-700 shrink-0" />
                           SIMPLE
                         </span>
                         <div
-                          className={`h-4 w-4 rounded-full border-2 flex items-center justify-center ${
+                          className={`h-4 w-4 rounded-full border-2 flex items-center justify-center shrink-0 ${
                             decisionType === "SIMPLE"
                               ? "border-emerald-600 bg-emerald-600 text-white"
                               : "border-muted-foreground/40"
@@ -1484,7 +1484,7 @@ export function AdminClassificationPage() {
                           {decisionType === "SIMPLE" && <Check className="h-2.5 w-2.5" />}
                         </div>
                       </div>
-                      <p className="text-[11px] text-muted-foreground leading-relaxed">
+                      <p className="text-[11px] text-muted-foreground leading-relaxed break-words">
                         Routine civic maintenance resolvable by an existing municipal department and field crew.
                       </p>
                     </button>
@@ -1493,19 +1493,19 @@ export function AdminClassificationPage() {
                     <button
                       type="button"
                       onClick={() => setDecisionType("COMPLEX")}
-                      className={`p-4 rounded-xl border-2 text-left transition-all relative ${
+                      className={`p-4 rounded-xl border-2 text-left transition-all relative min-w-0 ${
                         decisionType === "COMPLEX"
                           ? "border-teal-700 bg-teal-50/70 shadow-sm ring-1 ring-teal-700/20"
                           : "border-border/80 hover:border-muted-foreground/40 bg-card"
                       }`}
                     >
-                      <div className="flex items-center justify-between mb-2">
-                        <span className="font-bold text-sm text-teal-950 flex items-center gap-2">
-                          <Rocket className="h-4 w-4 text-teal-700" />
+                      <div className="flex items-center justify-between mb-2 gap-2">
+                        <span className="font-bold text-sm text-teal-950 flex items-center gap-2 truncate">
+                          <Rocket className="h-4 w-4 text-teal-700 shrink-0" />
                           COMPLEX
                         </span>
                         <div
-                          className={`h-4 w-4 rounded-full border-2 flex items-center justify-center ${
+                          className={`h-4 w-4 rounded-full border-2 flex items-center justify-center shrink-0 ${
                             decisionType === "COMPLEX"
                               ? "border-teal-700 bg-teal-700 text-white"
                               : "border-muted-foreground/40"
@@ -1514,7 +1514,7 @@ export function AdminClassificationPage() {
                           {decisionType === "COMPLEX" && <Check className="h-2.5 w-2.5" />}
                         </div>
                       </div>
-                      <p className="text-[11px] text-muted-foreground leading-relaxed">
+                      <p className="text-[11px] text-muted-foreground leading-relaxed break-words">
                         Systemic, multi-domain, research, or sensor/data challenge requiring innovation intervention.
                       </p>
                     </button>
@@ -1523,19 +1523,19 @@ export function AdminClassificationPage() {
                     <button
                       type="button"
                       onClick={() => setDecisionType("INFRASTRUCTURE")}
-                      className={`p-4 rounded-xl border-2 text-left transition-all relative ${
+                      className={`p-4 rounded-xl border-2 text-left transition-all relative min-w-0 ${
                         decisionType === "INFRASTRUCTURE"
                           ? "border-indigo-600 bg-indigo-50/70 shadow-sm ring-1 ring-indigo-600/20"
                           : "border-border/80 hover:border-muted-foreground/40 bg-card"
                       }`}
                     >
-                      <div className="flex items-center justify-between mb-2">
-                        <span className="font-bold text-sm text-indigo-950 flex items-center gap-2">
-                          <Building2 className="h-4 w-4 text-indigo-700" />
+                      <div className="flex items-center justify-between mb-2 gap-2">
+                        <span className="font-bold text-sm text-indigo-950 flex items-center gap-2 truncate">
+                          <Building2 className="h-4 w-4 text-indigo-700 shrink-0" />
                           INFRASTRUCTURE
                         </span>
                         <div
-                          className={`h-4 w-4 rounded-full border-2 flex items-center justify-center ${
+                          className={`h-4 w-4 rounded-full border-2 flex items-center justify-center shrink-0 ${
                             decisionType === "INFRASTRUCTURE"
                               ? "border-indigo-600 bg-indigo-600 text-white"
                               : "border-muted-foreground/40"
@@ -1544,7 +1544,7 @@ export function AdminClassificationPage() {
                           {decisionType === "INFRASTRUCTURE" && <Check className="h-2.5 w-2.5" />}
                         </div>
                       </div>
-                      <p className="text-[11px] text-muted-foreground leading-relaxed">
+                      <p className="text-[11px] text-muted-foreground leading-relaxed break-words">
                         Capital infrastructure work requiring district context, feasibility indicators, and dossier planning.
                       </p>
                     </button>

@@ -505,29 +505,29 @@ export function AdminInfrastructureAssessmentReviewPage() {
         <Card className="border-2 border-indigo-200 rounded-2xl shadow-sm overflow-hidden">
           <CardHeader className="py-4 px-5 bg-gradient-to-r from-indigo-50/90 via-sky-50/40 to-indigo-50/90 border-b border-indigo-100">
             <div className="flex items-center gap-2.5 text-indigo-950 font-bold text-sm">
-              <Compass className="h-5 w-5 text-indigo-600" />
+              <Compass className="h-5 w-5 text-indigo-600 shrink-0" />
               <span>Infrastructure Context Resolution & Dossier Generation</span>
             </div>
-            <p className="text-xs text-muted-foreground mt-0.5">
+            <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">
               An Infrastructure Assessment requires a verified canonical district and an assigned municipal department with a primary planning sector baseline. Complete or verify the required context below to generate the D1–D7 evidence dossier.
             </p>
           </CardHeader>
 
-          <CardContent className="p-5 sm:p-6 space-y-6 text-xs">
+          <CardContent className="p-4 sm:p-6 space-y-6 text-xs">
             {/* Issue summary strip */}
-            <div className="p-4 rounded-xl border border-border/80 bg-muted/20 space-y-2">
-              <div className="flex items-center justify-between">
+            <div className="p-4 rounded-xl border border-border/80 bg-muted/20 space-y-2 min-w-0 overflow-hidden">
+              <div className="flex flex-wrap items-center justify-between gap-2">
                 <span className="font-mono text-[10px] text-muted-foreground">ID: #{issue.id.slice(0, 8)}</span>
                 <Badge variant="outline" size="sm" className="font-bold">
                   {getCitizenIssueStatusLabel(issue.status)}
                 </Badge>
               </div>
-              <h4 className="text-sm font-bold text-foreground">{issue.title}</h4>
-              <p className="text-muted-foreground text-xs">{issue.description}</p>
+              <h4 className="text-sm font-bold text-foreground break-words">{issue.title}</h4>
+              <p className="text-muted-foreground text-xs break-words">{issue.description}</p>
               {issue.location_text && (
-                <div className="flex items-center gap-1.5 text-muted-foreground pt-1 text-[11px]">
+                <div className="flex flex-wrap items-center gap-1.5 text-muted-foreground pt-1 text-[11px] min-w-0">
                   <MapPin className="h-3.5 w-3.5 text-indigo-600 shrink-0" />
-                  <span>Reported Location: {issue.location_text}</span>
+                  <span className="break-words">Reported Location: {issue.location_text}</span>
                   {issue.latitude && issue.longitude && (
                     <span className="font-mono text-[10px] text-muted-foreground">({issue.latitude}, {issue.longitude})</span>
                   )}
@@ -536,53 +536,53 @@ export function AdminInfrastructureAssessmentReviewPage() {
             </div>
 
             {/* Context Status Diagnostics */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              <div className={`p-3.5 rounded-xl border ${isMissingDistrict ? "border-amber-300 bg-amber-50/50" : "border-emerald-300 bg-emerald-50/50"}`}>
-                <div className="flex items-center justify-between mb-1">
-                  <span className="font-bold text-[11px] uppercase tracking-wider text-muted-foreground">Canonical District</span>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+              <div className={`p-3.5 rounded-xl border min-w-0 overflow-hidden ${isMissingDistrict ? "border-amber-300 bg-amber-50/50" : "border-emerald-300 bg-emerald-50/50"}`}>
+                <div className="flex items-center justify-between gap-1 mb-1">
+                  <span className="font-bold text-[11px] uppercase tracking-wider text-muted-foreground truncate">Canonical District</span>
                   {isMissingDistrict ? (
-                    <Badge variant="amber" size="sm">Missing</Badge>
+                    <Badge variant="amber" size="sm" className="shrink-0">Missing</Badge>
                   ) : (
-                    <Badge variant="emerald" size="sm">Configured</Badge>
+                    <Badge variant="emerald" size="sm" className="shrink-0">Configured</Badge>
                   )}
                 </div>
-                <p className="text-xs font-semibold text-foreground">
+                <p className="text-xs font-semibold text-foreground truncate" title={districts.find((d) => d.id === (selectedDistrictId || issue.district_id))?.district_name ?? (issue.district_id || "Not assigned")}>
                   {districts.find((d) => d.id === (selectedDistrictId || issue.district_id))?.district_name ?? (issue.district_id || "Not assigned")}
                 </p>
-                <p className="text-[10px] text-muted-foreground mt-0.5">Required for D1–D7 multi-dataset context aggregation</p>
+                <p className="text-[10px] text-muted-foreground mt-0.5 leading-relaxed">Required for D1–D7 multi-dataset context aggregation</p>
               </div>
 
-              <div className={`p-3.5 rounded-xl border ${isMissingDept ? "border-amber-300 bg-amber-50/50" : "border-emerald-300 bg-emerald-50/50"}`}>
-                <div className="flex items-center justify-between mb-1">
-                  <span className="font-bold text-[11px] uppercase tracking-wider text-muted-foreground">Assigned Department</span>
+              <div className={`p-3.5 rounded-xl border min-w-0 overflow-hidden ${isMissingDept ? "border-amber-300 bg-amber-50/50" : "border-emerald-300 bg-emerald-50/50"}`}>
+                <div className="flex items-center justify-between gap-1 mb-1">
+                  <span className="font-bold text-[11px] uppercase tracking-wider text-muted-foreground truncate">Assigned Dept</span>
                   {isMissingDept ? (
-                    <Badge variant="amber" size="sm">Missing</Badge>
+                    <Badge variant="amber" size="sm" className="shrink-0">Missing</Badge>
                   ) : (
-                    <Badge variant="emerald" size="sm">Configured</Badge>
+                    <Badge variant="emerald" size="sm" className="shrink-0">Configured</Badge>
                   )}
                 </div>
-                <p className="text-xs font-semibold text-foreground">
+                <p className="text-xs font-semibold text-foreground truncate" title={departments.find((d) => d.id === (selectedDepartmentId || issue.department_id))?.name ?? (issue.department_id ? "Assigned" : "Not assigned")}>
                   {departments.find((d) => d.id === (selectedDepartmentId || issue.department_id))?.name ?? (issue.department_id ? "Assigned" : "Not assigned")}
                 </p>
-                <p className="text-[10px] text-muted-foreground mt-0.5">Required to resolve primary planning sector</p>
+                <p className="text-[10px] text-muted-foreground mt-0.5 leading-relaxed">Required to resolve primary planning sector</p>
               </div>
 
-              <div className="p-3.5 rounded-xl border border-border/80 bg-card">
-                <div className="flex items-center justify-between mb-1">
-                  <span className="font-bold text-[11px] uppercase tracking-wider text-muted-foreground">Planning Sector</span>
-                  <Badge variant="outline" size="sm">Dynamic Resolution</Badge>
+              <div className="p-3.5 rounded-xl border border-border/80 bg-card min-w-0 overflow-hidden sm:col-span-2 lg:col-span-1">
+                <div className="flex items-center justify-between gap-1 mb-1">
+                  <span className="font-bold text-[11px] uppercase tracking-wider text-muted-foreground truncate">Planning Sector</span>
+                  <Badge variant="outline" size="sm" className="shrink-0 text-[10px]">Dynamic</Badge>
                 </div>
-                <p className="text-xs font-semibold text-foreground">
+                <p className="text-xs font-semibold text-foreground truncate">
                   Resolved via Department Mapping
                 </p>
-                <p className="text-[10px] text-muted-foreground mt-0.5">Evaluated from department_planning_sectors (is_primary)</p>
+                <p className="text-[10px] text-muted-foreground mt-0.5 leading-relaxed">Evaluated from department_planning_sectors (is_primary)</p>
               </div>
             </div>
 
             {/* Selection Form */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
               {/* District Selector */}
-              <div className="space-y-2">
+              <div className="space-y-2 min-w-0">
                 <label className="font-bold text-foreground block text-xs">
                   Select Canonical District <span className="text-destructive">*</span>
                 </label>
@@ -596,7 +596,7 @@ export function AdminInfrastructureAssessmentReviewPage() {
                 <select
                   value={selectedDistrictId}
                   onChange={(e) => setSelectedDistrictId(e.target.value)}
-                  className="w-full text-xs p-2.5 rounded-lg border border-input bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer"
+                  className="w-full text-xs p-2.5 rounded-lg border border-input bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer max-w-full"
                 >
                   <option value="">-- Choose Canonical District ({districts.length} available) --</option>
                   {filteredDistricts.map((d) => (
@@ -749,44 +749,44 @@ export function AdminInfrastructureAssessmentReviewPage() {
       ) : null}
 
       {/* GOVERNANCE STAGE NOTICE */}
-      <div className="flex items-center justify-between gap-3 p-3.5 rounded-xl border border-indigo-200/90 bg-indigo-50/70 text-indigo-950 text-xs shadow-sm">
-        <div className="flex items-center gap-2.5">
-          <ShieldCheck className="h-5 w-5 text-indigo-700 shrink-0" />
-          <div>
-            <span className="font-bold">Governance Stage: Infrastructure Screening & Decision</span>
-            <p className="text-[11px] text-indigo-900/80 mt-0.5">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3.5 rounded-xl border border-indigo-200/90 bg-indigo-50/70 text-indigo-950 text-xs shadow-sm">
+        <div className="flex items-start sm:items-center gap-2.5 min-w-0">
+          <ShieldCheck className="h-5 w-5 text-indigo-700 shrink-0 mt-0.5 sm:mt-0" />
+          <div className="min-w-0">
+            <span className="font-bold block sm:inline">Governance Stage: Infrastructure Screening & Decision</span>
+            <p className="text-[11px] text-indigo-900/80 mt-0.5 leading-relaxed">
               Reviewing immutable D1–D7 baseline context snapshot for diagnostic assessment. Official screening decisions (Pass / Do Not Pass) are recorded authoritatively by the Administrator.
             </p>
           </div>
         </div>
-        <Badge variant="indigo" size="sm" className="shrink-0 font-bold uppercase tracking-wider">
+        <Badge variant="indigo" size="sm" className="shrink-0 font-bold uppercase tracking-wider self-start sm:self-auto">
           Auditable Ledger
         </Badge>
       </div>
 
       {/* 2. ISSUE & ASSESSMENT METADATA STRIP */}
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
         {/* Issue Identification Card */}
-        <Card className="rounded-2xl border border-border/80 shadow-sm lg:col-span-2">
-          <CardHeader className="py-3 px-4 bg-muted/20 border-b border-border/70 flex flex-row items-center justify-between">
-            <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+        <Card className="rounded-2xl border border-border/80 shadow-sm md:col-span-2 xl:col-span-2 overflow-hidden flex flex-col justify-between">
+          <CardHeader className="py-3 px-4 bg-muted/20 border-b border-border/70 flex flex-row items-center justify-between gap-2">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground truncate">
               Civic Issue Profile
             </span>
-            <Badge variant="indigo" size="sm">
+            <Badge variant="indigo" size="sm" className="shrink-0">
               {getCitizenIssueStatusLabel(issue.status)}
             </Badge>
           </CardHeader>
           <CardContent className="p-4 space-y-2 text-xs">
-            <div className="font-bold text-sm text-foreground">{issue.title}</div>
-            <p className="text-muted-foreground text-[11px] line-clamp-2 leading-relaxed">
+            <div className="font-bold text-sm text-foreground break-words">{issue.title}</div>
+            <p className="text-muted-foreground text-[11px] line-clamp-3 leading-relaxed break-words">
               {issue.description}
             </p>
-            <div className="grid grid-cols-2 gap-2 pt-2 border-t border-border/60 text-[11px]">
-              <div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-2 border-t border-border/60 text-[11px]">
+              <div className="min-w-0">
                 <span className="text-muted-foreground block text-[10px]">Category</span>
-                <span className="font-semibold text-foreground">{issue.category}</span>
+                <span className="font-semibold text-foreground truncate block">{issue.category}</span>
               </div>
-              <div>
+              <div className="min-w-0">
                 <span className="text-muted-foreground block text-[10px]">Location</span>
                 <span className="font-semibold text-foreground truncate block">
                   {issue.address_text || issue.location_text || "Geographic Coordinates"}
@@ -797,54 +797,54 @@ export function AdminInfrastructureAssessmentReviewPage() {
         </Card>
 
         {/* Snapshot Identity Card */}
-        <Card className="rounded-2xl border border-border/80 shadow-sm">
-          <CardHeader className="py-3 px-4 bg-muted/20 border-b border-border/70 flex flex-row items-center justify-between">
-            <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+        <Card className="rounded-2xl border border-border/80 shadow-sm overflow-hidden flex flex-col justify-between min-w-0">
+          <CardHeader className="py-3 px-4 bg-muted/20 border-b border-border/70 flex flex-row items-center justify-between gap-2">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground truncate">
               Dossier Metadata
             </span>
-            <Badge variant={currentAssessment.is_latest ? "emerald" : "outline"} size="sm">
-              {currentAssessment.is_latest ? "Active Latest" : "Historical Archive"}
+            <Badge variant={currentAssessment.is_latest ? "emerald" : "outline"} size="sm" className="shrink-0">
+              {currentAssessment.is_latest ? "Active Latest" : "Historical"}
             </Badge>
           </CardHeader>
-          <CardContent className="p-4 space-y-2.5 text-xs">
-            <div className="flex items-center justify-between">
+          <CardContent className="p-4 space-y-2 text-xs">
+            <div className="flex flex-wrap items-center justify-between gap-1">
               <span className="text-muted-foreground text-[11px]">Snapshot Version</span>
               <span className="font-mono font-bold text-xs bg-muted px-2 py-0.5 rounded">
                 v{currentAssessment.assessment_version}
               </span>
             </div>
-            <div className="flex items-center justify-between">
+            <div className="flex flex-wrap items-center justify-between gap-1">
               <span className="text-muted-foreground text-[11px]">District ID</span>
               <span className="font-mono font-semibold text-foreground">
                 {currentAssessment.district_id}
               </span>
             </div>
-            <div className="flex items-center justify-between">
+            <div className="flex flex-wrap items-center justify-between gap-1">
               <span className="text-muted-foreground text-[11px]">Planning Sector</span>
               <span className="font-semibold text-indigo-900 bg-indigo-50 px-2 py-0.5 rounded border border-indigo-200/60">
                 {currentAssessment.planning_sector_code}
               </span>
             </div>
             {issue.district_resolution_method ? (
-              <div className="flex items-center justify-between">
+              <div className="flex flex-wrap items-center justify-between gap-1">
                 <span className="text-muted-foreground text-[11px]">Resolution</span>
-                <Badge variant="outline" size="sm" className="text-[10px] font-medium bg-muted/40">
+                <Badge variant="outline" size="sm" className="text-[10px] font-medium bg-muted/40 max-w-full truncate">
                   {issue.district_resolution_method === "CITIZEN_SELECTED"
                     ? "Citizen selected"
                     : issue.district_resolution_method === "ADMIN_MANUAL"
-                      ? "Admin manually assigned"
-                      : "AI address parsed"}
+                      ? "Admin manual"
+                      : "AI parsed"}
                 </Badge>
               </div>
             ) : null}
-            <div className="flex items-center justify-between pt-1 border-t border-border/60 text-[10px] text-muted-foreground">
+            <div className="flex flex-wrap items-center justify-between gap-1 pt-1 border-t border-border/60 text-[10px] text-muted-foreground">
               <span>Generated At</span>
-              <span>{formatCitizenIssueDateTime(currentAssessment.created_at)}</span>
+              <span className="truncate">{formatCitizenIssueDateTime(currentAssessment.created_at)}</span>
             </div>
             {authorProfile ? (
-              <div className="flex items-center justify-between text-[10px] text-muted-foreground">
-                <span>Generated By</span>
-                <span className="font-medium text-foreground truncate max-w-[140px]">
+              <div className="flex flex-wrap items-center justify-between gap-1 text-[10px] text-muted-foreground">
+                <span>Author</span>
+                <span className="font-medium text-foreground truncate max-w-[130px]" title={authorProfile.full_name || authorProfile.email || undefined}>
                   {authorProfile.full_name || authorProfile.email}
                 </span>
               </div>
@@ -853,12 +853,12 @@ export function AdminInfrastructureAssessmentReviewPage() {
         </Card>
 
         {/* Data Completeness Score Card */}
-        <Card className="rounded-2xl border border-border/80 shadow-sm bg-gradient-to-br from-background via-card to-muted/20 flex flex-col justify-between">
-          <CardHeader className="py-3 px-4 bg-muted/20 border-b border-border/70 flex flex-row items-center justify-between">
-            <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+        <Card className="rounded-2xl border border-border/80 shadow-sm bg-gradient-to-br from-background via-card to-muted/20 flex flex-col justify-between overflow-hidden min-w-0">
+          <CardHeader className="py-3 px-4 bg-muted/20 border-b border-border/70 flex flex-row items-center justify-between gap-2">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground truncate">
               Data Completeness
             </span>
-            <Badge variant={completenessBadgeVariant} size="sm">
+            <Badge variant={completenessBadgeVariant} size="sm" className="shrink-0">
               {completeness >= 75 ? "Comprehensive" : completeness >= 50 ? "Moderate" : "Low Data"}
             </Badge>
           </CardHeader>
@@ -892,22 +892,22 @@ export function AdminInfrastructureAssessmentReviewPage() {
       {/* 3. EXECUTIVE ASSESSMENT SUMMARY */}
       {currentAssessment.assessment_summary ? (
         <Card className="rounded-2xl border-2 border-indigo-200 bg-gradient-to-r from-indigo-50/60 via-background to-indigo-50/30 shadow-sm overflow-hidden">
-          <CardHeader className="py-3 px-4 bg-indigo-100/50 border-b border-indigo-200/80 flex flex-row items-center justify-between">
+          <CardHeader className="py-3 px-4 bg-indigo-100/50 border-b border-indigo-200/80 flex flex-row items-center justify-between gap-2">
             <div className="flex items-center gap-2 text-indigo-950 font-bold text-xs">
-              <FileText className="h-4 w-4 text-indigo-700" />
+              <FileText className="h-4 w-4 text-indigo-700 shrink-0" />
               <span>Executive Factual Summary</span>
             </div>
-            <Badge variant="indigo" size="sm" className="font-mono text-[10px]">
+            <Badge variant="indigo" size="sm" className="font-mono text-[10px] shrink-0">
               D1–D7 Aggregation
             </Badge>
           </CardHeader>
           <CardContent className="p-4 space-y-2 text-xs">
-            <p className="text-foreground text-xs leading-relaxed font-medium">
+            <p className="text-foreground text-xs leading-relaxed font-medium break-words">
               {currentAssessment.assessment_summary}
             </p>
-            <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground pt-1">
+            <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground pt-1 min-w-0">
               <Info className="h-3 w-3 shrink-0 text-indigo-600" />
-              <span>
+              <span className="leading-relaxed">
                 Factual diagnostic compiled deterministically from canonical district datasets D1–D7. Does not constitute financial approval or project sanction.
               </span>
             </div>
@@ -917,9 +917,9 @@ export function AdminInfrastructureAssessmentReviewPage() {
 
       {/* 4. PRELIMINARY PROJECT ESTIMATES (UNCOMMITTED ESTIMATES) */}
       <Card className="rounded-2xl border border-border/80 shadow-sm overflow-hidden">
-        <CardHeader className="py-3 px-4 bg-muted/30 border-b border-border/70 flex flex-row items-center justify-between">
+        <CardHeader className="py-3 px-4 bg-muted/30 border-b border-border/70 flex flex-col sm:flex-row sm:items-center justify-between gap-1.5">
           <div className="flex items-center gap-2">
-            <Coins className="h-4 w-4 text-muted-foreground" />
+            <Coins className="h-4 w-4 text-muted-foreground shrink-0" />
             <CardTitle className="text-xs font-bold text-foreground uppercase tracking-wider">
               Preliminary Project Estimates (Uncommitted Reference)
             </CardTitle>
@@ -929,18 +929,18 @@ export function AdminInfrastructureAssessmentReviewPage() {
           </span>
         </CardHeader>
         <CardContent className="p-4 text-xs">
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
             {/* Cost Estimate */}
-            <div className="p-3 rounded-xl border border-border/70 bg-card">
-              <span className="text-[10px] text-muted-foreground uppercase font-medium block">
+            <div className="p-3 rounded-xl border border-border/70 bg-card min-w-0 overflow-hidden">
+              <span className="text-[10px] text-muted-foreground uppercase font-medium block truncate">
                 Estimated Project Cost
               </span>
-              <div className="text-base font-bold text-foreground mt-0.5">
+              <div className="text-base font-bold text-foreground mt-0.5 break-words">
                 {currentAssessment.estimated_project_cost_crore !== null
                   ? `₹${currentAssessment.estimated_project_cost_crore} Cr`
                   : "Not estimated"}
               </div>
-              <span className="text-[10px] text-muted-foreground block mt-0.5">
+              <span className="text-[10px] text-muted-foreground block mt-0.5 leading-tight">
                 {currentAssessment.estimated_project_cost_crore !== null
                   ? "Preliminary indicative capital outlay"
                   : "Requires detailed project report"}
@@ -948,16 +948,16 @@ export function AdminInfrastructureAssessmentReviewPage() {
             </div>
 
             {/* Duration Estimate */}
-            <div className="p-3 rounded-xl border border-border/70 bg-card">
-              <span className="text-[10px] text-muted-foreground uppercase font-medium block">
+            <div className="p-3 rounded-xl border border-border/70 bg-card min-w-0 overflow-hidden">
+              <span className="text-[10px] text-muted-foreground uppercase font-medium block truncate">
                 Estimated Duration
               </span>
-              <div className="text-base font-bold text-foreground mt-0.5">
+              <div className="text-base font-bold text-foreground mt-0.5 break-words">
                 {currentAssessment.estimated_project_duration_months !== null
                   ? `${currentAssessment.estimated_project_duration_months} Months`
                   : "Not estimated"}
               </div>
-              <span className="text-[10px] text-muted-foreground block mt-0.5">
+              <span className="text-[10px] text-muted-foreground block mt-0.5 leading-tight">
                 {currentAssessment.estimated_project_duration_months !== null
                   ? "Execution timeframe estimate"
                   : "Scope pending formal engineering"}
@@ -965,31 +965,31 @@ export function AdminInfrastructureAssessmentReviewPage() {
             </div>
 
             {/* Beneficiaries */}
-            <div className="p-3 rounded-xl border border-border/70 bg-card">
-              <span className="text-[10px] text-muted-foreground uppercase font-medium block">
+            <div className="p-3 rounded-xl border border-border/70 bg-card min-w-0 overflow-hidden">
+              <span className="text-[10px] text-muted-foreground uppercase font-medium block truncate">
                 Estimated Beneficiaries
               </span>
-              <div className="text-base font-bold text-foreground mt-0.5">
+              <div className="text-base font-bold text-foreground mt-0.5 break-words">
                 {currentAssessment.estimated_beneficiaries !== null
                   ? `${currentAssessment.estimated_beneficiaries.toLocaleString()} Citizens`
                   : "Not estimated"}
               </div>
-              <span className="text-[10px] text-muted-foreground block mt-0.5">
+              <span className="text-[10px] text-muted-foreground block mt-0.5 leading-tight">
                 Catchment population scope
               </span>
             </div>
 
             {/* Affected Households */}
-            <div className="p-3 rounded-xl border border-border/70 bg-card">
-              <span className="text-[10px] text-muted-foreground uppercase font-medium block">
+            <div className="p-3 rounded-xl border border-border/70 bg-card min-w-0 overflow-hidden">
+              <span className="text-[10px] text-muted-foreground uppercase font-medium block truncate">
                 Affected Households
               </span>
-              <div className="text-base font-bold text-foreground mt-0.5">
+              <div className="text-base font-bold text-foreground mt-0.5 break-words">
                 {currentAssessment.affected_households !== null
                   ? `${currentAssessment.affected_households.toLocaleString()} Households`
                   : "Not estimated"}
               </div>
-              <span className="text-[10px] text-muted-foreground block mt-0.5">
+              <span className="text-[10px] text-muted-foreground block mt-0.5 leading-tight">
                 Direct service coverage
               </span>
             </div>
@@ -1012,22 +1012,22 @@ export function AdminInfrastructureAssessmentReviewPage() {
         </div>
 
         {/* D1: Demographics */}
-        <Card className="rounded-2xl border border-border/80 shadow-sm overflow-hidden">
+        <Card className="rounded-2xl border border-border/80 shadow-sm overflow-hidden min-w-0">
           <CardHeader
             onClick={() => toggleSection("d1")}
-            className="py-3 px-4 bg-muted/20 border-b border-border/70 flex flex-row items-center justify-between cursor-pointer hover:bg-muted/30 transition"
+            className="py-3 px-4 bg-muted/20 border-b border-border/70 flex flex-row items-center justify-between gap-2 cursor-pointer hover:bg-muted/30 transition"
           >
-            <div className="flex items-center gap-2 text-xs font-bold text-foreground">
-              <Users className="h-4 w-4 text-blue-600" />
-              <span>D1 — Demographic Profile & Population</span>
+            <div className="flex items-center gap-2 text-xs font-bold text-foreground min-w-0">
+              <Users className="h-4 w-4 text-blue-600 shrink-0" />
+              <span className="truncate">D1 — Demographic Profile & Population</span>
               {d1?.total_population ? (
-                <Badge variant="blue" size="sm" className="font-mono text-[10px]">
+                <Badge variant="blue" size="sm" className="font-mono text-[10px] shrink-0">
                   Pop: {d1.total_population.toLocaleString()}
                 </Badge>
               ) : null}
             </div>
-            <div className="flex items-center gap-2">
-              <span className="text-[10px] text-muted-foreground">
+            <div className="flex items-center gap-2 shrink-0">
+              <span className="text-[10px] text-muted-foreground hidden sm:inline">
                 {d1?.source_dataset || "Canonical D1"}
               </span>
               {collapsedSections.d1 ? (
@@ -1040,46 +1040,46 @@ export function AdminInfrastructureAssessmentReviewPage() {
           {!collapsedSections.d1 ? (
             <CardContent className="p-4 text-xs space-y-3">
               {d1 ? (
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                  <div className="p-3 rounded-lg border border-border/60 bg-card">
-                    <span className="text-[10px] text-muted-foreground uppercase block">Total Population</span>
-                    <span className="text-sm font-bold text-foreground mt-0.5 block">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                  <div className="p-3 rounded-lg border border-border/60 bg-card min-w-0 overflow-hidden">
+                    <span className="text-[10px] text-muted-foreground uppercase block truncate">Total Population</span>
+                    <span className="text-sm font-bold text-foreground mt-0.5 block break-words">
                       {d1.total_population?.toLocaleString() || "N/A"}
                     </span>
-                    <span className="text-[10px] text-muted-foreground">
+                    <span className="text-[10px] text-muted-foreground block truncate">
                       Households: {d1.total_households?.toLocaleString() || "N/A"}
                     </span>
                   </div>
 
-                  <div className="p-3 rounded-lg border border-border/60 bg-card">
-                    <span className="text-[10px] text-muted-foreground uppercase block">Urban / Rural Split</span>
-                    <span className="text-sm font-bold text-foreground mt-0.5 block">
+                  <div className="p-3 rounded-lg border border-border/60 bg-card min-w-0 overflow-hidden">
+                    <span className="text-[10px] text-muted-foreground uppercase block truncate">Urban / Rural Split</span>
+                    <span className="text-sm font-bold text-foreground mt-0.5 block break-words">
                       {d1.urban_population && d1.total_population
                         ? `${Math.round((d1.urban_population / d1.total_population) * 100)}% Urban`
                         : "N/A"}
                     </span>
-                    <span className="text-[10px] text-muted-foreground">
+                    <span className="text-[10px] text-muted-foreground block truncate">
                       Rural: {d1.rural_population?.toLocaleString() || "N/A"}
                     </span>
                   </div>
 
-                  <div className="p-3 rounded-lg border border-border/60 bg-card">
-                    <span className="text-[10px] text-muted-foreground uppercase block">Vulnerable Demographics</span>
-                    <span className="text-sm font-bold text-foreground mt-0.5 block">
+                  <div className="p-3 rounded-lg border border-border/60 bg-card min-w-0 overflow-hidden">
+                    <span className="text-[10px] text-muted-foreground uppercase block truncate">Vulnerable Demographics</span>
+                    <span className="text-sm font-bold text-foreground mt-0.5 block break-words">
                       SC: {d1.sc_population?.toLocaleString() || "N/A"}
                     </span>
-                    <span className="text-[10px] text-muted-foreground">
+                    <span className="text-[10px] text-muted-foreground block truncate">
                       ST: {d1.st_population?.toLocaleString() || "N/A"}
                     </span>
                   </div>
 
-                  <div className="p-3 rounded-lg border border-border/60 bg-card">
-                    <span className="text-[10px] text-muted-foreground uppercase block">Literacy & Access Index</span>
-                    <span className="text-sm font-bold text-foreground mt-0.5 block">
+                  <div className="p-3 rounded-lg border border-border/60 bg-card min-w-0 overflow-hidden">
+                    <span className="text-[10px] text-muted-foreground uppercase block truncate">Literacy & Access Index</span>
+                    <span className="text-sm font-bold text-foreground mt-0.5 block break-words">
                       {d1.literacy_rate_percentage !== null ? `${d1.literacy_rate_percentage}% Literacy` : "N/A"}
                     </span>
-                    <span className="text-[10px] text-muted-foreground">
-                      Service Gap Score: {d1.overall_service_gap_score ?? "N/A"}
+                    <span className="text-[10px] text-muted-foreground block truncate">
+                      Service Gap: {d1.overall_service_gap_score ?? "N/A"}
                     </span>
                   </div>
                 </div>
@@ -1093,22 +1093,22 @@ export function AdminInfrastructureAssessmentReviewPage() {
         </Card>
 
         {/* D2: Department Budget */}
-        <Card className="rounded-2xl border border-border/80 shadow-sm overflow-hidden">
+        <Card className="rounded-2xl border border-border/80 shadow-sm overflow-hidden min-w-0">
           <CardHeader
             onClick={() => toggleSection("d2")}
-            className="py-3 px-4 bg-muted/20 border-b border-border/70 flex flex-row items-center justify-between cursor-pointer hover:bg-muted/30 transition"
+            className="py-3 px-4 bg-muted/20 border-b border-border/70 flex flex-row items-center justify-between gap-2 cursor-pointer hover:bg-muted/30 transition"
           >
-            <div className="flex items-center gap-2 text-xs font-bold text-foreground">
-              <Coins className="h-4 w-4 text-emerald-600" />
-              <span>D2 — Departmental Budget Provisions & Outlay</span>
+            <div className="flex items-center gap-2 text-xs font-bold text-foreground min-w-0">
+              <Coins className="h-4 w-4 text-emerald-600 shrink-0" />
+              <span className="truncate">D2 — Departmental Budget Provisions & Outlay</span>
               {d2?.unspent_budget_crore !== undefined ? (
-                <Badge variant="emerald" size="sm" className="font-mono text-[10px]">
+                <Badge variant="emerald" size="sm" className="font-mono text-[10px] shrink-0">
                   Unspent: ₹{d2.unspent_budget_crore} Cr
                 </Badge>
               ) : null}
             </div>
-            <div className="flex items-center gap-2">
-              <span className="text-[10px] text-muted-foreground">
+            <div className="flex items-center gap-2 shrink-0">
+              <span className="text-[10px] text-muted-foreground hidden sm:inline">
                 {d2?.source_dataset || "Canonical D2"}
               </span>
               {collapsedSections.d2 ? (
@@ -1122,45 +1122,45 @@ export function AdminInfrastructureAssessmentReviewPage() {
             <CardContent className="p-4 text-xs space-y-3">
               {d2 ? (
                 <>
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                    <div className="p-3 rounded-lg border border-border/60 bg-card">
-                      <span className="text-[10px] text-muted-foreground uppercase block">Sector & FY</span>
-                      <span className="text-sm font-bold text-foreground mt-0.5 block">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                    <div className="p-3 rounded-lg border border-border/60 bg-card min-w-0 overflow-hidden">
+                      <span className="text-[10px] text-muted-foreground uppercase block truncate">Sector & FY</span>
+                      <span className="text-sm font-bold text-foreground mt-0.5 block truncate" title={d2.planning_sector_name || d2.planning_sector_code}>
                         {d2.planning_sector_name || d2.planning_sector_code}
                       </span>
-                      <span className="text-[10px] text-muted-foreground">FY {d2.financial_year}</span>
+                      <span className="text-[10px] text-muted-foreground block truncate">FY {d2.financial_year}</span>
                     </div>
 
-                    <div className="p-3 rounded-lg border border-border/60 bg-card">
-                      <span className="text-[10px] text-muted-foreground uppercase block">Allocated Budget</span>
-                      <span className="text-sm font-bold text-foreground mt-0.5 block">
+                    <div className="p-3 rounded-lg border border-border/60 bg-card min-w-0 overflow-hidden">
+                      <span className="text-[10px] text-muted-foreground uppercase block truncate">Allocated Budget</span>
+                      <span className="text-sm font-bold text-foreground mt-0.5 block break-words">
                         ₹{d2.allocated_budget_crore} Cr
                       </span>
-                      <span className="text-[10px] text-muted-foreground">Total Sanctioned Outlay</span>
+                      <span className="text-[10px] text-muted-foreground block truncate">Total Sanctioned Outlay</span>
                     </div>
 
-                    <div className="p-3 rounded-lg border border-border/60 bg-card">
-                      <span className="text-[10px] text-muted-foreground uppercase block">Spent Budget</span>
-                      <span className="text-sm font-bold text-foreground mt-0.5 block">
+                    <div className="p-3 rounded-lg border border-border/60 bg-card min-w-0 overflow-hidden">
+                      <span className="text-[10px] text-muted-foreground uppercase block truncate">Spent Budget</span>
+                      <span className="text-sm font-bold text-foreground mt-0.5 block break-words">
                         ₹{d2.spent_budget_crore} Cr
                       </span>
-                      <span className="text-[10px] text-muted-foreground">
+                      <span className="text-[10px] text-muted-foreground block truncate">
                         Utilization: {d2.budget_utilization_percentage ?? "N/A"}%
                       </span>
                     </div>
 
-                    <div className="p-3 rounded-lg border border-border/60 bg-card">
-                      <span className="text-[10px] text-muted-foreground uppercase block">Available for Capital Works</span>
-                      <span className="text-sm font-bold text-emerald-800 mt-0.5 block">
+                    <div className="p-3 rounded-lg border border-border/60 bg-card min-w-0 overflow-hidden">
+                      <span className="text-[10px] text-muted-foreground uppercase block truncate">Available Headroom</span>
+                      <span className="text-sm font-bold text-emerald-800 mt-0.5 block break-words">
                         ₹{d2.unspent_budget_crore} Cr
                       </span>
-                      <span className="text-[10px] text-muted-foreground">Uncommitted Aggregate Balance</span>
+                      <span className="text-[10px] text-muted-foreground block truncate">Uncommitted Balance</span>
                     </div>
                   </div>
 
-                  <div className="p-2.5 rounded-lg border border-amber-200 bg-amber-50/70 text-amber-950 text-[11px] flex items-start gap-2">
+                  <div className="p-2.5 rounded-lg border border-amber-200 bg-amber-50/70 text-amber-950 text-[11px] flex items-start gap-2 min-w-0">
                     <Info className="h-3.5 w-3.5 text-amber-700 shrink-0 mt-0.5" />
-                    <span>
+                    <span className="leading-relaxed">
                       <strong>Administrative Notice:</strong> Unspent departmental budget reflects aggregate sectoral provisions across the district. Availability of funds does not imply project sanctioning or approval.
                     </span>
                   </div>
@@ -1175,22 +1175,22 @@ export function AdminInfrastructureAssessmentReviewPage() {
         </Card>
 
         {/* D3: Geography & Terrain */}
-        <Card className="rounded-2xl border border-border/80 shadow-sm overflow-hidden">
+        <Card className="rounded-2xl border border-border/80 shadow-sm overflow-hidden min-w-0">
           <CardHeader
             onClick={() => toggleSection("d3")}
-            className="py-3 px-4 bg-muted/20 border-b border-border/70 flex flex-row items-center justify-between cursor-pointer hover:bg-muted/30 transition"
+            className="py-3 px-4 bg-muted/20 border-b border-border/70 flex flex-row items-center justify-between gap-2 cursor-pointer hover:bg-muted/30 transition"
           >
-            <div className="flex items-center gap-2 text-xs font-bold text-foreground">
-              <Compass className="h-4 w-4 text-teal-600" />
-              <span>D3 — Geography, Terrain & Spatial Footprint</span>
+            <div className="flex items-center gap-2 text-xs font-bold text-foreground min-w-0">
+              <Compass className="h-4 w-4 text-teal-600 shrink-0" />
+              <span className="truncate">D3 — Geography, Terrain & Spatial Footprint</span>
               {d3?.area_sq_km ? (
-                <Badge variant="teal" size="sm" className="font-mono text-[10px]">
+                <Badge variant="teal" size="sm" className="font-mono text-[10px] shrink-0">
                   Area: {d3.area_sq_km} sq km
                 </Badge>
               ) : null}
             </div>
-            <div className="flex items-center gap-2">
-              <span className="text-[10px] text-muted-foreground">
+            <div className="flex items-center gap-2 shrink-0">
+              <span className="text-[10px] text-muted-foreground hidden sm:inline">
                 {d3?.source_dataset || "Canonical D3"}
               </span>
               {collapsedSections.d3 ? (
@@ -1203,43 +1203,43 @@ export function AdminInfrastructureAssessmentReviewPage() {
           {!collapsedSections.d3 ? (
             <CardContent className="p-4 text-xs space-y-3">
               {d3 ? (
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                  <div className="p-3 rounded-lg border border-border/60 bg-card">
-                    <span className="text-[10px] text-muted-foreground uppercase block">Area & Extent</span>
-                    <span className="text-sm font-bold text-foreground mt-0.5 block">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                  <div className="p-3 rounded-lg border border-border/60 bg-card min-w-0 overflow-hidden">
+                    <span className="text-[10px] text-muted-foreground uppercase block truncate">Area & Extent</span>
+                    <span className="text-sm font-bold text-foreground mt-0.5 block break-words">
                       {d3.area_sq_km ? `${d3.area_sq_km} sq km` : "N/A"}
                     </span>
-                    <span className="text-[10px] text-muted-foreground">
+                    <span className="text-[10px] text-muted-foreground block truncate">
                       Region: {d3.geographic_region || "N/A"}
                     </span>
                   </div>
 
-                  <div className="p-3 rounded-lg border border-border/60 bg-card">
-                    <span className="text-[10px] text-muted-foreground uppercase block">Centroid Coordinates</span>
-                    <span className="text-sm font-bold text-foreground mt-0.5 block font-mono">
+                  <div className="p-3 rounded-lg border border-border/60 bg-card min-w-0 overflow-hidden">
+                    <span className="text-[10px] text-muted-foreground uppercase block truncate">Centroid Coordinates</span>
+                    <span className="text-sm font-bold text-foreground mt-0.5 block font-mono break-words">
                       {d3.centroid_latitude?.toFixed(4)}, {d3.centroid_longitude?.toFixed(4)}
                     </span>
-                    <span className="text-[10px] text-muted-foreground">
+                    <span className="text-[10px] text-muted-foreground block truncate">
                       HQ: {d3.district_headquarters || "N/A"}
                     </span>
                   </div>
 
-                  <div className="p-3 rounded-lg border border-border/60 bg-card">
-                    <span className="text-[10px] text-muted-foreground uppercase block">Terrain Classification</span>
-                    <span className="text-sm font-bold text-foreground mt-0.5 block">
+                  <div className="p-3 rounded-lg border border-border/60 bg-card min-w-0 overflow-hidden">
+                    <span className="text-[10px] text-muted-foreground uppercase block truncate">Terrain Classification</span>
+                    <span className="text-sm font-bold text-foreground mt-0.5 block break-words">
                       {d3.terrain_type || "Mixed Plain/Plateau"}
                     </span>
-                    <span className="text-[10px] text-muted-foreground">
+                    <span className="text-[10px] text-muted-foreground block truncate">
                       Character: {d3.rural_urban_character || "Rural-Centric"}
                     </span>
                   </div>
 
-                  <div className="p-3 rounded-lg border border-border/60 bg-card">
-                    <span className="text-[10px] text-muted-foreground uppercase block">Neighboring Districts</span>
-                    <span className="text-sm font-bold text-foreground mt-0.5 block">
+                  <div className="p-3 rounded-lg border border-border/60 bg-card min-w-0 overflow-hidden">
+                    <span className="text-[10px] text-muted-foreground uppercase block truncate">Neighboring Districts</span>
+                    <span className="text-sm font-bold text-foreground mt-0.5 block break-words">
                       {d3.neighbor_count || (d3.neighboring_districts?.length ?? 0)} Connected
                     </span>
-                    <span className="text-[10px] text-muted-foreground truncate block">
+                    <span className="text-[10px] text-muted-foreground truncate block" title={d3.neighboring_districts?.join(", ") || "N/A"}>
                       {d3.neighboring_districts?.slice(0, 3).join(", ") || "N/A"}
                     </span>
                   </div>
@@ -1254,20 +1254,20 @@ export function AdminInfrastructureAssessmentReviewPage() {
         </Card>
 
         {/* D4: Existing Infrastructure Assets */}
-        <Card className="rounded-2xl border border-border/80 shadow-sm overflow-hidden">
+        <Card className="rounded-2xl border border-border/80 shadow-sm overflow-hidden min-w-0">
           <CardHeader
             onClick={() => toggleSection("d4")}
-            className="py-3 px-4 bg-muted/20 border-b border-border/70 flex flex-row items-center justify-between cursor-pointer hover:bg-muted/30 transition"
+            className="py-3 px-4 bg-muted/20 border-b border-border/70 flex flex-row items-center justify-between gap-2 cursor-pointer hover:bg-muted/30 transition"
           >
-            <div className="flex items-center gap-2 text-xs font-bold text-foreground">
-              <Building2 className="h-4 w-4 text-indigo-600" />
-              <span>D4 — Existing Infrastructure Assets & Capacity</span>
-              <Badge variant="indigo" size="sm" className="font-mono text-[10px]">
+            <div className="flex items-center gap-2 text-xs font-bold text-foreground min-w-0">
+              <Building2 className="h-4 w-4 text-indigo-600 shrink-0" />
+              <span className="truncate">D4 — Existing Infrastructure Assets & Capacity</span>
+              <Badge variant="indigo" size="sm" className="font-mono text-[10px] shrink-0">
                 {d4Assets.length} Categories Cataloged
               </Badge>
             </div>
-            <div className="flex items-center gap-2">
-              <span className="text-[10px] text-muted-foreground">Canonical D4</span>
+            <div className="flex items-center gap-2 shrink-0">
+              <span className="text-[10px] text-muted-foreground hidden sm:inline">Canonical D4</span>
               {collapsedSections.d4 ? (
                 <ChevronDown className="h-4 w-4 text-muted-foreground" />
               ) : (
@@ -1278,8 +1278,8 @@ export function AdminInfrastructureAssessmentReviewPage() {
           {!collapsedSections.d4 ? (
             <CardContent className="p-4 text-xs space-y-3">
               {d4Assets.length > 0 ? (
-                <div className="overflow-x-auto rounded-xl border border-border/70">
-                  <table className="w-full text-left text-xs border-collapse">
+                <div className="overflow-x-auto rounded-xl border border-border/70 min-w-0 w-full">
+                  <table className="w-full text-left text-xs border-collapse min-w-[500px]">
                     <thead>
                       <tr className="bg-muted/40 border-b border-border text-[11px] text-muted-foreground">
                         <th className="py-2.5 px-3 font-semibold">Infrastructure Category</th>
@@ -1332,22 +1332,22 @@ export function AdminInfrastructureAssessmentReviewPage() {
         </Card>
 
         {/* D5: Accessibility */}
-        <Card className="rounded-2xl border border-border/80 shadow-sm overflow-hidden">
+        <Card className="rounded-2xl border border-border/80 shadow-sm overflow-hidden min-w-0">
           <CardHeader
             onClick={() => toggleSection("d5")}
-            className="py-3 px-4 bg-muted/20 border-b border-border/70 flex flex-row items-center justify-between cursor-pointer hover:bg-muted/30 transition"
+            className="py-3 px-4 bg-muted/20 border-b border-border/70 flex flex-row items-center justify-between gap-2 cursor-pointer hover:bg-muted/30 transition"
           >
-            <div className="flex items-center gap-2 text-xs font-bold text-foreground">
-              <Globe className="h-4 w-4 text-sky-600" />
-              <span>D5 — Spatial Accessibility & Service Distance</span>
+            <div className="flex items-center gap-2 text-xs font-bold text-foreground min-w-0">
+              <Globe className="h-4 w-4 text-sky-600 shrink-0" />
+              <span className="truncate">D5 — Spatial Accessibility & Service Distance</span>
               {d5?.overall_accessibility_gap_score !== undefined ? (
-                <Badge variant="sky" size="sm" className="font-mono text-[10px]">
+                <Badge variant="sky" size="sm" className="font-mono text-[10px] shrink-0">
                   Gap: {d5.overall_accessibility_gap_score}/100
                 </Badge>
               ) : null}
             </div>
-            <div className="flex items-center gap-2">
-              <span className="text-[10px] text-muted-foreground">
+            <div className="flex items-center gap-2 shrink-0">
+              <span className="text-[10px] text-muted-foreground hidden sm:inline">
                 {d5?.source_dataset || "Canonical D5"}
               </span>
               {collapsedSections.d5 ? (
@@ -1360,43 +1360,43 @@ export function AdminInfrastructureAssessmentReviewPage() {
           {!collapsedSections.d5 ? (
             <CardContent className="p-4 text-xs space-y-3">
               {d5 ? (
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                  <div className="p-3 rounded-lg border border-border/60 bg-card">
-                    <span className="text-[10px] text-muted-foreground uppercase block">Road Connectivity</span>
-                    <span className="text-sm font-bold text-foreground mt-0.5 block">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                  <div className="p-3 rounded-lg border border-border/60 bg-card min-w-0 overflow-hidden">
+                    <span className="text-[10px] text-muted-foreground uppercase block truncate">Road Connectivity</span>
+                    <span className="text-sm font-bold text-foreground mt-0.5 block break-words">
                       {d5.all_weather_access_percentage !== null && d5.all_weather_access_percentage !== undefined
                         ? `${d5.all_weather_access_percentage}% All-Weather`
                         : "N/A"}
                     </span>
-                    <span className="text-[10px] text-muted-foreground">
+                    <span className="text-[10px] text-muted-foreground block truncate">
                       Paved Road: {d5.paved_road_coverage_percentage ?? "N/A"}%
                     </span>
                   </div>
 
-                  <div className="p-3 rounded-lg border border-border/60 bg-card">
-                    <span className="text-[10px] text-muted-foreground uppercase block">Avg Travel Time</span>
-                    <span className="text-sm font-bold text-foreground mt-0.5 block">
+                  <div className="p-3 rounded-lg border border-border/60 bg-card min-w-0 overflow-hidden">
+                    <span className="text-[10px] text-muted-foreground uppercase block truncate">Avg Travel Time</span>
+                    <span className="text-sm font-bold text-foreground mt-0.5 block break-words">
                       {d5.average_travel_time_minutes ? `${d5.average_travel_time_minutes} mins` : "N/A"}
                     </span>
-                    <span className="text-[10px] text-muted-foreground">To Major Service Node</span>
+                    <span className="text-[10px] text-muted-foreground block truncate">To Major Service Node</span>
                   </div>
 
-                  <div className="p-3 rounded-lg border border-border/60 bg-card">
-                    <span className="text-[10px] text-muted-foreground uppercase block">Distance to Center</span>
-                    <span className="text-sm font-bold text-foreground mt-0.5 block">
+                  <div className="p-3 rounded-lg border border-border/60 bg-card min-w-0 overflow-hidden">
+                    <span className="text-[10px] text-muted-foreground uppercase block truncate">Distance to Center</span>
+                    <span className="text-sm font-bold text-foreground mt-0.5 block break-words">
                       {d5.average_distance_to_service_center_km ? `${d5.average_distance_to_service_center_km} km` : "N/A"}
                     </span>
-                    <span className="text-[10px] text-muted-foreground">Average Sector Radius</span>
+                    <span className="text-[10px] text-muted-foreground block truncate">Sector Radius</span>
                   </div>
 
-                  <div className="p-3 rounded-lg border border-border/60 bg-card">
-                    <span className="text-[10px] text-muted-foreground uppercase block">Remote Population</span>
-                    <span className="text-sm font-bold text-foreground mt-0.5 block">
+                  <div className="p-3 rounded-lg border border-border/60 bg-card min-w-0 overflow-hidden">
+                    <span className="text-[10px] text-muted-foreground uppercase block truncate">Remote Population</span>
+                    <span className="text-sm font-bold text-foreground mt-0.5 block break-words">
                       {d5.remote_population_percentage !== null && d5.remote_population_percentage !== undefined
                         ? `${d5.remote_population_percentage}% Remote`
                         : "N/A"}
                     </span>
-                    <span className="text-[10px] text-muted-foreground">
+                    <span className="text-[10px] text-muted-foreground block truncate">
                       Transport Gap: {d5.transport_access_gap_score ?? "N/A"}
                     </span>
                   </div>
@@ -1411,22 +1411,22 @@ export function AdminInfrastructureAssessmentReviewPage() {
         </Card>
 
         {/* D6: Socioeconomic Context */}
-        <Card className="rounded-2xl border border-border/80 shadow-sm overflow-hidden">
+        <Card className="rounded-2xl border border-border/80 shadow-sm overflow-hidden min-w-0">
           <CardHeader
             onClick={() => toggleSection("d6")}
-            className="py-3 px-4 bg-muted/20 border-b border-border/70 flex flex-row items-center justify-between cursor-pointer hover:bg-muted/30 transition"
+            className="py-3 px-4 bg-muted/20 border-b border-border/70 flex flex-row items-center justify-between gap-2 cursor-pointer hover:bg-muted/30 transition"
           >
-            <div className="flex items-center gap-2 text-xs font-bold text-foreground">
-              <Scale className="h-4 w-4 text-violet-600" />
-              <span>D6 — Socioeconomic Need & Deprivation Indices</span>
+            <div className="flex items-center gap-2 text-xs font-bold text-foreground min-w-0">
+              <Scale className="h-4 w-4 text-violet-600 shrink-0" />
+              <span className="truncate">D6 — Socioeconomic Need & Deprivation Indices</span>
               {d6?.overall_development_context_score !== undefined ? (
-                <Badge variant="violet" size="sm" className="font-mono text-[10px]">
+                <Badge variant="violet" size="sm" className="font-mono text-[10px] shrink-0">
                   Need Score: {d6.overall_development_context_score}/100
                 </Badge>
               ) : null}
             </div>
-            <div className="flex items-center gap-2">
-              <span className="text-[10px] text-muted-foreground">
+            <div className="flex items-center gap-2 shrink-0">
+              <span className="text-[10px] text-muted-foreground hidden sm:inline">
                 {d6?.source_dataset || "Canonical D6"}
               </span>
               {collapsedSections.d6 ? (
@@ -1439,39 +1439,39 @@ export function AdminInfrastructureAssessmentReviewPage() {
           {!collapsedSections.d6 ? (
             <CardContent className="p-4 text-xs space-y-3">
               {d6 ? (
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                  <div className="p-3 rounded-lg border border-border/60 bg-card">
-                    <span className="text-[10px] text-muted-foreground uppercase block">Economic Vulnerability</span>
-                    <span className="text-sm font-bold text-foreground mt-0.5 block">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                  <div className="p-3 rounded-lg border border-border/60 bg-card min-w-0 overflow-hidden">
+                    <span className="text-[10px] text-muted-foreground uppercase block truncate">Economic Vulnerability</span>
+                    <span className="text-sm font-bold text-foreground mt-0.5 block break-words">
                       Score: {d6.economic_vulnerability_score ?? "N/A"}
                     </span>
-                    <span className="text-[10px] text-muted-foreground">
+                    <span className="text-[10px] text-muted-foreground block truncate">
                       Low Income: {d6.estimated_low_income_population_percentage ?? "N/A"}%
                     </span>
                   </div>
 
-                  <div className="p-3 rounded-lg border border-border/60 bg-card">
-                    <span className="text-[10px] text-muted-foreground uppercase block">Healthcare Gap</span>
-                    <span className="text-sm font-bold text-foreground mt-0.5 block">
+                  <div className="p-3 rounded-lg border border-border/60 bg-card min-w-0 overflow-hidden">
+                    <span className="text-[10px] text-muted-foreground uppercase block truncate">Healthcare Gap</span>
+                    <span className="text-sm font-bold text-foreground mt-0.5 block break-words">
                       Score: {d6.healthcare_service_gap_score ?? "N/A"}
                     </span>
-                    <span className="text-[10px] text-muted-foreground">Clinical Facility Index</span>
+                    <span className="text-[10px] text-muted-foreground block truncate">Clinical Facility Index</span>
                   </div>
 
-                  <div className="p-3 rounded-lg border border-border/60 bg-card">
-                    <span className="text-[10px] text-muted-foreground uppercase block">Water & Sanitation Gap</span>
-                    <span className="text-sm font-bold text-foreground mt-0.5 block">
+                  <div className="p-3 rounded-lg border border-border/60 bg-card min-w-0 overflow-hidden">
+                    <span className="text-[10px] text-muted-foreground uppercase block truncate">Water & Sanitation Gap</span>
+                    <span className="text-sm font-bold text-foreground mt-0.5 block break-words">
                       Score: {d6.water_sanitation_service_gap_score ?? "N/A"}
                     </span>
-                    <span className="text-[10px] text-muted-foreground">WASH Deprivation</span>
+                    <span className="text-[10px] text-muted-foreground block truncate">WASH Deprivation</span>
                   </div>
 
-                  <div className="p-3 rounded-lg border border-border/60 bg-card">
-                    <span className="text-[10px] text-muted-foreground uppercase block">Overall Deprivation Score</span>
-                    <span className="text-sm font-bold text-foreground mt-0.5 block">
+                  <div className="p-3 rounded-lg border border-border/60 bg-card min-w-0 overflow-hidden">
+                    <span className="text-[10px] text-muted-foreground uppercase block truncate">Overall Deprivation</span>
+                    <span className="text-sm font-bold text-foreground mt-0.5 block break-words">
                       Score: {d6.overall_development_context_score ?? "N/A"}
                     </span>
-                    <span className="text-[10px] text-muted-foreground">
+                    <span className="text-[10px] text-muted-foreground block truncate">
                       Pressure: {d6.socioeconomic_pressure_score ?? "N/A"}
                     </span>
                   </div>
@@ -1486,20 +1486,20 @@ export function AdminInfrastructureAssessmentReviewPage() {
         </Card>
 
         {/* D7: Historical Projects */}
-        <Card className="rounded-2xl border border-border/80 shadow-sm overflow-hidden">
+        <Card className="rounded-2xl border border-border/80 shadow-sm overflow-hidden min-w-0">
           <CardHeader
             onClick={() => toggleSection("d7")}
-            className="py-3 px-4 bg-muted/20 border-b border-border/70 flex flex-row items-center justify-between cursor-pointer hover:bg-muted/30 transition"
+            className="py-3 px-4 bg-muted/20 border-b border-border/70 flex flex-row items-center justify-between gap-2 cursor-pointer hover:bg-muted/30 transition"
           >
-            <div className="flex items-center gap-2 text-xs font-bold text-foreground">
-              <History className="h-4 w-4 text-amber-600" />
-              <span>D7 — Historical Project Execution Precedents & Cost Benchmarks</span>
-              <Badge variant="amber" size="sm" className="font-mono text-[10px]">
+            <div className="flex items-center gap-2 text-xs font-bold text-foreground min-w-0">
+              <History className="h-4 w-4 text-amber-600 shrink-0" />
+              <span className="truncate">D7 — Historical Project Execution Precedents & Cost Benchmarks</span>
+              <Badge variant="amber" size="sm" className="font-mono text-[10px] shrink-0">
                 {d7Projects.length} Precedent Projects
               </Badge>
             </div>
-            <div className="flex items-center gap-2">
-              <span className="text-[10px] text-muted-foreground">
+            <div className="flex items-center gap-2 shrink-0">
+              <span className="text-[10px] text-muted-foreground hidden sm:inline">
                 Canonical D7
               </span>
               {collapsedSections.d7 ? (
@@ -1512,24 +1512,24 @@ export function AdminInfrastructureAssessmentReviewPage() {
           {!collapsedSections.d7 ? (
             <CardContent className="p-4 text-xs space-y-3">
               {d7History ? (
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-3">
-                  <div className="p-2.5 rounded-lg border border-border/60 bg-card">
-                    <span className="text-[10px] text-muted-foreground uppercase block">Precedents In Sector</span>
-                    <span className="text-sm font-bold text-foreground">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-3">
+                  <div className="p-2.5 rounded-lg border border-border/60 bg-card min-w-0 overflow-hidden">
+                    <span className="text-[10px] text-muted-foreground uppercase block truncate">Precedents In Sector</span>
+                    <span className="text-sm font-bold text-foreground block truncate">
                       {d7History.project_count ?? d7Projects.length} Projects
                     </span>
                   </div>
-                  <div className="p-2.5 rounded-lg border border-border/60 bg-card">
-                    <span className="text-[10px] text-muted-foreground uppercase block">Average Historical Cost</span>
-                    <span className="text-sm font-bold text-foreground">
+                  <div className="p-2.5 rounded-lg border border-border/60 bg-card min-w-0 overflow-hidden">
+                    <span className="text-[10px] text-muted-foreground uppercase block truncate">Average Historical Cost</span>
+                    <span className="text-sm font-bold text-foreground block truncate">
                       {d7History.average_actual_cost_crore !== null && d7History.average_actual_cost_crore !== undefined
                         ? `₹${d7History.average_actual_cost_crore} Cr`
                         : "N/A"}
                     </span>
                   </div>
-                  <div className="p-2.5 rounded-lg border border-border/60 bg-card">
-                    <span className="text-[10px] text-muted-foreground uppercase block">Cost Variance Rate</span>
-                    <span className="text-sm font-bold text-foreground">
+                  <div className="p-2.5 rounded-lg border border-border/60 bg-card min-w-0 overflow-hidden">
+                    <span className="text-[10px] text-muted-foreground uppercase block truncate">Cost Variance Rate</span>
+                    <span className="text-sm font-bold text-foreground block truncate">
                       {d7History.average_cost_variance_percentage !== null && d7History.average_cost_variance_percentage !== undefined
                         ? `${d7History.average_cost_variance_percentage}%`
                         : "N/A"}
@@ -1539,8 +1539,8 @@ export function AdminInfrastructureAssessmentReviewPage() {
               ) : null}
 
               {d7Projects.length > 0 ? (
-                <div className="overflow-x-auto rounded-xl border border-border/70">
-                  <table className="w-full text-left text-xs border-collapse">
+                <div className="overflow-x-auto rounded-xl border border-border/70 min-w-0 w-full">
+                  <table className="w-full text-left text-xs border-collapse min-w-[540px]">
                     <thead>
                       <tr className="bg-muted/40 border-b border-border text-[11px] text-muted-foreground">
                         <th className="py-2 px-3 font-semibold">Project Title / Type</th>
@@ -1554,10 +1554,10 @@ export function AdminInfrastructureAssessmentReviewPage() {
                       {d7Projects.map((proj, idx) => (
                         <tr key={proj.project_id || idx} className="hover:bg-muted/20">
                           <td className="py-2 px-3">
-                            <span className="font-semibold text-foreground block">
+                            <span className="font-semibold text-foreground block truncate max-w-[220px]" title={proj.project_name || proj.project_type || "Historical Capital Project"}>
                               {proj.project_name || proj.project_type || "Historical Capital Project"}
                             </span>
-                            <span className="text-[10px] text-muted-foreground">
+                            <span className="text-[10px] text-muted-foreground block truncate">
                               {proj.planning_sector_name || proj.project_sector} • FY {proj.financial_year || "N/A"}
                             </span>
                           </td>
@@ -1589,21 +1589,21 @@ export function AdminInfrastructureAssessmentReviewPage() {
       </div>
 
       {/* 6. DATASET D8 ISOLATION & SIMILAR REQUESTS */}
-      <Card className="rounded-2xl border border-border/80 shadow-sm bg-muted/10">
-        <CardHeader className="py-3 px-4 bg-muted/20 border-b border-border/70 flex flex-row items-center justify-between">
-          <div className="flex items-center gap-2 text-xs font-bold text-foreground">
-            <Layers className="h-4 w-4 text-muted-foreground" />
-            <span>Similar Requests Context & Benchmark Safety Notice</span>
+      <Card className="rounded-2xl border border-border/80 shadow-sm bg-muted/10 overflow-hidden min-w-0">
+        <CardHeader className="py-3 px-4 bg-muted/20 border-b border-border/70 flex flex-row items-center justify-between gap-2">
+          <div className="flex items-center gap-2 text-xs font-bold text-foreground min-w-0">
+            <Layers className="h-4 w-4 text-muted-foreground shrink-0" />
+            <span className="truncate">Similar Requests Context & Benchmark Safety Notice</span>
           </div>
-          <Badge variant="default" size="sm" className="font-mono text-[10px]">
+          <Badge variant="default" size="sm" className="font-mono text-[10px] shrink-0">
             D8 Isolated
           </Badge>
         </CardHeader>
         <CardContent className="p-4 text-xs space-y-2">
-          <div className="flex items-start gap-2.5">
+          <div className="flex items-start gap-2.5 min-w-0">
             <ShieldCheck className="h-4 w-4 text-emerald-600 shrink-0 mt-0.5" />
-            <div>
-              <span className="font-semibold text-foreground">
+            <div className="min-w-0">
+              <span className="font-semibold text-foreground block">
                 Synthetic Benchmark Isolation Enforced
               </span>
               <p className="text-[11px] text-muted-foreground mt-0.5 leading-relaxed">
@@ -1611,20 +1611,20 @@ export function AdminInfrastructureAssessmentReviewPage() {
               </p>
             </div>
           </div>
-          <div className="text-[10px] text-muted-foreground font-mono bg-muted/30 p-2 rounded-lg border border-border/60">
+          <div className="text-[10px] text-muted-foreground font-mono bg-muted/30 p-2 rounded-lg border border-border/60 break-all">
             synthetic_benchmark_used: false • D8 benchmark requests table isolated
           </div>
         </CardContent>
       </Card>
 
       {/* 7. FEASIBILITY & SUSTAINABILITY INDICATORS */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {/* Feasibility Indicators */}
-        <Card className="rounded-2xl border border-border/80 shadow-sm">
-          <CardHeader className="py-3 px-4 bg-muted/20 border-b border-border/70 flex flex-row items-center justify-between">
-            <div className="flex items-center gap-2 text-xs font-bold text-foreground">
-              <BarChart3 className="h-4 w-4 text-muted-foreground" />
-              <span>Feasibility Indicators</span>
+        <Card className="rounded-2xl border border-border/80 shadow-sm overflow-hidden min-w-0">
+          <CardHeader className="py-3 px-4 bg-muted/20 border-b border-border/70 flex flex-row items-center justify-between gap-2">
+            <div className="flex items-center gap-2 text-xs font-bold text-foreground min-w-0">
+              <BarChart3 className="h-4 w-4 text-muted-foreground shrink-0" />
+              <span className="truncate">Feasibility Indicators</span>
             </div>
           </CardHeader>
           <CardContent className="p-4 text-xs">
@@ -1632,9 +1632,9 @@ export function AdminInfrastructureAssessmentReviewPage() {
             Object.keys(currentAssessment.feasibility_indicators).length > 0 ? (
               <div className="space-y-2">
                 {Object.entries(currentAssessment.feasibility_indicators).map(([k, v]) => (
-                  <div key={k} className="flex items-center justify-between py-1 border-b border-border/40 text-[11px]">
-                    <span className="text-muted-foreground capitalize">{k.replace(/_/g, " ")}</span>
-                    <span className="font-semibold text-foreground">{String(v)}</span>
+                  <div key={k} className="flex items-center justify-between py-1 border-b border-border/40 text-[11px] gap-2 min-w-0">
+                    <span className="text-muted-foreground capitalize truncate">{k.replace(/_/g, " ")}</span>
+                    <span className="font-semibold text-foreground shrink-0">{String(v)}</span>
                   </div>
                 ))}
               </div>
@@ -1643,18 +1643,18 @@ export function AdminInfrastructureAssessmentReviewPage() {
                 Not available • No custom feasibility indicators recorded in baseline snapshot.
               </div>
             )}
-            <p className="text-[10px] text-muted-foreground mt-3 pt-2 border-t border-border/50">
+            <p className="text-[10px] text-muted-foreground mt-3 pt-2 border-t border-border/50 leading-relaxed">
               Zero algorithmic assumptions applied. Feasibility indicators must be empirically verified during formal technical vetting.
             </p>
           </CardContent>
         </Card>
 
         {/* Sustainability Indicators */}
-        <Card className="rounded-2xl border border-border/80 shadow-sm">
-          <CardHeader className="py-3 px-4 bg-muted/20 border-b border-border/70 flex flex-row items-center justify-between">
-            <div className="flex items-center gap-2 text-xs font-bold text-foreground">
-              <Sparkles className="h-4 w-4 text-muted-foreground" />
-              <span>Sustainability Indicators</span>
+        <Card className="rounded-2xl border border-border/80 shadow-sm overflow-hidden min-w-0">
+          <CardHeader className="py-3 px-4 bg-muted/20 border-b border-border/70 flex flex-row items-center justify-between gap-2">
+            <div className="flex items-center gap-2 text-xs font-bold text-foreground min-w-0">
+              <Sparkles className="h-4 w-4 text-muted-foreground shrink-0" />
+              <span className="truncate">Sustainability Indicators</span>
             </div>
           </CardHeader>
           <CardContent className="p-4 text-xs">
@@ -1662,9 +1662,9 @@ export function AdminInfrastructureAssessmentReviewPage() {
             Object.keys(currentAssessment.sustainability_indicators).length > 0 ? (
               <div className="space-y-2">
                 {Object.entries(currentAssessment.sustainability_indicators).map(([k, v]) => (
-                  <div key={k} className="flex items-center justify-between py-1 border-b border-border/40 text-[11px]">
-                    <span className="text-muted-foreground capitalize">{k.replace(/_/g, " ")}</span>
-                    <span className="font-semibold text-foreground">{String(v)}</span>
+                  <div key={k} className="flex items-center justify-between py-1 border-b border-border/40 text-[11px] gap-2 min-w-0">
+                    <span className="text-muted-foreground capitalize truncate">{k.replace(/_/g, " ")}</span>
+                    <span className="font-semibold text-foreground shrink-0">{String(v)}</span>
                   </div>
                 ))}
               </div>
@@ -1673,7 +1673,7 @@ export function AdminInfrastructureAssessmentReviewPage() {
                 Not available • No custom sustainability indicators recorded in baseline snapshot.
               </div>
             )}
-            <p className="text-[10px] text-muted-foreground mt-3 pt-2 border-t border-border/50">
+            <p className="text-[10px] text-muted-foreground mt-3 pt-2 border-t border-border/50 leading-relaxed">
               Long-term maintenance and environmental impact indicators require field validation.
             </p>
           </CardContent>
@@ -1681,20 +1681,20 @@ export function AdminInfrastructureAssessmentReviewPage() {
       </div>
 
       {/* 8. RISKS AND MISSING INFORMATION */}
-      <Card className="rounded-2xl border border-amber-200/90 bg-amber-50/30 shadow-sm">
-        <CardHeader className="py-3 px-4 bg-amber-100/50 border-b border-amber-200/80 flex flex-row items-center justify-between">
-          <div className="flex items-center gap-2 text-amber-950 font-bold text-xs">
-            <AlertTriangle className="h-4 w-4 text-amber-700" />
-            <span>Identified Data Gaps & Information Needs</span>
+      <Card className="rounded-2xl border border-amber-200/90 bg-amber-50/30 shadow-sm overflow-hidden min-w-0">
+        <CardHeader className="py-3 px-4 bg-amber-100/50 border-b border-amber-200/80 flex flex-row items-center justify-between gap-2">
+          <div className="flex items-center gap-2 text-amber-950 font-bold text-xs min-w-0">
+            <AlertTriangle className="h-4 w-4 text-amber-700 shrink-0" />
+            <span className="truncate">Identified Data Gaps & Information Needs</span>
           </div>
-          <Badge variant="amber" size="sm">
+          <Badge variant="amber" size="sm" className="shrink-0">
             Audit Checklist
           </Badge>
         </CardHeader>
         <CardContent className="p-4 text-xs space-y-2">
           {Array.isArray(currentAssessment.risks_and_missing_info) &&
           currentAssessment.risks_and_missing_info.length > 0 ? (
-            <ul className="space-y-1.5 list-disc list-inside text-[11px] text-amber-950">
+            <ul className="space-y-1.5 list-disc list-inside text-[11px] text-amber-950 break-words">
               {currentAssessment.risks_and_missing_info.map((item, idx) => (
                 <li key={idx} className="leading-relaxed">
                   {item}
@@ -1712,11 +1712,11 @@ export function AdminInfrastructureAssessmentReviewPage() {
 
       {/* 9. ADMIN INFRASTRUCTURE DECISION WORKSPACE */}
       {decision || issue.status === "INFRASTRUCTURE_ACCEPTED" || issue.status === "INFRASTRUCTURE_REJECTED" ? (
-        <Card className="rounded-2xl border-2 border-indigo-300 bg-gradient-to-r from-indigo-50/50 via-card to-indigo-50/30 shadow-md overflow-hidden">
-          <CardHeader className="py-3 px-4 bg-indigo-100/60 border-b border-indigo-200/80 flex flex-row items-center justify-between">
-            <div className="flex items-center gap-2 text-indigo-950 font-bold text-xs">
-              <ShieldCheck className="h-4 w-4 text-indigo-700" />
-              <span>Official Administrative Decision Recorded</span>
+        <Card className="rounded-2xl border-2 border-indigo-300 bg-gradient-to-r from-indigo-50/50 via-card to-indigo-50/30 shadow-md overflow-hidden min-w-0">
+          <CardHeader className="py-3 px-4 bg-indigo-100/60 border-b border-indigo-200/80 flex flex-row items-center justify-between gap-2">
+            <div className="flex items-center gap-2 text-indigo-950 font-bold text-xs min-w-0">
+              <ShieldCheck className="h-4 w-4 text-indigo-700 shrink-0" />
+              <span className="truncate">Official Administrative Decision Recorded</span>
             </div>
             <Badge
               variant={
@@ -1725,7 +1725,7 @@ export function AdminInfrastructureAssessmentReviewPage() {
                   : "rose"
               }
               size="default"
-              className="font-bold uppercase tracking-wider"
+              className="font-bold uppercase tracking-wider shrink-0"
             >
               {decision?.decision === "ACCEPTED" || issue.status === "INFRASTRUCTURE_ACCEPTED"
                 ? "PASSED"
@@ -1733,11 +1733,11 @@ export function AdminInfrastructureAssessmentReviewPage() {
             </Badge>
           </CardHeader>
           <CardContent className="p-4 space-y-3 text-xs">
-            <div className="space-y-1">
+            <div className="space-y-1 min-w-0">
               <span className="text-[10px] text-muted-foreground uppercase font-bold block">
                 Administrative Rationale & Justification
               </span>
-              <p className="text-foreground text-xs leading-relaxed font-medium bg-card p-3 rounded-lg border border-border/70">
+              <p className="text-foreground text-xs leading-relaxed font-medium bg-card p-3 rounded-lg border border-border/70 break-words">
                 {decision?.internal_decision_reason ||
                   decision?.citizen_safe_summary ||
                   "Screening decision recorded by platform Administrator."}
@@ -1745,47 +1745,47 @@ export function AdminInfrastructureAssessmentReviewPage() {
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2 border-t border-border/60 text-[11px]">
-              <div>
+              <div className="min-w-0">
                 <span className="text-muted-foreground block text-[10px]">Decision Maker</span>
-                <span className="font-semibold text-foreground">
+                <span className="font-semibold text-foreground truncate block">
                   {decision?.decided_by_profile?.full_name ||
                     decision?.decided_by_profile?.email ||
                     authorProfile?.full_name ||
                     "Administrator"}
                 </span>
               </div>
-              <div>
+              <div className="min-w-0">
                 <span className="text-muted-foreground block text-[10px]">Decided Timestamp</span>
-                <span className="font-semibold text-foreground">
+                <span className="font-semibold text-foreground truncate block">
                   {decision?.decided_at
                     ? formatCitizenIssueDateTime(decision.decided_at)
                     : formatCitizenIssueDateTime(issue.updated_at)}
                 </span>
               </div>
-              <div>
-                <span className="text-muted-foreground block text-[10px]">Resulting Issue Status</span>
-                <span className="font-semibold text-indigo-950">
+              <div className="min-w-0">
+                <span className="text-muted-foreground block text-[10px]">Resulting Status</span>
+                <span className="font-semibold text-indigo-950 truncate block">
                   {getCitizenIssueStatusLabel(issue.status)}
                 </span>
               </div>
             </div>
 
-            <div className="p-2 rounded-lg bg-muted/40 text-[10px] text-muted-foreground flex items-center gap-1.5">
-              <Info className="h-3 w-3 shrink-0 text-muted-foreground" />
-              <span>
+            <div className="p-2 rounded-lg bg-muted/40 text-[10px] text-muted-foreground flex items-start gap-1.5 min-w-0">
+              <Info className="h-3 w-3 shrink-0 text-muted-foreground mt-0.5" />
+              <span className="leading-relaxed">
                 Official administrative screening decision has been recorded on the governance ledger. The dossier remains available for read-only audit.
               </span>
             </div>
           </CardContent>
         </Card>
       ) : (
-        <Card className="rounded-2xl border-2 border-indigo-200/90 shadow-md overflow-hidden">
+        <Card className="rounded-2xl border-2 border-indigo-200/90 shadow-md overflow-hidden min-w-0">
           <CardHeader className="py-3 px-4 bg-gradient-to-r from-indigo-50/90 via-sky-50/40 to-indigo-50/90 border-b border-indigo-200/80">
             <div className="flex items-center gap-2 text-indigo-950 font-bold text-sm">
-              <Shield className="h-4 w-4 text-indigo-700" />
+              <Shield className="h-4 w-4 text-indigo-700 shrink-0" />
               <span>Admin Infrastructure Screening Decision</span>
             </div>
-            <p className="text-[11px] text-muted-foreground mt-0.5">
+            <p className="text-[11px] text-muted-foreground mt-0.5 leading-relaxed">
               CivicFix presents the factual evidence. The final screening decision is determined solely by the authorized Administrator.
             </p>
           </CardHeader>
@@ -1797,19 +1797,19 @@ export function AdminInfrastructureAssessmentReviewPage() {
               <button
                 type="button"
                 onClick={() => setDecisionOutcome("PASSED")}
-                className={`p-4 rounded-xl border-2 text-left transition-all relative ${
+                className={`p-4 rounded-xl border-2 text-left transition-all relative min-w-0 ${
                   decisionOutcome === "PASSED"
                     ? "border-emerald-600 bg-emerald-50/70 shadow-sm ring-1 ring-emerald-600/20"
                     : "border-border/80 hover:border-muted-foreground/40 bg-card"
                 }`}
               >
-                <div className="flex items-center justify-between mb-2">
-                  <span className="font-bold text-sm text-emerald-950 flex items-center gap-2">
-                    <CheckCircle2 className="h-4 w-4 text-emerald-700" />
+                <div className="flex items-center justify-between mb-2 gap-2">
+                  <span className="font-bold text-sm text-emerald-950 flex items-center gap-2 truncate">
+                    <CheckCircle2 className="h-4 w-4 text-emerald-700 shrink-0" />
                     Pass Infrastructure Project
                   </span>
                   <div
-                    className={`h-4 w-4 rounded-full border-2 flex items-center justify-center ${
+                    className={`h-4 w-4 rounded-full border-2 flex items-center justify-center shrink-0 ${
                       decisionOutcome === "PASSED"
                         ? "border-emerald-600 bg-emerald-600 text-white"
                         : "border-muted-foreground/40"
@@ -1818,7 +1818,7 @@ export function AdminInfrastructureAssessmentReviewPage() {
                     {decisionOutcome === "PASSED" && <Check className="h-2.5 w-2.5" />}
                   </div>
                 </div>
-                <p className="text-[11px] text-muted-foreground leading-relaxed">
+                <p className="text-[11px] text-muted-foreground leading-relaxed break-words">
                   The Admin confirms that the infrastructure request passes the current CivicFix infrastructure screening/review stage.
                 </p>
               </button>
@@ -1827,19 +1827,19 @@ export function AdminInfrastructureAssessmentReviewPage() {
               <button
                 type="button"
                 onClick={() => setDecisionOutcome("NOT_PASSED")}
-                className={`p-4 rounded-xl border-2 text-left transition-all relative ${
+                className={`p-4 rounded-xl border-2 text-left transition-all relative min-w-0 ${
                   decisionOutcome === "NOT_PASSED"
                     ? "border-rose-600 bg-rose-50/70 shadow-sm ring-1 ring-rose-600/20"
                     : "border-border/80 hover:border-muted-foreground/40 bg-card"
                 }`}
               >
-                <div className="flex items-center justify-between mb-2">
-                  <span className="font-bold text-sm text-rose-950 flex items-center gap-2">
-                    <X className="h-4 w-4 text-rose-700" />
+                <div className="flex items-center justify-between mb-2 gap-2">
+                  <span className="font-bold text-sm text-rose-950 flex items-center gap-2 truncate">
+                    <X className="h-4 w-4 text-rose-700 shrink-0" />
                     Do Not Pass
                   </span>
                   <div
-                    className={`h-4 w-4 rounded-full border-2 flex items-center justify-center ${
+                    className={`h-4 w-4 rounded-full border-2 flex items-center justify-center shrink-0 ${
                       decisionOutcome === "NOT_PASSED"
                         ? "border-rose-600 bg-rose-600 text-white"
                         : "border-muted-foreground/40"
@@ -1848,7 +1848,7 @@ export function AdminInfrastructureAssessmentReviewPage() {
                     {decisionOutcome === "NOT_PASSED" && <Check className="h-2.5 w-2.5" />}
                   </div>
                 </div>
-                <p className="text-[11px] text-muted-foreground leading-relaxed">
+                <p className="text-[11px] text-muted-foreground leading-relaxed break-words">
                   The Admin does not pass the infrastructure request through the current infrastructure screening/review stage.
                 </p>
               </button>
