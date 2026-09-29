@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import {
+  Activity,
   AlertCircle,
   AlertTriangle,
   ArrowLeft,
@@ -16,26 +17,35 @@ import {
   Coins,
   Compass,
   Database as DatabaseIcon,
+  Droplets,
+  FileCheck,
   FileSpreadsheet,
   FileText,
   Globe,
+  GraduationCap,
+  HeartPulse,
   HelpCircle,
   History,
+  Home,
   Info,
   Layers,
   Loader2,
   MapPin,
+  PieChart,
   RefreshCw,
   Scale,
   Shield,
   ShieldAlert,
   ShieldCheck,
   Sparkles,
+  Target,
   TrendingUp,
+  Truck,
   User,
   Users,
   Wrench,
   X,
+  Zap,
 } from "lucide-react";
 
 import { useAppSession } from "@/auth/app-session";
@@ -420,6 +430,57 @@ export function AdminInfrastructureAssessmentReviewPage() {
   const completeness = currentAssessment?.data_completeness_score ?? 0;
   const completenessBadgeVariant = completeness >= 75 ? "emerald" : completeness >= 50 ? "amber" : "rose";
 
+  // Decision Synthesis Diagnostics (Computed dynamically from D1–D7)
+  const decisionPillars = useMemo(() => {
+    const unspentCr = d2?.unspent_budget_crore ?? 0;
+    const allocatedCr = d2?.allocated_budget_crore ?? 0;
+    const headroomRatio = allocatedCr > 0 ? (unspentCr / allocatedCr) * 100 : 0;
+    const totalPop = d1?.total_population ?? 0;
+    const maxAssetGap = d4Assets.reduce((max, a) => Math.max(max, a.infrastructure_gap_score ?? 0), 0);
+    const accessGap = d5?.overall_accessibility_gap_score ?? 0;
+    const devNeed = d6?.overall_development_context_score ?? d1?.development_need_score ?? 0;
+    const histEff = d7History?.average_execution_efficiency ?? 0;
+
+    return {
+      fiscalViability: {
+        score: unspentCr > 5 ? "HIGH" : unspentCr > 0 ? "MODERATE" : "LOW",
+        label: unspentCr > 0 ? `₹${unspentCr} Cr Unspent Headroom` : "No Unspent Headroom",
+        detail: `Sector ${d2?.planning_sector_code || "N/A"} has ${headroomRatio.toFixed(0)}% uncommitted allocation`,
+        variant: (unspentCr > 5 ? "emerald" : unspentCr > 0 ? "amber" : "rose") as "emerald" | "amber" | "rose",
+      },
+      populationNeed: {
+        score: totalPop > 500000 ? "HIGH" : totalPop > 100000 ? "MODERATE" : "STANDARD",
+        label: totalPop > 0 ? `${totalPop.toLocaleString()} District Citizens` : "Population Pending",
+        detail: `${d1?.total_households ? `${d1.total_households.toLocaleString()} Households` : "Standard catchment"} • Need score: ${d1?.development_need_score ?? "N/A"}/100`,
+        variant: (totalPop > 300000 ? "emerald" : "blue") as "emerald" | "blue",
+      },
+      infrastructureDeficit: {
+        score: maxAssetGap >= 60 ? "CRITICAL" : maxAssetGap >= 30 ? "MODERATE" : "LOW",
+        label: maxAssetGap > 0 ? `Max Asset Gap ${maxAssetGap}/100` : `${d4Assets.length} Asset Types Evaluated`,
+        detail: `${d4Assets.filter((a) => (a.infrastructure_gap_score ?? 0) >= 50).length} categories in severe deficit`,
+        variant: (maxAssetGap >= 60 ? "rose" : maxAssetGap >= 30 ? "amber" : "emerald") as "rose" | "amber" | "emerald",
+      },
+      spatialAccessibility: {
+        score: accessGap >= 65 ? "SEVERE DEFICIT" : accessGap >= 40 ? "MODERATE" : "ADEQUATE",
+        label: accessGap > 0 ? `Access Gap ${accessGap}/100` : "Access Metric Normal",
+        detail: `${d5?.all_weather_access_percentage != null ? `${d5.all_weather_access_percentage}% All-Weather Road` : "Transit evaluated"} • ${d5?.average_travel_time_minutes != null ? `${d5.average_travel_time_minutes}m avg travel` : ""}`,
+        variant: (accessGap >= 65 ? "rose" : accessGap >= 40 ? "amber" : "teal") as "rose" | "amber" | "teal",
+      },
+      socioeconomicDeprivation: {
+        score: devNeed >= 60 ? "HIGH URGENCY" : devNeed >= 35 ? "MODERATE" : "STANDARD",
+        label: devNeed > 0 ? `Deprivation Score ${devNeed}/100` : "Socioeconomic Baseline Normal",
+        detail: `Vulnerability: ${d6?.economic_vulnerability_score ?? "N/A"} • Low Income: ${d6?.estimated_low_income_population_percentage ?? "N/A"}%`,
+        variant: (devNeed >= 60 ? "violet" : devNeed >= 35 ? "amber" : "default") as "violet" | "amber" | "default",
+      },
+      executionPrecedent: {
+        score: (d7History?.project_count ?? 0) > 0 ? "ESTABLISHED" : "NO PRECEDENTS",
+        label: `${d7History?.project_count ?? 0} Historical Projects`,
+        detail: histEff > 0 ? `Avg execution efficiency: ${histEff}/100` : "Benchmark precedent reference",
+        variant: ((d7History?.project_count ?? 0) > 0 ? "indigo" : "outline") as "indigo" | "outline",
+      },
+    };
+  }, [d1, d2, d4Assets, d5, d6, d7History]);
+
   if (loading) {
     return (
       <div className="flex min-h-[50vh] flex-col items-center justify-center gap-3">
@@ -675,10 +736,10 @@ export function AdminInfrastructureAssessmentReviewPage() {
       {/* 1. PAGE HEADER */}
       <PageHeader
         title="Infrastructure Assessment Dossier"
-        description="Authoritative read-only review of integrated D1–D7 district demographic, budgetary, geographic, accessibility, and historical precedents."
+        description="Authoritative multi-dataset decision-support system integrating D1 Demographics, D2 Budgets, D3 Geography, D4 Assets, D5 Accessibility, D6 Socioeconomic Gaps, and D7 Historical Execution."
         backHref="/app/admin/classification"
         backLabel="Classification & Routing"
-        tag="Administrative Evidence Dossier • Read-Only"
+        tag="Administrative Evidence Dossier • Read-Only Decision Support"
         actions={
           <div className="flex flex-wrap items-center gap-2">
             {/* Version Switcher if multiple versions exist */}
@@ -753,9 +814,9 @@ export function AdminInfrastructureAssessmentReviewPage() {
         <div className="flex items-start sm:items-center gap-2.5 min-w-0">
           <ShieldCheck className="h-5 w-5 text-indigo-700 shrink-0 mt-0.5 sm:mt-0" />
           <div className="min-w-0">
-            <span className="font-bold block sm:inline">Governance Stage: Infrastructure Screening & Decision</span>
+            <span className="font-bold block sm:inline">Governance Stage: Infrastructure Screening & Decision Support</span>
             <p className="text-[11px] text-indigo-900/80 mt-0.5 leading-relaxed">
-              Reviewing immutable D1–D7 baseline context snapshot for diagnostic assessment. Official screening decisions (Pass / Do Not Pass) are recorded authoritatively by the Administrator.
+              Evaluating immutable multi-dataset baseline evidence across fiscal headroom, demographic need, asset deficits, spatial access, and historical execution benchmarks. Screening decisions (Pass / Do Not Pass) are recorded authoritatively in the audit ledger.
             </p>
           </div>
         </div>
@@ -889,7 +950,113 @@ export function AdminInfrastructureAssessmentReviewPage() {
         </Card>
       </div>
 
-      {/* 3. EXECUTIVE ASSESSMENT SUMMARY */}
+      {/* 3. EXECUTIVE DECISION PILLARS (D1-D7 SYNTHESIS MATRIX) */}
+      <Card className="rounded-2xl border-2 border-indigo-200 bg-gradient-to-br from-indigo-50/40 via-card to-sky-50/30 shadow-sm overflow-hidden min-w-0">
+        <CardHeader className="py-3 px-4 bg-indigo-100/50 border-b border-indigo-200/80 flex flex-row items-center justify-between gap-2">
+          <div className="flex items-center gap-2 text-indigo-950 font-bold text-xs">
+            <Target className="h-4 w-4 text-indigo-700 shrink-0" />
+            <span>Executive Decision Matrix: 6 Pillars of Administrative Evaluation</span>
+          </div>
+          <Badge variant="indigo" size="sm" className="text-[10px] font-mono shrink-0">
+            Multi-Dataset Synthesis
+          </Badge>
+        </CardHeader>
+        <CardContent className="p-4 text-xs space-y-3">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+            {/* Pillar 1: Fiscal Headroom */}
+            <div className="p-3 rounded-xl border border-border/80 bg-card shadow-xs flex flex-col justify-between min-w-0">
+              <div className="flex items-center justify-between gap-1 mb-1.5">
+                <div className="flex items-center gap-1.5 text-xs font-bold text-foreground">
+                  <Coins className="h-3.5 w-3.5 text-emerald-600 shrink-0" />
+                  <span className="truncate">1. Fiscal Headroom</span>
+                </div>
+                <Badge variant={decisionPillars.fiscalViability.variant} size="sm" className="text-[9px] shrink-0 font-bold">
+                  {decisionPillars.fiscalViability.score}
+                </Badge>
+              </div>
+              <p className="text-xs font-bold text-foreground truncate">{decisionPillars.fiscalViability.label}</p>
+              <p className="text-[10px] text-muted-foreground mt-0.5 leading-relaxed">{decisionPillars.fiscalViability.detail}</p>
+            </div>
+
+            {/* Pillar 2: Population Impact */}
+            <div className="p-3 rounded-xl border border-border/80 bg-card shadow-xs flex flex-col justify-between min-w-0">
+              <div className="flex items-center justify-between gap-1 mb-1.5">
+                <div className="flex items-center gap-1.5 text-xs font-bold text-foreground">
+                  <Users className="h-3.5 w-3.5 text-blue-600 shrink-0" />
+                  <span className="truncate">2. Population Scope</span>
+                </div>
+                <Badge variant={decisionPillars.populationNeed.variant} size="sm" className="text-[9px] shrink-0 font-bold">
+                  {decisionPillars.populationNeed.score}
+                </Badge>
+              </div>
+              <p className="text-xs font-bold text-foreground truncate">{decisionPillars.populationNeed.label}</p>
+              <p className="text-[10px] text-muted-foreground mt-0.5 leading-relaxed">{decisionPillars.populationNeed.detail}</p>
+            </div>
+
+            {/* Pillar 3: Infrastructure Deficit */}
+            <div className="p-3 rounded-xl border border-border/80 bg-card shadow-xs flex flex-col justify-between min-w-0">
+              <div className="flex items-center justify-between gap-1 mb-1.5">
+                <div className="flex items-center gap-1.5 text-xs font-bold text-foreground">
+                  <Building2 className="h-3.5 w-3.5 text-indigo-600 shrink-0" />
+                  <span className="truncate">3. Asset Deficit</span>
+                </div>
+                <Badge variant={decisionPillars.infrastructureDeficit.variant} size="sm" className="text-[9px] shrink-0 font-bold">
+                  {decisionPillars.infrastructureDeficit.score}
+                </Badge>
+              </div>
+              <p className="text-xs font-bold text-foreground truncate">{decisionPillars.infrastructureDeficit.label}</p>
+              <p className="text-[10px] text-muted-foreground mt-0.5 leading-relaxed">{decisionPillars.infrastructureDeficit.detail}</p>
+            </div>
+
+            {/* Pillar 4: Spatial Accessibility */}
+            <div className="p-3 rounded-xl border border-border/80 bg-card shadow-xs flex flex-col justify-between min-w-0">
+              <div className="flex items-center justify-between gap-1 mb-1.5">
+                <div className="flex items-center gap-1.5 text-xs font-bold text-foreground">
+                  <Globe className="h-3.5 w-3.5 text-sky-600 shrink-0" />
+                  <span className="truncate">4. Spatial Access</span>
+                </div>
+                <Badge variant={decisionPillars.spatialAccessibility.variant} size="sm" className="text-[9px] shrink-0 font-bold">
+                  {decisionPillars.spatialAccessibility.score}
+                </Badge>
+              </div>
+              <p className="text-xs font-bold text-foreground truncate">{decisionPillars.spatialAccessibility.label}</p>
+              <p className="text-[10px] text-muted-foreground mt-0.5 leading-relaxed">{decisionPillars.spatialAccessibility.detail}</p>
+            </div>
+
+            {/* Pillar 5: Socioeconomic Need */}
+            <div className="p-3 rounded-xl border border-border/80 bg-card shadow-xs flex flex-col justify-between min-w-0">
+              <div className="flex items-center justify-between gap-1 mb-1.5">
+                <div className="flex items-center gap-1.5 text-xs font-bold text-foreground">
+                  <Scale className="h-3.5 w-3.5 text-violet-600 shrink-0" />
+                  <span className="truncate">5. Socioeconomic Need</span>
+                </div>
+                <Badge variant={decisionPillars.socioeconomicDeprivation.variant} size="sm" className="text-[9px] shrink-0 font-bold">
+                  {decisionPillars.socioeconomicDeprivation.score}
+                </Badge>
+              </div>
+              <p className="text-xs font-bold text-foreground truncate">{decisionPillars.socioeconomicDeprivation.label}</p>
+              <p className="text-[10px] text-muted-foreground mt-0.5 leading-relaxed">{decisionPillars.socioeconomicDeprivation.detail}</p>
+            </div>
+
+            {/* Pillar 6: Historical Precedents */}
+            <div className="p-3 rounded-xl border border-border/80 bg-card shadow-xs flex flex-col justify-between min-w-0">
+              <div className="flex items-center justify-between gap-1 mb-1.5">
+                <div className="flex items-center gap-1.5 text-xs font-bold text-foreground">
+                  <History className="h-3.5 w-3.5 text-amber-600 shrink-0" />
+                  <span className="truncate">6. Past Precedents</span>
+                </div>
+                <Badge variant={decisionPillars.executionPrecedent.variant} size="sm" className="text-[9px] shrink-0 font-bold">
+                  {decisionPillars.executionPrecedent.score}
+                </Badge>
+              </div>
+              <p className="text-xs font-bold text-foreground truncate">{decisionPillars.executionPrecedent.label}</p>
+              <p className="text-[10px] text-muted-foreground mt-0.5 leading-relaxed">{decisionPillars.executionPrecedent.detail}</p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* 4. EXECUTIVE ASSESSMENT SUMMARY */}
       {currentAssessment.assessment_summary ? (
         <Card className="rounded-2xl border-2 border-indigo-200 bg-gradient-to-r from-indigo-50/60 via-background to-indigo-50/30 shadow-sm overflow-hidden">
           <CardHeader className="py-3 px-4 bg-indigo-100/50 border-b border-indigo-200/80 flex flex-row items-center justify-between gap-2">
@@ -915,7 +1082,7 @@ export function AdminInfrastructureAssessmentReviewPage() {
         </Card>
       ) : null}
 
-      {/* 4. PRELIMINARY PROJECT ESTIMATES (UNCOMMITTED ESTIMATES) */}
+      {/* 5. PRELIMINARY PROJECT ESTIMATES (UNCOMMITTED ESTIMATES) */}
       <Card className="rounded-2xl border border-border/80 shadow-sm overflow-hidden">
         <CardHeader className="py-3 px-4 bg-muted/30 border-b border-border/70 flex flex-col sm:flex-row sm:items-center justify-between gap-1.5">
           <div className="flex items-center gap-2">
@@ -997,13 +1164,13 @@ export function AdminInfrastructureAssessmentReviewPage() {
         </CardContent>
       </Card>
 
-      {/* 5. MULTI-DATASET (D1–D7) PERSISTED SNAPSHOT EXPLORER */}
+      {/* 6. MULTI-DATASET (D1–D7) PERSISTED SNAPSHOT EXPLORER */}
       <div className="space-y-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <DatabaseIcon className="h-4 w-4 text-indigo-700" />
             <h3 className="font-bold text-sm text-foreground">
-              Multi-Dataset Context Breakdown (D1 to D7)
+              Comprehensive Multi-Dataset Evidence Dossier (D1 to D7)
             </h3>
           </div>
           <span className="text-[11px] text-muted-foreground">
@@ -1019,7 +1186,7 @@ export function AdminInfrastructureAssessmentReviewPage() {
           >
             <div className="flex items-center gap-2 text-xs font-bold text-foreground min-w-0">
               <Users className="h-4 w-4 text-blue-600 shrink-0" />
-              <span className="truncate">D1 — Demographic Profile & Population</span>
+              <span className="truncate">D1 — Demographic Profile, Population & Household Amenities</span>
               {d1?.total_population ? (
                 <Badge variant="blue" size="sm" className="font-mono text-[10px] shrink-0">
                   Pop: {d1.total_population.toLocaleString()}
@@ -1038,51 +1205,157 @@ export function AdminInfrastructureAssessmentReviewPage() {
             </div>
           </CardHeader>
           {!collapsedSections.d1 ? (
-            <CardContent className="p-4 text-xs space-y-3">
+            <CardContent className="p-4 text-xs space-y-4">
               {d1 ? (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-                  <div className="p-3 rounded-lg border border-border/60 bg-card min-w-0 overflow-hidden">
-                    <span className="text-[10px] text-muted-foreground uppercase block truncate">Total Population</span>
-                    <span className="text-sm font-bold text-foreground mt-0.5 block break-words">
-                      {d1.total_population?.toLocaleString() || "N/A"}
+                <>
+                  {/* Primary Population Breakdown */}
+                  <div>
+                    <span className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider block mb-2">
+                      1. Population Aggregates & Cohorts
                     </span>
-                    <span className="text-[10px] text-muted-foreground block truncate">
-                      Households: {d1.total_households?.toLocaleString() || "N/A"}
-                    </span>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                      <div className="p-3 rounded-lg border border-border/60 bg-card min-w-0 overflow-hidden">
+                        <span className="text-[10px] text-muted-foreground uppercase block truncate">Total Population</span>
+                        <span className="text-sm font-bold text-foreground mt-0.5 block break-words">
+                          {d1.total_population?.toLocaleString() || "N/A"}
+                        </span>
+                        <span className="text-[10px] text-muted-foreground block truncate">
+                          Households: {d1.total_households?.toLocaleString() || "N/A"} (Avg: {d1.average_household_size ?? "N/A"})
+                        </span>
+                      </div>
+
+                      <div className="p-3 rounded-lg border border-border/60 bg-card min-w-0 overflow-hidden">
+                        <span className="text-[10px] text-muted-foreground uppercase block truncate">Gender Split</span>
+                        <span className="text-sm font-bold text-foreground mt-0.5 block break-words">
+                          {d1.male_population?.toLocaleString() ?? "N/A"} M / {d1.female_population?.toLocaleString() ?? "N/A"} F
+                        </span>
+                        <span className="text-[10px] text-muted-foreground block truncate">
+                          {d1.total_population && d1.female_population
+                            ? `${((d1.female_population / d1.total_population) * 100).toFixed(1)}% Female Ratio`
+                            : "Standard distribution"}
+                        </span>
+                      </div>
+
+                      <div className="p-3 rounded-lg border border-border/60 bg-card min-w-0 overflow-hidden">
+                        <span className="text-[10px] text-muted-foreground uppercase block truncate">Urban / Rural Split</span>
+                        <span className="text-sm font-bold text-foreground mt-0.5 block break-words">
+                          {d1.urban_population && d1.total_population
+                            ? `${Math.round((d1.urban_population / d1.total_population) * 100)}% Urban / ${Math.round(((d1.rural_population ?? 0) / d1.total_population) * 100)}% Rural`
+                            : "N/A"}
+                        </span>
+                        <span className="text-[10px] text-muted-foreground block truncate">
+                          Rural: {d1.rural_population?.toLocaleString() || "N/A"} • Urban: {d1.urban_population?.toLocaleString() || "N/A"}
+                        </span>
+                      </div>
+
+                      <div className="p-3 rounded-lg border border-border/60 bg-card min-w-0 overflow-hidden">
+                        <span className="text-[10px] text-muted-foreground uppercase block truncate">Age Demographics</span>
+                        <span className="text-sm font-bold text-foreground mt-0.5 block break-words">
+                          {d1.working_age_population_15_59 ? `${d1.working_age_population_15_59.toLocaleString()} Working` : "N/A"}
+                        </span>
+                        <span className="text-[10px] text-muted-foreground block truncate">
+                          Children (0-14): {d1.children_0_14?.toLocaleString() || "N/A"} • Elderly (60+): {d1.elderly_population_60_plus?.toLocaleString() || "N/A"}
+                        </span>
+                      </div>
+                    </div>
                   </div>
 
-                  <div className="p-3 rounded-lg border border-border/60 bg-card min-w-0 overflow-hidden">
-                    <span className="text-[10px] text-muted-foreground uppercase block truncate">Urban / Rural Split</span>
-                    <span className="text-sm font-bold text-foreground mt-0.5 block break-words">
-                      {d1.urban_population && d1.total_population
-                        ? `${Math.round((d1.urban_population / d1.total_population) * 100)}% Urban`
-                        : "N/A"}
+                  {/* Vulnerable & Marginalized Groups */}
+                  <div>
+                    <span className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider block mb-2">
+                      2. Social Inclusivity & Marginalized Groups
                     </span>
-                    <span className="text-[10px] text-muted-foreground block truncate">
-                      Rural: {d1.rural_population?.toLocaleString() || "N/A"}
-                    </span>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                      <div className="p-3 rounded-lg border border-border/60 bg-card min-w-0 overflow-hidden">
+                        <span className="text-[10px] text-muted-foreground uppercase block truncate">Scheduled Caste (SC)</span>
+                        <span className="text-sm font-bold text-foreground mt-0.5 block break-words">
+                          {d1.sc_population?.toLocaleString() || "N/A"}
+                        </span>
+                        <span className="text-[10px] text-muted-foreground block truncate">
+                          {d1.total_population && d1.sc_population ? `${((d1.sc_population / d1.total_population) * 100).toFixed(1)}% of total` : "N/A"}
+                        </span>
+                      </div>
+
+                      <div className="p-3 rounded-lg border border-border/60 bg-card min-w-0 overflow-hidden">
+                        <span className="text-[10px] text-muted-foreground uppercase block truncate">Scheduled Tribe (ST)</span>
+                        <span className="text-sm font-bold text-foreground mt-0.5 block break-words">
+                          {d1.st_population?.toLocaleString() || "N/A"}
+                        </span>
+                        <span className="text-[10px] text-muted-foreground block truncate">
+                          {d1.total_population && d1.st_population ? `${((d1.st_population / d1.total_population) * 100).toFixed(1)}% of total` : "N/A"}
+                        </span>
+                      </div>
+
+                      <div className="p-3 rounded-lg border border-border/60 bg-card min-w-0 overflow-hidden">
+                        <span className="text-[10px] text-muted-foreground uppercase block truncate">Literacy & Education</span>
+                        <span className="text-sm font-bold text-foreground mt-0.5 block break-words">
+                          {d1.literacy_rate_percentage !== null ? `${d1.literacy_rate_percentage}% Literacy` : "N/A"}
+                        </span>
+                        <span className="text-[10px] text-muted-foreground block truncate">
+                          Education Access Score: {d1.education_access_score ?? "N/A"}/100
+                        </span>
+                      </div>
+
+                      <div className="p-3 rounded-lg border border-border/60 bg-card min-w-0 overflow-hidden">
+                        <span className="text-[10px] text-muted-foreground uppercase block truncate">Workforce Participation</span>
+                        <span className="text-sm font-bold text-foreground mt-0.5 block break-words">
+                          {d1.worker_participation_rate_percentage !== null ? `${d1.worker_participation_rate_percentage}% Workers` : "N/A"}
+                        </span>
+                        <span className="text-[10px] text-muted-foreground block truncate">
+                          Economic engagement rate
+                        </span>
+                      </div>
+                    </div>
                   </div>
 
-                  <div className="p-3 rounded-lg border border-border/60 bg-card min-w-0 overflow-hidden">
-                    <span className="text-[10px] text-muted-foreground uppercase block truncate">Vulnerable Demographics</span>
-                    <span className="text-sm font-bold text-foreground mt-0.5 block break-words">
-                      SC: {d1.sc_population?.toLocaleString() || "N/A"}
+                  {/* Basic Household Infrastructure & Amenities Coverage */}
+                  <div>
+                    <span className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider block mb-2">
+                      3. Household Basic Amenities Coverage & Access Scores
                     </span>
-                    <span className="text-[10px] text-muted-foreground block truncate">
-                      ST: {d1.st_population?.toLocaleString() || "N/A"}
-                    </span>
-                  </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                      <div className="p-3 rounded-lg border border-border/60 bg-card min-w-0 overflow-hidden">
+                        <span className="text-[10px] text-muted-foreground uppercase block truncate">Piped Water Access</span>
+                        <span className="text-sm font-bold text-foreground mt-0.5 block break-words">
+                          {d1.households_with_piped_water_percentage !== null ? `${d1.households_with_piped_water_percentage}%` : "N/A"}
+                        </span>
+                        <span className="text-[10px] text-muted-foreground block truncate">
+                          Water Access Score: {d1.water_access_score ?? "N/A"}/100
+                        </span>
+                      </div>
 
-                  <div className="p-3 rounded-lg border border-border/60 bg-card min-w-0 overflow-hidden">
-                    <span className="text-[10px] text-muted-foreground uppercase block truncate">Literacy & Access Index</span>
-                    <span className="text-sm font-bold text-foreground mt-0.5 block break-words">
-                      {d1.literacy_rate_percentage !== null ? `${d1.literacy_rate_percentage}% Literacy` : "N/A"}
-                    </span>
-                    <span className="text-[10px] text-muted-foreground block truncate">
-                      Service Gap: {d1.overall_service_gap_score ?? "N/A"}
-                    </span>
+                      <div className="p-3 rounded-lg border border-border/60 bg-card min-w-0 overflow-hidden">
+                        <span className="text-[10px] text-muted-foreground uppercase block truncate">Electricity Grid Access</span>
+                        <span className="text-sm font-bold text-foreground mt-0.5 block break-words">
+                          {d1.households_with_electricity_percentage !== null ? `${d1.households_with_electricity_percentage}%` : "N/A"}
+                        </span>
+                        <span className="text-[10px] text-muted-foreground block truncate">
+                          Power Access Score: {d1.electricity_access_score ?? "N/A"}/100
+                        </span>
+                      </div>
+
+                      <div className="p-3 rounded-lg border border-border/60 bg-card min-w-0 overflow-hidden">
+                        <span className="text-[10px] text-muted-foreground uppercase block truncate">Sanitation & Toilets</span>
+                        <span className="text-sm font-bold text-foreground mt-0.5 block break-words">
+                          {d1.households_with_toilet_percentage !== null ? `${d1.households_with_toilet_percentage}%` : "N/A"}
+                        </span>
+                        <span className="text-[10px] text-muted-foreground block truncate">
+                          Private Household Latrines
+                        </span>
+                      </div>
+
+                      <div className="p-3 rounded-lg border border-border/60 bg-card min-w-0 overflow-hidden">
+                        <span className="text-[10px] text-muted-foreground uppercase block truncate">Composite Need Index</span>
+                        <span className="text-sm font-bold text-foreground mt-0.5 block break-words">
+                          {d1.development_need_score ?? "N/A"}/100
+                        </span>
+                        <span className="text-[10px] text-muted-foreground block truncate">
+                          Service Gap: {d1.overall_service_gap_score ?? "N/A"} • Healthcare: {d1.healthcare_access_score ?? "N/A"}
+                        </span>
+                      </div>
+                    </div>
                   </div>
-                </div>
+                </>
               ) : (
                 <p className="text-muted-foreground text-xs italic">
                   Demographic context not recorded in snapshot.
@@ -1100,7 +1373,7 @@ export function AdminInfrastructureAssessmentReviewPage() {
           >
             <div className="flex items-center gap-2 text-xs font-bold text-foreground min-w-0">
               <Coins className="h-4 w-4 text-emerald-600 shrink-0" />
-              <span className="truncate">D2 — Departmental Budget Provisions & Outlay</span>
+              <span className="truncate">D2 — Departmental Budget Provisions & Fiscal Headroom</span>
               {d2?.unspent_budget_crore !== undefined ? (
                 <Badge variant="emerald" size="sm" className="font-mono text-[10px] shrink-0">
                   Unspent: ₹{d2.unspent_budget_crore} Cr
@@ -1119,42 +1392,103 @@ export function AdminInfrastructureAssessmentReviewPage() {
             </div>
           </CardHeader>
           {!collapsedSections.d2 ? (
-            <CardContent className="p-4 text-xs space-y-3">
+            <CardContent className="p-4 text-xs space-y-4">
               {d2 ? (
                 <>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-                    <div className="p-3 rounded-lg border border-border/60 bg-card min-w-0 overflow-hidden">
-                      <span className="text-[10px] text-muted-foreground uppercase block truncate">Sector & FY</span>
-                      <span className="text-sm font-bold text-foreground mt-0.5 block truncate" title={d2.planning_sector_name || d2.planning_sector_code}>
-                        {d2.planning_sector_name || d2.planning_sector_code}
-                      </span>
-                      <span className="text-[10px] text-muted-foreground block truncate">FY {d2.financial_year}</span>
-                    </div>
+                  {/* Budget Outlay Breakdown */}
+                  <div>
+                    <span className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider block mb-2">
+                      1. Financial Envelope & Capital Outlay ({d2.planning_sector_name || d2.planning_sector_code} • FY {d2.financial_year || "Current"})
+                    </span>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3">
+                      <div className="p-3 rounded-lg border border-border/60 bg-card min-w-0 overflow-hidden">
+                        <span className="text-[10px] text-muted-foreground uppercase block truncate">Sanctioned Outlay</span>
+                        <span className="text-sm font-bold text-foreground mt-0.5 block break-words">
+                          ₹{d2.allocated_budget_crore} Cr
+                        </span>
+                        <span className="text-[10px] text-muted-foreground block truncate">Total District Outlay</span>
+                      </div>
 
-                    <div className="p-3 rounded-lg border border-border/60 bg-card min-w-0 overflow-hidden">
-                      <span className="text-[10px] text-muted-foreground uppercase block truncate">Allocated Budget</span>
-                      <span className="text-sm font-bold text-foreground mt-0.5 block break-words">
-                        ₹{d2.allocated_budget_crore} Cr
-                      </span>
-                      <span className="text-[10px] text-muted-foreground block truncate">Total Sanctioned Outlay</span>
-                    </div>
+                      <div className="p-3 rounded-lg border border-border/60 bg-card min-w-0 overflow-hidden">
+                        <span className="text-[10px] text-muted-foreground uppercase block truncate">Released Budget</span>
+                        <span className="text-sm font-bold text-foreground mt-0.5 block break-words">
+                          ₹{d2.released_budget_crore ?? d2.allocated_budget_crore} Cr
+                        </span>
+                        <span className="text-[10px] text-muted-foreground block truncate">Treasury Disbursed</span>
+                      </div>
 
-                    <div className="p-3 rounded-lg border border-border/60 bg-card min-w-0 overflow-hidden">
-                      <span className="text-[10px] text-muted-foreground uppercase block truncate">Spent Budget</span>
-                      <span className="text-sm font-bold text-foreground mt-0.5 block break-words">
-                        ₹{d2.spent_budget_crore} Cr
-                      </span>
-                      <span className="text-[10px] text-muted-foreground block truncate">
-                        Utilization: {d2.budget_utilization_percentage ?? "N/A"}%
-                      </span>
-                    </div>
+                      <div className="p-3 rounded-lg border border-border/60 bg-card min-w-0 overflow-hidden">
+                        <span className="text-[10px] text-muted-foreground uppercase block truncate">Committed Works</span>
+                        <span className="text-sm font-bold text-foreground mt-0.5 block break-words">
+                          ₹{d2.committed_budget_crore ?? 0} Cr
+                        </span>
+                        <span className="text-[10px] text-muted-foreground block truncate">
+                          {d2.budget_commitment_percentage != null ? `${d2.budget_commitment_percentage}% Committed` : "Active Contracts"}
+                        </span>
+                      </div>
 
-                    <div className="p-3 rounded-lg border border-border/60 bg-card min-w-0 overflow-hidden">
-                      <span className="text-[10px] text-muted-foreground uppercase block truncate">Available Headroom</span>
-                      <span className="text-sm font-bold text-emerald-800 mt-0.5 block break-words">
-                        ₹{d2.unspent_budget_crore} Cr
-                      </span>
-                      <span className="text-[10px] text-muted-foreground block truncate">Uncommitted Balance</span>
+                      <div className="p-3 rounded-lg border border-border/60 bg-card min-w-0 overflow-hidden">
+                        <span className="text-[10px] text-muted-foreground uppercase block truncate">Spent Outlay</span>
+                        <span className="text-sm font-bold text-foreground mt-0.5 block break-words">
+                          ₹{d2.spent_budget_crore} Cr
+                        </span>
+                        <span className="text-[10px] text-muted-foreground block truncate">
+                          Utilization: {d2.budget_utilization_percentage ?? "N/A"}%
+                        </span>
+                      </div>
+
+                      <div className="p-3 rounded-lg border border-border/60 bg-card min-w-0 overflow-hidden">
+                        <span className="text-[10px] text-muted-foreground uppercase block truncate">Unspent Balance</span>
+                        <span className="text-sm font-bold text-emerald-800 mt-0.5 block break-words">
+                          ₹{d2.unspent_budget_crore} Cr
+                        </span>
+                        <span className="text-[10px] text-muted-foreground block truncate">Gross Unspent</span>
+                      </div>
+
+                      <div className="p-3 rounded-lg border border-emerald-300 bg-emerald-50/50 min-w-0 overflow-hidden">
+                        <span className="text-[10px] text-emerald-800 font-bold uppercase block truncate">New Works Headroom</span>
+                        <span className="text-sm font-extrabold text-emerald-900 mt-0.5 block break-words">
+                          ₹{d2.available_for_new_development_crore ?? d2.unspent_budget_crore} Cr
+                        </span>
+                        <span className="text-[10px] text-emerald-700 block truncate">Net Available Outlay</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Utilization Bar & Fiscal Health Indicators */}
+                  <div>
+                    <span className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider block mb-2">
+                      2. Fiscal Utilization & Budget Pressure
+                    </span>
+                    <div className="p-3 rounded-xl border border-border/70 bg-card space-y-3">
+                      <div className="space-y-1.5">
+                        <div className="flex items-center justify-between text-[11px]">
+                          <span className="text-muted-foreground font-medium">Departmental Utilization Progress:</span>
+                          <span className="font-bold text-foreground">{d2.budget_utilization_percentage ?? 0}% Utilized</span>
+                        </div>
+                        <div className="h-2 w-full rounded-full bg-muted overflow-hidden flex">
+                          <div
+                            className="bg-emerald-600 h-full transition-all"
+                            style={{ width: `${Math.min(100, Math.max(0, d2.budget_utilization_percentage ?? 0))}%` }}
+                            title={`Spent: ₹${d2.spent_budget_crore} Cr`}
+                          />
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 pt-1 border-t border-border/50 text-[11px]">
+                        <div className="flex items-center justify-between">
+                          <span className="text-muted-foreground">Funding Source:</span>
+                          <span className="font-semibold text-foreground">{d2.funding_source || "State Capital Budget"}</span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span className="text-muted-foreground">Budget Pressure Index:</span>
+                          <span className="font-semibold text-foreground">{d2.budget_pressure_score ?? "N/A"}/100</span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span className="text-muted-foreground">Unit:</span>
+                          <span className="font-mono text-muted-foreground">INR Crore (₹ Cr)</span>
+                        </div>
+                      </div>
                     </div>
                   </div>
 
@@ -1182,7 +1516,7 @@ export function AdminInfrastructureAssessmentReviewPage() {
           >
             <div className="flex items-center gap-2 text-xs font-bold text-foreground min-w-0">
               <Compass className="h-4 w-4 text-teal-600 shrink-0" />
-              <span className="truncate">D3 — Geography, Terrain & Spatial Footprint</span>
+              <span className="truncate">D3 — Geography, Terrain Classification & Spatial Footprint</span>
               {d3?.area_sq_km ? (
                 <Badge variant="teal" size="sm" className="font-mono text-[10px] shrink-0">
                   Area: {d3.area_sq_km} sq km
@@ -1201,49 +1535,64 @@ export function AdminInfrastructureAssessmentReviewPage() {
             </div>
           </CardHeader>
           {!collapsedSections.d3 ? (
-            <CardContent className="p-4 text-xs space-y-3">
+            <CardContent className="p-4 text-xs space-y-4">
               {d3 ? (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-                  <div className="p-3 rounded-lg border border-border/60 bg-card min-w-0 overflow-hidden">
-                    <span className="text-[10px] text-muted-foreground uppercase block truncate">Area & Extent</span>
-                    <span className="text-sm font-bold text-foreground mt-0.5 block break-words">
-                      {d3.area_sq_km ? `${d3.area_sq_km} sq km` : "N/A"}
-                    </span>
-                    <span className="text-[10px] text-muted-foreground block truncate">
-                      Region: {d3.geographic_region || "N/A"}
-                    </span>
+                <>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                    <div className="p-3 rounded-lg border border-border/60 bg-card min-w-0 overflow-hidden">
+                      <span className="text-[10px] text-muted-foreground uppercase block truncate">Area & Dimensions</span>
+                      <span className="text-sm font-bold text-foreground mt-0.5 block break-words">
+                        {d3.area_sq_km ? `${d3.area_sq_km} sq km` : "N/A"}
+                      </span>
+                      <span className="text-[10px] text-muted-foreground block truncate">
+                        Extent: {d3.north_south_extent_km ? `${d3.north_south_extent_km}km (N-S)` : ""} {d3.east_west_extent_km ? `× ${d3.east_west_extent_km}km (E-W)` : ""}
+                      </span>
+                    </div>
+
+                    <div className="p-3 rounded-lg border border-border/60 bg-card min-w-0 overflow-hidden">
+                      <span className="text-[10px] text-muted-foreground uppercase block truncate">Centroid & HQ</span>
+                      <span className="text-sm font-bold text-foreground mt-0.5 block font-mono break-words">
+                        {d3.centroid_latitude?.toFixed(4)}, {d3.centroid_longitude?.toFixed(4)}
+                      </span>
+                      <span className="text-[10px] text-muted-foreground block truncate">
+                        HQ: {d3.district_headquarters || "District Center"}
+                      </span>
+                    </div>
+
+                    <div className="p-3 rounded-lg border border-border/60 bg-card min-w-0 overflow-hidden">
+                      <span className="text-[10px] text-muted-foreground uppercase block truncate">Terrain & Topography</span>
+                      <span className="text-sm font-bold text-foreground mt-0.5 block break-words">
+                        {d3.terrain_type || "Plateau / Mixed Undulating"}
+                      </span>
+                      <span className="text-[10px] text-muted-foreground block truncate">
+                        Region: {d3.geographic_region || "Chota Nagpur Plateau"}
+                      </span>
+                    </div>
+
+                    <div className="p-3 rounded-lg border border-border/60 bg-card min-w-0 overflow-hidden">
+                      <span className="text-[10px] text-muted-foreground uppercase block truncate">Settlement & Density</span>
+                      <span className="text-sm font-bold text-foreground mt-0.5 block break-words">
+                        {d3.rural_urban_character || "Rural-Centric"}
+                      </span>
+                      <span className="text-[10px] text-muted-foreground block truncate">
+                        Density: {d3.density_category || "Moderate Density"}
+                      </span>
+                    </div>
                   </div>
 
-                  <div className="p-3 rounded-lg border border-border/60 bg-card min-w-0 overflow-hidden">
-                    <span className="text-[10px] text-muted-foreground uppercase block truncate">Centroid Coordinates</span>
-                    <span className="text-sm font-bold text-foreground mt-0.5 block font-mono break-words">
-                      {d3.centroid_latitude?.toFixed(4)}, {d3.centroid_longitude?.toFixed(4)}
-                    </span>
-                    <span className="text-[10px] text-muted-foreground block truncate">
-                      HQ: {d3.district_headquarters || "N/A"}
-                    </span>
+                  {/* Inter-District Connectivity Strip */}
+                  <div className="p-3 rounded-xl border border-border/70 bg-card space-y-1.5">
+                    <div className="flex items-center justify-between text-[11px]">
+                      <span className="font-bold text-foreground">Neighboring Districts & Administrative Corridors:</span>
+                      <span className="font-mono text-muted-foreground">{d3.neighbor_count || (d3.neighboring_districts?.length ?? 0)} Connected Borders</span>
+                    </div>
+                    <p className="text-[11px] text-muted-foreground break-words leading-relaxed">
+                      {d3.neighboring_districts && d3.neighboring_districts.length > 0
+                        ? d3.neighboring_districts.join(" • ")
+                        : "Regional administrative network mapped to state capital corridor."}
+                    </p>
                   </div>
-
-                  <div className="p-3 rounded-lg border border-border/60 bg-card min-w-0 overflow-hidden">
-                    <span className="text-[10px] text-muted-foreground uppercase block truncate">Terrain Classification</span>
-                    <span className="text-sm font-bold text-foreground mt-0.5 block break-words">
-                      {d3.terrain_type || "Mixed Plain/Plateau"}
-                    </span>
-                    <span className="text-[10px] text-muted-foreground block truncate">
-                      Character: {d3.rural_urban_character || "Rural-Centric"}
-                    </span>
-                  </div>
-
-                  <div className="p-3 rounded-lg border border-border/60 bg-card min-w-0 overflow-hidden">
-                    <span className="text-[10px] text-muted-foreground uppercase block truncate">Neighboring Districts</span>
-                    <span className="text-sm font-bold text-foreground mt-0.5 block break-words">
-                      {d3.neighbor_count || (d3.neighboring_districts?.length ?? 0)} Connected
-                    </span>
-                    <span className="text-[10px] text-muted-foreground truncate block" title={d3.neighboring_districts?.join(", ") || "N/A"}>
-                      {d3.neighboring_districts?.slice(0, 3).join(", ") || "N/A"}
-                    </span>
-                  </div>
-                </div>
+                </>
               ) : (
                 <p className="text-muted-foreground text-xs italic">
                   Geography context not recorded in snapshot.
@@ -1261,7 +1610,7 @@ export function AdminInfrastructureAssessmentReviewPage() {
           >
             <div className="flex items-center gap-2 text-xs font-bold text-foreground min-w-0">
               <Building2 className="h-4 w-4 text-indigo-600 shrink-0" />
-              <span className="truncate">D4 — Existing Infrastructure Assets & Capacity</span>
+              <span className="truncate">D4 — Existing Infrastructure Asset Registry, Capacity & Condition</span>
               <Badge variant="indigo" size="sm" className="font-mono text-[10px] shrink-0">
                 {d4Assets.length} Categories Cataloged
               </Badge>
@@ -1279,46 +1628,98 @@ export function AdminInfrastructureAssessmentReviewPage() {
             <CardContent className="p-4 text-xs space-y-3">
               {d4Assets.length > 0 ? (
                 <div className="overflow-x-auto rounded-xl border border-border/70 min-w-0 w-full">
-                  <table className="w-full text-left text-xs border-collapse min-w-[500px]">
+                  <table className="w-full text-left text-xs border-collapse min-w-[700px]">
                     <thead>
                       <tr className="bg-muted/40 border-b border-border text-[11px] text-muted-foreground">
-                        <th className="py-2.5 px-3 font-semibold">Infrastructure Category</th>
-                        <th className="py-2.5 px-3 font-semibold">Asset Count</th>
-                        <th className="py-2.5 px-3 font-semibold">Functional Count</th>
-                        <th className="py-2.5 px-3 font-semibold">Utilization Rate</th>
+                        <th className="py-2.5 px-3 font-semibold">Infrastructure Category & Type</th>
+                        <th className="py-2.5 px-3 font-semibold">Inventory (Total / Functional)</th>
+                        <th className="py-2.5 px-3 font-semibold">Utilization & Capacity</th>
+                        <th className="py-2.5 px-3 font-semibold">Coverage</th>
+                        <th className="py-2.5 px-3 font-semibold">Condition</th>
                         <th className="py-2.5 px-3 font-semibold">Gap Score</th>
+                        <th className="py-2.5 px-3 font-semibold">Additional Capacity Needed</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-border/60">
-                      {d4Assets.map((asset, idx) => (
-                        <tr key={asset.infrastructure_id || idx} className="hover:bg-muted/20">
-                          <td className="py-2.5 px-3 font-semibold text-foreground">
-                            {asset.infrastructure_category || asset.infrastructure_type || asset.infrastructure_id}
-                          </td>
-                          <td className="py-2.5 px-3 font-mono">{asset.existing_asset_count ?? "N/A"}</td>
-                          <td className="py-2.5 px-3 font-mono text-emerald-700">
-                            {asset.functional_asset_count ?? "N/A"}
-                          </td>
-                          <td className="py-2.5 px-3 font-mono">
-                            {asset.utilization_percentage !== null && asset.utilization_percentage !== undefined
-                              ? `${asset.utilization_percentage}%`
-                              : "N/A"}
-                          </td>
-                          <td className="py-2.5 px-3 font-mono">
-                            <span
-                              className={`px-2 py-0.5 rounded text-[11px] font-bold ${
-                                (asset.infrastructure_gap_score ?? 0) > 60
-                                  ? "bg-rose-100 text-rose-800"
-                                  : (asset.infrastructure_gap_score ?? 0) > 30
-                                    ? "bg-amber-100 text-amber-800"
-                                    : "bg-emerald-100 text-emerald-800"
-                              }`}
-                            >
-                              {asset.infrastructure_gap_score ?? "N/A"}
-                            </span>
-                          </td>
-                        </tr>
-                      ))}
+                      {d4Assets.map((asset, idx) => {
+                        const totalAssets = asset.existing_asset_count ?? 0;
+                        const funcAssets = asset.functional_asset_count ?? 0;
+                        const funcRatio = totalAssets > 0 ? Math.round((funcAssets / totalAssets) * 100) : 0;
+                        const gapScore = asset.infrastructure_gap_score ?? 0;
+
+                        return (
+                          <tr key={asset.infrastructure_id || idx} className="hover:bg-muted/20">
+                            <td className="py-2.5 px-3">
+                              <span className="font-semibold text-foreground block truncate">
+                                {asset.infrastructure_category || asset.infrastructure_id}
+                              </span>
+                              {asset.infrastructure_type && (
+                                <span className="text-[10px] text-muted-foreground block truncate">
+                                  {asset.infrastructure_type}
+                                </span>
+                              )}
+                            </td>
+                            <td className="py-2.5 px-3 font-mono">
+                              <span className="font-bold text-foreground">{totalAssets}</span>
+                              <span className="text-muted-foreground"> / </span>
+                              <span className="text-emerald-700 font-bold">{funcAssets} functional</span>
+                              <span className="text-[10px] text-muted-foreground block">({funcRatio}% operational)</span>
+                            </td>
+                            <td className="py-2.5 px-3 font-mono">
+                              {asset.utilization_percentage !== null && asset.utilization_percentage !== undefined ? (
+                                <div>
+                                  <span className="font-bold">{asset.utilization_percentage}%</span>
+                                  {asset.total_capacity && (
+                                    <span className="text-[10px] text-muted-foreground block">
+                                      Cap: {asset.total_capacity.toLocaleString()}
+                                    </span>
+                                  )}
+                                </div>
+                              ) : (
+                                "N/A"
+                              )}
+                            </td>
+                            <td className="py-2.5 px-3 font-mono">
+                              {asset.population_coverage_percentage !== null && asset.population_coverage_percentage !== undefined
+                                ? `${asset.population_coverage_percentage}% pop`
+                                : "N/A"}
+                            </td>
+                            <td className="py-2.5 px-3 font-mono">
+                              {asset.average_condition_score !== null && asset.average_condition_score !== undefined ? (
+                                <span
+                                  className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                                    asset.average_condition_score >= 70
+                                      ? "bg-emerald-100 text-emerald-800"
+                                      : asset.average_condition_score >= 40
+                                        ? "bg-amber-100 text-amber-800"
+                                        : "bg-rose-100 text-rose-800"
+                                  }`}
+                                >
+                                  {asset.average_condition_score}/100
+                                </span>
+                              ) : (
+                                "N/A"
+                              )}
+                            </td>
+                            <td className="py-2.5 px-3 font-mono">
+                              <span
+                                className={`px-2 py-0.5 rounded text-[11px] font-bold ${
+                                  gapScore >= 60
+                                    ? "bg-rose-100 text-rose-800"
+                                    : gapScore >= 30
+                                      ? "bg-amber-100 text-amber-800"
+                                      : "bg-emerald-100 text-emerald-800"
+                                }`}
+                              >
+                                {gapScore}/100
+                              </span>
+                            </td>
+                            <td className="py-2.5 px-3 text-[11px] text-muted-foreground">
+                              {asset.additional_capacity_needed || "Capacity upgrade required"}
+                            </td>
+                          </tr>
+                        );
+                      })}
                     </tbody>
                   </table>
                 </div>
@@ -1339,7 +1740,7 @@ export function AdminInfrastructureAssessmentReviewPage() {
           >
             <div className="flex items-center gap-2 text-xs font-bold text-foreground min-w-0">
               <Globe className="h-4 w-4 text-sky-600 shrink-0" />
-              <span className="truncate">D5 — Spatial Accessibility & Service Distance</span>
+              <span className="truncate">D5 — Spatial Accessibility, Public Transit & Remote Habitations</span>
               {d5?.overall_accessibility_gap_score !== undefined ? (
                 <Badge variant="sky" size="sm" className="font-mono text-[10px] shrink-0">
                   Gap: {d5.overall_accessibility_gap_score}/100
@@ -1358,49 +1759,55 @@ export function AdminInfrastructureAssessmentReviewPage() {
             </div>
           </CardHeader>
           {!collapsedSections.d5 ? (
-            <CardContent className="p-4 text-xs space-y-3">
+            <CardContent className="p-4 text-xs space-y-4">
               {d5 ? (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-                  <div className="p-3 rounded-lg border border-border/60 bg-card min-w-0 overflow-hidden">
-                    <span className="text-[10px] text-muted-foreground uppercase block truncate">Road Connectivity</span>
-                    <span className="text-sm font-bold text-foreground mt-0.5 block break-words">
-                      {d5.all_weather_access_percentage !== null && d5.all_weather_access_percentage !== undefined
-                        ? `${d5.all_weather_access_percentage}% All-Weather`
-                        : "N/A"}
-                    </span>
-                    <span className="text-[10px] text-muted-foreground block truncate">
-                      Paved Road: {d5.paved_road_coverage_percentage ?? "N/A"}%
-                    </span>
-                  </div>
+                <>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                    <div className="p-3 rounded-lg border border-border/60 bg-card min-w-0 overflow-hidden">
+                      <span className="text-[10px] text-muted-foreground uppercase block truncate">Road Connectivity</span>
+                      <span className="text-sm font-bold text-foreground mt-0.5 block break-words">
+                        {d5.all_weather_access_percentage !== null && d5.all_weather_access_percentage !== undefined
+                          ? `${d5.all_weather_access_percentage}% All-Weather`
+                          : "N/A"}
+                      </span>
+                      <span className="text-[10px] text-muted-foreground block truncate">
+                        Paved: {d5.paved_road_coverage_percentage ?? "N/A"}% • Score: {d5.road_connectivity_score ?? "N/A"}/100
+                      </span>
+                    </div>
 
-                  <div className="p-3 rounded-lg border border-border/60 bg-card min-w-0 overflow-hidden">
-                    <span className="text-[10px] text-muted-foreground uppercase block truncate">Avg Travel Time</span>
-                    <span className="text-sm font-bold text-foreground mt-0.5 block break-words">
-                      {d5.average_travel_time_minutes ? `${d5.average_travel_time_minutes} mins` : "N/A"}
-                    </span>
-                    <span className="text-[10px] text-muted-foreground block truncate">To Major Service Node</span>
-                  </div>
+                    <div className="p-3 rounded-lg border border-border/60 bg-card min-w-0 overflow-hidden">
+                      <span className="text-[10px] text-muted-foreground uppercase block truncate">Transit Travel Time</span>
+                      <span className="text-sm font-bold text-foreground mt-0.5 block break-words">
+                        {d5.average_travel_time_minutes ? `${d5.average_travel_time_minutes} mins` : "N/A"}
+                      </span>
+                      <span className="text-[10px] text-muted-foreground block truncate">
+                        Transit Score: {d5.public_transport_connectivity_score ?? "N/A"}/100
+                      </span>
+                    </div>
 
-                  <div className="p-3 rounded-lg border border-border/60 bg-card min-w-0 overflow-hidden">
-                    <span className="text-[10px] text-muted-foreground uppercase block truncate">Distance to Center</span>
-                    <span className="text-sm font-bold text-foreground mt-0.5 block break-words">
-                      {d5.average_distance_to_service_center_km ? `${d5.average_distance_to_service_center_km} km` : "N/A"}
-                    </span>
-                    <span className="text-[10px] text-muted-foreground block truncate">Sector Radius</span>
-                  </div>
+                    <div className="p-3 rounded-lg border border-border/60 bg-card min-w-0 overflow-hidden">
+                      <span className="text-[10px] text-muted-foreground uppercase block truncate">Distance to Service Node</span>
+                      <span className="text-sm font-bold text-foreground mt-0.5 block break-words">
+                        {d5.average_distance_to_service_center_km ? `${d5.average_distance_to_service_center_km} km` : "N/A"}
+                      </span>
+                      <span className="text-[10px] text-muted-foreground block truncate">
+                        Service Radius Score: {d5.service_accessibility_score ?? "N/A"}/100
+                      </span>
+                    </div>
 
-                  <div className="p-3 rounded-lg border border-border/60 bg-card min-w-0 overflow-hidden">
-                    <span className="text-[10px] text-muted-foreground uppercase block truncate">Remote Population</span>
-                    <span className="text-sm font-bold text-foreground mt-0.5 block break-words">
-                      {d5.remote_population_percentage !== null && d5.remote_population_percentage !== undefined
-                        ? `${d5.remote_population_percentage}% Remote`
-                        : "N/A"}
-                    </span>
-                    <span className="text-[10px] text-muted-foreground block truncate">
-                      Transport Gap: {d5.transport_access_gap_score ?? "N/A"}
-                    </span>
+                    <div className="p-3 rounded-lg border border-border/60 bg-card min-w-0 overflow-hidden">
+                      <span className="text-[10px] text-muted-foreground uppercase block truncate">Remote Habitations Gap</span>
+                      <span className="text-sm font-bold text-foreground mt-0.5 block break-words">
+                        {d5.remote_population_percentage !== null && d5.remote_population_percentage !== undefined
+                          ? `${d5.remote_population_percentage}% Remote`
+                          : "N/A"}
+                      </span>
+                      <span className="text-[10px] text-muted-foreground block truncate">
+                        Remote Gap: {d5.remote_area_access_gap_score ?? "N/A"} • Transport Gap: {d5.transport_access_gap_score ?? "N/A"}
+                      </span>
+                    </div>
                   </div>
-                </div>
+                </>
               ) : (
                 <p className="text-muted-foreground text-xs italic">
                   Accessibility context not recorded in snapshot.
@@ -1418,7 +1825,7 @@ export function AdminInfrastructureAssessmentReviewPage() {
           >
             <div className="flex items-center gap-2 text-xs font-bold text-foreground min-w-0">
               <Scale className="h-4 w-4 text-violet-600 shrink-0" />
-              <span className="truncate">D6 — Socioeconomic Need & Deprivation Indices</span>
+              <span className="truncate">D6 — Socioeconomic Need & Multidimensional Deprivation Indices</span>
               {d6?.overall_development_context_score !== undefined ? (
                 <Badge variant="violet" size="sm" className="font-mono text-[10px] shrink-0">
                   Need Score: {d6.overall_development_context_score}/100
@@ -1437,45 +1844,90 @@ export function AdminInfrastructureAssessmentReviewPage() {
             </div>
           </CardHeader>
           {!collapsedSections.d6 ? (
-            <CardContent className="p-4 text-xs space-y-3">
+            <CardContent className="p-4 text-xs space-y-4">
               {d6 ? (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-                  <div className="p-3 rounded-lg border border-border/60 bg-card min-w-0 overflow-hidden">
-                    <span className="text-[10px] text-muted-foreground uppercase block truncate">Economic Vulnerability</span>
-                    <span className="text-sm font-bold text-foreground mt-0.5 block break-words">
-                      Score: {d6.economic_vulnerability_score ?? "N/A"}
+                <>
+                  {/* Economic Vulnerability & Activity */}
+                  <div>
+                    <span className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider block mb-2">
+                      1. Economic Vulnerability & Income Security
                     </span>
-                    <span className="text-[10px] text-muted-foreground block truncate">
-                      Low Income: {d6.estimated_low_income_population_percentage ?? "N/A"}%
-                    </span>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                      <div className="p-3 rounded-lg border border-border/60 bg-card min-w-0 overflow-hidden">
+                        <span className="text-[10px] text-muted-foreground uppercase block truncate">Economic Vulnerability</span>
+                        <span className="text-sm font-bold text-foreground mt-0.5 block break-words">
+                          {d6.economic_vulnerability_score ?? "N/A"}/100
+                        </span>
+                        <span className="text-[10px] text-muted-foreground block truncate">
+                          Vulnerable Pop: {d6.vulnerable_population_percentage ?? "N/A"}%
+                        </span>
+                      </div>
+
+                      <div className="p-3 rounded-lg border border-border/60 bg-card min-w-0 overflow-hidden">
+                        <span className="text-[10px] text-muted-foreground uppercase block truncate">Low-Income Population</span>
+                        <span className="text-sm font-bold text-foreground mt-0.5 block break-words">
+                          {d6.estimated_low_income_population_percentage ?? "N/A"}%
+                        </span>
+                        <span className="text-[10px] text-muted-foreground block truncate">
+                          Below poverty threshold estimate
+                        </span>
+                      </div>
+
+                      <div className="p-3 rounded-lg border border-border/60 bg-card min-w-0 overflow-hidden">
+                        <span className="text-[10px] text-muted-foreground uppercase block truncate">Employment Opportunity</span>
+                        <span className="text-sm font-bold text-foreground mt-0.5 block break-words">
+                          {d6.employment_opportunity_score ?? "N/A"}/100
+                        </span>
+                        <span className="text-[10px] text-muted-foreground block truncate">
+                          Job market accessibility index
+                        </span>
+                      </div>
+
+                      <div className="p-3 rounded-lg border border-border/60 bg-card min-w-0 overflow-hidden">
+                        <span className="text-[10px] text-muted-foreground uppercase block truncate">Economic Activity Score</span>
+                        <span className="text-sm font-bold text-foreground mt-0.5 block break-words">
+                          {d6.economic_activity_score ?? "N/A"}/100
+                        </span>
+                        <span className="text-[10px] text-muted-foreground block truncate">
+                          Commercial & market vitality
+                        </span>
+                      </div>
+                    </div>
                   </div>
 
-                  <div className="p-3 rounded-lg border border-border/60 bg-card min-w-0 overflow-hidden">
-                    <span className="text-[10px] text-muted-foreground uppercase block truncate">Healthcare Gap</span>
-                    <span className="text-sm font-bold text-foreground mt-0.5 block break-words">
-                      Score: {d6.healthcare_service_gap_score ?? "N/A"}
+                  {/* Sectoral Service Deprivation Breakdown */}
+                  <div>
+                    <span className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider block mb-2">
+                      2. Sectoral Service Gap Scores (/100)
                     </span>
-                    <span className="text-[10px] text-muted-foreground block truncate">Clinical Facility Index</span>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5">
+                      <div className="p-2.5 rounded-lg border border-border/60 bg-card min-w-0">
+                        <span className="text-[10px] text-muted-foreground block truncate">Healthcare Gap</span>
+                        <span className="text-xs font-bold text-foreground mt-0.5 block">{d6.healthcare_service_gap_score ?? "N/A"}</span>
+                      </div>
+                      <div className="p-2.5 rounded-lg border border-border/60 bg-card min-w-0">
+                        <span className="text-[10px] text-muted-foreground block truncate">Education Gap</span>
+                        <span className="text-xs font-bold text-foreground mt-0.5 block">{d6.education_service_gap_score ?? "N/A"}</span>
+                      </div>
+                      <div className="p-2.5 rounded-lg border border-border/60 bg-card min-w-0">
+                        <span className="text-[10px] text-muted-foreground block truncate">WASH & Sanitation</span>
+                        <span className="text-xs font-bold text-foreground mt-0.5 block">{d6.water_sanitation_service_gap_score ?? "N/A"}</span>
+                      </div>
+                      <div className="p-2.5 rounded-lg border border-border/60 bg-card min-w-0">
+                        <span className="text-[10px] text-muted-foreground block truncate">Electricity Deficit</span>
+                        <span className="text-xs font-bold text-foreground mt-0.5 block">{d6.electricity_service_gap_score ?? "N/A"}</span>
+                      </div>
+                      <div className="p-2.5 rounded-lg border border-border/60 bg-card min-w-0">
+                        <span className="text-[10px] text-muted-foreground block truncate">Digital Gap</span>
+                        <span className="text-xs font-bold text-foreground mt-0.5 block">{d6.digital_connectivity_gap_score ?? "N/A"}</span>
+                      </div>
+                      <div className="p-2.5 rounded-lg border border-border/60 bg-card min-w-0">
+                        <span className="text-[10px] text-muted-foreground block truncate">Service Deprivation</span>
+                        <span className="text-xs font-bold text-foreground mt-0.5 block">{d6.service_deprivation_score ?? "N/A"}</span>
+                      </div>
+                    </div>
                   </div>
-
-                  <div className="p-3 rounded-lg border border-border/60 bg-card min-w-0 overflow-hidden">
-                    <span className="text-[10px] text-muted-foreground uppercase block truncate">Water & Sanitation Gap</span>
-                    <span className="text-sm font-bold text-foreground mt-0.5 block break-words">
-                      Score: {d6.water_sanitation_service_gap_score ?? "N/A"}
-                    </span>
-                    <span className="text-[10px] text-muted-foreground block truncate">WASH Deprivation</span>
-                  </div>
-
-                  <div className="p-3 rounded-lg border border-border/60 bg-card min-w-0 overflow-hidden">
-                    <span className="text-[10px] text-muted-foreground uppercase block truncate">Overall Deprivation</span>
-                    <span className="text-sm font-bold text-foreground mt-0.5 block break-words">
-                      Score: {d6.overall_development_context_score ?? "N/A"}
-                    </span>
-                    <span className="text-[10px] text-muted-foreground block truncate">
-                      Pressure: {d6.socioeconomic_pressure_score ?? "N/A"}
-                    </span>
-                  </div>
-                </div>
+                </>
               ) : (
                 <p className="text-muted-foreground text-xs italic">
                   Socioeconomic gap context not recorded in snapshot.
@@ -1510,68 +1962,118 @@ export function AdminInfrastructureAssessmentReviewPage() {
             </div>
           </CardHeader>
           {!collapsedSections.d7 ? (
-            <CardContent className="p-4 text-xs space-y-3">
+            <CardContent className="p-4 text-xs space-y-4">
               {d7History ? (
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-3">
-                  <div className="p-2.5 rounded-lg border border-border/60 bg-card min-w-0 overflow-hidden">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                  <div className="p-3 rounded-lg border border-border/60 bg-card min-w-0 overflow-hidden">
                     <span className="text-[10px] text-muted-foreground uppercase block truncate">Precedents In Sector</span>
-                    <span className="text-sm font-bold text-foreground block truncate">
+                    <span className="text-sm font-bold text-foreground mt-0.5 block break-words">
                       {d7History.project_count ?? d7Projects.length} Projects
                     </span>
+                    <span className="text-[10px] text-muted-foreground block truncate">Historical execution record</span>
                   </div>
-                  <div className="p-2.5 rounded-lg border border-border/60 bg-card min-w-0 overflow-hidden">
-                    <span className="text-[10px] text-muted-foreground uppercase block truncate">Average Historical Cost</span>
-                    <span className="text-sm font-bold text-foreground block truncate">
+
+                  <div className="p-3 rounded-lg border border-border/60 bg-card min-w-0 overflow-hidden">
+                    <span className="text-[10px] text-muted-foreground uppercase block truncate">Average Project Outlay</span>
+                    <span className="text-sm font-bold text-foreground mt-0.5 block break-words">
                       {d7History.average_actual_cost_crore !== null && d7History.average_actual_cost_crore !== undefined
                         ? `₹${d7History.average_actual_cost_crore} Cr`
                         : "N/A"}
                     </span>
+                    <span className="text-[10px] text-muted-foreground block truncate">
+                      Avg Per Beneficiary: {d7History.average_cost_per_beneficiary ? `₹${d7History.average_cost_per_beneficiary}` : "N/A"}
+                    </span>
                   </div>
-                  <div className="p-2.5 rounded-lg border border-border/60 bg-card min-w-0 overflow-hidden">
-                    <span className="text-[10px] text-muted-foreground uppercase block truncate">Cost Variance Rate</span>
-                    <span className="text-sm font-bold text-foreground block truncate">
+
+                  <div className="p-3 rounded-lg border border-border/60 bg-card min-w-0 overflow-hidden">
+                    <span className="text-[10px] text-muted-foreground uppercase block truncate">Cost & Time Variance</span>
+                    <span className="text-sm font-bold text-foreground mt-0.5 block break-words">
                       {d7History.average_cost_variance_percentage !== null && d7History.average_cost_variance_percentage !== undefined
-                        ? `${d7History.average_cost_variance_percentage}%`
+                        ? `${d7History.average_cost_variance_percentage}% Cost Overrun`
                         : "N/A"}
                     </span>
+                    <span className="text-[10px] text-muted-foreground block truncate">
+                      Time Delay: {d7History.average_time_variance_percentage ?? "0"}%
+                    </span>
+                  </div>
+
+                  <div className="p-3 rounded-lg border border-border/60 bg-card min-w-0 overflow-hidden">
+                    <span className="text-[10px] text-muted-foreground uppercase block truncate">Execution Efficiency</span>
+                    <span className="text-sm font-bold text-foreground mt-0.5 block break-words">
+                      {d7History.average_execution_efficiency ? `${d7History.average_execution_efficiency}/100` : "N/A"}
+                    </span>
+                    <span className="text-[10px] text-muted-foreground block truncate">Sector Delivery Benchmark</span>
                   </div>
                 </div>
               ) : null}
 
               {d7Projects.length > 0 ? (
                 <div className="overflow-x-auto rounded-xl border border-border/70 min-w-0 w-full">
-                  <table className="w-full text-left text-xs border-collapse min-w-[540px]">
+                  <table className="w-full text-left text-xs border-collapse min-w-[760px]">
                     <thead>
                       <tr className="bg-muted/40 border-b border-border text-[11px] text-muted-foreground">
-                        <th className="py-2 px-3 font-semibold">Project Title / Type</th>
-                        <th className="py-2 px-3 font-semibold">Status</th>
-                        <th className="py-2 px-3 font-semibold">Approved Cost</th>
-                        <th className="py-2 px-3 font-semibold">Actual Cost</th>
-                        <th className="py-2 px-3 font-semibold">Duration</th>
+                        <th className="py-2.5 px-3 font-semibold">Project Title / Type</th>
+                        <th className="py-2.5 px-3 font-semibold">Mode & Contractor</th>
+                        <th className="py-2.5 px-3 font-semibold">Status</th>
+                        <th className="py-2.5 px-3 font-semibold">Approved vs Actual</th>
+                        <th className="py-2.5 px-3 font-semibold">Duration (Mo)</th>
+                        <th className="py-2.5 px-3 font-semibold">Beneficiaries</th>
+                        <th className="py-2.5 px-3 font-semibold">Efficiency</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-border/60">
                       {d7Projects.map((proj, idx) => (
                         <tr key={proj.project_id || idx} className="hover:bg-muted/20">
-                          <td className="py-2 px-3">
-                            <span className="font-semibold text-foreground block truncate max-w-[220px]" title={proj.project_name || proj.project_type || "Historical Capital Project"}>
+                          <td className="py-2.5 px-3">
+                            <span className="font-semibold text-foreground block truncate max-w-[200px]" title={proj.project_name || proj.project_type || "Historical Capital Project"}>
                               {proj.project_name || proj.project_type || "Historical Capital Project"}
                             </span>
                             <span className="text-[10px] text-muted-foreground block truncate">
                               {proj.planning_sector_name || proj.project_sector} • FY {proj.financial_year || "N/A"}
                             </span>
                           </td>
-                          <td className="py-2 px-3">
+                          <td className="py-2.5 px-3 text-[11px]">
+                            <span className="font-medium text-foreground block truncate">
+                              {proj.implementation_mode || "EPC Contract"}
+                            </span>
+                            <span className="text-[10px] text-muted-foreground block truncate">
+                              {proj.contractor_or_implementer_type || proj.budget_source_type || "State Agency"}
+                            </span>
+                          </td>
+                          <td className="py-2.5 px-3">
                             <Badge variant="outline" size="sm" className="text-[10px]">
                               {proj.project_status || "COMPLETED"}
                             </Badge>
                           </td>
-                          <td className="py-2 px-3 font-mono">₹{proj.approved_cost_crore ?? "N/A"} Cr</td>
-                          <td className="py-2 px-3 font-mono text-emerald-800">
-                            ₹{proj.actual_cost_crore ?? "N/A"} Cr
+                          <td className="py-2.5 px-3 font-mono">
+                            <div>
+                              <span className="text-muted-foreground">₹{proj.approved_cost_crore ?? "N/A"} Cr</span>
+                              <span className="text-muted-foreground"> → </span>
+                              <span className="font-bold text-emerald-800">₹{proj.actual_cost_crore ?? "N/A"} Cr</span>
+                            </div>
+                            {proj.cost_variance_percentage != null && (
+                              <span className="text-[10px] text-muted-foreground block">
+                                ({proj.cost_variance_percentage > 0 ? `+${proj.cost_variance_percentage}%` : `${proj.cost_variance_percentage}%`})
+                              </span>
+                            )}
                           </td>
-                          <td className="py-2 px-3 font-mono">
-                            {proj.actual_duration_months ? `${proj.actual_duration_months} mo` : "N/A"}
+                          <td className="py-2.5 px-3 font-mono">
+                            <span>{proj.actual_duration_months ? `${proj.actual_duration_months} mo` : "N/A"}</span>
+                            {proj.project_duration_months && (
+                              <span className="text-[10px] text-muted-foreground block">
+                                Planned: {proj.project_duration_months} mo
+                              </span>
+                            )}
+                          </td>
+                          <td className="py-2.5 px-3 font-mono">
+                            {proj.estimated_beneficiary_population ? proj.estimated_beneficiary_population.toLocaleString() : "N/A"}
+                          </td>
+                          <td className="py-2.5 px-3 font-mono">
+                            {proj.project_execution_efficiency_score != null ? (
+                              <span className="font-bold text-foreground">{proj.project_execution_efficiency_score}/100</span>
+                            ) : (
+                              "N/A"
+                            )}
                           </td>
                         </tr>
                       ))}
@@ -1588,7 +2090,7 @@ export function AdminInfrastructureAssessmentReviewPage() {
         </Card>
       </div>
 
-      {/* 6. DATASET D8 ISOLATION & SIMILAR REQUESTS */}
+      {/* 7. DATASET D8 ISOLATION & SIMILAR REQUESTS */}
       <Card className="rounded-2xl border border-border/80 shadow-sm bg-muted/10 overflow-hidden min-w-0">
         <CardHeader className="py-3 px-4 bg-muted/20 border-b border-border/70 flex flex-row items-center justify-between gap-2">
           <div className="flex items-center gap-2 text-xs font-bold text-foreground min-w-0">
@@ -1617,7 +2119,7 @@ export function AdminInfrastructureAssessmentReviewPage() {
         </CardContent>
       </Card>
 
-      {/* 7. FEASIBILITY & SUSTAINABILITY INDICATORS */}
+      {/* 8. FEASIBILITY & SUSTAINABILITY INDICATORS */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {/* Feasibility Indicators */}
         <Card className="rounded-2xl border border-border/80 shadow-sm overflow-hidden min-w-0">
@@ -1680,7 +2182,7 @@ export function AdminInfrastructureAssessmentReviewPage() {
         </Card>
       </div>
 
-      {/* 8. RISKS AND MISSING INFORMATION */}
+      {/* 9. RISKS AND MISSING INFORMATION */}
       <Card className="rounded-2xl border border-amber-200/90 bg-amber-50/30 shadow-sm overflow-hidden min-w-0">
         <CardHeader className="py-3 px-4 bg-amber-100/50 border-b border-amber-200/80 flex flex-row items-center justify-between gap-2">
           <div className="flex items-center gap-2 text-amber-950 font-bold text-xs min-w-0">
@@ -1710,7 +2212,7 @@ export function AdminInfrastructureAssessmentReviewPage() {
         </CardContent>
       </Card>
 
-      {/* 9. ADMIN INFRASTRUCTURE DECISION WORKSPACE */}
+      {/* 10. ADMIN INFRASTRUCTURE DECISION WORKSPACE */}
       {decision || issue.status === "INFRASTRUCTURE_ACCEPTED" || issue.status === "INFRASTRUCTURE_REJECTED" ? (
         <Card className="rounded-2xl border-2 border-indigo-300 bg-gradient-to-r from-indigo-50/50 via-card to-indigo-50/30 shadow-md overflow-hidden min-w-0">
           <CardHeader className="py-3 px-4 bg-indigo-100/60 border-b border-indigo-200/80 flex flex-row items-center justify-between gap-2">
@@ -1786,7 +2288,7 @@ export function AdminInfrastructureAssessmentReviewPage() {
               <span>Admin Infrastructure Screening Decision</span>
             </div>
             <p className="text-[11px] text-muted-foreground mt-0.5 leading-relaxed">
-              CivicFix presents the factual evidence. The final screening decision is determined solely by the authorized Administrator.
+              CivicFix presents the factual evidence across all 7 district datasets. The final screening decision is determined solely by the authorized Administrator.
             </p>
           </CardHeader>
 
@@ -1819,7 +2321,7 @@ export function AdminInfrastructureAssessmentReviewPage() {
                   </div>
                 </div>
                 <p className="text-[11px] text-muted-foreground leading-relaxed break-words">
-                  The Admin confirms that the infrastructure request passes the current CivicFix infrastructure screening/review stage.
+                  The Admin confirms that the infrastructure request passes the current CivicFix infrastructure screening/review stage based on evidence across datasets D1–D7.
                 </p>
               </button>
 
@@ -1902,7 +2404,7 @@ export function AdminInfrastructureAssessmentReviewPage() {
         </Card>
       )}
 
-      {/* 10. BOTTOM NAVIGATION BAR (READ-ONLY) */}
+      {/* 11. BOTTOM NAVIGATION BAR (READ-ONLY) */}
       <div className="flex items-center justify-between pt-4 border-t border-border/70">
         <Button asChild variant="outline" size="sm" className="gap-1.5 text-xs">
           <Link to="/app/admin/classification">
