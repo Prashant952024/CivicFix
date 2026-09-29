@@ -241,3 +241,34 @@ export interface DepartmentPlanningSectorMapping {
   is_primary: boolean;
 }
 
+/**
+ * Supported canonical district resolution methods
+ */
+export type DistrictResolutionMethod = "CITIZEN_SELECTED" | "AI_ADDRESS_PARSED" | "ADMIN_MANUAL";
+
+/**
+ * Canonical district item representation
+ */
+export interface CanonicalDistrict {
+  id: string;
+  district_name: string;
+  state_name: string;
+  state_code: string | null;
+  country_code: string;
+  canonical_source: string;
+}
+
+/**
+ * Issue infrastructure context readiness status
+ */
+export interface IssueInfrastructureReadinessResult {
+  ready: boolean;
+  issue_id: string;
+  district_id: string | null;
+  district_name?: string | null;
+  department_id: string | null;
+  department_name?: string | null;
+  planning_sector_code: string | null;
+  missing_fields: Array<"district_id" | "department_id" | "planning_sector_code">;
+  resolution_method: DistrictResolutionMethod | null;
+}

@@ -20,6 +20,9 @@ import type {
   IssueInfrastructureContextOptions,
   IssueInfrastructureContextResult,
   DepartmentPlanningSectorMapping,
+  CanonicalDistrict,
+  DistrictResolutionMethod,
+  IssueInfrastructureReadinessResult,
 } from "@/types/infrastructure-context";
 
 export * from "@/types/infrastructure-context";
@@ -271,4 +274,112 @@ export async function fetchIssueInfrastructureContext(
     fetched_at: new Date().toISOString(),
   };
 }
+
+/**
+ * Lists all active canonical districts of India from public.districts master.
+ */
+export async function listCanonicalDistricts(
+  client: SupabaseClient = defaultSupabase
+): Promise<CanonicalDistrict[]> {
+  const { data, error } = await client
+    .from("districts")
+    .select("id, district_name, state_name, state_code, country_code, canonical_source")
+    .eq("is_active", true)
+    .order("state_name", { ascending: true })
+    .order("district_name", { ascending: true });
+
+  if (error) {
+    throw new DistrictInfrastructureContextError(
+      error.message || "Failed to query canonical districts master.",
+      error.code,
+      error.details
+    );
+  }
+
+  return (data ?? []) as CanonicalDistrict[];
+}
+
+/**
+ * Validates the infrastructure assessment readiness for a given issue.
+ * Returns missing fields without throwing, or detailed readiness summary.
+ */
+export async function validateIssueInfrastructureReadiness(
+  issueId: string,
+  client: SupabaseClient = defaultSupabase
+): Promise<IssueInfrastructureReadinessResult> {
+  if (!issueId || typeof issueId !== "string" || issueId.trim() === "") {
+    throw new DistrictInfrastructureContextError(
+      "Parameter 'issueId' must be a valid non-empty string.",
+      "INVALID_ISSUE_ID"
+    );
+  }
+
+  const trimmedIssueId = issueId.trim();
+
+  // 1. Fetch issue with district and department relations
+  const { data: issue, error: issueError } = await client
+    .from("issues")
+    .select(`
+      id,
+      district_id,
+      district_resolution_method,
+      department_id,
+      district:districts!issues_district_id_fkey(id, district_name, state_name),
+      department:departments!issues_department_id_fkey(id, name)
+    `)
+    .eq("id", trimmedIssueId)
+    .maybeSingle();
+
+  if (issueError) {
+    throw new DistrictInfrastructureContextError(
+      issueError.message || `Failed to fetch issue '${trimmedIssueId}'.`,
+      issueError.code,
+      issueError.details
+    );
+  }
+
+  if (!issue) {
+    throw new DistrictInfrastructureContextError(
+      `Issue '${trimmedIssueId}' not found.`,
+      "ISSUE_NOT_FOUND"
+    );
+  }
+
+  const missingFields: Array<"district_id" | "department_id" | "planning_sector_code"> = [];
+
+  if (!issue.district_id) {
+    missingFields.push("district_id");
+  }
+
+  if (!issue.department_id) {
+    missingFields.push("department_id");
+  }
+
+  let planningSectorCode: string | null = null;
+  if (issue.department_id) {
+    try {
+      planningSectorCode = await resolveIssuePlanningSector(issue.department_id, client);
+    } catch {
+      missingFields.push("planning_sector_code");
+    }
+  } else {
+    missingFields.push("planning_sector_code");
+  }
+
+  const districtData = issue.district as { district_name?: string } | null;
+  const departmentData = issue.department as { name?: string } | null;
+
+  return {
+    ready: missingFields.length === 0,
+    issue_id: issue.id,
+    district_id: issue.district_id ?? null,
+    district_name: districtData?.district_name ?? null,
+    department_id: issue.department_id ?? null,
+    department_name: departmentData?.name ?? null,
+    planning_sector_code: planningSectorCode,
+    missing_fields: missingFields,
+    resolution_method: (issue.district_resolution_method as DistrictResolutionMethod) ?? null,
+  };
+}
+
 

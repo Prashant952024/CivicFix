@@ -181,6 +181,8 @@ export interface Database {
           longitude: string | null;
           location_text: string | null;
           address_text: string | null;
+          district_id: string | null;
+          district_resolution_method: "CITIZEN_SELECTED" | "AI_ADDRESS_PARSED" | "ADMIN_MANUAL" | null;
           department_id: string | null;
           resolved_at: string | null;
           original_language: string;
@@ -221,6 +223,8 @@ export interface Database {
           longitude?: string | null;
           location_text?: string | null;
           address_text?: string | null;
+          district_id?: string | null;
+          district_resolution_method?: "CITIZEN_SELECTED" | "AI_ADDRESS_PARSED" | "ADMIN_MANUAL" | null;
           department_id?: string | null;
           resolved_at?: string | null;
           original_language?: string;
@@ -261,6 +265,8 @@ export interface Database {
           longitude?: string | null;
           location_text?: string | null;
           address_text?: string | null;
+          district_id?: string | null;
+          district_resolution_method?: "CITIZEN_SELECTED" | "AI_ADDRESS_PARSED" | "ADMIN_MANUAL" | null;
           department_id?: string | null;
           resolved_at?: string | null;
           original_language?: string;
@@ -294,6 +300,13 @@ export interface Database {
             columns: ["department_id"];
             isOneToOne: false;
             referencedRelation: "departments";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "issues_district_id_fkey";
+            columns: ["district_id"];
+            isOneToOne: false;
+            referencedRelation: "districts";
             referencedColumns: ["id"];
           },
           {

@@ -51,10 +51,16 @@ import {
   getCitizenIssueStatusLabel,
 } from "@/lib/citizen-issues";
 import {
+  assignIssueDistrict,
+  generateAndSaveInfrastructureAssessment,
   getLatestInfrastructureAssessment,
   listInfrastructureAssessmentsForIssue,
   type InfrastructureAssessmentRecord,
 } from "@/lib/infrastructure-assessment";
+import {
+  listCanonicalDistricts,
+  type CanonicalDistrict,
+} from "@/lib/infrastructure-context";
 import {
   getLatestInfrastructureDecisionForIssue,
   recordInfrastructureDecision,
@@ -111,6 +117,14 @@ export function AdminInfrastructureAssessmentReviewPage() {
   const [actionSuccess, setActionSuccess] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
 
+  // District Context Resolution State
+  const [districts, setDistricts] = useState<CanonicalDistrict[]>([]);
+  const [departments, setDepartments] = useState<Array<{ id: string; name: string }>>([]);
+  const [selectedDistrictId, setSelectedDistrictId] = useState("");
+  const [selectedDepartmentId, setSelectedDepartmentId] = useState("");
+  const [districtSearch, setDistrictSearch] = useState("");
+  const [generatingSnapshot, setGeneratingSnapshot] = useState(false);
+
   // Section collapse state
   const [collapsedSections, setCollapsedSections] = useState<Record<string, boolean>>({
     d1: false,
@@ -126,7 +140,7 @@ export function AdminInfrastructureAssessmentReviewPage() {
     setCollapsedSections((prev) => ({ ...prev, [key]: !prev[key] }));
   }
 
-  // Load Issue, Assessment snapshot, and existing Decision
+  // Load Issue, Assessment snapshot, existing Decision, and Reference Data
   useEffect(() => {
     let cancelled = false;
 
@@ -164,6 +178,8 @@ export function AdminInfrastructureAssessmentReviewPage() {
 
         if (cancelled) return;
         setIssue(issueData as IssueRecord);
+        if (issueData.district_id) setSelectedDistrictId(issueData.district_id);
+        if (issueData.department_id) setSelectedDepartmentId(issueData.department_id);
 
         // 2. Fetch all assessments for this issue
         const assessments = await listInfrastructureAssessmentsForIssue(issueId.trim(), supabase);
@@ -201,6 +217,20 @@ export function AdminInfrastructureAssessmentReviewPage() {
         } catch {
           // No prior decision
           if (!cancelled) setDecision(null);
+        }
+
+        // 4. Fetch canonical districts & departments for context resolution
+        try {
+          const [loadedDistricts, deptsResult] = await Promise.all([
+            listCanonicalDistricts(supabase),
+            supabase.from("departments").select("id, name").eq("is_active", true).order("name"),
+          ]);
+          if (!cancelled) {
+            setDistricts(loadedDistricts);
+            setDepartments((deptsResult.data ?? []) as Array<{ id: string; name: string }>);
+          }
+        } catch (refErr) {
+          if (import.meta.env.DEV) console.warn("Failed to load reference districts/departments:", refErr);
         }
       } catch (err) {
         if (!cancelled) {
@@ -271,6 +301,63 @@ export function AdminInfrastructureAssessmentReviewPage() {
       setSubmittingDecision(false);
     }
   }
+
+  // Handle district & department context saving + snapshot generation
+  async function handleSaveDistrictAndGenerate() {
+    if (!issue || !selectedDistrictId) {
+      setActionError("Please select a canonical district.");
+      return;
+    }
+
+    setGeneratingSnapshot(true);
+    setActionError(null);
+    setActionSuccess(null);
+
+    try {
+      // 1. Assign district (and department if selected)
+      await assignIssueDistrict(
+        {
+          issueId: issue.id,
+          districtId: selectedDistrictId,
+          method: "ADMIN_MANUAL",
+          departmentId: selectedDepartmentId || undefined,
+        },
+        supabase
+      );
+
+      // 2. Generate and persist baseline D1-D7 assessment snapshot
+      const newAssessment = await generateAndSaveInfrastructureAssessment(
+        {
+          issueId: issue.id,
+          generatedByProfileId: profile?.id ?? null,
+        },
+        supabase
+      );
+
+      setActionSuccess(
+        `Canonical district successfully assigned and Infrastructure Assessment snapshot v${newAssessment.assessment_version} generated (Data Completeness: ${newAssessment.data_completeness_score}%).`
+      );
+      setRefreshNonce((prev) => prev + 1);
+    } catch (err) {
+      if (import.meta.env.DEV) console.error("Failed to generate infrastructure assessment snapshot:", err);
+      setActionError(
+        err instanceof Error ? err.message : "Failed to generate infrastructure assessment snapshot."
+      );
+    } finally {
+      setGeneratingSnapshot(false);
+    }
+  }
+
+  const filteredDistricts = useMemo(() => {
+    if (!districtSearch.trim()) return districts.slice(0, 100);
+    const q = districtSearch.toLowerCase().trim();
+    return districts.filter(
+      (d) =>
+        d.district_name.toLowerCase().includes(q) ||
+        d.state_name.toLowerCase().includes(q) ||
+        d.id.toLowerCase().includes(q)
+    );
+  }, [districts, districtSearch]);
 
   // Derived current assessment
   const currentAssessment = useMemo(() => {
@@ -364,6 +451,9 @@ export function AdminInfrastructureAssessmentReviewPage() {
   }
 
   if (!currentAssessment) {
+    const isMissingDistrict = !issue.district_id && !selectedDistrictId;
+    const isMissingDept = !issue.department_id && !selectedDepartmentId;
+
     return (
       <div className="space-y-6">
         <PageHeader
@@ -373,24 +463,197 @@ export function AdminInfrastructureAssessmentReviewPage() {
           backLabel="Classification Queue"
           tag="Infrastructure Track"
         />
-        <EmptyState
-          icon={Building2}
-          variant="default"
-          title="Infrastructure Assessment Not Available"
-          description={`This issue is in status ${getCitizenIssueStatusLabel(
-            issue.status
-          )}, but no persisted D1–D7 infrastructure assessment snapshot was found in public.infrastructure_assessments. Please ensure the issue has been classified as INFRASTRUCTURE.`}
-          action={
-            <div className="flex gap-2">
-              <Button asChild size="sm">
-                <Link to="/app/admin/classification">Go to Classification Workspace</Link>
-              </Button>
-              <Button asChild variant="outline" size="sm">
-                <Link to={`/app/admin/issues/${issue.id}`}>View General Issue Details</Link>
-              </Button>
+
+        {/* Action Banners */}
+        {actionSuccess && (
+          <Card className="p-4 bg-emerald-50 border-emerald-200 text-emerald-900 text-xs flex items-center justify-between gap-2 shadow-sm">
+            <div className="flex items-center gap-2">
+              <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
+              <span className="font-semibold">{actionSuccess}</span>
             </div>
-          }
-        />
+            <Button variant="ghost" size="sm" onClick={() => setActionSuccess(null)} className="h-6 w-6 p-0 text-emerald-800">
+              <X className="h-3.5 w-3.5" />
+            </Button>
+          </Card>
+        )}
+
+        {actionError && (
+          <Card className="p-4 bg-rose-50 border-rose-200 text-rose-900 text-xs flex items-center justify-between gap-2 shadow-sm">
+            <div className="flex items-center gap-2">
+              <AlertCircle className="h-4 w-4 text-rose-600 shrink-0" />
+              <span className="font-semibold">{actionError}</span>
+            </div>
+            <Button variant="ghost" size="sm" onClick={() => setActionError(null)} className="h-6 w-6 p-0 text-rose-800">
+              <X className="h-3.5 w-3.5" />
+            </Button>
+          </Card>
+        )}
+
+        {/* Infrastructure Context Resolution Card */}
+        <Card className="border-2 border-indigo-200 rounded-2xl shadow-sm overflow-hidden">
+          <CardHeader className="py-4 px-5 bg-gradient-to-r from-indigo-50/90 via-sky-50/40 to-indigo-50/90 border-b border-indigo-100">
+            <div className="flex items-center gap-2.5 text-indigo-950 font-bold text-sm">
+              <Compass className="h-5 w-5 text-indigo-600" />
+              <span>Infrastructure Context Resolution & Dossier Generation</span>
+            </div>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              An Infrastructure Assessment requires a verified canonical district and an assigned municipal department with a primary planning sector baseline. Complete or verify the required context below to generate the D1–D7 evidence dossier.
+            </p>
+          </CardHeader>
+
+          <CardContent className="p-5 sm:p-6 space-y-6 text-xs">
+            {/* Issue summary strip */}
+            <div className="p-4 rounded-xl border border-border/80 bg-muted/20 space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="font-mono text-[10px] text-muted-foreground">ID: #{issue.id.slice(0, 8)}</span>
+                <Badge variant="outline" size="sm" className="font-bold">
+                  {getCitizenIssueStatusLabel(issue.status)}
+                </Badge>
+              </div>
+              <h4 className="text-sm font-bold text-foreground">{issue.title}</h4>
+              <p className="text-muted-foreground text-xs">{issue.description}</p>
+              {issue.location_text && (
+                <div className="flex items-center gap-1.5 text-muted-foreground pt-1 text-[11px]">
+                  <MapPin className="h-3.5 w-3.5 text-indigo-600 shrink-0" />
+                  <span>Reported Location: {issue.location_text}</span>
+                  {issue.latitude && issue.longitude && (
+                    <span className="font-mono text-[10px] text-muted-foreground">({issue.latitude}, {issue.longitude})</span>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* Context Status Diagnostics */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div className={`p-3.5 rounded-xl border ${isMissingDistrict ? "border-amber-300 bg-amber-50/50" : "border-emerald-300 bg-emerald-50/50"}`}>
+                <div className="flex items-center justify-between mb-1">
+                  <span className="font-bold text-[11px] uppercase tracking-wider text-muted-foreground">Canonical District</span>
+                  {isMissingDistrict ? (
+                    <Badge variant="amber" size="sm">Missing</Badge>
+                  ) : (
+                    <Badge variant="emerald" size="sm">Configured</Badge>
+                  )}
+                </div>
+                <p className="text-xs font-semibold text-foreground">
+                  {districts.find((d) => d.id === (selectedDistrictId || issue.district_id))?.district_name ?? (issue.district_id || "Not assigned")}
+                </p>
+                <p className="text-[10px] text-muted-foreground mt-0.5">Required for D1–D7 multi-dataset context aggregation</p>
+              </div>
+
+              <div className={`p-3.5 rounded-xl border ${isMissingDept ? "border-amber-300 bg-amber-50/50" : "border-emerald-300 bg-emerald-50/50"}`}>
+                <div className="flex items-center justify-between mb-1">
+                  <span className="font-bold text-[11px] uppercase tracking-wider text-muted-foreground">Assigned Department</span>
+                  {isMissingDept ? (
+                    <Badge variant="amber" size="sm">Missing</Badge>
+                  ) : (
+                    <Badge variant="emerald" size="sm">Configured</Badge>
+                  )}
+                </div>
+                <p className="text-xs font-semibold text-foreground">
+                  {departments.find((d) => d.id === (selectedDepartmentId || issue.department_id))?.name ?? (issue.department_id ? "Assigned" : "Not assigned")}
+                </p>
+                <p className="text-[10px] text-muted-foreground mt-0.5">Required to resolve primary planning sector</p>
+              </div>
+
+              <div className="p-3.5 rounded-xl border border-border/80 bg-card">
+                <div className="flex items-center justify-between mb-1">
+                  <span className="font-bold text-[11px] uppercase tracking-wider text-muted-foreground">Planning Sector</span>
+                  <Badge variant="outline" size="sm">Dynamic Resolution</Badge>
+                </div>
+                <p className="text-xs font-semibold text-foreground">
+                  Resolved via Department Mapping
+                </p>
+                <p className="text-[10px] text-muted-foreground mt-0.5">Evaluated from department_planning_sectors (is_primary)</p>
+              </div>
+            </div>
+
+            {/* Selection Form */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
+              {/* District Selector */}
+              <div className="space-y-2">
+                <label className="font-bold text-foreground block text-xs">
+                  Select Canonical District <span className="text-destructive">*</span>
+                </label>
+                <input
+                  type="text"
+                  placeholder="Filter district or state (e.g. Ranchi, Jharkhand)..."
+                  value={districtSearch}
+                  onChange={(e) => setDistrictSearch(e.target.value)}
+                  className="w-full text-xs p-2 rounded-lg border border-input bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary mb-1.5"
+                />
+                <select
+                  value={selectedDistrictId}
+                  onChange={(e) => setSelectedDistrictId(e.target.value)}
+                  className="w-full text-xs p-2.5 rounded-lg border border-input bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer"
+                >
+                  <option value="">-- Choose Canonical District ({districts.length} available) --</option>
+                  {filteredDistricts.map((d) => (
+                    <option key={d.id} value={d.id}>
+                      {d.district_name}, {d.state_name} ({d.id})
+                    </option>
+                  ))}
+                </select>
+                <p className="text-[11px] text-muted-foreground">
+                  District identity maps to D1 Demographics, D2 Budgets, D3 Geography, D4 Assets, D5 Accessibility, D6 Gaps, and D7 History.
+                </p>
+              </div>
+
+              {/* Department Selector */}
+              <div className="space-y-2">
+                <label className="font-bold text-foreground block text-xs">
+                  Assigned Municipal Department <span className="text-destructive">*</span>
+                </label>
+                <select
+                  value={selectedDepartmentId}
+                  onChange={(e) => setSelectedDepartmentId(e.target.value)}
+                  className="w-full text-xs p-2.5 rounded-lg border border-input bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer mt-7"
+                >
+                  <option value="">-- Choose Municipal Department ({departments.length} available) --</option>
+                  {departments.map((dept) => (
+                    <option key={dept.id} value={dept.id}>
+                      {dept.name}
+                    </option>
+                  ))}
+                </select>
+                <p className="text-[11px] text-muted-foreground">
+                  Department determines the primary planning sector code and capital budget envelopes.
+                </p>
+              </div>
+            </div>
+
+            {/* Submit CTA */}
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-4 border-t">
+              <div className="flex items-center gap-2 text-muted-foreground text-[11px]">
+                <ShieldCheck className="h-4 w-4 text-indigo-600 shrink-0" />
+                <span>Assigning district will record method ADMIN_MANUAL in the audit trail.</span>
+              </div>
+
+              <div className="flex items-center gap-2 w-full sm:w-auto">
+                <Button asChild variant="outline" size="sm" className="flex-1 sm:flex-initial">
+                  <Link to="/app/admin/classification">Back to Classification</Link>
+                </Button>
+                <Button
+                  size="sm"
+                  onClick={handleSaveDistrictAndGenerate}
+                  disabled={!selectedDistrictId || !selectedDepartmentId || generatingSnapshot}
+                  className="flex-1 sm:flex-initial gap-2 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold shadow-xs"
+                >
+                  {generatingSnapshot ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      <span>Generating Dossier...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Building2 className="h-4 w-4" />
+                      <span>Save Context & Generate Snapshot</span>
+                    </>
+                  )}
+                </Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
       </div>
     );
   }

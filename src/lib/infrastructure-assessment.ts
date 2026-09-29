@@ -393,3 +393,107 @@ export async function generateAndSaveInfrastructureAssessment(
 
   return createdRecord as InfrastructureAssessmentRecord;
 }
+
+/**
+ * Assigns or updates the canonical district (and optionally department) on an issue.
+ * Enforces valid resolution method: 'CITIZEN_SELECTED' | 'AI_ADDRESS_PARSED' | 'ADMIN_MANUAL'
+ */
+export async function assignIssueDistrict(
+  params: {
+    issueId: string;
+    districtId: string;
+    method?: "CITIZEN_SELECTED" | "AI_ADDRESS_PARSED" | "ADMIN_MANUAL";
+    departmentId?: string | null;
+  },
+  client: SupabaseClient = defaultSupabase
+): Promise<void> {
+  const { issueId, districtId, method = "ADMIN_MANUAL", departmentId } = params;
+
+  if (!issueId || typeof issueId !== "string" || issueId.trim() === "") {
+    throw new InfrastructureAssessmentError(
+      "Parameter 'issueId' must be a valid non-empty string.",
+      "INVALID_ISSUE_ID"
+    );
+  }
+
+  if (!districtId || typeof districtId !== "string" || districtId.trim() === "") {
+    throw new InfrastructureAssessmentError(
+      "Parameter 'districtId' must be a valid non-empty string.",
+      "INVALID_DISTRICT_ID"
+    );
+  }
+
+  const validMethods = ["CITIZEN_SELECTED", "AI_ADDRESS_PARSED", "ADMIN_MANUAL"];
+  if (!validMethods.includes(method)) {
+    throw new InfrastructureAssessmentError(
+      `Invalid district resolution method '${method}'. Must be one of: ${validMethods.join(", ")}.`,
+      "INVALID_RESOLUTION_METHOD"
+    );
+  }
+
+  const trimmedIssueId = issueId.trim();
+  const trimmedDistrictId = districtId.trim();
+
+  // 1. Verify district exists in master
+  const { data: districtRow, error: districtError } = await client
+    .from("districts")
+    .select("id, district_name, state_name")
+    .eq("id", trimmedDistrictId)
+    .maybeSingle();
+
+  if (districtError) {
+    throw new InfrastructureAssessmentError(
+      districtError.message || `Failed to verify district '${trimmedDistrictId}'.`,
+      districtError.code,
+      districtError.details
+    );
+  }
+
+  if (!districtRow) {
+    throw new InfrastructureAssessmentError(
+      `District '${trimmedDistrictId}' does not exist in canonical districts master.`,
+      "INVALID_DISTRICT_ID"
+    );
+  }
+
+  // 2. Prepare payload
+  const updatePayload: Record<string, unknown> = {
+    district_id: trimmedDistrictId,
+    district_resolution_method: method,
+    updated_at: new Date().toISOString(),
+  };
+
+  if (departmentId !== undefined) {
+    const trimmedDeptId = departmentId ? departmentId.trim() : null;
+    if (trimmedDeptId) {
+      // Verify department exists
+      const { data: deptRow, error: deptError } = await client
+        .from("departments")
+        .select("id")
+        .eq("id", trimmedDeptId)
+        .maybeSingle();
+
+      if (deptError || !deptRow) {
+        throw new InfrastructureAssessmentError(
+          `Department '${trimmedDeptId}' does not exist.`,
+          "INVALID_DEPARTMENT_ID"
+        );
+      }
+      updatePayload.department_id = trimmedDeptId;
+    }
+  }
+
+  // 3. Update issue record
+  const { error: updateError } = await client
+    .from("issues")
+    .update(updatePayload)
+    .eq("id", trimmedIssueId);
+
+  if (updateError) {
+    throw new InfrastructureAssessmentError(
+      updateError.message || `Failed to assign district to issue '${trimmedIssueId}'.`,
+      updateError.code,
+      updateError.details
+    );
+  }
+}

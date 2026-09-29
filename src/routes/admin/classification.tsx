@@ -42,6 +42,10 @@ import {
 } from "@/lib/citizen-issues";
 import { generateAndSaveInfrastructureAssessment } from "@/lib/infrastructure-assessment";
 import {
+  listCanonicalDistricts,
+  type CanonicalDistrict,
+} from "@/lib/infrastructure-context";
+import {
   formatOfficerIssuePriority,
   getOfficerIssuePriorityTone,
   getOfficerIssueSeverityLabel,
@@ -216,6 +220,29 @@ export function AdminClassificationPage() {
   const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
   const [refreshNonce, setRefreshNonce] = useState(0);
 
+  // District Context Resolution State for Infrastructure
+  const [districts, setDistricts] = useState<CanonicalDistrict[]>([]);
+  const [departments, setDepartments] = useState<Array<{ id: string; name: string }>>([]);
+  const [selectedDistrictId, setSelectedDistrictId] = useState("");
+  const [selectedDepartmentId, setSelectedDepartmentId] = useState("");
+
+  // Load canonical districts & departments for infrastructure context resolution
+  useEffect(() => {
+    async function loadReferenceData() {
+      try {
+        const [loadedDistricts, deptsResult] = await Promise.all([
+          listCanonicalDistricts(supabase),
+          supabase.from("departments").select("id, name").eq("is_active", true).order("name"),
+        ]);
+        setDistricts(loadedDistricts);
+        setDepartments((deptsResult.data ?? []) as Array<{ id: string; name: string }>);
+      } catch (err) {
+        if (import.meta.env.DEV) console.warn("Could not load reference districts/departments", err);
+      }
+    }
+    void loadReferenceData();
+  }, []);
+
   // Load issues with full AI diagnostics and status history
   useEffect(() => {
     let cancelled = false;
@@ -300,6 +327,8 @@ export function AdminClassificationPage() {
 
   function handleSelectIssue(issue: IssueRow) {
     setSelectedIssueId(issue.id);
+    setSelectedDistrictId(issue.district_id || "");
+    setSelectedDepartmentId(issue.department_id || "");
     const defaultDecision =
       (issue.final_issue_type as DecisionType | null) ||
       (issue.ai_issue_type as DecisionType | null) ||
@@ -504,16 +533,26 @@ export function AdminClassificationPage() {
 
     try {
       // 1. Update issue record with authoritative decision
+      const issueUpdatePayload: Database["public"]["Tables"]["issues"]["Update"] = {
+        final_issue_type: decisionType,
+        classification_decided_by: profile.id,
+        classification_decided_at: nowIso,
+        classification_override_reason: isOverride ? overrideReason.trim() : null,
+        status: targetStatus,
+        updated_at: nowIso,
+      };
+
+      if (decisionType === "INFRASTRUCTURE" && selectedDistrictId) {
+        issueUpdatePayload.district_id = selectedDistrictId;
+        issueUpdatePayload.district_resolution_method = "ADMIN_MANUAL";
+        if (selectedDepartmentId) {
+          issueUpdatePayload.department_id = selectedDepartmentId;
+        }
+      }
+
       const { error: updateError } = await supabase
         .from("issues")
-        .update({
-          final_issue_type: decisionType,
-          classification_decided_by: profile.id,
-          classification_decided_at: nowIso,
-          classification_override_reason: isOverride ? overrideReason.trim() : null,
-          status: targetStatus,
-          updated_at: nowIso,
-        })
+        .update(issueUpdatePayload)
         .eq("id", selectedIssue.id);
 
       if (updateError) throw updateError;
@@ -591,10 +630,9 @@ export function AdminClassificationPage() {
           );
         } catch (assessmentErr) {
           if (import.meta.env.DEV) console.error("Infrastructure assessment generation failed:", assessmentErr);
+          const errorMsg = assessmentErr instanceof Error ? assessmentErr.message : "Unknown error";
           setActionError(
-            `Issue classified as INFRASTRUCTURE, but baseline assessment snapshot creation failed: ${
-              assessmentErr instanceof Error ? assessmentErr.message : "Unknown error"
-            }`
+            `Issue classified as INFRASTRUCTURE, but baseline assessment snapshot creation failed: ${errorMsg}. You can complete district resolution in the Infrastructure Assessment workspace.`
           );
         }
       } else {
@@ -1668,6 +1706,52 @@ export function AdminClassificationPage() {
               <div className="p-3 bg-amber-50 border border-amber-300 rounded-lg text-amber-950 space-y-1">
                 <span className="font-bold block text-xs">Administrative Override Justification:</span>
                 <p className="text-[11px] italic leading-relaxed">{overrideReason.trim()}</p>
+              </div>
+            ) : null}
+
+            {decisionType === "INFRASTRUCTURE" ? (
+              <div className="p-3.5 bg-indigo-50/70 border border-indigo-200 rounded-xl space-y-3">
+                <div className="flex items-center gap-2 text-indigo-950 font-bold text-xs">
+                  <Building2 className="h-4 w-4 text-indigo-700" />
+                  <span>Infrastructure Planning Context (Optional Now)</span>
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[11px] font-semibold text-foreground block">
+                    Canonical District:
+                  </label>
+                  <select
+                    value={selectedDistrictId}
+                    onChange={(e) => setSelectedDistrictId(e.target.value)}
+                    className="w-full text-xs p-2 rounded-lg border border-input bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer"
+                  >
+                    <option value="">-- Select Canonical District ({districts.length} available) --</option>
+                    {districts.map((d) => (
+                      <option key={d.id} value={d.id}>
+                        {d.district_name}, {d.state_name} ({d.id})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[11px] font-semibold text-foreground block">
+                    Assigned Department:
+                  </label>
+                  <select
+                    value={selectedDepartmentId}
+                    onChange={(e) => setSelectedDepartmentId(e.target.value)}
+                    className="w-full text-xs p-2 rounded-lg border border-input bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer"
+                  >
+                    <option value="">-- Select Department ({departments.length} available) --</option>
+                    {departments.map((dept) => (
+                      <option key={dept.id} value={dept.id}>
+                        {dept.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <p className="text-[10px] text-muted-foreground leading-tight">
+                  District context can also be verified or updated in the Infrastructure Assessment workspace at any time.
+                </p>
               </div>
             ) : null}
 
