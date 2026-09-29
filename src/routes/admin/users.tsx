@@ -40,6 +40,7 @@ import { Dialog } from "@/components/ui/dialog";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PageHeader } from "@/components/ui/page-header";
 import { getAdminInitials, getAdminRoleTone } from "@/lib/admin";
+import { buildPostgrestIlikeOr } from "@/lib/security";
 import { supabase } from "@/lib/supabase";
 import type { Database } from "@/types/database";
 
@@ -222,8 +223,10 @@ export function AdminUsersPage() {
   const [departments, setDepartments] = useState<DepartmentRow[]>([]);
   const [institutions, setInstitutions] = useState<InstitutionRow[]>([]);
   const [organizations, setOrganizations] = useState<OrganizationRow[]>([]);
-  const [issues, setIssues] = useState<IssueRow[]>([]);
-  const [assignments, setAssignments] = useState<AssignmentRow[]>([]);
+  const [users, setUsers] = useState<UserRecord[]>([]);
+  const [totalCount, setTotalCount] = useState(0);
+  const [totalPlatformCount, setTotalPlatformCount] = useState(0);
+  const [roleStats, setRoleStats] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -291,63 +294,195 @@ export function AdminUsersPage() {
       setLoading(true);
       setError(null);
 
-      const [profilesResult, rolesResult, departmentsResult, institutionsResult, orgsResult, issuesResult, assignmentsResult] = await Promise.all([
-        supabase
+      try {
+        // 1. Fetch metadata if not already loaded
+        let currentRoles = roles;
+        let currentDepartments = departments;
+        let currentInstitutions = institutions;
+        let currentOrganizations = organizations;
+
+        if (currentRoles.length === 0 || currentDepartments.length === 0) {
+          const [rolesResult, departmentsResult, institutionsResult, orgsResult] = await Promise.all([
+            supabase.from("roles").select("id, code, name, description, is_system_role").order("name", { ascending: true }),
+            supabase.from("departments").select("id, name, is_active").order("name", { ascending: true }),
+            supabase.from("institutions").select("id, name, acronym, is_active").order("name", { ascending: true }),
+            supabase.from("industry_organizations").select("id, name, organization_type, verification_status").order("name", { ascending: true }),
+          ]);
+
+          if (cancelled) return;
+
+          if (rolesResult.error) console.error("Admin users roles query error:", rolesResult.error);
+          if (departmentsResult.error) console.error("Admin users departments query error:", departmentsResult.error);
+          if (institutionsResult.error) console.error("Admin users institutions query error:", institutionsResult.error);
+          if (orgsResult.error) console.error("Admin users organizations query error:", orgsResult.error);
+
+          if (rolesResult.data) {
+            currentRoles = rolesResult.data;
+            setRoles(rolesResult.data);
+          }
+          if (departmentsResult.data) {
+            currentDepartments = departmentsResult.data;
+            setDepartments(departmentsResult.data);
+          }
+          if (institutionsResult.data) {
+            currentInstitutions = institutionsResult.data;
+            setInstitutions(institutionsResult.data);
+          }
+          if (orgsResult.data) {
+            currentOrganizations = orgsResult.data;
+            setOrganizations(orgsResult.data);
+          }
+        }
+
+        // 2. Fetch global role summary counts using lightweight head-only queries
+        if (currentRoles.length > 0) {
+          const roleCountPromises = currentRoles.map(async (r) => {
+            const { count } = await supabase
+              .from("profiles")
+              .select("id", { count: "exact", head: true })
+              .eq("role_id", r.id);
+            return { code: r.code, count: count ?? 0 };
+          });
+          const totalCountPromise = supabase
+            .from("profiles")
+            .select("id", { count: "exact", head: true });
+
+          const [roleCountResults, totalPlatformRes] = await Promise.all([
+            Promise.all(roleCountPromises),
+            totalCountPromise,
+          ]);
+
+          if (!cancelled) {
+            const statsMap: Record<string, number> = {};
+            for (const rc of roleCountResults) {
+              statsMap[rc.code] = rc.count;
+            }
+            setRoleStats(statsMap);
+            setTotalPlatformCount(totalPlatformRes.count ?? 0);
+          }
+        }
+
+        // 3. Construct Server-Side Filtered & Paginated Profiles Query
+        const from = (page - 1) * PAGE_SIZE;
+        const to = from + PAGE_SIZE - 1;
+
+        let query = supabase
           .from("profiles")
           .select(
             "id, clerk_user_id, full_name, email, phone, role_id, department_id, employee_id, designation, is_active, avatar_url, institution_id, organization_id, joined_at, created_at, updated_at, role:roles!profiles_role_id_fkey(id, code, name), department:departments!profiles_department_id_fkey(id, name, is_active), institution:institutions!profiles_institution_id_fkey(id, name, acronym), organization:industry_organizations!profiles_organization_id_fkey(id, name, organization_type, verification_status)",
-          )
-          .order("created_at", { ascending: false }),
-        supabase.from("roles").select("id, code, name, description, is_system_role").order("name", { ascending: true }),
-        supabase.from("departments").select("id, name, is_active").order("name", { ascending: true }),
-        supabase.from("institutions").select("id, name, acronym, is_active").order("name", { ascending: true }),
-        supabase.from("industry_organizations").select("id, name, organization_type, verification_status").order("name", { ascending: true }),
-        supabase.from("issues").select("id, reporter_profile_id, updated_at"),
-        supabase.from("issue_assignments").select("id, worker_id, department_id, status, unassigned_at"),
-      ]);
+            { count: "exact" }
+          );
 
-      if (cancelled) {
-        return;
-      }
+        // Role filter
+        if (roleFilter !== "all") {
+          const matchingRole = currentRoles.find((r) => r.code === roleFilter);
+          if (matchingRole) {
+            query = query.eq("role_id", matchingRole.id);
+          }
+        }
 
-      if (profilesResult.error) {
-        console.error("Admin users profiles query error:", profilesResult.error);
-      }
-      if (rolesResult.error) {
-        console.error("Admin users roles query error:", rolesResult.error);
-      }
-      if (departmentsResult.error) {
-        console.error("Admin users departments query error:", departmentsResult.error);
-      }
-      if (institutionsResult.error) {
-        console.error("Admin users institutions query error:", institutionsResult.error);
-      }
-      if (orgsResult.error) {
-        console.error("Admin users organizations query error:", orgsResult.error);
-      }
-      if (issuesResult.error) {
-        console.error("Admin users issues query error:", issuesResult.error);
-      }
-      if (assignmentsResult.error) {
-        console.error("Admin users assignments query error:", assignmentsResult.error);
-      }
+        // Department filter
+        if (departmentFilter !== "all") {
+          query = query.eq("department_id", departmentFilter);
+        }
 
-      const firstError =
-        profilesResult.error ?? rolesResult.error ?? departmentsResult.error ?? institutionsResult.error ?? orgsResult.error ?? issuesResult.error ?? assignmentsResult.error;
-      if (firstError) {
-        setError(firstError.message || "Unable to load user management right now.");
+        // Status filter
+        if (statusFilter === "active") {
+          query = query.eq("is_active", true);
+        } else if (statusFilter === "inactive") {
+          query = query.eq("is_active", false);
+        }
+
+        // Search filter (multi-column ilike OR securely escaped)
+        const searchClause = buildPostgrestIlikeOr(
+          ["full_name", "email", "phone", "employee_id", "designation"],
+          search
+        );
+        if (searchClause) {
+          query = query.or(searchClause);
+        }
+
+        // Order and Range Window
+        query = query.order("created_at", { ascending: false }).range(from, to);
+
+        const { data: pageProfiles, count: totalProfileCount, error: profilesError } = await query;
+
+        if (cancelled) return;
+
+        if (profilesError) {
+          console.error("Admin users profiles query error:", profilesError);
+          setError(profilesError.message || "Unable to load user management right now.");
+          setLoading(false);
+          return;
+        }
+
+        const loadedProfiles = (pageProfiles ?? []) as ProfileRow[];
+        setTotalCount(totalProfileCount ?? 0);
+        setProfiles(loadedProfiles);
+
+        // 4. Extract visible profile IDs and fetch statistics strictly scoped to visible users
+        const visibleIds = loadedProfiles.map((p) => p.id);
+        let pageIssues: IssueRow[] = [];
+        let pageAssignments: AssignmentRow[] = [];
+
+        if (visibleIds.length > 0) {
+          const [issuesRes, assignmentsRes] = await Promise.all([
+            supabase
+              .from("issues")
+              .select("id, reporter_profile_id, updated_at")
+              .in("reporter_profile_id", visibleIds),
+            supabase
+              .from("issue_assignments")
+              .select("id, worker_id, department_id, status, unassigned_at")
+              .in("worker_id", visibleIds)
+              .is("unassigned_at", null)
+              .eq("status", "ACTIVE"),
+          ]);
+
+          if (cancelled) return;
+
+          if (issuesRes.data) pageIssues = issuesRes.data;
+          if (assignmentsRes.data) pageAssignments = assignmentsRes.data;
+        }
+
+        // 5. Compute user records for the visible page
+        const issueMap = new Map<string, { count: number; lastIssueUpdatedAt: string | null }>();
+        for (const issue of pageIssues) {
+          const entry = issueMap.get(issue.reporter_profile_id) ?? { count: 0, lastIssueUpdatedAt: null };
+          entry.count += 1;
+          if (!entry.lastIssueUpdatedAt || new Date(issue.updated_at).getTime() > new Date(entry.lastIssueUpdatedAt).getTime()) {
+            entry.lastIssueUpdatedAt = issue.updated_at;
+          }
+          issueMap.set(issue.reporter_profile_id, entry);
+        }
+
+        const activeAssignmentsMap = new Map<string, number>();
+        for (const assignment of pageAssignments) {
+          if (assignment.worker_id && assignment.unassigned_at === null && assignment.status === "ACTIVE") {
+            activeAssignmentsMap.set(assignment.worker_id, (activeAssignmentsMap.get(assignment.worker_id) ?? 0) + 1);
+          }
+        }
+
+        const mappedUsers: UserRecord[] = loadedProfiles.map((entry) => {
+          const issueSummary = issueMap.get(entry.id) ?? { count: 0, lastIssueUpdatedAt: null };
+          const activeAssignments = activeAssignmentsMap.get(entry.id) ?? 0;
+          return {
+            ...entry,
+            issueCount: issueSummary.count,
+            lastIssueUpdatedAt: issueSummary.lastIssueUpdatedAt,
+            activeAssignmentsCount: activeAssignments,
+          };
+        });
+
+        setUsers(mappedUsers);
         setLoading(false);
-        return;
+      } catch (err: unknown) {
+        if (!cancelled) {
+          console.error("Admin loadUsers unexpected error:", err);
+          setError(err instanceof Error ? err.message : "Failed to load user management.");
+          setLoading(false);
+        }
       }
-
-      setProfiles(profilesResult.data ?? []);
-      setRoles(rolesResult.data ?? []);
-      setDepartments(departmentsResult.data ?? []);
-      setInstitutions(institutionsResult.data ?? []);
-      setOrganizations(orgsResult.data ?? []);
-      setIssues(issuesResult.data ?? []);
-      setAssignments(assignmentsResult.data ?? []);
-      setLoading(false);
     }
 
     void loadUsers();
@@ -355,71 +490,11 @@ export function AdminUsersPage() {
     return () => {
       cancelled = true;
     };
-  }, [profile?.id, refreshNonce, sessionStatus]);
+  }, [departmentFilter, page, profile?.id, refreshNonce, roleFilter, search, sessionStatus, statusFilter]);
 
-  const users = useMemo<UserRecord[]>(() => {
-    const issueMap = new Map<string, { count: number; lastIssueUpdatedAt: string | null }>();
-    for (const issue of issues) {
-      const entry = issueMap.get(issue.reporter_profile_id) ?? { count: 0, lastIssueUpdatedAt: null };
-      entry.count += 1;
-      if (!entry.lastIssueUpdatedAt || new Date(issue.updated_at).getTime() > new Date(entry.lastIssueUpdatedAt).getTime()) {
-        entry.lastIssueUpdatedAt = issue.updated_at;
-      }
-      issueMap.set(issue.reporter_profile_id, entry);
-    }
-
-    const activeAssignmentsMap = new Map<string, number>();
-    for (const assignment of assignments) {
-      if (assignment.worker_id && assignment.unassigned_at === null && assignment.status === "ACTIVE") {
-        activeAssignmentsMap.set(assignment.worker_id, (activeAssignmentsMap.get(assignment.worker_id) ?? 0) + 1);
-      }
-    }
-
-    return profiles.map((entry) => {
-      const issueSummary = issueMap.get(entry.id) ?? { count: 0, lastIssueUpdatedAt: null };
-      const activeAssignments = activeAssignmentsMap.get(entry.id) ?? 0;
-      return {
-        ...entry,
-        issueCount: issueSummary.count,
-        lastIssueUpdatedAt: issueSummary.lastIssueUpdatedAt,
-        activeAssignmentsCount: activeAssignments,
-      };
-    });
-  }, [assignments, issues, profiles]);
-
-  const filteredUsers = useMemo(() => {
-    const query = search.trim().toLowerCase();
-    return users.filter((user) => {
-      const matchesSearch =
-        !query ||
-        [
-          user.full_name,
-          user.email,
-          user.phone,
-          user.employee_id,
-          user.designation,
-          user.role?.name,
-          user.department?.name,
-          user.institution?.name,
-          user.institution?.acronym,
-          user.organization?.name,
-          user.organization?.organization_type,
-        ]
-          .filter(Boolean)
-          .some((value) => String(value).toLowerCase().includes(query));
-
-      const matchesRole = roleFilter === "all" || user.role?.code === roleFilter;
-      const matchesDepartment = departmentFilter === "all" || user.department_id === departmentFilter;
-      const matchesStatus =
-        statusFilter === "all" || (statusFilter === "active" ? user.is_active : !user.is_active);
-
-      return matchesSearch && matchesRole && matchesDepartment && matchesStatus;
-    });
-  }, [departmentFilter, roleFilter, search, statusFilter, users]);
-
-  const totalPages = Math.max(1, Math.ceil(filteredUsers.length / PAGE_SIZE));
+  const visibleUsers = users;
+  const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
   const currentPage = Math.min(page, totalPages);
-  const visibleUsers = filteredUsers.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
 
   const managedRoleOptions = useMemo(
     () =>
@@ -932,13 +1007,13 @@ export function AdminUsersPage() {
     );
   }
 
-  const citizenCount = users.filter((u) => u.role?.code === "CITIZEN").length;
-  const officerCount = users.filter((u) => u.role?.code === "MUNICIPAL_OFFICER").length;
-  const managerCount = users.filter((u) => u.role?.code === "DEPARTMENT_MANAGER").length;
-  const workerCount = users.filter((u) => u.role?.code === "FIELD_WORKER").length;
-  const industryCount = users.filter((u) => u.role?.code === "INDUSTRY_PARTNER").length;
-  const institutionCount = users.filter((u) => u.role?.code === "INSTITUTION").length;
-  const adminCount = users.filter((u) => u.role?.code === "ADMIN").length;
+  const citizenCount = roleStats["CITIZEN"] ?? 0;
+  const officerCount = roleStats["MUNICIPAL_OFFICER"] ?? 0;
+  const managerCount = roleStats["DEPARTMENT_MANAGER"] ?? 0;
+  const workerCount = roleStats["FIELD_WORKER"] ?? 0;
+  const industryCount = roleStats["INDUSTRY_PARTNER"] ?? 0;
+  const institutionCount = roleStats["INSTITUTION"] ?? 0;
+  const adminCount = roleStats["ADMIN"] ?? 0;
 
   return (
     <div className="space-y-6">
@@ -963,7 +1038,7 @@ export function AdminUsersPage() {
       {/* 2. Top Summary Metric Cards */}
       <div className="grid gap-3 grid-cols-2 sm:grid-cols-3 lg:grid-cols-7">
         {[
-          { label: "Total Accounts", value: users.length, icon: UsersRound, tone: "info" as const, desc: "Synced profiles" },
+          { label: "Total Accounts", value: totalPlatformCount, icon: UsersRound, tone: "info" as const, desc: "Synced profiles" },
           { label: "Citizens", value: citizenCount, icon: UsersRound, tone: "info" as const, desc: "Registered residents" },
           { label: "Industry Partners", value: industryCount, icon: Briefcase, tone: "warning" as const, desc: "50+ Co & Startups" },
           { label: "Institutions", value: institutionCount, icon: GraduationCap, tone: "info" as const, desc: "Universities & labs" },
@@ -1371,7 +1446,7 @@ export function AdminUsersPage() {
               <p className="text-xs text-muted-foreground">Platform accounts synced with Clerk & Supabase</p>
             </div>
             <Badge variant="outline" size="sm">
-              {filteredUsers.length} {filteredUsers.length === 1 ? "account" : "accounts"}
+              {totalCount} {totalCount === 1 ? "account" : "accounts"}
             </Badge>
           </div>
         </CardHeader>
@@ -1719,11 +1794,11 @@ export function AdminUsersPage() {
       {totalPages > 1 && (
         <div className="flex flex-wrap items-center justify-between gap-3 pt-2">
           <p className="text-xs sm:text-sm text-muted-foreground">
-            Showing {(currentPage - 1) * PAGE_SIZE + 1}–{Math.min(currentPage * PAGE_SIZE, filteredUsers.length)} of {filteredUsers.length} accounts
+            Showing {totalCount > 0 ? (currentPage - 1) * PAGE_SIZE + 1 : 0}–{Math.min(currentPage * PAGE_SIZE, totalCount)} of {totalCount} accounts
           </p>
           <div className="flex items-center gap-2">
             <Button
-              disabled={currentPage <= 1}
+              disabled={currentPage <= 1 || loading}
               onClick={() => setPage((value) => Math.max(1, value - 1))}
               size="sm"
               type="button"
@@ -1735,7 +1810,7 @@ export function AdminUsersPage() {
               Page {currentPage} of {totalPages}
             </span>
             <Button
-              disabled={currentPage >= totalPages}
+              disabled={currentPage >= totalPages || loading}
               onClick={() => setPage((value) => Math.min(totalPages, value + 1))}
               size="sm"
               type="button"
