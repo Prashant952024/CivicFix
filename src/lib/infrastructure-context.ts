@@ -175,14 +175,119 @@ export async function resolveIssuePlanningSector(
     );
   }
 
-  if (!data || !data.planning_sector_code) {
+  if (data && data.planning_sector_code) {
+    return data.planning_sector_code;
+  }
+
+  // Fallback: Query department record directly and determine matching macro planning sector
+  const { data: deptData, error: deptError } = await client
+    .from("departments")
+    .select("id, name, code")
+    .eq("id", trimmedDeptId)
+    .maybeSingle();
+
+  if (deptError || !deptData) {
     throw new DistrictInfrastructureContextError(
       `No planning sector mapped for department '${trimmedDeptId}'.`,
       "PLANNING_SECTOR_NOT_FOUND"
     );
   }
 
-  return data.planning_sector_code;
+  const code = (deptData.code || "").toUpperCase();
+  const name = (deptData.name || "").toLowerCase();
+
+  if (
+    code.includes("ROAD") ||
+    code.includes("TRAFFIC") ||
+    code.includes("MUNICIPAL_ENGINEERING") ||
+    code.includes("SAFETY") ||
+    name.includes("road") ||
+    name.includes("transport") ||
+    name.includes("traffic") ||
+    name.includes("bridge") ||
+    name.includes("engineering")
+  ) {
+    return "DEPT-01";
+  }
+
+  if (
+    code.includes("HEALTH") ||
+    code.includes("ANIMAL") ||
+    name.includes("health") ||
+    name.includes("medical") ||
+    name.includes("animal") ||
+    name.includes("hospital")
+  ) {
+    return "DEPT-02";
+  }
+
+  if (code.includes("EDUCATION") || name.includes("school") || name.includes("education")) {
+    return "DEPT-03";
+  }
+
+  if (
+    code.includes("WATER") ||
+    code.includes("SEWER") ||
+    code.includes("DRAIN") ||
+    code.includes("WASTE") ||
+    code.includes("SANITATION") ||
+    code.includes("TOILET") ||
+    name.includes("water") ||
+    name.includes("sewer") ||
+    name.includes("drain") ||
+    name.includes("waste") ||
+    name.includes("sanitat") ||
+    name.includes("toilet") ||
+    name.includes("sewage")
+  ) {
+    return "DEPT-04";
+  }
+
+  if (
+    code.includes("LIGHT") ||
+    code.includes("ELECTRIC") ||
+    name.includes("light") ||
+    name.includes("electric") ||
+    name.includes("energy") ||
+    name.includes("power")
+  ) {
+    return "DEPT-07";
+  }
+
+  if (
+    code.includes("STORM") ||
+    code.includes("FLOOD") ||
+    code.includes("IRRIGATION") ||
+    name.includes("storm") ||
+    name.includes("flood") ||
+    name.includes("irrigation") ||
+    name.includes("disaster") ||
+    name.includes("river")
+  ) {
+    return "DEPT-08";
+  }
+
+  if (
+    code.includes("BUILDING") ||
+    code.includes("GOVERNMENT") ||
+    code.includes("HOUSING") ||
+    name.includes("building") ||
+    name.includes("construction") ||
+    name.includes("housing") ||
+    name.includes("facilit")
+  ) {
+    return "DEPT-09";
+  }
+
+  if (code.includes("AGRI") || name.includes("agri") || name.includes("farm")) {
+    return "DEPT-10";
+  }
+
+  if (code.includes("RURAL") || name.includes("rural dev")) {
+    return "DEPT-06";
+  }
+
+  return "DEPT-05"; // Urban Development default
 }
 
 /**

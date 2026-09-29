@@ -315,11 +315,16 @@ export function AdminInfrastructureAssessmentReviewPage() {
 
     try {
       // 1. Assign district (and department if selected)
+      const method =
+        issue.district_id === selectedDistrictId && issue.district_resolution_method
+          ? issue.district_resolution_method
+          : "ADMIN_MANUAL";
+
       await assignIssueDistrict(
         {
           issueId: issue.id,
           districtId: selectedDistrictId,
-          method: "ADMIN_MANUAL",
+          method,
           departmentId: selectedDepartmentId || undefined,
         },
         supabase
@@ -349,15 +354,22 @@ export function AdminInfrastructureAssessmentReviewPage() {
   }
 
   const filteredDistricts = useMemo(() => {
-    if (!districtSearch.trim()) return districts.slice(0, 100);
+    if (!districtSearch.trim()) return districts;
     const q = districtSearch.toLowerCase().trim();
-    return districts.filter(
+    const matches = districts.filter(
       (d) =>
         d.district_name.toLowerCase().includes(q) ||
         d.state_name.toLowerCase().includes(q) ||
         d.id.toLowerCase().includes(q)
     );
-  }, [districts, districtSearch]);
+    if (selectedDistrictId && !matches.some((d) => d.id === selectedDistrictId)) {
+      const selected = districts.find((d) => d.id === selectedDistrictId);
+      if (selected) {
+        return [selected, ...matches];
+      }
+    }
+    return matches;
+  }, [districts, districtSearch, selectedDistrictId]);
 
   // Derived current assessment
   const currentAssessment = useMemo(() => {

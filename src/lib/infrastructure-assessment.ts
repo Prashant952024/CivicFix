@@ -155,6 +155,89 @@ export function generateDeterministicAssessmentSummary(
 }
 
 /**
+ * Computes deterministic feasibility indicators from factual D1-D7 baseline context.
+ */
+export function computeDeterministicFeasibilityIndicators(
+  context: DistrictInfrastructureContext
+): Record<string, unknown> {
+  if (!context) return {};
+
+  const allocated = context.budget?.allocated_budget_crore ?? 0;
+  const unspent = context.budget?.unspent_budget_crore ?? 0;
+  const headroom = context.budget?.available_for_new_development_crore ?? 0;
+  const hist = context.historical_projects;
+  const geo = context.geography;
+
+  return {
+    budget_availability_percentage: allocated > 0 ? Math.round((unspent / allocated) * 100) : null,
+    available_headroom_crore: headroom,
+    budget_pressure_score: context.budget?.budget_pressure_score ?? null,
+    historical_precedent_count: hist?.project_count ?? 0,
+    historical_avg_actual_cost_crore: hist?.average_actual_cost_crore ?? null,
+    historical_avg_cost_per_beneficiary: hist?.average_cost_per_beneficiary ?? null,
+    historical_execution_efficiency_score: hist?.average_execution_efficiency ?? null,
+    terrain_type: geo?.terrain_type ?? "N/A",
+    geographic_region: geo?.geographic_region ?? "N/A",
+    density_category: geo?.density_category ?? "N/A",
+  };
+}
+
+/**
+ * Computes deterministic sustainability indicators from factual D1-D7 baseline context.
+ */
+export function computeDeterministicSustainabilityIndicators(
+  context: DistrictInfrastructureContext
+): Record<string, unknown> {
+  if (!context) return {};
+
+  const pop = context.population;
+  const access = context.accessibility;
+  const socio = context.socioeconomic;
+
+  return {
+    overall_development_context_score: socio?.overall_development_context_score ?? null,
+    economic_vulnerability_score: socio?.economic_vulnerability_score ?? null,
+    vulnerable_population_percentage: socio?.vulnerable_population_percentage ?? null,
+    development_need_score: pop?.development_need_score ?? null,
+    overall_accessibility_gap_score: access?.overall_accessibility_gap_score ?? null,
+    transport_access_gap_score: access?.transport_access_gap_score ?? null,
+    remote_area_access_gap_score: access?.remote_area_access_gap_score ?? null,
+    literacy_rate_percentage: pop?.literacy_rate_percentage ?? null,
+    worker_participation_rate_percentage: pop?.worker_participation_rate_percentage ?? null,
+    rural_population_percentage:
+      pop?.total_population > 0 && pop?.rural_population != null
+        ? Math.round((pop.rural_population / pop.total_population) * 100)
+        : null,
+  };
+}
+
+/**
+ * Computes deterministic factual risk statements and observations from D1-D7 baseline context.
+ */
+export function computeDeterministicRisks(
+  context: DistrictInfrastructureContext
+): string[] {
+  if (!context) return [];
+
+  const risks: string[] = [];
+  const unspent = context.budget?.unspent_budget_crore ?? 0;
+  const histCount = context.historical_projects?.project_count ?? 0;
+  const accessGap = context.accessibility?.overall_accessibility_gap_score ?? 0;
+
+  if (unspent <= 0) {
+    risks.push("Zero or deficit unspent departmental budget headroom in current fiscal year.");
+  }
+  if (histCount === 0) {
+    risks.push("No historical capital project execution precedents documented for this sector in the district.");
+  }
+  if (accessGap >= 75) {
+    risks.push("Significant baseline accessibility deficit identified across surrounding habitations.");
+  }
+
+  return risks;
+}
+
+/**
  * Retrieves the current active (is_latest = true) assessment for a given issue ID.
  */
 export async function getLatestInfrastructureAssessment(
@@ -321,6 +404,9 @@ export async function generateAndSaveInfrastructureAssessment(
   const summary =
     options?.assessmentSummary?.trim() ||
     generateDeterministicAssessmentSummary(ctx, issueContext.issue_title);
+  const autoFeasibility = computeDeterministicFeasibilityIndicators(ctx);
+  const autoSustainability = computeDeterministicSustainabilityIndicators(ctx);
+  const autoRisks = computeDeterministicRisks(ctx);
 
   const insertPayload = {
     issue_id: trimmedIssueId,
@@ -331,7 +417,7 @@ export async function generateAndSaveInfrastructureAssessment(
     estimated_project_cost_crore:
       typeof options?.estimatedProjectCostCrore === "number"
         ? options.estimatedProjectCostCrore
-        : null,
+        : ctx.historical_projects?.average_actual_cost_crore ?? null,
     estimated_project_duration_months:
       typeof options?.estimatedProjectDurationMonths === "number"
         ? Math.round(options.estimatedProjectDurationMonths)
@@ -339,10 +425,14 @@ export async function generateAndSaveInfrastructureAssessment(
     estimated_beneficiaries:
       typeof options?.estimatedBeneficiaries === "number"
         ? Math.round(options.estimatedBeneficiaries)
+        : ctx.population?.total_population > 0
+        ? Math.round(ctx.population.total_population * 0.05)
         : null,
     affected_households:
       typeof options?.affectedHouseholds === "number"
         ? Math.round(options.affectedHouseholds)
+        : ctx.population?.total_households > 0
+        ? Math.round(ctx.population.total_households * 0.05)
         : null,
     data_completeness_score: completenessScore,
     demographic_context: ctx.population as unknown as Record<string, unknown>,
@@ -360,11 +450,15 @@ export async function generateAndSaveInfrastructureAssessment(
       notice: "D8 synthetic benchmark isolated from operational decision support.",
       synthetic_benchmark_used: false,
     },
-    feasibility_indicators: options?.feasibilityIndicators || {},
-    sustainability_indicators: options?.sustainabilityIndicators || {},
-    risks_and_missing_info: Array.isArray(options?.risksAndMissingInfo)
+    feasibility_indicators: options?.feasibilityIndicators && Object.keys(options.feasibilityIndicators).length > 0
+      ? options.feasibilityIndicators
+      : autoFeasibility,
+    sustainability_indicators: options?.sustainabilityIndicators && Object.keys(options.sustainabilityIndicators).length > 0
+      ? options.sustainabilityIndicators
+      : autoSustainability,
+    risks_and_missing_info: Array.isArray(options?.risksAndMissingInfo) && options.risksAndMissingInfo.length > 0
       ? options.risksAndMissingInfo
-      : [],
+      : autoRisks,
     assessment_summary: summary,
     generated_by: generatedByProfileId || null,
   };
