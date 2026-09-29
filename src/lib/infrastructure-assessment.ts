@@ -402,7 +402,7 @@ export async function assignIssueDistrict(
   params: {
     issueId: string;
     districtId: string;
-    method?: "CITIZEN_SELECTED" | "AI_ADDRESS_PARSED" | "ADMIN_MANUAL";
+    method?: "CITIZEN_SELECTED" | "AI_ADDRESS_PARSED" | "ADMIN_MANUAL" | "GPS_POSTGIS";
     departmentId?: string | null;
   },
   client: SupabaseClient = defaultSupabase
@@ -423,7 +423,7 @@ export async function assignIssueDistrict(
     );
   }
 
-  const validMethods = ["CITIZEN_SELECTED", "AI_ADDRESS_PARSED", "ADMIN_MANUAL"];
+  const validMethods = ["CITIZEN_SELECTED", "AI_ADDRESS_PARSED", "ADMIN_MANUAL", "GPS_POSTGIS"];
   if (!validMethods.includes(method)) {
     throw new InfrastructureAssessmentError(
       `Invalid district resolution method '${method}'. Must be one of: ${validMethods.join(", ")}.`,

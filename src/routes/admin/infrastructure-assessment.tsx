@@ -813,6 +813,20 @@ export function AdminInfrastructureAssessmentReviewPage() {
                 {currentAssessment.planning_sector_code}
               </span>
             </div>
+            {issue.district_resolution_method ? (
+              <div className="flex items-center justify-between">
+                <span className="text-muted-foreground text-[11px]">Resolution</span>
+                <Badge variant="outline" size="sm" className="text-[10px] font-medium bg-muted/40">
+                  {issue.district_resolution_method === "GPS_POSTGIS"
+                    ? "Automatically identified from GPS"
+                    : issue.district_resolution_method === "ADMIN_MANUAL"
+                      ? "Admin manually assigned"
+                      : issue.district_resolution_method === "CITIZEN_SELECTED"
+                        ? "Citizen selected"
+                        : "AI address parsed"}
+                </Badge>
+              </div>
+            ) : null}
             <div className="flex items-center justify-between pt-1 border-t border-border/60 text-[10px] text-muted-foreground">
               <span>Generated At</span>
               <span>{formatCitizenIssueDateTime(currentAssessment.created_at)}</span>

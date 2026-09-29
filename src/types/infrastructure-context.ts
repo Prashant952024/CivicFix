@@ -244,7 +244,22 @@ export interface DepartmentPlanningSectorMapping {
 /**
  * Supported canonical district resolution methods
  */
-export type DistrictResolutionMethod = "CITIZEN_SELECTED" | "AI_ADDRESS_PARSED" | "ADMIN_MANUAL";
+export type DistrictResolutionMethod =
+  | "CITIZEN_SELECTED"
+  | "AI_ADDRESS_PARSED"
+  | "ADMIN_MANUAL"
+  | "GPS_POSTGIS";
+
+/**
+ * Result of GPS-based PostGIS district resolution
+ */
+export interface GpsDistrictResolutionResult {
+  district_id: string;
+  district_name: string;
+  state_name: string;
+  state_code: string | null;
+  resolution_method: "GPS_POSTGIS";
+}
 
 /**
  * Canonical district item representation
@@ -272,3 +287,4 @@ export interface IssueInfrastructureReadinessResult {
   missing_fields: Array<"district_id" | "department_id" | "planning_sector_code">;
   resolution_method: DistrictResolutionMethod | null;
 }
+

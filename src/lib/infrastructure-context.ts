@@ -23,6 +23,7 @@ import type {
   CanonicalDistrict,
   DistrictResolutionMethod,
   IssueInfrastructureReadinessResult,
+  GpsDistrictResolutionResult,
 } from "@/types/infrastructure-context";
 
 export * from "@/types/infrastructure-context";
@@ -380,6 +381,75 @@ export async function validateIssueInfrastructureReadiness(
     missing_fields: missingFields,
     resolution_method: (issue.district_resolution_method as DistrictResolutionMethod) ?? null,
   };
+}
+
+/**
+ * Resolves canonical district identity from GPS latitude/longitude using PostGIS point-in-polygon.
+ * Invokes public.resolve_district_from_gps RPC.
+ *
+ * Invariants:
+ * - Read-only STABLE execution.
+ * - Handles latitude range [-90, 90] and longitude range [-180, 180].
+ * - Returns null gracefully when point is outside all known canonical district polygons.
+ * - Never guesses or fabricates fallback districts.
+ */
+export async function resolveDistrictFromGps(
+  params: {
+    latitude: number | string | null | undefined;
+    longitude: number | string | null | undefined;
+  },
+  client: SupabaseClient = defaultSupabase
+): Promise<GpsDistrictResolutionResult | null> {
+  if (params.latitude === null || params.latitude === undefined || params.longitude === null || params.longitude === undefined) {
+    return null;
+  }
+
+  const lat = typeof params.latitude === "string" ? parseFloat(params.latitude) : params.latitude;
+  const lng = typeof params.longitude === "string" ? parseFloat(params.longitude) : params.longitude;
+
+  if (isNaN(lat) || isNaN(lng) || lat < -90 || lat > 90 || lng < -180 || lng > 180) {
+    return null;
+  }
+
+  try {
+    const { data, error } = await client
+      .rpc("resolve_district_from_gps", {
+        p_latitude: lat,
+        p_longitude: lng,
+      })
+      .maybeSingle();
+
+    if (error) {
+      if (import.meta.env.DEV) {
+        console.warn("GPS PostGIS district resolution RPC error:", error);
+      }
+      return null;
+    }
+
+    const resolved = data as {
+      district_id?: string;
+      district_name?: string;
+      state_name?: string;
+      state_code?: string | null;
+    } | null;
+
+    if (!resolved || !resolved.district_id || !resolved.district_name || !resolved.state_name) {
+      return null;
+    }
+
+    return {
+      district_id: resolved.district_id,
+      district_name: resolved.district_name,
+      state_name: resolved.state_name,
+      state_code: resolved.state_code ?? null,
+      resolution_method: "GPS_POSTGIS",
+    };
+  } catch (err) {
+    if (import.meta.env.DEV) {
+      console.warn("GPS resolution error:", err);
+    }
+    return null;
+  }
 }
 
 

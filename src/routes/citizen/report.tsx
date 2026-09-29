@@ -22,6 +22,7 @@ import { Card } from "@/components/ui/card";
 import { PageHeader } from "@/components/ui/page-header";
 import { citizenIssueCategories, formatCitizenIssueDate, type CitizenIssueCategory } from "@/lib/citizen-issues";
 import { useTranslation } from "@/lib/i18n";
+import { resolveDistrictFromGps } from "@/lib/infrastructure-context";
 import { supabase } from "@/lib/supabase";
 import type { Database } from "@/types/database";
 
@@ -599,7 +600,23 @@ function CitizenReportComposer({ profileId }: { profileId: string }) {
         finalInputMethod = "TEXT";
       }
 
-      const issueInsertPayload = {
+      // Attempt automatic GPS -> Canonical District resolution if GPS coordinates are present
+      let resolvedDistrictId: string | null = null;
+      let resolvedDistrictMethod: Database["public"]["Tables"]["issues"]["Insert"]["district_resolution_method"] = null;
+
+      if (latitude && longitude) {
+        try {
+          const gpsResolution = await resolveDistrictFromGps({ latitude, longitude }, supabase);
+          if (gpsResolution?.district_id) {
+            resolvedDistrictId = gpsResolution.district_id;
+            resolvedDistrictMethod = "GPS_POSTGIS";
+          }
+        } catch {
+          // GPS resolution error must never block issue submission
+        }
+      }
+
+      const issueInsertPayload: Database["public"]["Tables"]["issues"]["Insert"] = {
         id: issueId,
         reporter_profile_id: profileId,
         title: finalEnglishTitle,
@@ -608,6 +625,8 @@ function CitizenReportComposer({ profileId }: { profileId: string }) {
         location_text: trimmedLocation,
         latitude,
         longitude,
+        district_id: resolvedDistrictId,
+        district_resolution_method: resolvedDistrictMethod,
         original_language: originalLanguage || language,
         detected_language: detectedLanguage || originalLanguage || language,
         input_method: finalInputMethod,
