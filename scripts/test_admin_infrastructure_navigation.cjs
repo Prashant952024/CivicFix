@@ -161,6 +161,80 @@ for (const file of localeFiles) {
 }
 console.log(`  ✓ All ${localeFiles.length} locale files contain required admin.issues & status keys with 100% parity.`);
 
+// Test 12: Verify Admin Left Panel Navigation Menu Item
+console.log("\n[Test 12] Verifying Admin Left Panel Navigation configuration in civicfix.ts...");
+const civicFixLibPath = path.resolve(__dirname, "../src/lib/civicfix.ts");
+const civicFixLib = fs.readFileSync(civicFixLibPath, "utf8");
+assert(
+  civicFixLib.includes('label: "Infrastructure"'),
+  "civicFixNavItems.ADMIN must include an Infrastructure entry"
+);
+assert(
+  civicFixLib.includes('path: "/app/admin/infrastructure"'),
+  "civicFixNavItems.ADMIN must point Infrastructure to /app/admin/infrastructure"
+);
+console.log("  ✓ Admin navigation menu includes Infrastructure (/app/admin/infrastructure).");
+
+// Test 13: Verify Sidebar Icon & Badge Handling
+console.log("\n[Test 13] Verifying Sidebar Icon and Badge Handling for Infrastructure...");
+const sidebarTsxPath = path.resolve(__dirname, "../src/components/layout/app-sidebar.tsx");
+const sidebarTsx = fs.readFileSync(sidebarTsxPath, "utf8");
+assert(
+  sidebarTsx.includes('infrastructure: Building2'),
+  "app-sidebar.tsx must map infrastructure to Building2"
+);
+assert(
+  sidebarTsx.includes('lowered.includes("infrastructure")'),
+  "getNavIcon must check for infrastructure path"
+);
+assert(
+  sidebarTsx.includes('infraNeedingReview'),
+  "app-sidebar.tsx must track and display infraNeedingReview badge count for Admin"
+);
+console.log("  ✓ Sidebar properly renders Building2 icon and pending review badge for Admin.");
+
+// Test 14: Verify Registered Routes in index.tsx
+console.log("\n[Test 14] Verifying registered routes in index.tsx...");
+const indexTsxPath = path.resolve(__dirname, "../src/routes/index.tsx");
+const indexTsx = fs.readFileSync(indexTsxPath, "utf8");
+assert(
+  indexTsx.includes('const AdminInfrastructurePage = lazy('),
+  "index.tsx must import AdminInfrastructurePage"
+);
+assert(
+  indexTsx.includes('<Route path="infrastructure" element={<AdminInfrastructurePage />} />'),
+  "index.tsx must register /app/admin/infrastructure route"
+);
+assert(
+  indexTsx.includes('<Route path="infrastructure/:issueId" element={<AdminInfrastructureAssessmentReviewPage />} />'),
+  "index.tsx must register /app/admin/infrastructure/:issueId route"
+);
+console.log("  ✓ Both /app/admin/infrastructure and /app/admin/infrastructure/:issueId registered in router.");
+
+// Test 15: Verify Dedicated Admin Infrastructure Page Implementation
+console.log("\n[Test 15] Verifying AdminInfrastructurePage implementation...");
+const adminInfraTsxPath = path.resolve(__dirname, "../src/routes/admin/infrastructure.tsx");
+assert(fs.existsSync(adminInfraTsxPath), "src/routes/admin/infrastructure.tsx must exist");
+const adminInfraTsx = fs.readFileSync(adminInfraTsxPath, "utf8");
+assert(adminInfraTsx.includes("export function AdminInfrastructurePage"), "Exports AdminInfrastructurePage");
+assert(adminInfraTsx.includes("CLASSIFIED_INFRASTRUCTURE"), "Handles CLASSIFIED_INFRASTRUCTURE status");
+assert(adminInfraTsx.includes("INFRASTRUCTURE_ACCEPTED"), "Handles INFRASTRUCTURE_ACCEPTED status");
+assert(adminInfraTsx.includes("INFRASTRUCTURE_REJECTED"), "Handles INFRASTRUCTURE_REJECTED status");
+assert(adminInfraTsx.includes("fetchCanonicalDistricts"), "Uses canonical district registry");
+assert(adminInfraTsx.includes("statusTab"), "Supports status tab filtering");
+assert(adminInfraTsx.includes("selectedDistrictFilter"), "Supports district filtering");
+assert(adminInfraTsx.includes("searchQuery"), "Supports multi-field search");
+console.log("  ✓ AdminInfrastructurePage contains full KPI overview, filtering, and review actions.");
+
+// Test 16: Verify Classification Routing Bridge
+console.log("\n[Test 16] Verifying Classification Routing Bridge...");
+const classificationTsxPath = path.resolve(__dirname, "../src/routes/admin/classification.tsx");
+const classificationTsx = fs.readFileSync(classificationTsxPath, "utf8");
+assert(classificationTsx.includes('filterTab === "infrastructure"'), "Classification supports infrastructure filter tab");
+assert(classificationTsx.includes("Open Assessment Dossier"), "Provides direct link to assessment upon routing");
+assert(classificationTsx.includes("Please provide an override justification"), "Provides clear guidance when override reason is missing");
+console.log("  ✓ Classification workspace provides seamless routing and direct navigation bridge.");
+
 console.log("\n===============================================================================");
-console.log("All 11 Phase 5 — Step 2 Tests PASSED successfully! (100% Clean)");
+console.log("All 16 Admin Infrastructure Navigation & Routing Tests PASSED! (100% Clean)");
 console.log("===============================================================================\n");

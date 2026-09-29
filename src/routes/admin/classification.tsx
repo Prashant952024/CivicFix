@@ -75,6 +75,7 @@ type IssueRow = Database["public"]["Tables"]["issues"]["Row"] & {
 type FilterTabKey =
   | "all"
   | "awaiting"
+  | "infrastructure"
   | "ai_simple"
   | "ai_complex"
   | "high_complexity"
@@ -344,6 +345,7 @@ export function AdminClassificationPage() {
     let awaitingReview = 0;
     let aiSimple = 0;
     let aiComplex = 0;
+    let infraCount = 0;
     let overrides = 0;
 
     for (const issue of issues) {
@@ -354,6 +356,15 @@ export function AdminClassificationPage() {
 
       if (issue.ai_issue_type === "SIMPLE") aiSimple += 1;
       else if (issue.ai_issue_type === "COMPLEX") aiComplex += 1;
+
+      const isInfra =
+        issue.final_issue_type === "INFRASTRUCTURE" ||
+        issue.status === "CLASSIFIED_INFRASTRUCTURE" ||
+        issue.status === "INFRASTRUCTURE_REVIEW" ||
+        issue.status === "INFRASTRUCTURE_ACCEPTED" ||
+        issue.status === "INFRASTRUCTURE_REJECTED" ||
+        issue.ai_issue_type === "INFRASTRUCTURE";
+      if (isInfra) infraCount += 1;
 
       const hasOverride =
         (issue.classification_override_reason &&
@@ -368,6 +379,7 @@ export function AdminClassificationPage() {
       awaitingReview,
       aiSimple,
       aiComplex,
+      infraCount,
       overrides,
       total: issues.length,
     };
@@ -389,8 +401,16 @@ export function AdminClassificationPage() {
           (Boolean(issue.final_issue_type) &&
             Boolean(issue.ai_issue_type) &&
             issue.final_issue_type !== issue.ai_issue_type);
+        const isInfra =
+          issue.final_issue_type === "INFRASTRUCTURE" ||
+          issue.status === "CLASSIFIED_INFRASTRUCTURE" ||
+          issue.status === "INFRASTRUCTURE_REVIEW" ||
+          issue.status === "INFRASTRUCTURE_ACCEPTED" ||
+          issue.status === "INFRASTRUCTURE_REJECTED" ||
+          issue.ai_issue_type === "INFRASTRUCTURE";
 
         if (filterTab === "awaiting" && !isAwaiting) return false;
+        if (filterTab === "infrastructure" && !isInfra) return false;
         if (filterTab === "ai_simple" && issue.ai_issue_type !== "SIMPLE") return false;
         if (filterTab === "ai_complex" && issue.ai_issue_type !== "COMPLEX") return false;
         if (filterTab === "high_complexity" && score < 66) return false;
@@ -682,8 +702,8 @@ export function AdminClassificationPage() {
       ) : null}
 
       {/* KPI Overview Cards */}
-      <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-        <div className="flex flex-col justify-between h-28 rounded-2xl border border-amber-200/80 bg-gradient-to-br from-amber-50/80 via-background to-orange-50/40 p-4 shadow-sm hover:shadow-md transition">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+        <div className="flex flex-col justify-between h-28 rounded-2xl border border-amber-200/80 bg-gradient-to-br from-amber-50/80 via-background to-orange-50/40 p-3.5 shadow-sm hover:shadow-md transition">
           <div className="flex items-center justify-between">
             <span className="text-[11px] font-bold uppercase tracking-wider text-amber-900">Awaiting Review</span>
             <div className="p-1.5 rounded-lg bg-amber-100 text-amber-700">
@@ -699,7 +719,23 @@ export function AdminClassificationPage() {
           </div>
         </div>
 
-        <div className="flex flex-col justify-between h-28 rounded-2xl border border-emerald-200/80 bg-gradient-to-br from-emerald-50/80 via-background to-teal-50/40 p-4 shadow-sm hover:shadow-md transition">
+        <div className="flex flex-col justify-between h-28 rounded-2xl border border-indigo-200/80 bg-gradient-to-br from-indigo-50/80 via-background to-purple-50/40 p-3.5 shadow-sm hover:shadow-md transition">
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-indigo-900">Infrastructure</span>
+            <div className="p-1.5 rounded-lg bg-indigo-100 text-indigo-700">
+              <Building2 className="h-3.5 w-3.5" />
+            </div>
+          </div>
+          <div className="my-auto">
+            <p className="text-2xl font-black tracking-tight text-indigo-950">{stats.infraCount}</p>
+          </div>
+          <div className="flex items-center justify-between text-[11px] text-muted-foreground">
+            <span>Capital track</span>
+            <span className="font-bold text-indigo-800">{stats.infraCount}</span>
+          </div>
+        </div>
+
+        <div className="flex flex-col justify-between h-28 rounded-2xl border border-emerald-200/80 bg-gradient-to-br from-emerald-50/80 via-background to-teal-50/40 p-3.5 shadow-sm hover:shadow-md transition">
           <div className="flex items-center justify-between">
             <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-900">AI Rec: Simple</span>
             <div className="p-1.5 rounded-lg bg-emerald-100 text-emerald-700">
@@ -715,7 +751,7 @@ export function AdminClassificationPage() {
           </div>
         </div>
 
-        <div className="flex flex-col justify-between h-28 rounded-2xl border border-teal-200/80 bg-gradient-to-br from-teal-50/80 via-background to-cyan-50/40 p-4 shadow-sm hover:shadow-md transition">
+        <div className="flex flex-col justify-between h-28 rounded-2xl border border-teal-200/80 bg-gradient-to-br from-teal-50/80 via-background to-cyan-50/40 p-3.5 shadow-sm hover:shadow-md transition">
           <div className="flex items-center justify-between">
             <span className="text-[11px] font-bold uppercase tracking-wider text-teal-900">AI Rec: Complex</span>
             <div className="p-1.5 rounded-lg bg-teal-100 text-teal-700">
@@ -731,7 +767,7 @@ export function AdminClassificationPage() {
           </div>
         </div>
 
-        <div className="flex flex-col justify-between h-28 rounded-2xl border border-sky-200/80 bg-gradient-to-br from-sky-50/80 via-background to-blue-50/40 p-4 shadow-sm hover:shadow-md transition">
+        <div className="flex flex-col justify-between h-28 rounded-2xl border border-sky-200/80 bg-gradient-to-br from-sky-50/80 via-background to-blue-50/40 p-3.5 shadow-sm hover:shadow-md transition col-span-2 sm:col-span-1">
           <div className="flex items-center justify-between">
             <span className="text-[11px] font-bold uppercase tracking-wider text-sky-900">Admin Overrides</span>
             <div className="p-1.5 rounded-lg bg-sky-100 text-sky-700">
@@ -766,6 +802,18 @@ export function AdminClassificationPage() {
               }`}
             >
               Awaiting Review ({stats.awaitingReview})
+            </button>
+            <button
+              type="button"
+              onClick={() => setFilterTab("infrastructure")}
+              className={`px-3 py-1 rounded-full text-xs font-semibold transition-all flex items-center gap-1 ${
+                filterTab === "infrastructure"
+                  ? "bg-indigo-600 text-white shadow-sm"
+                  : "bg-indigo-50 text-indigo-900 hover:bg-indigo-100"
+              }`}
+            >
+              <Building2 className="h-3 w-3" />
+              Infrastructure ({stats.infraCount})
             </button>
             <button
               type="button"
@@ -1015,18 +1063,29 @@ export function AdminClassificationPage() {
             <>
               {/* Action Banners */}
               {actionSuccess ? (
-                <div className="p-3.5 rounded-xl border border-emerald-300 bg-emerald-50 text-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-200 dark:border-emerald-800 flex items-center justify-between text-xs">
+                <div className="p-3.5 rounded-xl border border-emerald-300 bg-emerald-50 text-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-200 dark:border-emerald-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
                   <div className="flex items-center gap-2">
                     <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
                     <span>{actionSuccess}</span>
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => setActionSuccess(null)}
-                    className="text-muted-foreground hover:text-foreground"
-                  >
-                    <X className="h-3.5 w-3.5" />
-                  </button>
+                  <div className="flex items-center gap-2 self-end sm:self-auto">
+                    {selectedIssue.final_issue_type === "INFRASTRUCTURE" && (
+                      <Button asChild size="sm" className="gap-1.5 h-7 text-xs bg-indigo-600 hover:bg-indigo-700 text-white font-semibold">
+                        <Link to={`/app/admin/infrastructure/${selectedIssue.id}`}>
+                          <Building2 className="h-3.5 w-3.5" />
+                          <span>Open Assessment Dossier</span>
+                          <ArrowRight className="h-3 w-3" />
+                        </Link>
+                      </Button>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => setActionSuccess(null)}
+                      className="text-muted-foreground hover:text-foreground p-1"
+                    >
+                      <X className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
                 </div>
               ) : null}
 
@@ -1562,12 +1621,22 @@ export function AdminClassificationPage() {
                   ) : null}
 
                   {/* Action Bar */}
-                  <div className="flex items-center justify-end gap-2 pt-2 border-t">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-3 border-t">
+                    {!canSubmitDecision && isOverride && overrideReason.trim().length < 10 ? (
+                      <p className="text-[11px] text-amber-700 dark:text-amber-400 font-medium flex items-center gap-1.5">
+                        <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
+                        <span>Please provide an override justification of at least 10 characters above to enable routing.</span>
+                      </p>
+                    ) : (
+                      <span className="text-[11px] text-muted-foreground">
+                        Authoritative decision will update issue status and dispatch workflow routing.
+                      </span>
+                    )}
                     <Button
                       size="sm"
                       onClick={() => setConfirmDialogOpen(true)}
                       disabled={!canSubmitDecision}
-                      className="gap-2 bg-primary hover:bg-primary/90 text-primary-foreground font-semibold px-5"
+                      className="gap-2 bg-primary hover:bg-primary/90 text-primary-foreground font-semibold px-5 shrink-0"
                     >
                       <ShieldCheck className="h-4 w-4" />
                       <span>Confirm & Route ({decisionType})</span>

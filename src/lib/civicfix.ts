@@ -114,6 +114,7 @@ export const civicFixNavItems: Record<CivicFixRoleCode, CivicFixRoleNavItem[]> =
   ADMIN: [
     { label: "Overview", path: "/app/admin", description: "Command center overview and metrics." },
     { label: "Classification", path: "/app/admin/classification", description: "Review and route AI-classified issues." },
+    { label: "Infrastructure", path: "/app/admin/infrastructure", description: "Review infrastructure assessments, planning context, and decisions." },
     { label: "Complex Problems", path: "/app/innovation/problems", description: "Monitor and govern complex civic problems." },
     { label: "Institutions", path: "/app/admin/institutions", description: "Institution registry and capabilities." },
     { label: "Issues", path: "/app/admin/issues", description: "Platform-wide issue triage and audit." },

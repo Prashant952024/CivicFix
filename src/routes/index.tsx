@@ -48,6 +48,7 @@ const AdminInfrastructureAssessmentReviewPage = lazy(() =>
     default: module.AdminInfrastructureAssessmentReviewPage,
   }))
 );
+const AdminInfrastructurePage = lazy(() => import("@/routes/admin/infrastructure").then((module) => ({ default: module.AdminInfrastructurePage })));
 const AdminUsersPage = lazy(() => import("@/routes/admin/users").then((module) => ({ default: module.AdminUsersPage })));
 const AdminIssuesPage = lazy(() => import("@/routes/admin/issues").then((module) => ({ default: module.AdminIssuesPage })));
 const AdminAnalyticsPage = lazy(() => import("@/routes/admin/analytics").then((module) => ({ default: module.AdminAnalyticsPage })));
@@ -315,6 +316,7 @@ export function AppRoutes() {
             <Route path="departments" element={<AdminDepartmentsPage />} />
             <Route path="issues" element={<AdminIssuesPage />} />
             <Route path="issues/:issueId" element={<AdminIssueDetailPage />} />
+            <Route path="infrastructure" element={<AdminInfrastructurePage />} />
             <Route path="infrastructure/:issueId" element={<AdminInfrastructureAssessmentReviewPage />} />
             <Route path="analytics" element={<AdminAnalyticsPage />} />
             <Route path="activity" element={<AdminActivityPage />} />

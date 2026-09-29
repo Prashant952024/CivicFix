@@ -40,6 +40,7 @@ type AppSidebarProps = {
 type NavIconKey =
   | "dashboard"
   | "issues"
+  | "infrastructure"
   | "report"
   | "assigned"
   | "notifications"
@@ -63,6 +64,7 @@ type NavIconKey =
 const navIcons: Record<NavIconKey, ComponentType<{ className?: string; "aria-hidden"?: boolean }>> = {
   dashboard: LayoutDashboard,
   issues: ClipboardList,
+  infrastructure: Building2,
   problems: BrainCircuit,
   collaborations: Handshake,
   pilots: FlaskConical,
@@ -86,6 +88,7 @@ const navIcons: Record<NavIconKey, ComponentType<{ className?: string; "aria-hid
 
 function getNavIcon(item: CivicFixRoleNavItem) {
   const lowered = item.path.toLowerCase();
+  if (lowered.includes("infrastructure")) return navIcons.infrastructure;
   if (lowered.includes("knowledge")) return navIcons.knowledge;
   if (lowered.includes("pilot")) return navIcons.pilots;
   if (lowered.includes("marketplace")) return navIcons.marketplace;
@@ -142,13 +145,27 @@ export function AppSidebar({ roleCode, mobileOpen, onClose }: AppSidebarProps) {
 
   const [proposalsNeedingReview, setProposalsNeedingReview] = useState<number>(0);
   const [pilotsNeedingReview, setPilotsNeedingReview] = useState<number>(0);
+  const [infraNeedingReview, setInfraNeedingReview] = useState<number>(0);
   const [unreadNotifications, setUnreadNotifications] = useState<number>(0);
 
   useEffect(() => {
     let cancelled = false;
 
     async function loadSidebarBadges() {
-      if (roleCode === "INNOVATION_MANAGER") {
+      if (roleCode === "ADMIN") {
+        try {
+          const { count: infraCount } = await supabase
+            .from("issues")
+            .select("id", { count: "exact", head: true })
+            .in("status", ["CLASSIFIED_INFRASTRUCTURE", "INFRASTRUCTURE_REVIEW"]);
+
+          if (!cancelled && typeof infraCount === "number") {
+            setInfraNeedingReview(infraCount);
+          }
+        } catch {
+          // ignore error
+        }
+      } else if (roleCode === "INNOVATION_MANAGER") {
         try {
           const [propRes, pilotRes] = await Promise.all([
             supabase
@@ -275,7 +292,10 @@ export function AppSidebar({ roleCode, mobileOpen, onClose }: AppSidebarProps) {
             let badgeCount = 0;
             let badgeClass = "bg-teal-600 text-white";
 
-            if ((item.path.includes("/proposals") || item.path.includes("/collaborations")) && proposalsNeedingReview > 0) {
+            if (item.path === "/app/admin/infrastructure" && infraNeedingReview > 0) {
+              badgeCount = infraNeedingReview;
+              badgeClass = "bg-indigo-600 text-white font-bold animate-pulse";
+            } else if ((item.path.includes("/proposals") || item.path.includes("/collaborations")) && proposalsNeedingReview > 0) {
               badgeCount = proposalsNeedingReview;
               badgeClass = "bg-amber-500 text-amber-950 font-bold animate-pulse";
             } else if (item.path.includes("/pilots") && pilotsNeedingReview > 0) {
