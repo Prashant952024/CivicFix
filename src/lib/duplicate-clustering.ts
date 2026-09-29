@@ -1,4 +1,5 @@
 import { supabase } from "@/lib/supabase";
+import { isValidUuid } from "@/lib/security";
 import type { Database } from "@/types/database";
 
 export type IssueRow = Database["public"]["Tables"]["issues"]["Row"];
@@ -90,6 +91,10 @@ interface RawCandidateIssue {
 export async function fetchLinkedReportsForCanonicalIssue(
   canonicalIssueId: string,
 ): Promise<LinkedCitizenReport[]> {
+  if (!isValidUuid(canonicalIssueId)) {
+    return [];
+  }
+
   try {
     const { data: childIssues, error } = await supabase
       .from("issues")
@@ -153,6 +158,10 @@ export async function fetchLinkedReportsForCanonicalIssue(
 export async function fetchDuplicateCandidates(
   issueId: string,
 ): Promise<DuplicateCandidateItem[]> {
+  if (!isValidUuid(issueId)) {
+    return [];
+  }
+
   try {
     const { data: duplicates, error } = await supabase
       .from("issue_duplicates")
@@ -256,6 +265,15 @@ export async function confirmDuplicateAndLink(
   reviewerProfileId: string,
   reviewNotes: string = "Confirmed duplicate civic problem clustered into canonical issue.",
 ): Promise<{ success: boolean; error?: string }> {
+  if (
+    !isValidUuid(duplicateId) ||
+    !isValidUuid(canonicalIssueId) ||
+    !isValidUuid(childIssueId) ||
+    !isValidUuid(reviewerProfileId)
+  ) {
+    return { success: false, error: "Invalid UUID parameter provided." };
+  }
+
   try {
     // 1. Update duplicate candidate review record
     const { error: dupError } = await supabase
@@ -316,6 +334,14 @@ export async function rejectDuplicateCandidate(
   reviewerProfileId: string,
   reviewNotes: string = "Verified as a separate, distinct civic problem.",
 ): Promise<{ success: boolean; error?: string }> {
+  if (
+    !isValidUuid(duplicateId) ||
+    !isValidUuid(candidateIssueId) ||
+    !isValidUuid(reviewerProfileId)
+  ) {
+    return { success: false, error: "Invalid UUID parameter provided." };
+  }
+
   try {
     const { error: dupError } = await supabase
       .from("issue_duplicates")

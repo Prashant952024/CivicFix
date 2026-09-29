@@ -321,11 +321,11 @@ Deno.serve(async (req: Request) => {
         callerProfile = profile as unknown as { id: string; clerk_user_id: string; role?: { code: string } };
       }
     } else {
-      const { data: profile } = await supabaseAdmin
-        .from("profiles")
-        .select("id, clerk_user_id, role:roles!profiles_role_id_fkey(code)")
-        .or(`id.eq.${verifiedUserId},clerk_user_id.eq.${verifiedUserId}`)
-        .maybeSingle();
+      const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(verifiedUserId);
+      const query = isUuid
+        ? supabaseAdmin.from("profiles").select("id, clerk_user_id, role:roles!profiles_role_id_fkey(code)").eq("id", verifiedUserId).maybeSingle()
+        : supabaseAdmin.from("profiles").select("id, clerk_user_id, role:roles!profiles_role_id_fkey(code)").eq("clerk_user_id", verifiedUserId).maybeSingle();
+      const { data: profile } = await query;
       if (profile) {
         callerProfile = profile as unknown as { id: string; clerk_user_id: string; role?: { code: string } };
       }
@@ -357,11 +357,23 @@ Deno.serve(async (req: Request) => {
     if (!isServiceRole && !["ADMIN", "MUNICIPAL_OFFICER", "DEPARTMENT_MANAGER", "INNOVATION_MANAGER"].includes(callerRole || "")) {
       return json(403, { error: "Forbidden. Only authorized municipal staff and administrators can run dry-run benchmark analysis." }, origin);
     }
+
+    const b = body.benchmark_issue!;
+    if (typeof b.title !== "string" || b.title.trim().length === 0 || b.title.length > 500) {
+      return json(400, { error: "Invalid benchmark_issue: title must be a string between 1 and 500 characters." }, origin);
+    }
+    if (typeof b.description !== "string" || b.description.trim().length === 0 || b.description.length > 5000) {
+      return json(400, { error: "Invalid benchmark_issue: description must be a string between 1 and 5000 characters." }, origin);
+    }
   }
 
   const targetIssueId = (body.issue_id || body.issueId || (isDryRun ? "benchmark-dry-run" : "")).trim();
   if (!targetIssueId) {
     return json(400, { error: "Missing required field: issue_id" }, origin);
+  }
+
+  if (!isDryRun && !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(targetIssueId)) {
+    return json(400, { error: "Invalid issue_id: must be a valid UUID format." }, origin);
   }
 
   try {

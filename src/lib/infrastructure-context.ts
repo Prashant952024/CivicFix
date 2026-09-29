@@ -13,6 +13,12 @@
  */
 
 import { supabase as defaultSupabase } from "@/lib/supabase";
+import {
+  isValidDistrictId,
+  isValidPlanningSectorCode,
+  isValidFinancialYear,
+  isValidUuid,
+} from "@/lib/security";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type {
   DistrictInfrastructureContext,
@@ -60,16 +66,16 @@ export function validateDistrictInfrastructureContextParams(
 
   const { districtId, planningSectorCode, financialYear, infrastructureId } = params;
 
-  if (typeof districtId !== "string" || districtId.trim() === "") {
+  if (typeof districtId !== "string" || !isValidDistrictId(districtId.trim())) {
     throw new DistrictInfrastructureContextError(
-      "Parameter 'districtId' must be a non-empty string (e.g. 'IN-D0248').",
+      "Parameter 'districtId' must be a valid canonical district code (e.g. 'IN-D0248').",
       "INVALID_DISTRICT_ID"
     );
   }
 
-  if (typeof planningSectorCode !== "string" || planningSectorCode.trim() === "") {
+  if (typeof planningSectorCode !== "string" || !isValidPlanningSectorCode(planningSectorCode.trim())) {
     throw new DistrictInfrastructureContextError(
-      "Parameter 'planningSectorCode' must be a non-empty string (e.g. 'DEPT-01').",
+      "Parameter 'planningSectorCode' must be a valid canonical sector code (e.g. 'DEPT-01').",
       "INVALID_PLANNING_SECTOR"
     );
   }
@@ -79,10 +85,24 @@ export function validateDistrictInfrastructureContextParams(
       ? financialYear.trim()
       : null;
 
+  if (trimmedFinancialYear && !isValidFinancialYear(trimmedFinancialYear)) {
+    throw new DistrictInfrastructureContextError(
+      "Parameter 'financialYear' must be a valid financial year string (e.g. '2023-24').",
+      "INVALID_FINANCIAL_YEAR"
+    );
+  }
+
   const trimmedInfrastructureId =
     typeof infrastructureId === "string" && infrastructureId.trim() !== ""
       ? infrastructureId.trim()
       : null;
+
+  if (trimmedInfrastructureId && !isValidUuid(trimmedInfrastructureId)) {
+    throw new DistrictInfrastructureContextError(
+      "Parameter 'infrastructureId' must be a valid UUID string.",
+      "INVALID_INFRASTRUCTURE_ID"
+    );
+  }
 
   return {
     districtId: districtId.trim(),

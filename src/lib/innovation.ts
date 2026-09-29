@@ -1,4 +1,5 @@
 import { supabase } from "@/lib/supabase";
+import { buildPostgrestIlikeOr } from "@/lib/security";
 import type { ProposalStatus } from "@/types/database";
 
 export type AttentionItemCategory =
@@ -889,17 +890,22 @@ export async function searchInnovationRecords(query: string): Promise<Innovation
     return { challenges: [], institutions: [], projects: [], proposals: [], knowledgeSolutions: [] };
   }
 
+  const instFilter = buildPostgrestIlikeOr(["name", "acronym", "city"], clean);
+  const knowFilter = buildPostgrestIlikeOr(["solution_title", "problem_title", "problem_category"], clean);
+
   const [chalRes, instRes, projRes, propRes, knowRes] = await Promise.all([
     supabase
       .from("innovation_challenges")
       .select("id, title, problem_category, category, complexity_score")
       .ilike("title", `%${clean}%`)
       .limit(5),
-    supabase
-      .from("institutions")
-      .select("id, name, city, state, acronym")
-      .or(`name.ilike.%${clean}%,acronym.ilike.%${clean}%,city.ilike.%${clean}%`)
-      .limit(5),
+    instFilter
+      ? supabase
+          .from("institutions")
+          .select("id, name, city, state, acronym")
+          .or(instFilter)
+          .limit(5)
+      : Promise.resolve({ data: [] }),
     supabase
       .from("challenge_projects")
       .select(`
@@ -918,11 +924,13 @@ export async function searchInnovationRecords(query: string): Promise<Innovation
       `)
       .eq("is_current", true)
       .limit(10),
-    supabase
-      .from("complex_solution_knowledge_base")
-      .select("id, solution_title, problem_title, problem_category, university_name")
-      .or(`solution_title.ilike.%${clean}%,problem_title.ilike.%${clean}%,problem_category.ilike.%${clean}%`)
-      .limit(5),
+    knowFilter
+      ? supabase
+          .from("complex_solution_knowledge_base")
+          .select("id, solution_title, problem_title, problem_category, university_name")
+          .or(knowFilter)
+          .limit(5)
+      : Promise.resolve({ data: [] }),
   ]);
 
   const challenges = (chalRes.data || []).map((c) => ({

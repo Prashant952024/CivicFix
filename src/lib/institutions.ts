@@ -1,4 +1,5 @@
 import { supabase } from "@/lib/supabase";
+import { buildPostgrestIlikeOr, isValidUuid } from "@/lib/security";
 import type {
   InstitutionRow,
   InstitutionInsert,
@@ -61,10 +62,13 @@ export async function fetchInstitutions(filters?: InstitutionFilterParams): Prom
   }
 
   if (filters?.search && filters.search.trim()) {
-    const term = filters.search.trim();
-    query = query.or(
-      `name.ilike.%${term}%,official_name.ilike.%${term}%,city.ilike.%${term}%,state.ilike.%${term}%,acronym.ilike.%${term}%`
+    const filterClause = buildPostgrestIlikeOr(
+      ["name", "official_name", "city", "state", "acronym"],
+      filters.search
     );
+    if (filterClause) {
+      query = query.or(filterClause);
+    }
   }
 
   const { data, error } = await query;
@@ -77,6 +81,10 @@ export async function fetchInstitutions(filters?: InstitutionFilterParams): Prom
 }
 
 export async function fetchInstitutionById(id: string): Promise<InstitutionRow | null> {
+  if (!isValidUuid(id)) {
+    return null;
+  }
+
   const { data, error } = await supabase
     .from("institutions")
     .select("*")

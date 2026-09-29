@@ -1,4 +1,5 @@
 import { supabase } from "@/lib/supabase";
+import { buildPostgrestIlikeOr, isValidUuid } from "@/lib/security";
 import type {
   Database,
   SimpleSolutionKnowledgeBaseRow,
@@ -52,10 +53,13 @@ export async function fetchSimpleSolutions(filters?: {
     }
 
     if (filters?.search) {
-      const term = filters.search.trim();
-      query = query.or(
-        `title.ilike.%${term}%,description.ilike.%${term}%,identified_root_cause.ilike.%${term}%,resolution_summary.ilike.%${term}%,area_name.ilike.%${term}%`
+      const filterClause = buildPostgrestIlikeOr(
+        ["title", "description", "identified_root_cause", "resolution_summary", "area_name"],
+        filters.search
       );
+      if (filterClause) {
+        query = query.or(filterClause);
+      }
     }
 
     if (filters?.limit) {
@@ -74,6 +78,10 @@ export async function fetchSimpleSolutions(filters?: {
 export async function fetchSimpleSolutionById(
   id: string
 ): Promise<SimpleSolutionKnowledgeBaseRow | null> {
+  if (!isValidUuid(id)) {
+    return null;
+  }
+
   try {
     const { data, error } = await supabase
       .from("simple_solution_knowledge_base")
@@ -92,6 +100,10 @@ export async function fetchSimpleSolutionById(
 export async function fetchSimpleSolutionByIssueId(
   issueId: string
 ): Promise<SimpleSolutionKnowledgeBaseRow | null> {
+  if (!isValidUuid(issueId)) {
+    return null;
+  }
+
   try {
     const { data, error } = await supabase
       .from("simple_solution_knowledge_base")
@@ -159,10 +171,13 @@ export async function fetchPreventiveRecommendations(filters?: {
       query = query.eq("status", filters.status as any);
     }
     if (filters?.search) {
-      const term = filters.search.trim();
-      query = query.or(
-        `title.ilike.%${term}%,area_name.ilike.%${term}%,recommended_action.ilike.%${term}%,justification.ilike.%${term}%`
+      const filterClause = buildPostgrestIlikeOr(
+        ["title", "area_name", "recommended_action", "justification"],
+        filters.search
       );
+      if (filterClause) {
+        query = query.or(filterClause);
+      }
     }
 
     const { data, error } = await query;
@@ -180,6 +195,10 @@ export async function reviewPreventiveRecommendation(params: {
   reviewerProfileId: string;
   reviewNotes?: string;
 }): Promise<PreventiveRecommendationRow> {
+  if (!isValidUuid(params.recommendationId) || !isValidUuid(params.reviewerProfileId)) {
+    throw new Error("Invalid UUID provided for reviewPreventiveRecommendation.");
+  }
+
   try {
     const { data, error } = await supabase
       .from("preventive_recommendations")
@@ -288,10 +307,13 @@ export async function fetchComplexSolutions(filters?: {
     }
 
     if (filters?.search) {
-      const term = filters.search.trim();
-      query = query.or(
-        `problem_title.ilike.%${term}%,problem_statement.ilike.%${term}%,solution_title.ilike.%${term}%,solution_summary.ilike.%${term}%,university_name.ilike.%${term}%`
+      const filterClause = buildPostgrestIlikeOr(
+        ["problem_title", "problem_statement", "solution_title", "solution_summary", "university_name"],
+        filters.search
       );
+      if (filterClause) {
+        query = query.or(filterClause);
+      }
     }
 
     if (filters?.limit) {
@@ -310,6 +332,10 @@ export async function fetchComplexSolutions(filters?: {
 export async function fetchComplexSolutionById(
   id: string
 ): Promise<ComplexSolutionKnowledgeBaseRow | null> {
+  if (!isValidUuid(id)) {
+    return null;
+  }
+
   try {
     const { data, error } = await supabase
       .from("complex_solution_knowledge_base")
@@ -328,6 +354,10 @@ export async function fetchComplexSolutionById(
 export async function fetchComplexSolutionByProjectId(
   projectId: string
 ): Promise<ComplexSolutionKnowledgeBaseRow | null> {
+  if (!isValidUuid(projectId)) {
+    return null;
+  }
+
   try {
     const { data, error } = await supabase
       .from("complex_solution_knowledge_base")
@@ -370,6 +400,10 @@ function calculateTextSimilarity(text1: string, text2: string): number {
 export async function findExistingSolutionMatches(
   challengeId: string
 ): Promise<SolutionMatchResult[]> {
+  if (!isValidUuid(challengeId)) {
+    return [];
+  }
+
   try {
     // 1. Fetch the target challenge details
     const { data: challenge, error: chErr } = await supabase
@@ -533,6 +567,14 @@ export async function recordSolutionReuseReview(params: {
   reviewNotes: string;
   decisionByProfileId: string;
 }): Promise<ComplexSolutionReuseReviewRow> {
+  if (
+    !isValidUuid(params.challengeId) ||
+    !isValidUuid(params.solutionKbId) ||
+    !isValidUuid(params.decisionByProfileId)
+  ) {
+    throw new Error("Invalid UUID provided for recordSolutionReuseReview.");
+  }
+
   try {
     const { data, error } = await supabase
       .from("complex_solution_reuse_reviews")
@@ -585,6 +627,10 @@ export async function recordSolutionReuseReview(params: {
 export async function fetchSolutionReuseReviewsForChallenge(
   challengeId: string
 ): Promise<ComplexSolutionReuseReviewRow[]> {
+  if (!isValidUuid(challengeId)) {
+    return [];
+  }
+
   try {
     const { data, error } = await supabase
       .from("complex_solution_reuse_reviews")
@@ -608,6 +654,10 @@ export async function publishComplexSolutionFromProject(
   projectId: string,
   overrides?: Partial<ComplexSolutionKnowledgeBaseInsert>
 ): Promise<ComplexSolutionKnowledgeBaseRow> {
+  if (!isValidUuid(projectId)) {
+    throw new Error("Invalid projectId: must be a valid UUID.");
+  }
+
   try {
     // 1. Fetch project and related challenge, institution, proposals
     const { data: project, error: pErr } = await supabase

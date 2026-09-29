@@ -28,6 +28,7 @@ import { IssueImage } from "@/components/issues/issue-image";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { isValidUuid } from "@/lib/security";
 import { PageHeader } from "@/components/ui/page-header";
 import { cn } from "@/lib/utils";
 import {
@@ -235,6 +236,16 @@ export function OfficerIssueDetailsPage() {
     let cancelled = false;
 
     async function loadIssue() {
+      if (!isValidUuid(currentIssueId)) {
+        setError("Invalid issue identifier format.");
+        setIssue(null);
+        setDepartmentAssignments([]);
+        setAiAnalysis(null);
+        setDepartments([]);
+        setLoading(false);
+        return;
+      }
+
       setLoading(true);
       setError(null);
 

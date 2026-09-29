@@ -560,11 +560,11 @@ Deno.serve(async (req: Request) => {
         callerProfile = profile as unknown as { id: string; clerk_user_id: string; role?: { code: string } };
       }
     } else {
-      const { data: profile } = await supabaseAdmin
-        .from("profiles")
-        .select("id, clerk_user_id, role:roles!profiles_role_id_fkey(code)")
-        .or(`id.eq.${verifiedUserId},clerk_user_id.eq.${verifiedUserId}`)
-        .maybeSingle();
+      const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(verifiedUserId);
+      const query = isUuid
+        ? supabaseAdmin.from("profiles").select("id, clerk_user_id, role:roles!profiles_role_id_fkey(code)").eq("id", verifiedUserId).maybeSingle()
+        : supabaseAdmin.from("profiles").select("id, clerk_user_id, role:roles!profiles_role_id_fkey(code)").eq("clerk_user_id", verifiedUserId).maybeSingle();
+      const { data: profile } = await query;
       if (profile) {
         callerProfile = profile as unknown as { id: string; clerk_user_id: string; role?: { code: string } };
       }
@@ -593,6 +593,10 @@ Deno.serve(async (req: Request) => {
   const targetIssueId = (body.issue_id || body.issueId || "").trim();
   if (!targetIssueId) {
     return json(400, { error: "Missing required field: issue_id" }, origin);
+  }
+
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(targetIssueId)) {
+    return json(400, { error: "Invalid issue_id: must be a valid UUID format." }, origin);
   }
 
   try {

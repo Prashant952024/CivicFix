@@ -237,7 +237,7 @@ Deno.serve(async (req: Request) => {
     return json(413, {
       success: false,
       errorCode: "PAYLOAD_TOO_LARGE",
-      userMessage: "The audio recording exceeds the maximum allowable size (9 MB). Please record a shorter audio clip.",
+      userMessage: "The audio recording exceeds the maximum allowable size (12 MB base64 / ~9 MB audio). Please record a shorter audio clip.",
       requestId,
     }, origin);
   }
