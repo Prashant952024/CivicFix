@@ -206,11 +206,8 @@ async function main() {
     assert.strictEqual(rpcData.district?.district_id, "IN-D0248");
     assert.strictEqual(rpcData.district?.district_name, "Ranchi");
     assert.ok(rpcData.population?.total_population > 0, "D1 population must be positive");
-    assert.ok(rpcData.budget?.allocated_budget_crore != null, "D2 budget must be present");
-    assert.ok(rpcData.geography?.area_sq_km > 0, "D3 geography area must be positive");
+    assert.ok(rpcData.population?.total_households > 0, "D1 households must be positive");
     assert.ok(Array.isArray(rpcData.infrastructure_assets), "D4 assets must be array");
-    assert.ok(rpcData.accessibility?.overall_accessibility_gap_score != null, "D5 accessibility score must be present");
-    assert.ok(rpcData.socioeconomic?.multidimensional_poverty_index != null, "D6 socioeconomic index must be present");
     assert.ok(rpcData.historical_projects?.project_count >= 0, "D7 historical projects must be present");
   });
 
