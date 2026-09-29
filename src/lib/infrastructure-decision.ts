@@ -317,3 +317,48 @@ export async function listInfrastructureDecisionsForIssue(
 
   return (data as InfrastructureDecisionRecord[]) || [];
 }
+
+export interface CitizenInfrastructureDecisionView {
+  id: string;
+  issue_id: string;
+  decision: CanonicalInfrastructureDecision;
+  citizen_safe_summary: string;
+  decided_at: string;
+  expected_start_date?: string | null;
+  expected_completion_date?: string | null;
+}
+
+/**
+ * Fetches the official citizen-safe infrastructure decision for a citizen's reported issue.
+ * Strictly queries only public citizen-safe fields permitted under RLS policy `infra_decisions_citizen_read`.
+ * Never exposes `internal_decision_reason`, D8 benchmarks, or admin assessment internals.
+ */
+export async function getCitizenInfrastructureDecision(
+  issueId: string,
+  client: SupabaseClient = defaultSupabase
+): Promise<CitizenInfrastructureDecisionView | null> {
+  if (!issueId || typeof issueId !== "string" || issueId.trim() === "") {
+    throw new InfrastructureDecisionError(
+      "Parameter 'issueId' must be a valid non-empty string.",
+      "INVALID_ISSUE_ID"
+    );
+  }
+
+  const { data, error } = await client
+    .from("infrastructure_decisions")
+    .select("id, issue_id, decision, citizen_safe_summary, decided_at, expected_start_date, expected_completion_date")
+    .eq("issue_id", issueId.trim())
+    .order("decided_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (error) {
+    throw new InfrastructureDecisionError(
+      error.message || `Failed to fetch citizen infrastructure decision for issue '${issueId}'.`,
+      error.code,
+      error.details
+    );
+  }
+
+  return (data as CitizenInfrastructureDecisionView) || null;
+}

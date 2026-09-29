@@ -78,7 +78,12 @@
     "VERIFIED": "Verified",
     "REOPENED": "Reopened",
     "REJECTED": "Rejected",
-    "ESCALATED_TO_INNOVATION": "Escalated to Innovation"
+    "ESCALATED_TO_INNOVATION": "Escalated to Innovation",
+    "CLASSIFIED_INFRASTRUCTURE": "Infrastructure Development",
+    "INFRASTRUCTURE_REVIEW": "Under Infrastructure Review",
+    "INFRASTRUCTURE_ACCEPTED": "Infrastructure Passed",
+    "INFRASTRUCTURE_DEFERRED": "Infrastructure Deferred",
+    "INFRASTRUCTURE_REJECTED": "Infrastructure Not Passed"
   },
   "priorities": {
     "LOW": "Low",
@@ -321,7 +326,26 @@
         "submitReopen": "Reopen Issue",
         "cancel": "Cancel"
       },
-      "mixedInput": "Mixed Input (Voice + Text)"
+      "mixedInput": "Mixed Input (Voice + Text)",
+      "infrastructure": {
+        "tag": "Infrastructure Development Track",
+        "reviewTitle": "Infrastructure Assessment in Progress",
+        "reviewDescription": "This issue has been classified for capital infrastructure assessment and is currently undergoing administrative screening using district baseline data and sectoral planning baselines.",
+        "reviewNotice": "An authorized platform administrator is evaluating this request against district planning priorities. You will see the official screening outcome here once recorded.",
+        "passedTitle": "Infrastructure Screening Passed",
+        "passedSubtitle": "This infrastructure request has successfully passed administrative screening.",
+        "notPassedTitle": "Infrastructure Screening Not Passed",
+        "notPassedSubtitle": "This infrastructure request did not pass administrative screening for the current cycle.",
+        "passedBadge": "Passed",
+        "notPassedBadge": "Not Passed",
+        "officialSummaryLabel": "Official Administrative Summary",
+        "decisionDateLabel": "Decision Recorded On",
+        "resultingStatusLabel": "Resulting Status",
+        "statusExplanationLabel": "What this status means",
+        "passedExplanation": "The project request meets preliminary district planning criteria and has been accepted into the capital infrastructure pipeline.",
+        "notPassedExplanation": "The project request does not meet current planning or feasibility thresholds and will not advance to the capital works pipeline at this time.",
+        "disclaimer": "This is an official administrative screening decision recorded by an authorized CivicFix administrator."
+      }
     },
     "notifications": {
       "tag": "Notification Center",

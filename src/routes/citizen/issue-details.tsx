@@ -25,11 +25,13 @@ import {
 import { Link, useParams } from "react-router-dom";
 
 import { useAppSession } from "@/auth/app-session";
+import { CitizenInfrastructureDecisionCard, isInfrastructureStatus } from "@/components/citizen/citizen-infrastructure-decision-card";
 import { IssueImage } from "@/components/issues/issue-image";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { PageHeader } from "@/components/ui/page-header";
+import { getCitizenInfrastructureDecision, type CitizenInfrastructureDecisionView } from "@/lib/infrastructure-decision";
 import {
   formatCitizenIssueCoordinates,
   formatCitizenIssueDate,
@@ -157,6 +159,8 @@ export function CitizenIssueDetailsPage() {
   const [actionError, setActionError] = useState<string | null>(null);
   const [actionMessage, setActionMessage] = useState<string | null>(null);
   const [showCanonicalEnglish, setShowCanonicalEnglish] = useState(false);
+  const [infrastructureDecision, setInfrastructureDecision] = useState<CitizenInfrastructureDecisionView | null>(null);
+  const [loadingDecision, setLoadingDecision] = useState(false);
   const profileId = profile?.id;
   const sessionProblem = sessionStatus === "error" ? sessionError ?? "CivicFix profile is unavailable." : null;
 
@@ -276,6 +280,27 @@ export function CitizenIssueDetailsPage() {
         if (canonicalDeptRes.data && canonicalDeptRes.data.length > 0) {
           activeDeptAssignments = canonicalDeptRes.data;
         }
+      }
+
+      // Load infrastructure decision if issue is in an infrastructure state
+      if (isInfrastructureStatus(nextIssue.status)) {
+        setLoadingDecision(true);
+        try {
+          const decisionRecord = await getCitizenInfrastructureDecision(currentIssueId, supabase);
+          if (!cancelled) {
+            setInfrastructureDecision(decisionRecord);
+          }
+        } catch (infraErr) {
+          if (import.meta.env.DEV) {
+            console.warn("Could not load citizen infrastructure decision:", infraErr);
+          }
+        } finally {
+          if (!cancelled) {
+            setLoadingDecision(false);
+          }
+        }
+      } else {
+        setInfrastructureDecision(null);
       }
 
       setIssue(nextIssue);
@@ -576,6 +601,16 @@ export function CitizenIssueDetailsPage() {
             </div>
           </div>
         </Card>
+      ) : null}
+
+      {/* Prominent Infrastructure Decision & Status Transparency Card */}
+      {issue && isInfrastructureStatus(issue.status) ? (
+        <CitizenInfrastructureDecisionCard
+          status={issue.status}
+          decision={infrastructureDecision}
+          loadingDecision={loadingDecision}
+          t={t}
+        />
       ) : null}
 
       {/* Main Grid: Details Flow (Left 2/3) + Meta Rail (Right 1/3) */}
