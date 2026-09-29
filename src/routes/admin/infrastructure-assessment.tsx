@@ -42,6 +42,7 @@ import { useAppSession } from "@/auth/app-session";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Dialog } from "@/components/ui/dialog";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PageHeader } from "@/components/ui/page-header";
 import {
@@ -54,6 +55,13 @@ import {
   listInfrastructureAssessmentsForIssue,
   type InfrastructureAssessmentRecord,
 } from "@/lib/infrastructure-assessment";
+import {
+  getLatestInfrastructureDecisionForIssue,
+  recordInfrastructureDecision,
+  mapOutcomeToTargetStatus,
+  type InfrastructureDecisionOutcome,
+  type InfrastructureDecisionRecord,
+} from "@/lib/infrastructure-decision";
 import { supabase } from "@/lib/supabase";
 import type { Database } from "@/types/database";
 import type {
@@ -94,6 +102,15 @@ export function AdminInfrastructureAssessmentReviewPage() {
   const [selectedVersion, setSelectedVersion] = useState<number | null>(null);
   const [authorProfile, setAuthorProfile] = useState<AuthorProfile | null>(null);
 
+  // Decision State
+  const [decision, setDecision] = useState<InfrastructureDecisionRecord | null>(null);
+  const [decisionOutcome, setDecisionOutcome] = useState<InfrastructureDecisionOutcome>("PASSED");
+  const [decisionReason, setDecisionReason] = useState("");
+  const [submittingDecision, setSubmittingDecision] = useState(false);
+  const [decisionConfirmOpen, setDecisionConfirmOpen] = useState(false);
+  const [actionSuccess, setActionSuccess] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
+
   // Section collapse state
   const [collapsedSections, setCollapsedSections] = useState<Record<string, boolean>>({
     d1: false,
@@ -109,7 +126,7 @@ export function AdminInfrastructureAssessmentReviewPage() {
     setCollapsedSections((prev) => ({ ...prev, [key]: !prev[key] }));
   }
 
-  // Load Issue and Assessment snapshot
+  // Load Issue, Assessment snapshot, and existing Decision
   useEffect(() => {
     let cancelled = false;
 
@@ -174,6 +191,17 @@ export function AdminInfrastructureAssessmentReviewPage() {
             setAuthorProfile(null);
           }
         }
+
+        // 3. Fetch existing decision if present
+        try {
+          const latestDec = await getLatestInfrastructureDecisionForIssue(issueId.trim(), supabase);
+          if (!cancelled) {
+            setDecision(latestDec);
+          }
+        } catch {
+          // No prior decision
+          if (!cancelled) setDecision(null);
+        }
       } catch (err) {
         if (!cancelled) {
           if (import.meta.env.DEV) console.error("Failed to load infrastructure assessment dossier:", err);
@@ -192,6 +220,57 @@ export function AdminInfrastructureAssessmentReviewPage() {
       cancelled = true;
     };
   }, [issueId, refreshNonce]);
+
+  async function handleConfirmDecision() {
+    if (!issue || !profile?.id || !currentAssessment) return;
+    if (decisionReason.trim().length < 10) {
+      setActionError("A decision justification of at least 10 characters is required.");
+      return;
+    }
+
+    setSubmittingDecision(true);
+    setActionError(null);
+    setActionSuccess(null);
+
+    try {
+      const createdRecord = await recordInfrastructureDecision(
+        {
+          issueId: issue.id,
+          outcome: decisionOutcome,
+          reason: decisionReason.trim(),
+          adminProfileId: profile.id,
+          assessmentId: currentAssessment.id,
+        },
+        supabase
+      );
+
+      setDecision(createdRecord);
+      setIssue((prev) =>
+        prev
+          ? {
+              ...prev,
+              status: mapOutcomeToTargetStatus(decisionOutcome),
+              updated_at: new Date().toISOString(),
+            }
+          : prev
+      );
+
+      setActionSuccess(
+        decisionOutcome === "PASSED"
+          ? "Infrastructure project passed by Admin."
+          : "Infrastructure project was not passed by Admin."
+      );
+      setDecisionConfirmOpen(false);
+      setDecisionReason("");
+    } catch (err) {
+      if (import.meta.env.DEV) console.error("Failed to record infrastructure decision:", err);
+      setActionError(
+        err instanceof Error ? err.message : "Failed to record infrastructure decision."
+      );
+    } finally {
+      setSubmittingDecision(false);
+    }
+  }
 
   // Derived current assessment
   const currentAssessment = useMemo(() => {
@@ -359,19 +438,54 @@ export function AdminInfrastructureAssessmentReviewPage() {
         }
       />
 
-      {/* READ-ONLY GOVERNANCE STAGE NOTICE */}
+      {/* Action Notification Banners */}
+      {actionSuccess ? (
+        <Card className="p-4 bg-emerald-50 border-emerald-200 text-emerald-900 text-xs flex items-center justify-between gap-2 shadow-sm">
+          <div className="flex items-center gap-2">
+            <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
+            <span className="font-semibold">{actionSuccess}</span>
+          </div>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setActionSuccess(null)}
+            className="h-6 w-6 p-0 text-emerald-800 hover:bg-emerald-100"
+          >
+            <X className="h-3.5 w-3.5" />
+          </Button>
+        </Card>
+      ) : null}
+
+      {actionError ? (
+        <Card className="p-4 bg-rose-50 border-rose-200 text-rose-900 text-xs flex items-center justify-between gap-2 shadow-sm">
+          <div className="flex items-center gap-2">
+            <AlertCircle className="h-4 w-4 text-rose-600 shrink-0" />
+            <span className="font-semibold">{actionError}</span>
+          </div>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setActionError(null)}
+            className="h-6 w-6 p-0 text-rose-800 hover:bg-rose-100"
+          >
+            <X className="h-3.5 w-3.5" />
+          </Button>
+        </Card>
+      ) : null}
+
+      {/* GOVERNANCE STAGE NOTICE */}
       <div className="flex items-center justify-between gap-3 p-3.5 rounded-xl border border-indigo-200/90 bg-indigo-50/70 text-indigo-950 text-xs shadow-sm">
         <div className="flex items-center gap-2.5">
           <ShieldCheck className="h-5 w-5 text-indigo-700 shrink-0" />
           <div>
-            <span className="font-bold">Governance Stage: Assessment & Evidence Review (Read-Only)</span>
+            <span className="font-bold">Governance Stage: Infrastructure Screening & Decision</span>
             <p className="text-[11px] text-indigo-900/80 mt-0.5">
-              Reviewing immutable D1–D7 baseline context snapshot for diagnostic assessment. Decision recording (Accept / Defer / Reject) is handled in the subsequent decision workflow.
+              Reviewing immutable D1–D7 baseline context snapshot for diagnostic assessment. Official screening decisions (Pass / Do Not Pass) are recorded authoritatively by the Administrator.
             </p>
           </div>
         </div>
         <Badge variant="indigo" size="sm" className="shrink-0 font-bold uppercase tracking-wider">
-          Read-Only Ledger
+          Auditable Ledger
         </Badge>
       </div>
 
@@ -1309,7 +1423,199 @@ export function AdminInfrastructureAssessmentReviewPage() {
         </CardContent>
       </Card>
 
-      {/* 9. BOTTOM NAVIGATION BAR (READ-ONLY) */}
+      {/* 9. ADMIN INFRASTRUCTURE DECISION WORKSPACE */}
+      {decision || issue.status === "INFRASTRUCTURE_ACCEPTED" || issue.status === "INFRASTRUCTURE_REJECTED" ? (
+        <Card className="rounded-2xl border-2 border-indigo-300 bg-gradient-to-r from-indigo-50/50 via-card to-indigo-50/30 shadow-md overflow-hidden">
+          <CardHeader className="py-3 px-4 bg-indigo-100/60 border-b border-indigo-200/80 flex flex-row items-center justify-between">
+            <div className="flex items-center gap-2 text-indigo-950 font-bold text-xs">
+              <ShieldCheck className="h-4 w-4 text-indigo-700" />
+              <span>Official Administrative Decision Recorded</span>
+            </div>
+            <Badge
+              variant={
+                decision?.decision === "ACCEPTED" || issue.status === "INFRASTRUCTURE_ACCEPTED"
+                  ? "emerald"
+                  : "rose"
+              }
+              size="default"
+              className="font-bold uppercase tracking-wider"
+            >
+              {decision?.decision === "ACCEPTED" || issue.status === "INFRASTRUCTURE_ACCEPTED"
+                ? "PASSED"
+                : "NOT PASSED"}
+            </Badge>
+          </CardHeader>
+          <CardContent className="p-4 space-y-3 text-xs">
+            <div className="space-y-1">
+              <span className="text-[10px] text-muted-foreground uppercase font-bold block">
+                Administrative Rationale & Justification
+              </span>
+              <p className="text-foreground text-xs leading-relaxed font-medium bg-card p-3 rounded-lg border border-border/70">
+                {decision?.internal_decision_reason ||
+                  decision?.citizen_safe_summary ||
+                  "Screening decision recorded by platform Administrator."}
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2 border-t border-border/60 text-[11px]">
+              <div>
+                <span className="text-muted-foreground block text-[10px]">Decision Maker</span>
+                <span className="font-semibold text-foreground">
+                  {decision?.decided_by_profile?.full_name ||
+                    decision?.decided_by_profile?.email ||
+                    authorProfile?.full_name ||
+                    "Administrator"}
+                </span>
+              </div>
+              <div>
+                <span className="text-muted-foreground block text-[10px]">Decided Timestamp</span>
+                <span className="font-semibold text-foreground">
+                  {decision?.decided_at
+                    ? formatCitizenIssueDateTime(decision.decided_at)
+                    : formatCitizenIssueDateTime(issue.updated_at)}
+                </span>
+              </div>
+              <div>
+                <span className="text-muted-foreground block text-[10px]">Resulting Issue Status</span>
+                <span className="font-semibold text-indigo-950">
+                  {getCitizenIssueStatusLabel(issue.status)}
+                </span>
+              </div>
+            </div>
+
+            <div className="p-2 rounded-lg bg-muted/40 text-[10px] text-muted-foreground flex items-center gap-1.5">
+              <Info className="h-3 w-3 shrink-0 text-muted-foreground" />
+              <span>
+                Official administrative screening decision has been recorded on the governance ledger. The dossier remains available for read-only audit.
+              </span>
+            </div>
+          </CardContent>
+        </Card>
+      ) : (
+        <Card className="rounded-2xl border-2 border-indigo-200/90 shadow-md overflow-hidden">
+          <CardHeader className="py-3 px-4 bg-gradient-to-r from-indigo-50/90 via-sky-50/40 to-indigo-50/90 border-b border-indigo-200/80">
+            <div className="flex items-center gap-2 text-indigo-950 font-bold text-sm">
+              <Shield className="h-4 w-4 text-indigo-700" />
+              <span>Admin Infrastructure Screening Decision</span>
+            </div>
+            <p className="text-[11px] text-muted-foreground mt-0.5">
+              CivicFix presents the factual evidence. The final screening decision is determined solely by the authorized Administrator.
+            </p>
+          </CardHeader>
+
+          <CardContent className="space-y-4 p-4 text-xs">
+            {/* Option Cards */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {/* Pass Option */}
+              <button
+                type="button"
+                onClick={() => setDecisionOutcome("PASSED")}
+                className={`p-4 rounded-xl border-2 text-left transition-all relative ${
+                  decisionOutcome === "PASSED"
+                    ? "border-emerald-600 bg-emerald-50/70 shadow-sm ring-1 ring-emerald-600/20"
+                    : "border-border/80 hover:border-muted-foreground/40 bg-card"
+                }`}
+              >
+                <div className="flex items-center justify-between mb-2">
+                  <span className="font-bold text-sm text-emerald-950 flex items-center gap-2">
+                    <CheckCircle2 className="h-4 w-4 text-emerald-700" />
+                    Pass Infrastructure Project
+                  </span>
+                  <div
+                    className={`h-4 w-4 rounded-full border-2 flex items-center justify-center ${
+                      decisionOutcome === "PASSED"
+                        ? "border-emerald-600 bg-emerald-600 text-white"
+                        : "border-muted-foreground/40"
+                    }`}
+                  >
+                    {decisionOutcome === "PASSED" && <Check className="h-2.5 w-2.5" />}
+                  </div>
+                </div>
+                <p className="text-[11px] text-muted-foreground leading-relaxed">
+                  The Admin confirms that the infrastructure request passes the current CivicFix infrastructure screening/review stage.
+                </p>
+              </button>
+
+              {/* Not Pass Option */}
+              <button
+                type="button"
+                onClick={() => setDecisionOutcome("NOT_PASSED")}
+                className={`p-4 rounded-xl border-2 text-left transition-all relative ${
+                  decisionOutcome === "NOT_PASSED"
+                    ? "border-rose-600 bg-rose-50/70 shadow-sm ring-1 ring-rose-600/20"
+                    : "border-border/80 hover:border-muted-foreground/40 bg-card"
+                }`}
+              >
+                <div className="flex items-center justify-between mb-2">
+                  <span className="font-bold text-sm text-rose-950 flex items-center gap-2">
+                    <X className="h-4 w-4 text-rose-700" />
+                    Do Not Pass
+                  </span>
+                  <div
+                    className={`h-4 w-4 rounded-full border-2 flex items-center justify-center ${
+                      decisionOutcome === "NOT_PASSED"
+                        ? "border-rose-600 bg-rose-600 text-white"
+                        : "border-muted-foreground/40"
+                    }`}
+                  >
+                    {decisionOutcome === "NOT_PASSED" && <Check className="h-2.5 w-2.5" />}
+                  </div>
+                </div>
+                <p className="text-[11px] text-muted-foreground leading-relaxed">
+                  The Admin does not pass the infrastructure request through the current infrastructure screening/review stage.
+                </p>
+              </button>
+            </div>
+
+            {/* Mandatory Reason Input */}
+            <div className="space-y-1.5 pt-1">
+              <label className="font-semibold text-foreground text-xs block">
+                Administrative Decision Remarks & Justification <span className="text-destructive">*</span>
+              </label>
+              <textarea
+                rows={3}
+                value={decisionReason}
+                onChange={(e) => setDecisionReason(e.target.value)}
+                className="w-full text-xs p-3 rounded-xl border border-border bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-indigo-500 leading-relaxed"
+                placeholder={
+                  decisionOutcome === "PASSED"
+                    ? "State the administrative justification for passing this project (e.g. Alignment with district road network connectivity gaps and sufficient departmental budget availability)..."
+                    : "State the administrative rationale for not passing this project (e.g. Severe budget deficit in planning sector, insufficient population catchment, or conflicting master plan priorities)..."
+                }
+              />
+              <div className="flex items-center justify-between text-[10px]">
+                <span className={decisionReason.trim().length < 10 ? "text-rose-600" : "text-muted-foreground"}>
+                  Minimum 10 characters required ({decisionReason.trim().length}/10).
+                </span>
+                <span className="text-muted-foreground">Auditable official governance entry</span>
+              </div>
+            </div>
+
+            {/* Action Bar */}
+            <div className="flex items-center justify-end gap-2 pt-3 border-t">
+              <Button
+                size="sm"
+                onClick={() => setDecisionConfirmOpen(true)}
+                disabled={submittingDecision || decisionReason.trim().length < 10}
+                className={`gap-1.5 font-semibold px-5 ${
+                  decisionOutcome === "PASSED"
+                    ? "bg-emerald-600 hover:bg-emerald-700 text-white"
+                    : "bg-rose-600 hover:bg-rose-700 text-white"
+                }`}
+              >
+                {decisionOutcome === "PASSED" ? (
+                  <CheckCircle2 className="h-4 w-4" />
+                ) : (
+                  <X className="h-4 w-4" />
+                )}
+                <span>Record Decision ({decisionOutcome === "PASSED" ? "Pass" : "Do Not Pass"})</span>
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* 10. BOTTOM NAVIGATION BAR (READ-ONLY) */}
       <div className="flex items-center justify-between pt-4 border-t border-border/70">
         <Button asChild variant="outline" size="sm" className="gap-1.5 text-xs">
           <Link to="/app/admin/classification">
@@ -1326,6 +1632,97 @@ export function AdminInfrastructureAssessmentReviewPage() {
           </Button>
         </div>
       </div>
+
+      {/* Confirmation Modal */}
+      {decisionConfirmOpen && issue ? (
+        <Dialog
+          open={decisionConfirmOpen}
+          onClose={() => setDecisionConfirmOpen(false)}
+          title={decisionOutcome === "PASSED" ? "Pass Infrastructure Project?" : "Do Not Pass Infrastructure Project?"}
+          description="Confirm recording this authoritative administrative screening decision."
+          maxWidth="md"
+        >
+          <div className="space-y-4 pt-2 text-xs">
+            <div className="p-3 border border-border/70 rounded-xl bg-muted/20 space-y-1">
+              <span className="font-mono text-[10px] text-muted-foreground block">
+                ID: {issue.id}
+              </span>
+              <span className="font-bold text-foreground text-sm block">
+                {issue.title}
+              </span>
+              <span className="text-muted-foreground block text-[11px]">
+                {issue.category} • {issue.address_text || issue.location_text || "Geographic Coordinates"}
+              </span>
+            </div>
+
+            <div className="p-3 rounded-xl border border-border/80 bg-card space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-muted-foreground text-[11px] font-medium">Selected Outcome:</span>
+                <Badge
+                  variant={decisionOutcome === "PASSED" ? "emerald" : "rose"}
+                  size="default"
+                  className="font-bold uppercase tracking-wider"
+                >
+                  {decisionOutcome === "PASSED" ? "PASSED" : "NOT PASSED"}
+                </Badge>
+              </div>
+
+              <div className="flex items-center justify-between text-[11px]">
+                <span className="text-muted-foreground font-medium">Resulting Status:</span>
+                <span className="font-semibold font-mono text-foreground">
+                  {mapOutcomeToTargetStatus(decisionOutcome)}
+                </span>
+              </div>
+            </div>
+
+            <div className="p-3 bg-muted/30 border border-border/70 rounded-xl space-y-1">
+              <span className="text-[10px] text-muted-foreground uppercase font-bold block">
+                Decision Justification:
+              </span>
+              <p className="text-[11px] text-foreground italic leading-relaxed">
+                "{decisionReason.trim()}"
+              </p>
+            </div>
+
+            <div className="p-2.5 rounded-lg border border-amber-200 bg-amber-50/80 text-amber-950 text-[11px] flex items-start gap-2">
+              <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
+              <span>
+                <strong>Important:</strong> This decision is made by the Admin. CivicFix does not automatically determine the outcome. Once submitted, this action is permanently recorded in the governance ledger.
+              </span>
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-3 border-t">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setDecisionConfirmOpen(false)}
+                disabled={submittingDecision}
+              >
+                Cancel
+              </Button>
+              <Button
+                size="sm"
+                onClick={() => {
+                  void handleConfirmDecision();
+                }}
+                disabled={submittingDecision || decisionReason.trim().length < 10}
+                className={`gap-1.5 font-semibold ${
+                  decisionOutcome === "PASSED"
+                    ? "bg-emerald-600 hover:bg-emerald-700 text-white"
+                    : "bg-rose-600 hover:bg-rose-700 text-white"
+                }`}
+              >
+                {submittingDecision ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <ShieldCheck className="h-3.5 w-3.5" />
+                )}
+                Confirm & Record Decision
+              </Button>
+            </div>
+          </div>
+        </Dialog>
+      ) : null}
     </div>
   );
 }
