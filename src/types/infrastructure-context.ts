@@ -207,3 +207,37 @@ export interface GetDistrictInfrastructureContextParams {
   financialYear?: string | null;
   infrastructureId?: string | null;
 }
+
+/**
+ * Options for querying issue-level infrastructure decision context
+ */
+export interface IssueInfrastructureContextOptions {
+  financialYear?: string | null;
+  infrastructureId?: string | null;
+}
+
+/**
+ * Composite issue infrastructure context result
+ */
+export interface IssueInfrastructureContextResult {
+  issue_id: string;
+  issue_title: string;
+  issue_status: string;
+  final_issue_type: string | null;
+  district_id: string;
+  department_id: string;
+  planning_sector_code: string;
+  context: DistrictInfrastructureContext;
+  fetched_at: string;
+}
+
+/**
+ * Department to Planning Sector Mapping
+ */
+export interface DepartmentPlanningSectorMapping {
+  department_id: string;
+  planning_sector_code: string;
+  planning_sector_name: string;
+  is_primary: boolean;
+}
+
