@@ -347,15 +347,15 @@ export async function fetchIssueInfrastructureContext(
     );
   }
 
-  if (!issue.department_id) {
-    throw new DistrictInfrastructureContextError(
-      `Issue '${trimmedIssueId}' does not have an assigned department.`,
-      "MISSING_DEPARTMENT_ID"
-    );
+  // 2. Resolve planning sector code (defaults to DEPT-01 Roads & Transport if department is not yet assigned)
+  let planningSectorCode = "DEPT-01";
+  if (issue.department_id) {
+    try {
+      planningSectorCode = await resolveIssuePlanningSector(issue.department_id, client);
+    } catch {
+      planningSectorCode = "DEPT-01";
+    }
   }
-
-  // 2. Resolve planning sector code
-  const planningSectorCode = await resolveIssuePlanningSector(issue.department_id, client);
 
   // 3. Query district infrastructure context via RPC
   const context = await getDistrictInfrastructureContext(

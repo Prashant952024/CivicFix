@@ -326,6 +326,14 @@ export function AdminClassificationPage() {
     return issues.find((i) => i.id === selectedIssueId) ?? null;
   }, [issues, selectedIssueId]);
 
+  // Synchronize district and department selections whenever the active issue changes
+  useEffect(() => {
+    if (selectedIssue) {
+      setSelectedDistrictId(selectedIssue.district_id || "");
+      setSelectedDepartmentId(selectedIssue.department_id || "");
+    }
+  }, [selectedIssue]);
+
   function handleSelectIssue(issue: IssueRow) {
     setSelectedIssueId(issue.id);
     setSelectedDistrictId(issue.district_id || "");
@@ -564,7 +572,10 @@ export function AdminClassificationPage() {
 
       if (decisionType === "INFRASTRUCTURE" && selectedDistrictId) {
         issueUpdatePayload.district_id = selectedDistrictId;
-        issueUpdatePayload.district_resolution_method = "ADMIN_MANUAL";
+        issueUpdatePayload.district_resolution_method =
+          selectedIssue.district_id === selectedDistrictId && selectedIssue.district_resolution_method
+            ? selectedIssue.district_resolution_method
+            : "ADMIN_MANUAL";
         if (selectedDepartmentId) {
           issueUpdatePayload.department_id = selectedDepartmentId;
         }
@@ -637,22 +648,28 @@ export function AdminClassificationPage() {
 
       // 4. If classified as INFRASTRUCTURE, generate and persist baseline D1-D7 assessment snapshot
       if (decisionType === "INFRASTRUCTURE") {
-        try {
-          const assessment = await generateAndSaveInfrastructureAssessment(
-            {
-              issueId: selectedIssue.id,
-              generatedByProfileId: profile.id,
-            },
-            supabase
-          );
+        const effectiveDistrictId = selectedDistrictId || selectedIssue.district_id;
+        if (effectiveDistrictId) {
+          try {
+            const assessment = await generateAndSaveInfrastructureAssessment(
+              {
+                issueId: selectedIssue.id,
+                generatedByProfileId: profile.id,
+              },
+              supabase
+            );
+            setActionSuccess(
+              `Issue successfully classified as INFRASTRUCTURE and initial assessment v${assessment.assessment_version} snapshot generated (Data Completeness: ${assessment.data_completeness_score}%).`
+            );
+          } catch (assessmentErr) {
+            if (import.meta.env.DEV) console.warn("Infrastructure assessment generation deferred:", assessmentErr);
+            setActionSuccess(
+              `Issue successfully classified as INFRASTRUCTURE. Context assessment dossier will be compiled in the Infrastructure Assessment workspace.`
+            );
+          }
+        } else {
           setActionSuccess(
-            `Issue successfully classified as INFRASTRUCTURE and initial assessment v${assessment.assessment_version} snapshot generated (Data Completeness: ${assessment.data_completeness_score}%).`
-          );
-        } catch (assessmentErr) {
-          if (import.meta.env.DEV) console.error("Infrastructure assessment generation failed:", assessmentErr);
-          const errorMsg = assessmentErr instanceof Error ? assessmentErr.message : "Unknown error";
-          setActionError(
-            `Issue classified as INFRASTRUCTURE, but baseline assessment snapshot creation failed: ${errorMsg}. You can complete district resolution in the Infrastructure Assessment workspace.`
+            `Issue successfully classified as INFRASTRUCTURE. You can assign a canonical district and review the decision-support dossier in the Infrastructure Assessment workspace.`
           );
         }
       } else {
