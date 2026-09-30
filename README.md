@@ -17,6 +17,13 @@ CivicFix is a modern full-stack platform designed to bridge the operational gap 
 
 ---
 
+### Project Links
+
+- 🌐 **Live Application**: [https://civicfix-rho.vercel.app/](https://civicfix-rho.vercel.app/)
+- 🧪 **Interactive Public Demo Hub**: [https://civicfix-9226e.web.app/demo](https://civicfix-9226e.web.app/demo)
+
+---
+
 ## Important Governance Principle
 
 > [!IMPORTANT]
@@ -742,6 +749,9 @@ npm run load-test
 ---
 
 ## 31. Demo Walkthrough
+
+> [!TIP]
+> **Try the Live Public Sandbox**: Experience the Municipal Officer and Field Worker command centers without creating an account at [https://civicfix-9226e.web.app/demo](https://civicfix-9226e.web.app/demo).
 
 ### Demo 1: SIMPLE Track (Municipal Redressal)
 1. **Citizen Intake**: Navigate to `/citizen/new`, submit an issue with photo, voice recording, and location.

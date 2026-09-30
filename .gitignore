@@ -9,3 +9,4 @@ scratch/
 .npm/
 .supabase/traces/
 Datasets_Backend/
+.firebase/
