@@ -94,6 +94,19 @@ const UnauthorizedPage = lazy(() => import("@/routes/unauthorized").then((module
 
 // Demo Sandbox Components
 const DemoHubPage = lazy(() => import("@/demo/demo-hub").then((m) => ({ default: m.DemoHubPage })));
+
+// Citizen
+const DemoCitizenDashboardPage = lazy(() =>
+  import("@/demo/citizen/demo-citizen-dashboard").then((m) => ({ default: m.DemoCitizenDashboardPage })),
+);
+const DemoCitizenReportPage = lazy(() =>
+  import("@/demo/citizen/demo-citizen-report").then((m) => ({ default: m.DemoCitizenReportPage })),
+);
+const DemoCitizenIssueDetailPage = lazy(() =>
+  import("@/demo/citizen/demo-citizen-issue-details").then((m) => ({ default: m.DemoCitizenIssueDetailPage })),
+);
+
+// Municipal Officer
 const DemoOfficerDashboardPage = lazy(() =>
   import("@/demo/officer/demo-officer-dashboard").then((m) => ({ default: m.DemoOfficerDashboardPage })),
 );
@@ -103,6 +116,19 @@ const DemoOfficerIssuesPage = lazy(() =>
 const DemoOfficerIssueDetailPage = lazy(() =>
   import("@/demo/officer/demo-officer-issue-details").then((m) => ({ default: m.DemoOfficerIssueDetailPage })),
 );
+
+// Department Manager
+const DemoManagerDashboardPage = lazy(() =>
+  import("@/demo/manager/demo-manager-dashboard").then((m) => ({ default: m.DemoManagerDashboardPage })),
+);
+const DemoManagerIssueDetailPage = lazy(() =>
+  import("@/demo/manager/demo-manager-issue-details").then((m) => ({ default: m.DemoManagerIssueDetailPage })),
+);
+const DemoManagerWorkersPage = lazy(() =>
+  import("@/demo/manager/demo-manager-workers").then((m) => ({ default: m.DemoManagerWorkersPage })),
+);
+
+// Field Worker
 const DemoWorkerDashboardPage = lazy(() =>
   import("@/demo/worker/demo-worker-dashboard").then((m) => ({ default: m.DemoWorkerDashboardPage })),
 );
@@ -111,6 +137,44 @@ const DemoWorkerAssignedIssuesPage = lazy(() =>
 );
 const DemoWorkerIssueDetailPage = lazy(() =>
   import("@/demo/worker/demo-worker-issue-details").then((m) => ({ default: m.DemoWorkerIssueDetailPage })),
+);
+
+// Administrator
+const DemoAdminDashboardPage = lazy(() =>
+  import("@/demo/admin/demo-admin-dashboard").then((m) => ({ default: m.DemoAdminDashboardPage })),
+);
+const DemoAdminUsersPage = lazy(() =>
+  import("@/demo/admin/demo-admin-users").then((m) => ({ default: m.DemoAdminUsersPage })),
+);
+const DemoAdminDepartmentsPage = lazy(() =>
+  import("@/demo/admin/demo-admin-departments").then((m) => ({ default: m.DemoAdminDepartmentsPage })),
+);
+
+// Innovation Manager
+const DemoInnovationDashboardPage = lazy(() =>
+  import("@/demo/innovation/demo-innovation-dashboard").then((m) => ({ default: m.DemoInnovationDashboardPage })),
+);
+const DemoInnovationChallengeNewPage = lazy(() =>
+  import("@/demo/innovation/demo-innovation-challenge-new").then((m) => ({ default: m.DemoInnovationChallengeNewPage })),
+);
+
+// Research Institution
+const DemoInstitutionDashboardPage = lazy(() =>
+  import("@/demo/institution/demo-institution-dashboard").then((m) => ({ default: m.DemoInstitutionDashboardPage })),
+);
+const DemoInstitutionProposalNewPage = lazy(() =>
+  import("@/demo/institution/demo-institution-proposal-new").then((m) => ({ default: m.DemoInstitutionProposalNewPage })),
+);
+const DemoInstitutionPilotsPage = lazy(() =>
+  import("@/demo/institution/demo-institution-pilots").then((m) => ({ default: m.DemoInstitutionPilotsPage })),
+);
+
+// Industry Partner
+const DemoIndustryDashboardPage = lazy(() =>
+  import("@/demo/industry/demo-industry-dashboard").then((m) => ({ default: m.DemoIndustryDashboardPage })),
+);
+const DemoIndustryPilotsPage = lazy(() =>
+  import("@/demo/industry/demo-industry-pilots").then((m) => ({ default: m.DemoIndustryPilotsPage })),
 );
 
 function RouteLoadingFallback() {
@@ -155,7 +219,7 @@ export function AppRoutes() {
           element={<Navigate replace to="/app/role-selection" />}
         />
 
-        {/* Safe Public Demo Sandbox Routes */}
+        {/* Safe Public Demo Sandbox Routes for 8 Predefined Personas */}
         <Route
           path="demo"
           element={
@@ -165,15 +229,59 @@ export function AppRoutes() {
           }
         >
           <Route index element={<DemoHubPage />} />
+
+          {/* 1. Citizen */}
+          <Route path="citizen" element={<DemoLayout />}>
+            <Route index element={<DemoCitizenDashboardPage />} />
+            <Route path="report" element={<DemoCitizenReportPage />} />
+            <Route path="issues/:issueId" element={<DemoCitizenIssueDetailPage />} />
+          </Route>
+
+          {/* 2. Municipal Officer */}
           <Route path="officer" element={<DemoLayout />}>
             <Route index element={<DemoOfficerDashboardPage />} />
             <Route path="issues" element={<DemoOfficerIssuesPage />} />
             <Route path="issues/:issueId" element={<DemoOfficerIssueDetailPage />} />
           </Route>
+
+          {/* 3. Department Manager */}
+          <Route path="manager" element={<DemoLayout />}>
+            <Route index element={<DemoManagerDashboardPage />} />
+            <Route path="issues/:issueId" element={<DemoManagerIssueDetailPage />} />
+            <Route path="workers" element={<DemoManagerWorkersPage />} />
+          </Route>
+
+          {/* 4. Field Worker */}
           <Route path="worker" element={<DemoLayout />}>
             <Route index element={<DemoWorkerDashboardPage />} />
             <Route path="assigned-issues" element={<DemoWorkerAssignedIssuesPage />} />
             <Route path="issues/:issueId" element={<DemoWorkerIssueDetailPage />} />
+          </Route>
+
+          {/* 5. Administrator */}
+          <Route path="admin" element={<DemoLayout />}>
+            <Route index element={<DemoAdminDashboardPage />} />
+            <Route path="users" element={<DemoAdminUsersPage />} />
+            <Route path="departments" element={<DemoAdminDepartmentsPage />} />
+          </Route>
+
+          {/* 6. Innovation Manager */}
+          <Route path="innovation" element={<DemoLayout />}>
+            <Route index element={<DemoInnovationDashboardPage />} />
+            <Route path="challenges/new" element={<DemoInnovationChallengeNewPage />} />
+          </Route>
+
+          {/* 7. Research Institution */}
+          <Route path="institution" element={<DemoLayout />}>
+            <Route index element={<DemoInstitutionDashboardPage />} />
+            <Route path="proposals/new" element={<DemoInstitutionProposalNewPage />} />
+            <Route path="pilots" element={<DemoInstitutionPilotsPage />} />
+          </Route>
+
+          {/* 8. Industry Partner */}
+          <Route path="industry" element={<DemoLayout />}>
+            <Route index element={<DemoIndustryDashboardPage />} />
+            <Route path="pilots" element={<DemoIndustryPilotsPage />} />
           </Route>
         </Route>
 

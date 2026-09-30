@@ -184,7 +184,10 @@ export function DemoWorkerIssueDetailPage() {
                     <div className="grid grid-cols-2 gap-3">
                       {[
                         { key: "pothole_fixed" as const, label: "Repaved Asphalt Proof" },
-                        { key: "streetlight_fixed" as const, label: "Fixed Luminaire Light Proof" },
+                        { key: "streetlight_repaired" as const, label: "Fixed Luminaire Light Proof" },
+                        { key: "drainage_cleaned" as const, label: "Cleared Culvert Drain" },
+                        { key: "garbage_cleared" as const, label: "Cleaned Sanitary Site" },
+                        { key: "water_repaired" as const, label: "Repaired High-Pressure Valve" },
                       ].map((item) => (
                         <button
                           key={item.key}
