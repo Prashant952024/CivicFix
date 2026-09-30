@@ -1,0 +1,638 @@
+{
+  "timestamp": "2026-09-30T07:57:09.760Z",
+  "concurrencyLevels": [
+    10,
+    25,
+    50,
+    100,
+    250
+  ],
+  "workloadResults": {
+    "workload_a": [
+      {
+        "workloadName": "Workload A: Public & Basic Browsing",
+        "concurrency": 10,
+        "totalRequests": 20,
+        "successfulRequests": 20,
+        "failedRequests": 0,
+        "rateLimitedRequests": 0,
+        "timeoutCount": 0,
+        "errorRate": 0,
+        "durationSec": 0.43,
+        "throughputRps": 46.95,
+        "percentiles": {
+          "min": 88.45,
+          "p50": 169.22,
+          "p95": 266.84,
+          "p99": 269.53,
+          "max": 269.53,
+          "avg": 166.35
+        },
+        "statusDistribution": {
+          "200": 20
+        },
+        "primaryBottleneck": "None (Healthy)"
+      },
+      {
+        "workloadName": "Workload A: Public & Basic Browsing",
+        "concurrency": 25,
+        "totalRequests": 50,
+        "successfulRequests": 50,
+        "failedRequests": 0,
+        "rateLimitedRequests": 0,
+        "timeoutCount": 0,
+        "errorRate": 0,
+        "durationSec": 0.38,
+        "throughputRps": 131.23,
+        "percentiles": {
+          "min": 88.09,
+          "p50": 118.9,
+          "p95": 280.62,
+          "p99": 308.51,
+          "max": 308.51,
+          "avg": 154.25
+        },
+        "statusDistribution": {
+          "200": 50
+        },
+        "primaryBottleneck": "None (Healthy)"
+      },
+      {
+        "workloadName": "Workload A: Public & Basic Browsing",
+        "concurrency": 50,
+        "totalRequests": 100,
+        "successfulRequests": 100,
+        "failedRequests": 0,
+        "rateLimitedRequests": 0,
+        "timeoutCount": 0,
+        "errorRate": 0,
+        "durationSec": 0.37,
+        "throughputRps": 268.82,
+        "percentiles": {
+          "min": 84.48,
+          "p50": 123.43,
+          "p95": 286.05,
+          "p99": 306.96,
+          "max": 309.33,
+          "avg": 153.32
+        },
+        "statusDistribution": {
+          "200": 100
+        },
+        "primaryBottleneck": "None (Healthy)"
+      },
+      {
+        "workloadName": "Workload A: Public & Basic Browsing",
+        "concurrency": 100,
+        "totalRequests": 200,
+        "successfulRequests": 200,
+        "failedRequests": 0,
+        "rateLimitedRequests": 0,
+        "timeoutCount": 0,
+        "errorRate": 0,
+        "durationSec": 0.64,
+        "throughputRps": 313.48,
+        "percentiles": {
+          "min": 114.22,
+          "p50": 226.74,
+          "p95": 522.69,
+          "p99": 523.05,
+          "max": 523.41,
+          "avg": 267.36
+        },
+        "statusDistribution": {
+          "200": 200
+        },
+        "primaryBottleneck": "None (Healthy)"
+      },
+      {
+        "workloadName": "Workload A: Public & Basic Browsing",
+        "concurrency": 250,
+        "totalRequests": 500,
+        "successfulRequests": 500,
+        "failedRequests": 0,
+        "rateLimitedRequests": 0,
+        "timeoutCount": 0,
+        "errorRate": 0,
+        "durationSec": 13.17,
+        "throughputRps": 37.95,
+        "percentiles": {
+          "min": 84.34,
+          "p50": 231.82,
+          "p95": 7078.09,
+          "p99": 11744.86,
+          "max": 13170.98,
+          "avg": 1207.8
+        },
+        "statusDistribution": {
+          "200": 500
+        },
+        "primaryBottleneck": "High Latency Tail (Network or Upstream RPC)"
+      }
+    ],
+    "workload_b": [
+      {
+        "workloadName": "Workload B: Authenticated Civic Operations",
+        "concurrency": 10,
+        "totalRequests": 20,
+        "successfulRequests": 20,
+        "failedRequests": 0,
+        "rateLimitedRequests": 0,
+        "timeoutCount": 0,
+        "errorRate": 0,
+        "durationSec": 0.49,
+        "throughputRps": 41.15,
+        "percentiles": {
+          "min": 96.12,
+          "p50": 136.7,
+          "p95": 287.57,
+          "p99": 306.19,
+          "max": 306.19,
+          "avg": 174.71
+        },
+        "statusDistribution": {
+          "200": 20
+        },
+        "primaryBottleneck": "None (Healthy)"
+      },
+      {
+        "workloadName": "Workload B: Authenticated Civic Operations",
+        "concurrency": 25,
+        "totalRequests": 50,
+        "successfulRequests": 50,
+        "failedRequests": 0,
+        "rateLimitedRequests": 0,
+        "timeoutCount": 0,
+        "errorRate": 0,
+        "durationSec": 0.33,
+        "throughputRps": 151.06,
+        "percentiles": {
+          "min": 85,
+          "p50": 119.5,
+          "p95": 170.09,
+          "p99": 252.96,
+          "max": 252.96,
+          "avg": 133.06
+        },
+        "statusDistribution": {
+          "200": 50
+        },
+        "primaryBottleneck": "None (Healthy)"
+      },
+      {
+        "workloadName": "Workload B: Authenticated Civic Operations",
+        "concurrency": 50,
+        "totalRequests": 100,
+        "successfulRequests": 100,
+        "failedRequests": 0,
+        "rateLimitedRequests": 0,
+        "timeoutCount": 0,
+        "errorRate": 0,
+        "durationSec": 0.38,
+        "throughputRps": 263.16,
+        "percentiles": {
+          "min": 85.8,
+          "p50": 114.49,
+          "p95": 256.94,
+          "p99": 263.11,
+          "max": 263.32,
+          "avg": 130.67
+        },
+        "statusDistribution": {
+          "200": 100
+        },
+        "primaryBottleneck": "None (Healthy)"
+      },
+      {
+        "workloadName": "Workload B: Authenticated Civic Operations",
+        "concurrency": 100,
+        "totalRequests": 200,
+        "successfulRequests": 200,
+        "failedRequests": 0,
+        "rateLimitedRequests": 0,
+        "timeoutCount": 0,
+        "errorRate": 0,
+        "durationSec": 0.46,
+        "throughputRps": 437.64,
+        "percentiles": {
+          "min": 98.6,
+          "p50": 150.23,
+          "p95": 305.68,
+          "p99": 360.28,
+          "max": 360.7,
+          "avg": 164.6
+        },
+        "statusDistribution": {
+          "200": 200
+        },
+        "primaryBottleneck": "None (Healthy)"
+      },
+      {
+        "workloadName": "Workload B: Authenticated Civic Operations",
+        "concurrency": 250,
+        "totalRequests": 500,
+        "successfulRequests": 500,
+        "failedRequests": 0,
+        "rateLimitedRequests": 0,
+        "timeoutCount": 0,
+        "errorRate": 0,
+        "durationSec": 1.41,
+        "throughputRps": 355.11,
+        "percentiles": {
+          "min": 138.95,
+          "p50": 490.07,
+          "p95": 1111.61,
+          "p99": 1136.31,
+          "max": 1150.27,
+          "avg": 581.01
+        },
+        "statusDistribution": {
+          "200": 500
+        },
+        "primaryBottleneck": "None (Healthy)"
+      }
+    ],
+    "workload_c": [
+      {
+        "workloadName": "Workload C: Admin & Officer Pagination & Telemetry",
+        "concurrency": 10,
+        "totalRequests": 20,
+        "successfulRequests": 20,
+        "failedRequests": 0,
+        "rateLimitedRequests": 0,
+        "timeoutCount": 0,
+        "errorRate": 0,
+        "durationSec": 0.29,
+        "throughputRps": 68.73,
+        "percentiles": {
+          "min": 90.89,
+          "p50": 108.79,
+          "p95": 186.14,
+          "p99": 188.2,
+          "max": 188.2,
+          "avg": 140.11
+        },
+        "statusDistribution": {
+          "200": 20
+        },
+        "primaryBottleneck": "None (Healthy)"
+      },
+      {
+        "workloadName": "Workload C: Admin & Officer Pagination & Telemetry",
+        "concurrency": 25,
+        "totalRequests": 50,
+        "successfulRequests": 50,
+        "failedRequests": 0,
+        "rateLimitedRequests": 0,
+        "timeoutCount": 0,
+        "errorRate": 0,
+        "durationSec": 0.28,
+        "throughputRps": 181.82,
+        "percentiles": {
+          "min": 93.28,
+          "p50": 121.65,
+          "p95": 151.34,
+          "p99": 153.46,
+          "max": 153.46,
+          "avg": 122.49
+        },
+        "statusDistribution": {
+          "200": 50
+        },
+        "primaryBottleneck": "None (Healthy)"
+      },
+      {
+        "workloadName": "Workload C: Admin & Officer Pagination & Telemetry",
+        "concurrency": 50,
+        "totalRequests": 100,
+        "successfulRequests": 100,
+        "failedRequests": 0,
+        "rateLimitedRequests": 0,
+        "timeoutCount": 0,
+        "errorRate": 0,
+        "durationSec": 0.29,
+        "throughputRps": 344.83,
+        "percentiles": {
+          "min": 91.99,
+          "p50": 120.59,
+          "p95": 169.28,
+          "p99": 170.49,
+          "max": 170.82,
+          "avg": 126.5
+        },
+        "statusDistribution": {
+          "200": 100
+        },
+        "primaryBottleneck": "None (Healthy)"
+      },
+      {
+        "workloadName": "Workload C: Admin & Officer Pagination & Telemetry",
+        "concurrency": 100,
+        "totalRequests": 200,
+        "successfulRequests": 200,
+        "failedRequests": 0,
+        "rateLimitedRequests": 0,
+        "timeoutCount": 0,
+        "errorRate": 0,
+        "durationSec": 0.47,
+        "throughputRps": 425.53,
+        "percentiles": {
+          "min": 100.33,
+          "p50": 191.88,
+          "p95": 276.22,
+          "p99": 299.9,
+          "max": 463.94,
+          "avg": 194.41
+        },
+        "statusDistribution": {
+          "200": 200
+        },
+        "primaryBottleneck": "None (Healthy)"
+      },
+      {
+        "workloadName": "Workload C: Admin & Officer Pagination & Telemetry",
+        "concurrency": 250,
+        "totalRequests": 500,
+        "successfulRequests": 500,
+        "failedRequests": 0,
+        "rateLimitedRequests": 0,
+        "timeoutCount": 0,
+        "errorRate": 0,
+        "durationSec": 0.69,
+        "throughputRps": 725.69,
+        "percentiles": {
+          "min": 100.62,
+          "p50": 256.23,
+          "p95": 461.17,
+          "p99": 644.7,
+          "max": 687.21,
+          "avg": 282.63
+        },
+        "statusDistribution": {
+          "200": 500
+        },
+        "primaryBottleneck": "None (Healthy)"
+      }
+    ],
+    "workload_d": [
+      {
+        "workloadName": "Workload D: Infrastructure Context Analytical Operations",
+        "concurrency": 10,
+        "totalRequests": 20,
+        "successfulRequests": 20,
+        "failedRequests": 0,
+        "rateLimitedRequests": 0,
+        "timeoutCount": 0,
+        "errorRate": 0,
+        "durationSec": 0.3,
+        "throughputRps": 67.11,
+        "percentiles": {
+          "min": 95.83,
+          "p50": 125.92,
+          "p95": 172.37,
+          "p99": 174.7,
+          "max": 174.7,
+          "avg": 136.19
+        },
+        "statusDistribution": {
+          "200": 20
+        },
+        "primaryBottleneck": "None (Healthy)"
+      },
+      {
+        "workloadName": "Workload D: Infrastructure Context Analytical Operations",
+        "concurrency": 25,
+        "totalRequests": 50,
+        "successfulRequests": 50,
+        "failedRequests": 0,
+        "rateLimitedRequests": 0,
+        "timeoutCount": 0,
+        "errorRate": 0,
+        "durationSec": 0.36,
+        "throughputRps": 137.74,
+        "percentiles": {
+          "min": 144.13,
+          "p50": 163.57,
+          "p95": 174,
+          "p99": 198.71,
+          "max": 198.71,
+          "avg": 162.74
+        },
+        "statusDistribution": {
+          "200": 50
+        },
+        "primaryBottleneck": "None (Healthy)"
+      },
+      {
+        "workloadName": "Workload D: Infrastructure Context Analytical Operations",
+        "concurrency": 50,
+        "totalRequests": 100,
+        "successfulRequests": 100,
+        "failedRequests": 0,
+        "rateLimitedRequests": 0,
+        "timeoutCount": 0,
+        "errorRate": 0,
+        "durationSec": 0.29,
+        "throughputRps": 346.02,
+        "percentiles": {
+          "min": 83.64,
+          "p50": 120.36,
+          "p95": 156.5,
+          "p99": 173.27,
+          "max": 175.03,
+          "avg": 123.43
+        },
+        "statusDistribution": {
+          "200": 100
+        },
+        "primaryBottleneck": "None (Healthy)"
+      },
+      {
+        "workloadName": "Workload D: Infrastructure Context Analytical Operations",
+        "concurrency": 100,
+        "totalRequests": 200,
+        "successfulRequests": 200,
+        "failedRequests": 0,
+        "rateLimitedRequests": 0,
+        "timeoutCount": 0,
+        "errorRate": 0,
+        "durationSec": 0.34,
+        "throughputRps": 583.09,
+        "percentiles": {
+          "min": 87.78,
+          "p50": 130.94,
+          "p95": 198.91,
+          "p99": 224.24,
+          "max": 225.4,
+          "avg": 141.74
+        },
+        "statusDistribution": {
+          "200": 200
+        },
+        "primaryBottleneck": "None (Healthy)"
+      },
+      {
+        "workloadName": "Workload D: Infrastructure Context Analytical Operations",
+        "concurrency": 250,
+        "totalRequests": 500,
+        "successfulRequests": 500,
+        "failedRequests": 0,
+        "rateLimitedRequests": 0,
+        "timeoutCount": 0,
+        "errorRate": 0,
+        "durationSec": 0.68,
+        "throughputRps": 732.06,
+        "percentiles": {
+          "min": 101.38,
+          "p50": 246.38,
+          "p95": 450.16,
+          "p99": 626.57,
+          "max": 682.21,
+          "avg": 275.18
+        },
+        "statusDistribution": {
+          "200": 500
+        },
+        "primaryBottleneck": "None (Healthy)"
+      }
+    ],
+    "workload_e": [
+      {
+        "workloadName": "Workload E: Edge Functions & Rate Limiting",
+        "concurrency": 10,
+        "totalRequests": 10,
+        "successfulRequests": 10,
+        "failedRequests": 0,
+        "rateLimitedRequests": 0,
+        "timeoutCount": 0,
+        "errorRate": 0,
+        "durationSec": 0.65,
+        "throughputRps": 15.29,
+        "percentiles": {
+          "min": 515.91,
+          "p50": 518.4,
+          "p95": 650.17,
+          "p99": 650.17,
+          "max": 650.17,
+          "avg": 544.65
+        },
+        "statusDistribution": {
+          "401": 10
+        },
+        "primaryBottleneck": "None (Healthy)"
+      },
+      {
+        "workloadName": "Workload E: Edge Functions & Rate Limiting",
+        "concurrency": 25,
+        "totalRequests": 25,
+        "successfulRequests": 25,
+        "failedRequests": 0,
+        "rateLimitedRequests": 0,
+        "timeoutCount": 0,
+        "errorRate": 0,
+        "durationSec": 0.47,
+        "throughputRps": 53.53,
+        "percentiles": {
+          "min": 347.13,
+          "p50": 406.34,
+          "p95": 463.94,
+          "p99": 464.59,
+          "max": 464.59,
+          "avg": 414.78
+        },
+        "statusDistribution": {
+          "401": 25
+        },
+        "primaryBottleneck": "None (Healthy)"
+      },
+      {
+        "workloadName": "Workload E: Edge Functions & Rate Limiting",
+        "concurrency": 50,
+        "totalRequests": 50,
+        "successfulRequests": 50,
+        "failedRequests": 0,
+        "rateLimitedRequests": 0,
+        "timeoutCount": 0,
+        "errorRate": 0,
+        "durationSec": 0.58,
+        "throughputRps": 85.91,
+        "percentiles": {
+          "min": 344.66,
+          "p50": 401.79,
+          "p95": 467.39,
+          "p99": 579.07,
+          "max": 579.07,
+          "avg": 407.34
+        },
+        "statusDistribution": {
+          "401": 50
+        },
+        "primaryBottleneck": "None (Healthy)"
+      }
+    ]
+  },
+  "databaseInspection": {
+    "totalDeclaredIndexes": 172,
+    "criticalIndexesVerified": 6,
+    "findings": []
+  },
+  "frontendAnalysis": {
+    "totalFiles": 195,
+    "totalJsSizeMb": 3.96,
+    "totalCssSizeKb": 355.45,
+    "combinedSizeMb": 4.3,
+    "top10Largest": [
+      {
+        "fileName": "index-D_VzEq6t.js",
+        "sizeKb": 669.19,
+        "type": "JS"
+      },
+      {
+        "fileName": "index-C4RtcI1G.css",
+        "sizeKb": 355.45,
+        "type": "CSS"
+      },
+      {
+        "fileName": "dist-B85x-6WJ.js",
+        "sizeKb": 300.84,
+        "type": "JS"
+      },
+      {
+        "fileName": "pilot-execution-workspace-BKeoiVIg.js",
+        "sizeKb": 244.04,
+        "type": "JS"
+      },
+      {
+        "fileName": "problem-control-center-CljTNjaP.js",
+        "sizeKb": 208.05,
+        "type": "JS"
+      },
+      {
+        "fileName": "supabase-PPRfdzjG.js",
+        "sizeKb": 203.42,
+        "type": "JS"
+      },
+      {
+        "fileName": "detail-CzUUg5QS.js",
+        "sizeKb": 126.27,
+        "type": "JS"
+      },
+      {
+        "fileName": "team-member-card-1GoxXKtG.js",
+        "sizeKb": 105.5,
+        "type": "JS"
+      },
+      {
+        "fileName": "challenge-matching-ONPOIASi.js",
+        "sizeKb": 97.46,
+        "type": "JS"
+      },
+      {
+        "fileName": "infrastructure-assessment-D8-K7F2S.js",
+        "sizeKb": 95.39,
+        "type": "JS"
+      }
+    ],
+    "isCodeSplit": true
+  }
+}

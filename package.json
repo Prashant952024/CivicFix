@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
+    "load-test": "node scripts/load-tests/run_all_load_tests.cjs",
     "validate-i18n": "node scripts/validate-locales.cjs",
     "lint": "eslint .",
     "preview": "vite preview"
