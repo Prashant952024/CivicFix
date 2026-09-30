@@ -582,7 +582,7 @@ Deno.serve(async (req: Request) => {
   }
 
   // =========================================================================
-  // 3. ENFORCE SERVER-SIDE RATE LIMITS (IP: 20/min)
+  // 3. ENFORCE SERVER-SIDE RATE LIMITS (IP: 20/min, USER: 20/hr)
   // =========================================================================
   const clientIp = getClientIp(req);
   const rateLimitResult = await checkRateLimits(supabaseAdmin, {
@@ -592,6 +592,7 @@ Deno.serve(async (req: Request) => {
     isServiceRole,
     rules: [
       { scope: "ip", limit: 20, windowSeconds: 60 },
+      { scope: "user", limit: 20, windowSeconds: 3600 },
     ],
     failClosedOnDbError: false,
   });
@@ -632,9 +633,9 @@ Deno.serve(async (req: Request) => {
       return json(404, { error: `Issue not found: ${targetIssueId}` }, origin);
     }
 
-    // Access control: Citizens can only trigger duplicate check on their own grievances
+    // Access control: Citizens can only trigger duplicate check on their own grievances (reporter_profile_id MUST equal caller profile)
     if (!isServiceRole && callerRole === "CITIZEN") {
-      if (targetIssue.reporter_profile_id && callerProfile && targetIssue.reporter_profile_id !== callerProfile.id) {
+      if (!targetIssue.reporter_profile_id || !callerProfile || targetIssue.reporter_profile_id !== callerProfile.id) {
         return json(403, { error: "Forbidden. Citizens can only run duplicate detection on their own grievances." }, origin);
       }
     }

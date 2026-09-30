@@ -860,7 +860,6 @@ Evaluate each institution strictly against the challenge requirements and return
           502,
           {
             error: "AI semantic scoring failed: No supported Gemini models are available.",
-            details: lastErrorDetails || "No models returned valid completions.",
           },
           origin
         );
@@ -909,7 +908,6 @@ Evaluate each institution strictly against the challenge requirements and return
         502,
         {
           error: "AI semantic scoring failed due to unexpected error.",
-          details: gErr instanceof Error ? gErr.message : String(gErr),
         },
         origin
       );

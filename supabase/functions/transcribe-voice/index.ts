@@ -628,7 +628,6 @@ function categorizeGeminiError(status: number, message: string): string {
         errorCode,
         userMessage,
         requestId,
-        diagnostics,
       },
       origin,
     );

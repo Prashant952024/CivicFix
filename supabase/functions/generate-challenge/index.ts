@@ -480,7 +480,6 @@ Generate ONLY a valid JSON object matching the required structure.`;
     if (!geminiResult) {
       return json(502, {
         error: "AI challenge generation service was temporarily unavailable. Please retry.",
-        details: lastErrorDetails,
       }, origin);
     }
 
