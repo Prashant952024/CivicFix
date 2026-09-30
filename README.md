@@ -86,11 +86,24 @@ Modern civic governance faces systemic structural bottlenecks across municipal a
 
 ## 2. The CivicFix Idea
 
-CivicFix introduces a unified multi-track architecture that receives multimodal civic signals and automatically routes them to the appropriate administrative lifecycle:
+CivicFix introduces a unified multi-track operational ecosystem that ingests multimodal civic signals, performs AI-assisted triage and duplicate cluster detection, and routes every request into its appropriate administrative lifecycle:
 
 <div align="center">
   <img src="docs/civicfix_operational_ecosystem.jpg" alt="CivicFix Multimodal Civic Signal Operational Ecosystem" width="100%" />
 </div>
+
+### Operational Ecosystem Layers:
+1. **Multimodal Citizen Intake Layer**: Captures voice recordings across Indic languages, natural language text descriptions, camera photo attachments, and GPS coordinates or canonical district selections.
+2. **AI Triage & Analysis Layer (Edge Functions + Gemini)**:
+   - `[transcribe-voice]`: Speech-to-text transcription across 20 Indic languages with automated English translation, suggested titles, and bodies.
+   - `[analyze-issue]`: Gemini 2.5 Flash / 3.6 Flash multimodal inference extracting structured category, severity, priority, department code, and workflow complexity.
+   - `[detect-duplicates]`: 4-factor scoring heuristic evaluating GPS spatial proximity ($\le 100\text{m}$), category congruence, n-gram/Levenshtein text similarity, and 30-day temporal decay. Scores $\ge 0.80$ trigger automatic duplicate clustering; $0.40 - 0.79$ flag candidate duplicates for officer review.
+3. **Deterministic Track Branching**: Classifies issues into **`SIMPLE`**, **`COMPLEX`**, or **`INFRASTRUCTURE`** tracks.
+4. **Operational Workflows**:
+   - `SIMPLE Track`: Routine municipal redressal (potholes, dumpsters, streetlights).
+   - `COMPLEX Track`: R&D and university collaboration (aquifer filters, AI traffic, upcycling).
+   - `INFRASTRUCTURE Track`: District capital decision support (civil hospitals, bridges, plants).
+5. **Data & Authority Enforcement Layer**: Underpinned by Supabase PostgreSQL 15 + PostGIS + RLS, Clerk cryptographic JWKS authentication, and pessimistic stored procedures (`FOR UPDATE`) with monotonic versioning.
 
 ```mermaid
 flowchart TD
@@ -118,6 +131,8 @@ flowchart TD
 ---
 
 ## 3. Three-Track Architecture
+
+CivicFix segregates civic management into three distinct operational tracks based on problem complexity, governance requirements, and capital investment scale:
 
 <div align="center">
   <img src="docs/civicfix_three_track_lifecycles.jpg" alt="CivicFix Three-Track Operational Lifecycles" width="100%" />
