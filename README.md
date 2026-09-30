@@ -88,6 +88,10 @@ Modern civic governance faces systemic structural bottlenecks across municipal a
 
 CivicFix introduces a unified multi-track architecture that receives multimodal civic signals and automatically routes them to the appropriate administrative lifecycle:
 
+<div align="center">
+  <img src="docs/civicfix_operational_ecosystem.jpg" alt="CivicFix Multimodal Civic Signal Operational Ecosystem" width="100%" />
+</div>
+
 ```mermaid
 flowchart TD
     A[Citizen Intake: Text / Photo / Voice / GPS] --> B[AI Triage & Duplicate Engine]
@@ -114,6 +118,10 @@ flowchart TD
 ---
 
 ## 3. Three-Track Architecture
+
+<div align="center">
+  <img src="docs/civicfix_three_track_lifecycles.jpg" alt="CivicFix Three-Track Operational Lifecycles" width="100%" />
+</div>
 
 | Track | Purpose | Typical Example | Workflow Structure | Key Participants |
 | :--- | :--- | :--- | :--- | :--- |
