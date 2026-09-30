@@ -1,879 +1,759 @@
-# 🌿 CivicFix
+# CivicFix
 
-### Crowdsourced Civic Issue Reporting & Resolution System
+> **AI-assisted civic issue resolution, infrastructure intelligence, and innovation collaboration platform.**
 
-> CivicFix connects citizens with municipal authorities to report civic problems, track their progress, verify resolutions, and build cleaner, safer, smarter communities.
-
-[![Live Demo](https://img.shields.io/badge/Live%20Demo-civicfix--rho.vercel.app-0f766e?style=for-the-badge&logo=vercel&logoColor=white)](https://civicfix-rho.vercel.app/)
-[![React](https://img.shields.io/badge/React-19.2-61DAFB?style=for-the-badge&logo=react&logoColor=black)](https://react.dev/)
-[![TypeScript](https://img.shields.io/badge/TypeScript-5.x-3178C6?style=for-the-badge&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
-[![Vite](https://img.shields.io/badge/Vite-8.x-646CFF?style=for-the-badge&logo=vite&logoColor=white)](https://vitejs.dev/)
-[![Tailwind CSS](https://img.shields.io/badge/Tailwind%20CSS-4.x-38B2AC?style=for-the-badge&logo=tailwind-css&logoColor=white)](https://tailwindcss.com/)
-[![Supabase](https://img.shields.io/badge/Supabase-PostgreSQL%20%7C%20Storage%20%7C%20Edge-3ECF8E?style=for-the-badge&logo=supabase&logoColor=white)](https://supabase.com/)
-[![Clerk](https://img.shields.io/badge/Clerk-Auth%20%26%20User%20Management-6C47FF?style=for-the-badge&logo=clerk&logoColor=white)](https://clerk.com/)
+CivicFix is a modern full-stack platform designed to bridge the operational gap between citizens, municipal field administration, research institutions, and urban planning authorities. By combining multimodal citizen intake (text, images, voice, GPS) with automated Google Gemini AI triage, canonical geospatial registry mapping, and deterministic database state machines, CivicFix provides end-to-end operational workflows for routine maintenance, long-term research partnerships, and capital infrastructure decision support.
 
 ---
 
-## 🌐 Live Application
-
-| Environment | URL | Status |
-| :--- | :--- | :--- |
-| **Production Deployment** | **[https://civicfix-rho.vercel.app/](https://civicfix-rho.vercel.app/)** | 🟢 Operational |
-
----
-
-## 📑 Table of Contents
-
-- [Project Overview](#-project-overview)
-- [Problem Statement](#-problem-statement)
-- [The CivicFix Solution](#-the-civicfix-solution)
-- [Key Features](#-key-features)
-- [User Roles & Responsibilities](#-user-roles--responsibilities)
-- [Complete Issue Lifecycle](#-complete-issue-lifecycle)
-- [System Architecture](#-system-architecture)
-- [Technology Stack](#-technology-stack)
-- [Data Flow & Request Lifecycle](#-data-flow--request-lifecycle)
-- [Project Directory Structure](#-project-directory-structure)
-- [Authentication & Security Architecture](#-authentication--security-architecture)
-- [Database Schema & Transition Rules](#-database-schema--transition-rules)
-- [Admin Control Center](#-admin-control-center)
-- [Local Development & Setup](#-local-development--setup)
-- [Supabase Configuration](#-supabase-configuration)
-- [Clerk Authentication Setup](#-clerk-authentication-setup)
-- [Deployment Guide](#-deployment-guide)
-- [Public Demo Sandbox](#-public-demo)
-- [How to Demo CivicFix](#-how-to-demo-civicfix)
-- [Visual Walkthrough & Screenshots](#-visual-walkthrough--screenshots)
-- [Current Implementation Status](#-current-implementation-status)
-- [Future Roadmap](#-future-roadmap)
-- [Engineering Challenges & Solutions](#-engineering-challenges--solutions)
-- [Testing & Validation](#-testing--validation)
-- [Contributing](#-contributing)
-- [Team](#-team)
-- [License](#-license)
-- [Contact & Links](#-contact--links)
+[![React](https://img.shields.io/badge/React-19.2.8-61DAFB?logo=react&logoColor=black)](https://react.dev/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-6.0.3-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
+[![Vite](https://img.shields.io/badge/Vite-8.2.1-646CFF?logo=vite&logoColor=white)](https://vitejs.dev/)
+[![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-4.3.3-38B2AC?logo=tailwindcss&logoColor=white)](https://tailwindcss.com/)
+[![Clerk](https://img.shields.io/badge/Clerk-Authentication-6C47FF?logo=clerk&logoColor=white)](https://clerk.com/)
+[![Supabase](https://img.shields.io/badge/Supabase-PostgreSQL_15-3ECF8E?logo=supabase&logoColor=white)](https://supabase.com/)
+[![Google Gemini](https://img.shields.io/badge/Gemini_AI-2.5_Flash_/_3.6_Flash-4285F4?logo=google&logoColor=white)](https://ai.google.dev/)
+[![Vercel](https://img.shields.io/badge/Vercel-Deployment-000000?logo=vercel&logoColor=white)](https://vercel.com/)
 
 ---
 
-## 📖 Project Overview
+## Important Governance Principle
 
-Local civic infrastructure directly impacts daily urban life. Everyday problems like **potholes, garbage accumulation, broken streetlights, water supply leakage, and drainage blockages** frequently go unaddressed or take weeks to resolve.
-
-### The Broken Feedback Loop
-
-Traditional complaint systems suffer from a structural defect:
-1. **Reporting** an issue does not guarantee municipal triage or field accountability.
-2. An official status of **"Work Completed"** often fails to match **actual ground-level resolution**.
-
-```text
-Traditional Broken Loop:
-[ Citizen Complaint ] ──> [ Lost in Bureaucracy ] ──> [ Marked Resolved on Paper ] ──> [ Problem Still on Ground ❌ ]
-```
-
-### How CivicFix Closes the Loop
-
-CivicFix establishes a bi-directional, verifiable chain of custody where no complaint is closed until photographic proof is submitted, reviewed by departments and officers, and verified by the reporting citizen:
-
-```text
-Citizen Report (Photo + GPS)
-            ↓
-Municipal Officer Verification & Department Routing (AI-Assisted)
-            ↓
-Responsible Department(s) Receive Assignment
-            ↓
-Department Manager Dispatches Field Worker (Strict Same-Department Isolation)
-            ↓
-Field Worker Resolution & Photographic Evidence
-            ↓
-Department Manager Task Review (Single or Multi-Department Coordination)
-            ↓
-Municipal Officer Final Review & Approval
-            ↓
-Citizen Ground-Truth Verification
-            ↓
-Officially Resolved & Closed ✅ (or Reopened 🔄)
-```
+> [!IMPORTANT]
+> **CivicFix is a decision-support and operational execution platform.**
+>
+> Artificial Intelligence and automated heuristics compute evidence, triage classifications, candidate duplicate matches, institution recommendations, feasibility indicators, and baseline district analytics.
+>
+> **AI models do not possess administrative authority and do not make final government or fiscal decisions.**
+>
+> All classification overrides, work order dispatches, research grant approvals, and capital infrastructure allocations require human review and explicit authorization by designated municipal officers, department managers, innovation managers, or administrators.
+>
+> For infrastructure decisions, the system enforces a strict four-stage pipeline:
+> $$\text{System-Generated Evidence (D1–D7)} \longrightarrow \text{Versioned Assessment} \longrightarrow \text{Authorized Human Review} \longrightarrow \text{Final Administrative Decision}$$
 
 ---
 
-## ⚠️ Problem Statement
+## Table of Contents
 
-Urban governance systems face several systemic challenges:
-
-- **Fragmented Complaint Intake**: Citizens lack a unified, accessible mobile-friendly interface to report local issues with verified geographic coordinates and photos.
-- **Triage & Routing Bottlenecks**: Municipal staff face difficulties prioritizing complaints, assessing urgency, and routing work to the correct civic department.
-- **Opaque Progress Tracking**: Complainants receive little or no real-time visibility into the status of their complaints after submission.
-- **Lack of Verification & Proof**: Field work is often marked complete in administrative databases without verifiable evidence or confirmation from affected residents.
-- **Recurring & Unresolved Failures**: When substandard repairs occur, citizens are forced to file entirely new complaints rather than reopening the original case history.
-
----
-
-## 💡 The CivicFix Solution
-
-CivicFix transforms municipal issue resolution into an open, auditable, and accountable digital pipeline:
-
-- 📸 **Geo-Tagged Photographic Intake**: Complainants upload photos, descriptions, and capture browser GPS coordinates with a single tap.
-- 🏛️ **Structured Municipal Triage**: Officers verify complaint legitimacy, assign priority levels (**Low, Medium, High, Urgent**), and route to relevant departments (**Sanitation, Water Supply, Road Maintenance, Traffic/Safety**, etc.).
-- 👷 **Dedicated Field Worker Execution**: Field workers receive assigned tasks, change statuses to **In Progress**, perform ground repairs, and upload mandatory resolution photographs.
-- 🛡️ **Double-Gate Resolution**: Work must first be reviewed and approved by a Municipal Officer, then verified by the citizen who submitted the original report.
-- 🔄 **One-Click Reopen Capability**: If an issue was poorly addressed, the citizen can reopen the complaint with immediate status regression in the database.
-- 📊 **Executive Analytics & Governance**: Administrators monitor citywide performance, resolution velocity, department workloads, and geographic concentration trends.
-
----
-
-## 🌟 Key Features
-
-### 📍 Smart Issue Reporting
-- Capture issue title, description, category, and descriptive location.
-- One-tap browser GPS coordinate capture with accuracy estimation.
-- In-browser client-side image compression (JPEG scaling & quality optimization) to ensure swift uploads even on low-bandwidth mobile connections.
-- Persistent local draft caching so citizens don't lose data during intake.
-
-### 🗺️ Location & Contextual Tracking
-- Exact latitude and longitude coordinate capture.
-- One-click Google Maps redirection for navigation.
-- Search and filter issues by locality, address, and department.
-
-### 🏛️ Municipal Officer Operations
-- Comprehensive issue triage queue with status, priority, and severity filtering.
-- Review citizen reports and make **Verify** or **Reject** determinations.
-- AI-Assisted Department Recommendations with confidence scores and rationales.
-- Multi-department assignment: officer selects one or multiple responsible departments.
-- **Strict Separation of Concerns**: Officers decide responsible *departments*, never individual workers.
-
-### 🏢 Department Manager Workflow
-- Dedicated Department Workbench (`/app/department/*`) bound to a single municipal department.
-- Real-time departmental queue tracking incoming, in-progress, under-review, and completed tasks.
-- **Field Worker Dispatch**: Assign tasks to active workers strictly within the manager's department.
-- **Cross-Department Protection**: Database triggers and RLS strictly prevent assigning workers from outside departments.
-- **Departmental Review**: Review field worker resolution photos, approve department tasks, or request rework.
-
-### 👷 Field Worker Workflow
-- Personalized task dashboard displaying assigned repairs from the worker's department.
-- Single-action progression: **Assigned** ➔ **In Progress** ➔ **Under Review**.
-- In-field capture and upload of **Resolution Evidence Photos** directly stored in dedicated storage buckets.
-- Full inspection of the original citizen complaint, GPS coordinates, and historical notes.
-
-### 📸 Verifiable Resolution Evidence
-- Consolidated display of resolution evidence from all participating departments.
-- Immutable storage of resolution photos linked to worker profiles and timestamps.
-- Transparent access for department managers, municipal officers, and reporting citizens.
-
-### 🔄 Multi-Department Status & Partial Completion
-- Issues involving multiple departments transition to `PARTIALLY_COMPLETED` when some departments finish.
-- The overall issue advances to `UNDER_REVIEW` only when **all** assigned departments have completed repairs.
-- Database trigger prevents premature transition to `RESOLVED`.
-
-### ✅ Citizen Verification & Reopen Loop
-- Interactive resolution confirmation for citizens once work is marked resolved.
-- Complainant sees breakdown of all involved departments and consolidated photo evidence.
-- Citizens confirm (`CITIZEN_VERIFIED`) or report failure (`REOPENED`).
-- Reopening automatically resets the issue back into the active municipal workflow.
-
-### 👑 Admin Control Center & Analytics
-- Live platform telemetry: total accounts, active issues, resolution rates, and department throughput.
-- User management interface with role inspection, filtering, and provisioning for Municipal Officers, Department Managers, and Field Workers.
-- Department management: assign Department Managers to specific municipal departments.
-- Interactive analytics dashboard featuring status distribution charts, resolution trends, department workloads, and **CSV data export**.
+1. [The Problem](#1-the-problem)
+2. [The CivicFix Idea](#2-the-civicfix-idea)
+3. [Three-Track Architecture](#3-three-track-architecture)
+4. [Simple Civic Issue Workflow](#4-simple-civic-issue-workflow)
+5. [AI Capabilities](#5-ai-capabilities)
+6. [Infrastructure Intelligence](#6-infrastructure-intelligence)
+7. [Planning Sectors](#7-planning-sectors)
+8. [D1–D8 Data Architecture](#8-d1d8-data-architecture)
+9. [District Context Engine](#9-district-context-engine)
+10. [Infrastructure Assessment & Decision Architecture](#10-infrastructure-assessment--decision-architecture)
+11. [Complex Innovation Ecosystem](#11-complex-innovation-ecosystem)
+12. [User Roles & Permissions](#12-user-roles--permissions)
+13. [Authentication & Authorization](#13-authentication--authorization)
+14. [Security Architecture](#14-security-architecture)
+15. [Security Hardening & Engineering History](#15-security-hardening--engineering-history)
+16. [Scalability & Concurrency Model](#16-scalability--concurrency-model)
+17. [Performance Benchmarks](#17-performance-benchmarks)
+18. [Database Schema & Architecture](#18-database-schema--architecture)
+19. [Edge Functions Reference](#19-edge-functions-reference)
+20. [Frontend Architecture](#20-frontend-architecture)
+21. [Internationalization (i18n) & Voice](#21-internationalization-i18n--voice)
+22. [Project Directory Structure](#22-project-directory-structure)
+23. [Testing & Quality Assurance](#23-testing--quality-assurance)
+24. [Local Development Setup](#24-local-development-setup)
+25. [Database Setup & Migrations](#25-database-setup--migrations)
+26. [Dataset Setup](#26-dataset-setup)
+27. [Running the Application](#27-running-the-application)
+28. [Deployment Architecture](#28-deployment-architecture)
+29. [Responsible Use & System Limitations](#29-responsible-use--system-limitations)
+30. [Future Scope](#30-future-scope)
+31. [Demo Walkthrough](#31-demo-walkthrough)
+32. [Project Status](#32-project-status)
+33. [License & Contributing](#33-license--contributing)
 
 ---
 
-## 👥 User Roles & Responsibilities
+## 1. The Problem
 
-| Role | Access Scope | Department Binding | Core Responsibilities |
-| :--- | :--- | :--- | :--- |
-| **Citizen** | `/app/citizen/*` | None | Report civic issues with photos and GPS, track personal issue history, inspect multi-department progress, verify completed work, or reopen unresolved complaints. |
-| **Municipal Officer** | `/app/officer/*` | None | Review submitted reports, verify legitimacy, set severity/priority, route issues to one or more responsible municipal departments (never individual workers), conduct final review. |
-| **Department Manager** | `/app/department/*` | **Strictly 1 Department** | Manage departmental task queue, dispatch field workers from department roster, inspect worker evidence, approve departmental completion or request rework. |
-| **Field Worker** | `/app/worker/*` | **Strictly 1 Department** | View assigned repair tasks, start physical repairs (`IN_PROGRESS`), perform ground repairs, upload photographic resolution evidence. |
-| **Admin** | `/app/admin/*` | None | Platform oversight, system analytics, user management, staff provisioning with department binding, department manager assignment, full catalog inspection. |
+Modern civic governance faces systemic structural bottlenecks across municipal administration:
+
+- **Fragmented Citizen Intake**: Grievances arrive across unstructured phone lines, social media, and paper forms with vague locations and no verifiable multimedia evidence.
+- **Workflow Mismatch**: Municipal portals treat a broken streetlight identically to a chronic regional aquifer contamination or a multi-crore flyover demand, causing high-complexity systemic problems to stagnate in routine repair queues.
+- **Duplicate Noise & Field Inefficiency**: Multiple citizens independently report the same pothole or burst pipe, inundating field engineers with redundant tickets while obscuring unique issues.
+- **Unverified Resolutions**: Field workers close tickets without tamper-evident photo proof or GPS verification, leading to citizen distrust and recurring complaints.
+- **Isolated Research Institutions**: Engineering colleges and university research labs develop viable municipal solutions, but lack direct collaboration pipelines with city administrations.
+- **Planning in the Dark**: Capital budget allocations and infrastructure grants are frequently decided without unified baseline metrics on district demographics, existing asset density, accessibility scores, or historical project delivery.
 
 ---
 
-## 🔄 Complete Issue Lifecycle
+## 2. The CivicFix Idea
+
+CivicFix introduces a unified multi-track architecture that receives multimodal civic signals and automatically routes them to the appropriate administrative lifecycle:
 
 ```mermaid
 flowchart TD
-    subgraph Intake["1. Citizen Intake"]
-        A[Citizen Reports Issue] -->|Photo + GPS + Description| B[Status: SUBMITTED]
-    end
+    A[Citizen Intake: Text / Photo / Voice / GPS] --> B[AI Triage & Duplicate Engine]
+    B --> C{Triage & Classification}
 
-    subgraph Triage["2. Municipal Triage"]
-        B --> C{Officer Triage}
-        C -->|Legitimate Complaint| D[Status: VERIFIED]
-        C -->|Invalid / Out of Scope| E[Status: REJECTED]
-        D -->|Officer Assigns Department s| F[Status: ASSIGNED]
-    end
+    C -->|Routine Repair| D[SIMPLE Track: Municipal Resolution]
+    C -->|R&D / Structural| E[COMPLEX Track: Research & Innovation]
+    C -->|Capital Request| F[INFRASTRUCTURE Track: District Intelligence]
 
-    subgraph DeptDispatch["3. Department Management"]
-        F --> G[Dept Manager Receives Task]
-        G -->|Dispatches Dept Worker| H[Worker Assigned]
-    end
+    D --> G[Department Scoping & Field Dispatch]
+    G --> H[Resolution Evidence & Verification]
 
-    subgraph Execution["4. Field Execution"]
-        H --> I[Status: IN_PROGRESS]
-        I --> J[Worker Uploads Evidence Photo]
-        J --> K[Dept Manager Reviews Evidence]
-        K -->|Rework Needed| I
-        K -->|Dept Task Approved| L{All Depts Done?}
-        L -->|Some Depts Still Active| M[Status: PARTIALLY_COMPLETED]
-        M --> G
-        L -->|All Depts Completed| N[Status: UNDER_REVIEW]
-    end
+    E --> I[Institution Matchmaking & Proposals]
+    I --> J[Pilot Execution Workspace & Validation]
 
-    subgraph Verification["5. Final Review & Citizen Verification"]
-        N --> O{Officer Final Approval}
-        O -->|Approved| P[Status: RESOLVED]
-        O -->|Rejected| G
-        P --> Q{Citizen Ground Verification}
-        Q -->|Citizen Confirms Fix| R[Status: CITIZEN_VERIFIED ✅]
-        Q -->|Still Unresolved| S[Status: REOPENED 🔄]
-        S --> F
-    end
+    F --> K[Canonical District Context D1–D7]
+    K --> L[Atomic Assessment & Human Decision]
 
-    classDef intake fill:#0f766e,stroke:#0d5f59,color:#fff
-    classDef triage fill:#0284c7,stroke:#0369a1,color:#fff
-    classDef execution fill:#d97706,stroke:#b45309,color:#fff
-    classDef verification fill:#059669,stroke:#047857,color:#fff
-    classDef rejection fill:#dc2626,stroke:#b91c1c,color:#fff
-
-    class A,B intake
-    class C,D,F triage
-    class G,H,I,J execution
-    class K,L,N,O,P verification
-    class E,M rejection
+    H --> M[Citizen Transparency & Verification Loop]
+    J --> M
+    L --> M
 ```
 
-### Verified Issue Status Enum (`issue_status`)
+---
 
-| Status | Description | Initiator |
+## 3. Three-Track Architecture
+
+| Track | Purpose | Typical Example | Workflow Structure | Key Participants |
+| :--- | :--- | :--- | :--- | :--- |
+| **`SIMPLE`** | Rapid municipal grievance redressal and physical repairs. | Pothole, overflowing garbage dumpster, broken street lamp, water main leak. | Intake $\to$ Triage $\to$ Assignment $\to$ Field Execution $\to$ Photo Proof $\to$ Citizen Verification. | Citizen, Municipal Officer, Department Manager, Field Worker. |
+| **`COMPLEX`** | Academic, scientific, and industry collaboration for chronic problems requiring research, prototypes, or private investment. | Low-cost water filtration for arsenic belts, AI traffic signal optimization, plastic waste upcycling. | Challenge Generation $\to$ Institution Match $\to$ 11-Section Proposal $\to$ Pilot Workspace $\to$ KPI Validation $\to$ Deployment Plan. | Citizen, Innovation Manager, University / R&D Institution, Industry Partner. |
+| **`INFRASTRUCTURE`** | Data-backed capital investment and district-scale infrastructure decision support. | New district civil hospital, rural bridge connection, solid waste processing facility. | District Mapping $\to$ Planning Sector Scoping $\to$ Multi-Dataset Aggregation (D1–D7) $\to$ Atomic Assessment $\to$ Administrative Review. | Citizen, Municipal Officer, Department Manager, Platform Admin. |
+
+---
+
+## 4. Simple Civic Issue Workflow
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor Citizen
+    participant Client as Frontend (React 19)
+    participant Edge as Edge Functions (Deno)
+    participant DB as Supabase PostgreSQL
+    actor Officer as Municipal Officer
+    actor Manager as Department Manager
+    actor Worker as Field Worker
+
+    Citizen->>Client: Submit Issue (Text, Photo, Voice, GPS / District)
+    Client->>Edge: analyze-issue & detect-duplicates
+    Edge-->>Client: Triage (Category, Priority, Department, Duplicate Candidates)
+    Client->>DB: INSERT into public.issues
+    DB-->>Officer: Realtime Officer Queue
+    Officer->>DB: Review / Override Classification & Confirm Department
+    DB-->>Manager: Department Queue
+    Manager->>DB: Assign to Field Worker
+    Worker->>DB: Accept Assignment & Upload Resolution Photo Proof
+    DB-->>Manager: Review Resolution Evidence
+    Manager->>DB: Approve Completion
+    Officer->>DB: Final Administrative Sign-off
+    DB-->>Citizen: Issue Resolved (Citizen Confirms or Reopens within 7 days)
+```
+
+### Intake Stages:
+1. **Multimodal Input**: Captures textual descriptions, camera photos, GPS coordinates (or manual district selection), and audio voice recordings.
+2. **AI Triage**: Google Gemini generates structured JSON assigning category, severity, priority, primary department, complexity classification, and diagnostic reasoning.
+3. **Composite Duplicate Detection**: Evaluates spatial, textual, categorical, and temporal signals before database insertion.
+4. **Department Assignment**: Issues route to department queues governed by PostgreSQL Row Level Security (RLS).
+5. **Field Execution & Evidence**: Assigned field workers submit photographic evidence and resolution notes.
+6. **Two-Tier Administrative Review**: Department managers approve field submissions; municipal officers grant final sign-off.
+7. **Citizen Verification**: Citizens review the resolution evidence and either confirm resolution or reopen the ticket.
+
+---
+
+## 5. AI Capabilities
+
+### Multimodal Issue Analysis (`analyze-issue`)
+- Analyzes natural language descriptions and uploaded images using structured Gemini generation.
+- Returns schema-validated JSON with:
+  - `category`: Municipal taxonomy (e.g. `ROADS_AND_FOOTPATHS`, `WATER_SUPPLY`, `SOLID_WASTE`).
+  - `severity`: `LOW`, `MEDIUM`, `HIGH`, `CRITICAL`.
+  - `priority`: Operational priority `1` (Highest) to `5` (Lowest).
+  - `department_code`: Target municipal department.
+  - `complexity`: Workflow classification (`SIMPLE` vs. `COMPLEX`).
+  - `confidence_score`: Statistical model confidence (0.00 to 1.00).
+  - `explanation`: Explainable summary of findings.
+
+### Multilingual Indic Voice Transcription (`transcribe-voice`)
+- Transcribes and translates field audio recordings in real time.
+- Supports 20 Indic languages (including Hindi, Marathi, Bengali, Tamil, Telugu, Gujarati, Punjabi, Kannada, Odia, Urdu, and Sanskrit) alongside English.
+- Formats transcripts into structured title and description fields with automatic language identification.
+
+### Composite Duplicate Detection (`detect-duplicates`)
+Evaluates candidate duplicate issues using a deterministic 4-factor scoring heuristic:
+1. **GPS Spatial Proximity**: Haversine distance formula with maximum score within a 100-meter radius.
+2. **Category Congruence**: Exact taxonomy matching against municipal classification trees.
+3. **Textual Similarity**: Token-level n-gram and Levenshtein string distance across titles and descriptions.
+4. **Temporal Proximity**: Exponential time-decay score evaluated over an active 30-day historical window.
+
+### Institution Matchmaking (`match-institutions`)
+- Evaluates innovation challenges against university and corporate research profiles.
+- Analyzes research domains, past patents, lab equipment, faculty specializations, and geographic proximity to compute match compatibility scores.
+
+### AI Models & Fallback Architecture
+CivicFix utilizes the official Google Gemini API via Deno Edge Functions with deterministic cascade fallback:
+- **Primary Production Models**: `gemini-2.5-flash`, `gemini-3.6-flash`.
+- **Resilient Fallback**: Automatic failover to `gemini-1.5-flash` in the event of upstream rate limits.
+
+---
+
+## 6. Infrastructure Intelligence
+
+CivicFix provides an evidence-based capital planning engine for district-scale infrastructure projects. Instead of evaluating grievances in isolation, capital development requests are evaluated against canonical district datasets.
+
+```
++-----------------------------------------------------------------------------------+
+|                        CANONICAL DISTRICT REGISTRY (D0)                           |
+|       786 Canonical Districts of India across 36 States and Union Territories     |
++-----------------------------------------------------------------------------------+
+                                         |
+     +-----------------------------------+-----------------------------------+
+     |                                   |                                   |
+     v                                   v                                   v
++-----------------------+   +-----------------------+   +-----------------------+
+|  D1: DEMOGRAPHICS     |   |  D2: SECTOR BUDGETS   |   |  D3: GEOGRAPHY        |
+|  Population, Density, |   |  Allocated, Spent,    |   |  Terrain, Forest %,   |
+|  Urban/Rural Ratio    |   |  Unspent, Pressure    |   |  Flood & Seismic Risk |
++-----------------------+   +-----------------------+   +-----------------------+
+     |                                   |                                   |
+     +-----------------------------------+-----------------------------------+
+                                         |
+     +-----------------------------------+-----------------------------------+
+     |                                   |                                   |
+     v                                   v                                   v
++-----------------------+   +-----------------------+   +-----------------------+
+|  D4: ASSET INVENTORY  |   |  D5: ACCESSIBILITY    |   |  D6: SOCIOECONOMIC    |
+|  Hospitals, Schools,  |   |  Road Density, Rail,  |   |  Aspirational Rank,   |
+|  Substations, Plants  |   |  Transit Deficits     |   |  Poverty & Gap Index  |
++-----------------------+   +-----------------------+   +-----------------------+
+                                         |
+                                         v
+                            +-----------------------+
+                            |  D7: HISTORICAL PROJ  |
+                            |  Cost Overruns, Past  |
+                            |  Delays, Contractors  |
+                            +-----------------------+
+                                         |
+                                         v
++-----------------------------------------------------------------------------------+
+|                  ATOMIC ASSESSMENT RPC & DECISION SUPPORT                         |
+|   - get_district_infrastructure_context(p_district_id, p_planning_sector_code)    |
+|   - create_atomic_infrastructure_assessment(p_district_id, ...) [FOR UPDATE lock] |
++-----------------------------------------------------------------------------------+
+```
+
+### Canonical District Registry
+- Standardized database mapping covering **786 canonical districts of India** across all 36 States and Union Territories.
+- Includes granular baseline demographic mapping for all 24 administrative districts of Jharkhand.
+- Supports dual geospatial resolution: automatic PostGIS coordinate-to-district bounding box resolution or explicit citizen administrative district selection.
+
+---
+
+## 7. Planning Sectors
+
+CivicFix establishes 10 macro capital planning sectors (`DEPT-01` through `DEPT-10`) that bridge operational municipal departments to long-term budget lines:
+
+| Sector Code | Sector Name | Scope & Asset Types |
 | :--- | :--- | :--- |
-| `SUBMITTED` | Issue newly reported by a citizen; awaiting municipal triage. | Citizen |
-| `AI_ANALYZED` | Issue processed by analysis pipeline (DB state ready for ML integration). | System / ML |
-| `VERIFIED` | Complaint validated by a Municipal Officer as legitimate. | Municipal Officer |
-| `REJECTED` | Complaint deemed invalid, or resolution evidence rejected as insufficient. | Municipal Officer |
-| `ASSIGNED` | Assigned to a specific municipal department and field worker. | Municipal Officer |
-| `IN_PROGRESS` | Field worker has acknowledged the task and commenced physical work. | Field Worker |
-| `UNDER_REVIEW` | Field worker has uploaded proof of completion and submitted for review. | Field Worker |
-| `RESOLVED` | Municipal Officer has reviewed resolution photo and approved closure. | Municipal Officer |
-| `CITIZEN_VERIFIED` | Reporting citizen has confirmed the physical issue is resolved. | Citizen |
-| `REOPENED` | Citizen indicated the issue persists; sent back for re-assignment. | Citizen |
+| **`DEPT-01`** | Roads & Transport | Highways, arterial roads, flyovers, bridges, traffic signals, bus terminals. |
+| **`DEPT-02`** | Health & Medical Services | District civil hospitals, primary health centers (PHCs), diagnostic labs. |
+| **`DEPT-03`** | Education & Research | Government primary/secondary schools, model degree colleges, polytechnics. |
+| **`DEPT-04`** | Water Supply & Sewerage | Water treatment plants, pipeline distribution, sewage networks, tube wells. |
+| **`DEPT-05`** | Power, Energy & Lighting | Power distribution substations, high-tension lines, public street lighting. |
+| **`DEPT-06`** | Sanitation & Waste Management | Municipal landfill sites, solid waste transfer stations, recycling units. |
+| **`DEPT-07`** | Public Safety & Disaster Management | Fire stations, emergency flood shelters, disaster response facilities. |
+| **`DEPT-08`** | Urban Housing & Slum Development | Affordable public housing schemes, slum rehabilitation, civic amenities. |
+| **`DEPT-09`** | Environment, Parks & Green Cover | Public municipal parks, urban forestry corridors, water body conservation. |
+| **`DEPT-10`** | Digital Infrastructure & e-Governance | Fiber optic connectivity, municipal data centers, citizen service centers. |
 
 ---
 
-## 🏗️ System Architecture
+## 8. D1–D8 Data Architecture
 
-![CivicFix System Architecture](docs/architecture.png)
+CivicFix organizes its analytical backend into 8 discrete dataset domains:
 
-### Architecture Component Breakdown
+| Dataset | Domain | Scope & Contents | Source / Type | Operational Role |
+| :--- | :--- | :--- | :--- | :--- |
+| **D1** | Population & Demographics | Total population, urban/rural split, gender ratio, literacy rate, density per km². | Census & District Handbooks | Context Read (D1–D7) |
+| **D2** | Department Budgets | Allocated, released, committed, spent, and unspent budget lines in ₹ Crores. | State Planning Department | Context Read (D1–D7) |
+| **D3** | Geography & Environment | Total geographical area, terrain type, forest cover %, flood/seismic risk ratings. | Geospatial & Forest Surveys | Context Read (D1–D7) |
+| **D4** | Infrastructure Assets | Geocoded inventory of operational schools, hospitals, water works, substations. | Municipal Asset Registries | Context Read (D1–D7) |
+| **D5** | Accessibility & Transit | Road network density (km/km²), railway access, public transport travel times. | Transport Department Data | Context Read (D1–D7) |
+| **D6** | Socioeconomic Gaps | Multidimensional poverty index (MPI), aspirational district rank, priority gap index. | NITI Aayog & State Indices | Context Read (D1–D7) |
+| **D7** | Historical Projects | Past 5-year capital delivery records, cost overruns, timeline variances. | Department Project Records | Context Read (D1–D7) |
+| **D8** | Development Requests | Synthetic benchmark dataset of district infrastructure requests. | Isolated Benchmark Fixture | Performance & Benchmark Only |
 
-#### 1. Frontend Client (Vercel)
-- **React 19 & TypeScript**: Component-driven SPA architecture with strong type safety.
-- **Vite 8**: Optimized bundling with code-splitting across role routes.
-- **Tailwind CSS v4 & Lucide Icons**: Modern, responsive UI with custom color hierarchies tailored for accessibility and field usability.
-- **React Router DOM v7**: Client-side routing with role-based session guards (`RequireAuth`, `RequireRole`, `PublicOnly`).
-
-#### 2. Authentication & Identity Layer (Clerk)
-- **Clerk React SDK**: User sign-up, sign-in, session token lifecycle, and account management.
-- **Clerk-to-Supabase Bridge**: Custom session synchronization hook (`useCivicFixProfileSync`) that exchanges Clerk JWTs for authenticated Supabase sessions and ensures local profile records exist in PostgreSQL.
-
-#### 3. Backend & Database Platform (Supabase)
-- **PostgreSQL**: Relational database with strict foreign keys, domain constraints, custom ENUM types, and audit triggers.
-- **Row Level Security (RLS)**: Enforces multi-tenant data boundaries at the SQL level based on authenticated Clerk user IDs and role tables.
-- **Supabase Storage**: Managed object storage buckets (`issue-images` and `resolution-images`) with authenticated upload and public read policies.
-- **Database Functions & Triggers**: Automated role assignment on sign-up, atomic transition concurrency guards (`validate_issue_status_history_transition`), and synchronization triggers.
-
-#### 4. Secure Edge Backend (Supabase Edge Functions)
-- **Deno-based `admin-create-user` Function**: Handles privileged user creation (Municipal Officers and Field Workers) by authenticating admin credentials, invoking the Clerk Backend SDK (`@clerk/backend`), and writing matching database profiles within a transactional rollback block.
+> [!CAUTION]
+> **Dataset Isolation**: Datasets D1 through D7 provide live operational context for infrastructure assessments. Dataset D8 consists strictly of synthetic benchmark records and is isolated from operational decision support.
 
 ---
 
-## 💻 Technology Stack
+## 9. District Context Engine
 
-| Layer | Technology | Version / Tooling | Purpose |
+The district context engine provides structured multi-dataset intelligence to authorized planning officers via the PostgreSQL stored procedure `get_district_infrastructure_context`:
+
+```sql
+SELECT get_district_infrastructure_context(
+  p_district_id := 'c0a80123-0000-0000-0000-000000000001'::uuid,
+  p_planning_sector_code := 'DEPT-01'
+);
+```
+
+### Capabilities:
+- **Single-Roundtrip Multi-Dataset Aggregation**: In a single execution, aggregates demographic baselines (D1), financial year budget allocations (D2), geographic risk factors (D3), existing asset counts (D4), accessibility deficits (D5), socioeconomic indexes (D6), and historical project performance (D7).
+- **Zero Mutative Side Effects**: Operates strictly as a read-only telemetry function.
+- **Authorization Guarded**: Restricted via PostgreSQL `SECURITY DEFINER` with fixed `search_path = public, pg_temp;` and accessible only to authenticated officers, managers, and administrators.
+
+---
+
+## 10. Infrastructure Assessment & Decision Architecture
+
+To ensure strict financial and administrative governance, infrastructure assessments are created through an atomic stored procedure that guarantees deterministic versioning and concurrency safety.
+
+### Atomic Versioning RPC (`create_atomic_infrastructure_assessment`)
+When an authorized officer submits an infrastructure assessment:
+1. **Pessimistic Row Locking (`FOR UPDATE`)**: Locks the latest existing assessment row for the target district and planning sector to prevent concurrent write collisions.
+2. **Monotonic Version Increment**: Automatically assigns `version = (COALESCE(latest_version, 0) + 1)`.
+3. **Single Active Invariant**: Atomically flips existing historical records to `is_latest = false` while persisting the new submission with `is_latest = true`.
+4. **Audit Immutability**: Historical assessment snapshots remain immutable for retrospective planning audits.
+
+### Human-Authorized Decision Workflow
+Assessments feed directly into the `public.infrastructure_decisions` state machine:
+$$\text{PROPOSED} \longrightarrow \text{UNDER_REVIEW} \longrightarrow \text{APPROVED} \mid \text{REJECTED} \mid \text{DEFERRED}$$
+Every decision records the reviewing officer's user ID, timestamp, authorized budget allocation, and mandatory public justification.
+
+---
+
+## 11. Complex Innovation Ecosystem
+
+Chronic civic challenges (such as industrial water contamination or urban plastic recycling) require research partnerships beyond routine municipal maintenance. CivicFix provides a dedicated collaboration hub for universities and research institutions:
+
+```mermaid
+flowchart LR
+    A[Innovation Challenge] --> B[Institution Matchmaking]
+    B --> C[11-Section Research Proposal]
+    C --> D[Peer & Manager Review]
+    D --> E[Pilot Execution Workspace]
+    E --> F[KPI Validation & Evidence]
+    F --> G[Deployment Plan & Impact]
+```
+
+### Key Workflow Modules:
+- **Challenge Generation**: Municipal administrators publish complex problems with clear technical constraints and target metrics.
+- **Institution Discovery**: Automated matching identifies compatible universities and laboratories based on research domains and equipment.
+- **11-Section Proposal Standard**: Enforces comprehensive research proposals covering Problem Definition, Methodology, Resource Requirements, Pilot Budget, Safety Compliance, and Scalability Plans.
+- **Anti-Self-Approval Enforcement**: Database triggers prevent proposal authors or affiliated institutions from reviewing or approving their own submissions.
+- **Pilot Execution Workspace**: Tracks milestone progress, field trial telemetry, and budget drawdowns during real-world pilot deployments.
+- **Deployment Planning**: Successful pilots transition into municipal scale-up plans with lifecycle cost projections.
+
+---
+
+## 12. User Roles & Permissions
+
+CivicFix implements 8 distinct user roles enforced at the database level via PostgreSQL Row Level Security (RLS):
+
+| Role Name | Access Scope | Primary Platform Responsibilities |
+| :--- | :--- | :--- |
+| **`CITIZEN`** | Public / Self | Submit multimodal issues, track progress, review resolution evidence, confirm/reopen tickets. |
+| **`MUNICIPAL_OFFICER`** | Municipality | Triage incoming issues, verify/override AI classifications, grant final resolution sign-off. |
+| **`DEPARTMENT_MANAGER`** | Department | Manage department queue, assign work orders to field workers, review resolution evidence. |
+| **`FIELD_WORKER`** | Assigned Tasks | Accept field work orders, navigate to geocoded locations, upload photo resolution evidence. |
+| **`ADMIN`** | System-Wide | Platform governance, user role management, system telemetry, audit logs. |
+| **`INNOVATION_MANAGER`** | Innovation Track | Author challenges, manage institution partnerships, review R&D proposals, oversee pilots. |
+| **`INSTITUTION`** | Academic / R&D | Discover challenges, submit 11-section research proposals, execute approved field pilots. |
+| **`INDUSTRY_PARTNER`** | Commercial R&D | Co-fund pilots, supply specialized hardware/materials, collaborate on deployment plans. |
+
+---
+
+## 13. Authentication & Authorization
+
+CivicFix utilizes an enterprise dual-layer authentication and authorization architecture:
+
+```
++------------------+         +-------------------------+         +------------------------+
+|   Client App     |  (1)    |   Clerk Authentication  |  (2)    |  Supabase PostgreSQL   |
+|  (React 19 / TS) | ------> |  - Issues RSA JWT       | ------> |  - Cryptographic JWKS  |
+|                  |  Bearer |  - Manages User Session |  Claims |  - Maps clerk_user_id  |
++------------------+   Token +-------------------------+         |  - Evaluates RLS Rules |
+                                                                 +------------------------+
+```
+
+1. **Authentication (Clerk)**: Manages identity, multi-factor authentication, and session lifecycles. Emits cryptographically signed RS256 JWTs.
+2. **Edge Function Verification**: Edge Functions verify Clerk JWT signatures against Clerk's remote JSON Web Key Set (JWKS) via `jose` and `@clerk/backend`.
+3. **Database Authorization (Supabase RLS)**: Maps `auth.jwt() -> sub` to `public.profiles.clerk_user_id`. Every table query is filtered through PostgreSQL Row Level Security policies based on active user roles and department scopes.
+4. **Unauthenticated Academic Team Member Support**: Allows research teams to register student and faculty collaborators on proposals without requiring mandatory platform login accounts (Migration 0039).
+
+---
+
+## 14. Security Architecture
+
+### Security Controls Overview
+- **Cryptographic Authentication**: Zero trust on unverified JWT payloads. All Edge Functions enforce cryptographic signature validation against remote JWKS endpoints.
+- **Row Level Security (RLS)**: Enforced across all 78 database migrations. Prevents unauthorized cross-department reads or cross-tenant mutations.
+- **Database Function Hardening**: Every `SECURITY DEFINER` function explicitly declares fixed search paths (`SET search_path = public, pg_temp;`) to eliminate search-path hijacking.
+- **Input Validation**: Strict schema validation on all inputs (UUID formats, canonical district IDs, planning sector codes, financial year formatting).
+- **Storage Security**: Supabase storage bucket policies enforce ownership and department prefix restrictions on issue attachments and resolution proof uploads.
+- **Atomic Rate Limiting**: Centralized rate limiting (`public.rate_limits` via Migration 0073) protects Edge Functions and sensitive endpoints against automated abuse.
+- **Workflow Integrity Guards**: Database triggers enforce valid lifecycle transitions and prevent state-machine bypass.
+
+---
+
+## 15. Security Hardening & Engineering History
+
+CivicFix has undergone structured security audits, regression testing, and hardening phases:
+
+| Engineering Phase | Focus Area | Hardening Implementations |
+| :--- | :--- | :--- |
+| **Phase 1** | Baseline Security | RLS policy enablement, input sanitization, storage bucket access rules. |
+| **Phase 2** | Injection Prevention | Parameterized PostGIS spatial queries, eliminated dynamic SQL concatenation. |
+| **Phase 3** | Rate Limiting | Implemented sliding-window rate limiting in PostgreSQL with IP and user tracking. |
+| **Phase 4.1 & 4.4** | Query Pagination | Server-side range pagination (`.range(offset, limit)`) on officer and admin queues. |
+| **Phase 4.2** | Telemetry Aggregation | Implemented single-roundtrip `get_admin_analytics_summary()` RPC. |
+| **Phase 4.3** | Composite Indexing | Created composite B-tree indexes on `(department_id, status)`, `(district_id, created_at)`. |
+| **Phase 4.5** | Atomic Assessments | Implemented pessimistic row locking (`FOR UPDATE`) in infrastructure assessment RPC. |
+| **Phase 5.2** | RLS Authorization | Hardened RLS policies across proposals, pilots, and department work orders. |
+| **Phase 5.3** | Edge Function Security | Removed all unverified JWT fallbacks; enforced cryptographic JWKS verification. |
+| **Phase 5.4** | State-Machine Integrity | Remediated lifecycle update policies; enforced role-governed transitions. |
+| **Phase 5.5** | Scalability Benchmarking | Executed progressive concurrency load tests (10 to 250 virtual clients). |
+
+---
+
+## 16. Scalability & Concurrency Model
+
+CivicFix is architected to eliminate common relational database scalability bottlenecks:
+
+- **Server-Side Range Pagination**: High-volume tables (`issues`, `activity_logs`, `notifications`) enforce server-side pagination to prevent unbounded memory allocation.
+- **Targeted Composite Indexing**: Composite indexes optimize common multi-column filters (e.g. filtering issues by department and status simultaneously).
+- **Consolidated RPC Aggregations**: Dashboard metrics aggregate inside PostgreSQL via single-roundtrip RPCs, eliminating client-side N+1 query cascades.
+- **Pessimistic Concurrency Controls**: High-stakes workflows (such as assessment versioning) use explicit `FOR UPDATE` row locks to prevent race conditions under concurrent submissions.
+
+---
+
+## 17. Performance Benchmarks
+
+In Phase 5.5, CivicFix underwent automated, non-destructive concurrency load testing against a live remote Supabase instance.
+
+### Empirical Concurrency Matrix (Phase 5.5)
+
+| Workload ID & Name | 10 Users | 25 Users | 50 Users | 100 Users | 250 Users |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| **Workload A: Public Browsing** | 46.95 req/s (169ms) | 131.23 req/s (119ms) | 268.82 req/s (123ms) | 313.48 req/s (227ms) | 37.95 req/s (232ms)\* |
+| **Workload B: Authenticated Civic** | 41.15 req/s (137ms) | 151.06 req/s (120ms) | 263.16 req/s (114ms) | 437.64 req/s (150ms) | 355.11 req/s (490ms) |
+| **Workload C: Admin/Officer Pagination** | 68.73 req/s (109ms) | 181.82 req/s (122ms) | 344.83 req/s (121ms) | 425.53 req/s (192ms) | 725.69 req/s (256ms) |
+| **Workload D: Infrastructure Analytics** | 67.11 req/s (126ms) | 137.74 req/s (164ms) | 346.02 req/s (120ms) | 583.09 req/s (131ms) | 732.06 req/s (246ms) |
+| **Workload E: Edge Functions** | 15.29 req/s (518ms) | 53.53 req/s (406ms) | 85.91 req/s (402ms) | *Rate Capped* | *Rate Capped* |
+
+> [!NOTE]
+> Values represent measured throughput in requests per second (`req/s`) and median latency (`p50` in milliseconds).
+>
+> **Capacity Declaration**: In a controlled benchmark against the tested remote Supabase environment, database-oriented workloads were exercised with up to 250 concurrent simulated clients. The infrastructure analytics workload reached an observed throughput of **732.06 requests/second**.
+>
+> \*_Socket Contention Note_: At 250 concurrent clients on Workload A, HTTP/1.1 client socket pool queueing increased p95 tail latencies. Invocations on Workload E were capped at 50 concurrency to respect external AI provider limits.
+
+---
+
+## 18. Database Schema & Architecture
+
+The CivicFix relational architecture is defined across 78 sequential migrations (`supabase/migrations/0001` through `0078`):
+
+```
++-----------------------------------------------------------------------------------+
+|                               DATABASE DOMAINS                                    |
++-----------------------------------------------------------------------------------+
+| 1. CORE CIVIC       | profiles, user_roles, departments, issues, issue_images,    |
+|                     | issue_status_history, issue_department_assignments,         |
+|                     | issue_comments, notifications, rate_limits                  |
++---------------------+-------------------------------------------------------------+
+| 2. AI INTELLIGENCE  | issue_ai_analysis, duplicate_clusters, duplicate_issues     |
++---------------------+-------------------------------------------------------------+
+| 3. INFRASTRUCTURE   | districts, district_demographics (D1), district_budgets     |
+|                     | (D2), district_geography (D3), district_assets (D4),        |
+|                     | district_accessibility (D5), district_socioeconomic (D6),   |
+|                     | district_historical_projects (D7), department_planning_     |
+|                     | sectors, infrastructure_assessments,                        |
+|                     | infrastructure_decisions                                    |
++---------------------+-------------------------------------------------------------+
+| 4. INNOVATION (R&D) | challenges, institutions, institution_members,              |
+|                     | challenge_matches, challenge_proposals, proposal_sections,  |
+|                     | proposal_reviews, pilots, pilot_milestones, pilot_metrics,  |
+|                     | deployment_plans, impact_reports                            |
++-----------------------------------------------------------------------------------+
+```
+
+---
+
+## 19. Edge Functions Reference
+
+CivicFix deploys 7 serverless Deno TypeScript Edge Functions in `supabase/functions/`:
+
+| Function Name | Operational Purpose | Authorization Model | Primary AI / Backend Engine |
 | :--- | :--- | :--- | :--- |
-| **Frontend Framework** | React | `^19.2.8` | Component-driven UI architecture |
-| **Build & Dev Tool** | Vite | `^8.2.1` | Fast HMR and production bundle optimization |
-| **Language** | TypeScript | `^6.0.3` | Static typing across components, models, and APIs |
-| **Styling** | Tailwind CSS | `^4.3.3` | Utility-first responsive design and modern tokens |
-| **Routing** | React Router DOM | `^7.18.2` | Client-side routing and protected route guards |
-| **Icons & UI Primitives**| Lucide React / Radix Slot | `^1.31.0` / `^1.3.3` | Iconography and accessible UI component primitives |
-| **Authentication** | Clerk | `@clerk/react ^6.14.4` | User identity, session tokens, and security |
-| **Database & Platform**| Supabase / PostgreSQL | `@supabase/supabase-js ^2.112.3` | Relational storage, triggers, and RLS |
-| **Storage** | Supabase Storage | S3-Compatible Buckets | High-durability citizen and worker image storage |
-| **Serverless Backend** | Supabase Edge Functions | Deno Runtime | Privileged administrative operations & Clerk SDK |
-| **Deployment** | Vercel | Production Cloud | Global edge CDN and SPA hosting |
-| **Code Quality** | ESLint | `^10.8.1` | Static analysis and linting compliance |
+| **`analyze-issue`** | Multimodal triage of civic issues (categorization, severity, priority, department). | Cryptographic Clerk JWT | Google Gemini 2.5 Flash |
+| **`transcribe-voice`** | Multilingual Indic voice transcription and structured field population. | Cryptographic Clerk JWT | Google Gemini 2.5 Flash / Audio |
+| **`detect-duplicates`** | Evaluates spatial, categorical, textual, and temporal duplicate candidate signals. | Cryptographic Clerk JWT | Heuristic 4-Factor Engine |
+| **`generate-challenge`** | Synthesizes complex civic issues into structured innovation challenges. | Cryptographic Clerk JWT (Admin / Manager) | Google Gemini 2.5 Flash |
+| **`match-institutions`** | Evaluates compatibility scores between challenges and registered research labs. | Cryptographic Clerk JWT (Admin / Manager) | Google Gemini 3.6 Flash |
+| **`admin-create-user`** | Administrative provisioning of municipal staff profiles and role assignments. | Cryptographic Clerk JWT (Admin Only) | Supabase Admin Service Role |
+| **`admin-delete-user`** | Administrative de-provisioning and profile cleanup. | Cryptographic Clerk JWT (Admin Only) | Supabase Admin Service Role |
 
 ---
 
-## 🔁 Data Flow & Request Lifecycle
+## 20. Frontend Architecture
 
-```text
-Browser Client (React SPA on Vercel)
-   │
-   ├── [1. Authentication] ──> Clerk Auth Service (Issues Session JWT)
-   │
-   ├── [2. Authenticated Data API] ──> Supabase PostgreSQL
-   │        │                              ├── Verified by RLS Policies (auth.jwt())
-   │        │                              ├── Status Transition Constraints
-   │        │                              └── Auto-audit Triggers
-   │
-   ├── [3. Image Uploads] ──> Supabase Storage Buckets
-   │        ├── issue-images/ (Initial citizen evidence)
-   │        └── resolution-images/ (Field worker repair evidence)
-   │
-   └── [4. Administrative Operations] ──> Supabase Edge Functions
-            └── admin-create-user (Invokes Clerk Backend API + Supabase Admin)
+The CivicFix frontend is built with **React 19**, **TypeScript**, **Vite**, and **Tailwind CSS v4**.
+
+```
+src/
+├── App.tsx                    # Top-level application router and providers
+├── main.tsx                   # React root mount and Clerk authentication wrapper
+├── auth/                      # Clerk auth synchronization, guards, and context
+│   ├── ClerkAuthProvider.tsx  # Token synchronization with Supabase
+│   ├── RequireAuth.tsx        # Authentication gate
+│   └── RequireRole.tsx        # Role-based route guard
+├── components/                # Reusable UI component modules
+│   ├── common/                # Shared buttons, dialogs, badges, navigation
+│   ├── citizen/               # Issue report forms, tracking cards, photo uploaders
+│   ├── officer/               # Triage queues, classification review panels
+│   ├── department/            # Work order assignment panels, worker rosters
+│   ├── worker/                # Field task list, GPS map view, resolution evidence uploader
+│   ├── admin/                 # Analytics dashboards, user management modals
+│   └── innovation/            # Challenge explorer, proposal editor, pilot workspace
+├── routes/                    # Domain-specific page layouts and views
+├── lib/                       # API clients, Supabase integration, utility helpers
+└── types/                     # TypeScript interfaces and database type definitions
 ```
 
 ---
 
-## 📁 Project Directory Structure
+## 21. Internationalization (i18n) & Voice
+
+CivicFix is built for linguistic accessibility across India:
+
+- **UI Localization**: Full UI dictionary localization supporting **English (`en`)**, **Hindi (`hi`)**, and **Marathi (`mr`)**, with locale definitions in `src/lib/i18n/locales/`.
+- **Speech-to-Text Coverage**: Voice transcription engine supports **20 Indic languages** (Assamese, Bengali, Dogri, Gujarati, Hindi, Kannada, Kashmiri, Konkani, Maithili, Malayalam, Manipuri, Marathi, Nepali, Odia, Punjabi, Sanskrit, Santali, Sindhi, Tamil, Telugu, Urdu).
+- **Automated Translation**: Transcripts in regional languages are automatically translated to English for administrative review while preserving original verbatim audio and text.
+
+---
+
+## 22. Project Directory Structure
 
 ```text
-ConsoleLog/
-├── docs/
-│   └── architecture.png           # Complete system architecture diagram
-├── public/                        # Static web assets
-├── src/
-│   ├── auth/                      # Authentication bridging & route guards
-│   │   ├── app-session.tsx        # React context providing session & profile state
-│   │   ├── clerk-supabase-bridge.tsx # Token bridging between Clerk and Supabase client
-│   │   ├── route-guards.tsx       # RequireAuth, RequireRole, PublicOnly guards
-│   │   └── use-civicfix-profile-sync.ts # Auto-syncs Clerk user to Supabase profile
-│   ├── components/
-│   │   ├── citizen/               # Citizen dashboard widgets & summary cards
-│   │   ├── issues/                # Reusable issue image display component
-│   │   ├── layout/                # AppLayout, AppNavbar, AppSidebar, BrandMark, etc.
-│   │   └── ui/                    # Base UI buttons and design components
-│   ├── lib/                       # Helpers, formatters, and Supabase client
-│   │   ├── admin.ts               # Admin role formatters and status tones
-│   │   ├── citizen-issues.ts      # Citizen data querying, image helpers & categories
-│   │   ├── civicfix.ts            # Role configurations and navigation metadata
-│   │   ├── officer-issues.ts      # Municipal officer triage & assignment helpers
-│   │   ├── supabase.ts            # Typed Supabase client with dynamic JWT injection
-│   │   ├── utils.ts               # Class merging utilities (clsx & tailwind-merge)
-│   │   └── worker-issues.ts       # Worker task management & evidence formatting
-│   ├── routes/                    # Application pages & routing definitions
-│   │   ├── admin/                 # Admin Dashboard, Users, Issues, Analytics, Departments
-│   │   ├── citizen/               # Citizen Dashboard, Report Issue, My Issues, Details
-│   │   ├── officer/               # Officer Dashboard, Issue Triage, Details & Review
-│   │   ├── worker/                # Worker Dashboard, Assigned Issues, Evidence Upload
-│   │   ├── home.tsx               # Public landing page
-│   │   ├── index.tsx              # Application router configuration
-│   │   ├── login.tsx              # Clerk sign-in interface
-│   │   ├── signup.tsx             # Clerk sign-up interface
-│   │   ├── onboarding.tsx         # New user onboarding view
-│   │   ├── role-selection.tsx     # Role-aware routing & redirection
-│   │   └── unauthorized.tsx       # Role mismatch fallback page
-│   ├── types/
-│   │   └── database.ts            # Comprehensive TypeScript definitions for Supabase schema
-│   ├── App.tsx                    # Root application component
-│   ├── index.css                  # Global Tailwind CSS styles and custom design system
-│   └── main.tsx                   # App entrypoint with ClerkProvider
-├── supabase/
-│   ├── functions/
-│   │   └── admin-create-user/     # Secure Deno Edge Function for staff provisioning
-│   ├── migrations/                # Version-controlled SQL migrations
-│   │   ├── 0001_civicfix_schema.sql
-│   │   ├── 0002_civicfix_rls.sql
-│   │   ├── 0003_civicfix_privileged_role_protection.sql
-│   │   ├── 0004_civicfix_issue_image_storage_policies.sql
-│   │   ├── 0005_civicfix_issue_images_bucket.sql
-│   │   ├── 0006_civicfix_citizen_verification_status_sync.sql
-│   │   ├── 0007_civicfix_officer_profile_read_scope.sql
-│   │   ├── 0008_civicfix_worker_workflow_access.sql
-│   │   ├── 0009_civicfix_resolution_images_bucket.sql
-│   │   ├── 0010_civicfix_worker_resolution_review_state.sql
-│   │   ├── 0011_civicfix_worker_under_review_sync.sql
-│   │   ├── 0012_civicfix_issue_status_transition_guard.sql
-│   │   ├── 0013_civicfix_reopen_clears_citizen_verification.sql
-│   │   ├── 0014_civicfix_transition_concurrency_guards.sql
-│   │   ├── 0015_civicfix_add_department_manager_role.sql
-│   │   └── 0016_civicfix_department_assignment_architecture.sql
-│   └── seed.sql                   # Seed data for roles and departments
-├── vercel.json                    # Single Page App rewrite rules for Vercel
-├── package.json                   # Dependencies and npm scripts
-├── tsconfig.json                  # TypeScript compiler settings
-└── vite.config.ts                 # Vite bundler configuration
+CivicFix/
+├── Datasets_Backend/              # Canonical district reference datasets (D1–D8)
+│   ├── india/                     # 786-district pan-India datasets (D0–D8)
+│   └── jharkhand/                 # 24-district baseline datasets
+├── docs/                          # Architecture, database, and feature specifications
+├── public/                        # Static assets, icons, and logos
+├── scripts/                       # Engineering test suites and load testing harnesses
+│   ├── load-tests/                # Concurrency harnesses, profiling, and reports
+│   └── run_phase*_tests.cjs       # Phase-specific regression runners
+├── src/                           # Frontend application source code
+│   ├── auth/                      # Clerk auth wrappers and route guards
+│   ├── components/                # Domain-scoped UI component hierarchy
+│   ├── lib/                       # API clients, Supabase SDK, i18n dictionaries
+│   ├── routes/                    # React Router page components
+│   └── types/                     # TypeScript type definitions and schemas
+├── supabase/                      # Backend configuration
+│   ├── functions/                 # 7 Deno TypeScript Edge Functions
+│   └── migrations/                # 78 sequential PostgreSQL SQL migrations
+├── package.json                   # Project scripts and dependency registry
+├── vite.config.ts                 # Vite build configuration
+└── README.md                      # Platform documentation
 ```
 
 ---
 
-## 🔒 Authentication & Security Architecture
+## 23. Testing & Quality Assurance
 
-CivicFix uses an enterprise-grade authentication and authorization model:
+CivicFix includes automated regression and verification test suites located in `scripts/`:
 
-1. **Identity Provider**: Clerk handles user credentials, multi-factor authentication, email verification, and session token generation.
-2. **Third-Party Supabase Auth Integration**: Supabase verifies incoming Clerk JWT session tokens using the configured Clerk issuer domain.
-3. **Row-Level Security (RLS)**:
-   - Database queries leverage helper functions (`requesting_clerk_user_id()`, `current_profile_id()`, and `current_user_has_role()`) to restrict row access directly at the PostgreSQL layer.
-   - Citizens can only query their own submitted issues or public summary views.
-   - Department Managers can only access issues and tasks assigned to their specific department (`department_id`).
-   - Field Workers can only view tasks dispatched to them by their department manager.
-   - Municipal Officers and Admins have broad access to triage, route, and oversee issues across departments.
-4. **Client-Side Safety**: No secret keys (`CLERK_SECRET_KEY`, `SUPABASE_SERVICE_ROLE_KEY`) are ever bundled in frontend code or exposed in browser bundles.
-5. **Secure Administrative Provisioning**: Creation of Municipal Officer, Department Manager, and Field Worker credentials is exclusively executed inside the isolated `admin-create-user` Edge Function.
+```bash
+# Execute specific engineering regression suites:
+node scripts/run_phase2_tests.cjs          # Phase 2: PostGIS & Injection Hardening (9/9 Passed)
+node scripts/run_phase3_tests.cjs          # Phase 3: Rate Limiting & Abuse Prevention (10/10 Passed)
+node scripts/run_phase4_2_tests.cjs        # Phase 4.2: Admin Analytics Aggregation (5/5 Passed)
+node scripts/run_phase4_4_tests.cjs        # Phase 4.4: Officer Pagination & Search (10/10 Passed)
+node scripts/run_phase4_5_tests.cjs        # Phase 4.5: Atomic Infrastructure Assessments (12/12 Passed)
+node scripts/run_phase5_2_tests.cjs        # Phase 5.2: Authorization & RLS Enforcement (8/8 Passed)
+node scripts/run_phase5_3_tests.cjs        # Phase 5.3: Edge Function Cryptographic Auth (37/37 Passed)
+node scripts/run_phase5_4_tests.cjs        # Phase 5.4: State-Machine Integrity (16/16 Passed)
+node scripts/test_infrastructure_assessment.cjs # Infrastructure Assessment Suite (8/8 Passed)
 
----
-
-## 🗄️ Database Schema & Transition Rules
-
-### Key PostgreSQL Tables & Architecture
-
-```text
-┌────────────────────────┐      ┌────────────────────────┐      ┌────────────────────────┐
-│         roles          │      │      departments       │      │        profiles        │
-├────────────────────────┤      ├────────────────────────┤      ├────────────────────────┤
-│ id (PK, UUID)          │      │ id (PK, UUID)          │      │ id (PK, UUID)          │
-│ code (role_code ENUM)  │      │ name (TEXT, UNIQUE)    │      │ clerk_user_id (UNIQUE) │
-│ name (TEXT, UNIQUE)    │      │ description (TEXT)     │      │ full_name (TEXT)       │
-│ description (TEXT)     │      │ manager_profile_id(FK) │      │ email (TEXT, UNIQUE)   │
-└───────────┬────────────┘      │ is_active (BOOLEAN)    │      │ role_id (FK -> roles)  │
-            │                   └───────────┬────────────┘      │ department_id (FK)     │
-            └───────────────────────────────┼───────────────────┴───────────┬────────────┘
-                                            │                               │
-                                            ▼                               ▼
-                                ┌────────────────────────────────────────────────────────┐
-                                │                         issues                         │
-                                ├────────────────────────────────────────────────────────┤
-                                │ id (PK, UUID)                                          │
-                                │ reporter_profile_id (FK -> profiles)                   │
-                                │ title, description, category (TEXT)                    │
-                                │ severity (issue_severity ENUM)                         │
-                                │ priority (issue_priority ENUM)                         │
-                                │ status (issue_status ENUM inc. PARTIALLY_COMPLETED)    │
-                                │ latitude, longitude (NUMERIC(9,6))                     │
-                                │ location_text, address_text (TEXT)                     │
-                                │ resolved_at (TIMESTAMPTZ)                              │
-                                └───────────────────────────┬────────────────────────────┘
-                                                            │
-         ┌──────────────────────────────┬───────────────────┼────────────────────────────┐
-         ▼                              ▼                   ▼                            ▼
-┌────────────────────────┐   ┌────────────────────────┐   ┌────────────────────────┐   ┌────────────────────────┐
-│      issue_images      │   │issue_department_assign-│   │  issue_status_history  │   │resolution_verifications│
-├────────────────────────┤   │         ments          │   ├────────────────────────┤   ├────────────────────────┤
-│ id (PK, UUID)          │   ├────────────────────────┤   │ id (PK, UUID)          │   │ id (PK, UUID)          │
-│ issue_id (FK -> issues)│   │ id (PK, UUID)          │   │ issue_id (FK -> issues)│   │ issue_id (FK -> issues)│
-│ storage_bucket (TEXT)  │   │ issue_id (FK -> issues)│   │ old_status (ENUM)      │   │ citizen_id (FK)        │
-│ storage_path (TEXT)    │   │ department_id (FK)     │   │ new_status (ENUM)      │   │ result (ENUM)          │
-│ image_type (ENUM)      │   │ status (ENUM)          │   │ changed_by (FK)        │   │ feedback (TEXT)        │
-└────────────────────────┘   │ notes (TEXT)           │   └────────────────────────┘   └────────────────────────┘
-                             └───────────┬────────────┘
-                                         │
-                                         ▼
-                             ┌────────────────────────┐
-                             │department_worker_      │
-                             │      assignments       │
-                             ├────────────────────────┤
-                             │ id (PK, UUID)          │
-                             │ issue_dept_assign_id   │
-                             │ worker_profile_id (FK) │
-                             │ assigned_by_id (FK)    │
-                             │ status (ENUM)          │
-                             │ notes (TEXT)           │
-                             └────────────────────────┘
+# Execute comprehensive load testing:
+npm run load-test
 ```
 
-### The 12 Standard Civic Departments
-
-CivicFix ships pre-seeded with 12 standardized municipal service departments:
-1. **Road & Infrastructure**: Potholes, damaged tarmac, pavement sinking, missing curb stones.
-2. **Water Supply & Sewerage**: Broken pipes, contaminated water, pipeline bursts, sewer overflow.
-3. **Waste Management**: Overflowing dumpsters, illegal trash dumping, missed collection.
-4. **Electricity & Street Lighting**: Non-functional street lights, dangling wires, open junction boxes.
-5. **Parks & Horticulture**: Fallen branches, overgrown greenery, damaged playground amenities.
-6. **Public Health & Sanitation**: Vector breeding, stagnant dirty water, public toilet disrepair.
-7. **Traffic & Transport**: Missing street signage, damaged lane dividers, traffic signal failures.
-8. **Building & Urban Planning**: Unauthorized construction, encroached pedestrian footpaths.
-9. **Stormwater & Flood Management**: Blocked roadside catch-basins, monsoon urban waterlogging.
-10. **Public Works**: Damaged government boundary walls, cracked bridges, municipal facilities.
-11. **Fire & Emergency Services**: Blocked emergency exits, broken hydrants, hazardous conditions.
-12. **Animal Control**: Dangerous stray animals, dead animal removal, rabies prevention.
-
-### Cross-Department Isolation & State Transitions
-
-Migrations `0015_civicfix_add_department_manager_role.sql` and `0016_civicfix_department_assignment_architecture.sql` introduce strict database guarantees:
-
-- **Strict Worker Isolation**: Trigger `trg_validate_department_worker_assignment` enforces that field workers can **only** be assigned to a department task if their profile's `department_id` matches the task's `department_id`. Cross-department dispatching is rejected at the PostgreSQL level (`SQLSTATE P0001`).
-- **Multi-Department Partial Completion**: Issues involving multiple departments transition to `PARTIALLY_COMPLETED` when one department finishes repairs while others remain active.
-- **Premature Resolution Prevention**: Trigger `validate_issue_status_history_transition` blocks any attempt to mark an issue `RESOLVED` until **all** assigned departments have reached `COMPLETED` status.
-- **Double-Gate Verification**:
-  1. Field Worker submits photographic evidence ➔ Department Manager reviews & approves department task.
-  2. Once all departments complete ➔ Municipal Officer approves overall issue ➔ `RESOLVED`.
-  3. Citizen inspects completed repair on ground ➔ `CITIZEN_VERIFIED` or `REOPENED`.
-
 ---
 
-## 🛠️ Admin Control Center
-
-The Admin Control Center (`/app/admin`) provides full municipal oversight:
-
-1. **System Overview**: High-level counters for total users, open complaints, resolved cases, and active departments.
-2. **User Administration**:
-   - Filter all accounts by role (`CITIZEN`, `MUNICIPAL_OFFICER`, `FIELD_WORKER`, `ADMIN`) or department.
-   - Search accounts by name, email, or telephone.
-   - Provision staff accounts through a modal invoking the serverless Edge Function.
-3. **Department Management**:
-   - Create, inspect, activate, or deactivate municipal service divisions.
-4. **Platform Analytics**:
-   - Dynamic SVG Donut Chart breakdown of issue statuses.
-   - Time-series charts tracking intake vs. resolution trends across 7-day, 30-day, 3-month, 6-month, and 1-year windows.
-   - Department throughput comparisons (assigned, pending, resolved, reopened, average turnaround hours).
-   - One-click **Export to CSV** for offline administrative reporting.
-
----
-
-## 💻 Local Development & Setup
+## 24. Local Development Setup
 
 ### Prerequisites
+- **Node.js**: `v20.x` or later
+- **npm**: `v10.x` or later
+- **Supabase CLI**: For local database and Edge Function orchestration
+- **Clerk Account**: For authentication management
+- **Google Gemini API Key**: For AI capabilities
 
-- **Node.js**: v18.0.0 or later (Node 20+ recommended)
-- **npm**: v9.0.0 or later
-- **Git**: Installed and configured
-
-### 1. Clone the Repository
-
+### Installation
 ```bash
-git clone https://github.com/Prashant952024/ConsoleLog.git
-cd ConsoleLog
-```
+# 1. Clone repository
+git clone https://github.com/your-org/civicfix.git
+cd civicfix
 
-### 2. Install Dependencies
-
-```bash
+# 2. Install dependencies
 npm install
 ```
 
-### 3. Configure Environment Variables
+### Environment Configuration
+Create a `.env` file in the root directory:
 
-Create a `.env` file in the project root:
+```ini
+# Clerk Authentication (Client)
+VITE_CLERK_PUBLISHABLE_KEY=<your_clerk_publishable_key>
 
-```bash
-cp .env.example .env
+# Supabase Backend (Client)
+VITE_SUPABASE_URL=https://<your-project-id>.supabase.co
+VITE_SUPABASE_ANON_KEY=<your_supabase_anon_key>
+
+# Edge Function Configuration (Supabase Secrets / Local .env)
+CLERK_PUBLISHABLE_KEY=<your_clerk_publishable_key>
+CLERK_SECRET_KEY=<your_clerk_secret_key>
+GEMINI_API_KEY=<your_gemini_api_key>
+SUPABASE_SERVICE_ROLE_KEY=<your_supabase_service_role_key>
+ALLOWED_ORIGINS=http://localhost:5173,https://<your-domain>.vercel.app
 ```
 
-Populate the required environment variables:
-
-```env
-# Supabase Configuration
-VITE_SUPABASE_URL=https://your-project-id.supabase.co
-VITE_SUPABASE_PUBLISHABLE_KEY=your-supabase-anon-or-publishable-key
-
-# Clerk Authentication Configuration
-VITE_CLERK_PUBLISHABLE_KEY=pk_test_your_clerk_publishable_key
-```
-
-> 🔒 **Security Notice**: Never commit `.env` or paste secret service keys (`SUPABASE_SERVICE_ROLE_KEY` or `CLERK_SECRET_KEY`) in frontend files.
-
-### 4. Start the Development Server
-
-```bash
-npm run dev
-```
-
-The application will be accessible at `http://localhost:5173`.
+> [!WARNING]
+> Never commit `.env` files or expose `CLERK_SECRET_KEY` or `SUPABASE_SERVICE_ROLE_KEY` to frontend client bundles.
 
 ---
 
-## 🐘 Supabase Configuration
+## 25. Database Setup & Migrations
 
-### 1. Database Migrations
-
-Apply the migration scripts located in `supabase/migrations/` sequentially in your Supabase SQL Editor or using the Supabase CLI:
+CivicFix migrations are sequential and idempotent:
 
 ```bash
+# Apply all 78 migrations to your local or remote Supabase instance
 supabase db push
+
+# Or execute migrations in sequential order via Supabase CLI:
+# supabase/migrations/0001_*.sql -> 0078_*.sql
 ```
 
-Or execute the scripts in order:
-1. `0001_civicfix_schema.sql` — Base tables, enums, indexes, triggers
-2. `0002_civicfix_rls.sql` — Row Level Security policies
-3. `0003_civicfix_privileged_role_protection.sql` — Role protection rules
-4. `0004_civicfix_issue_image_storage_policies.sql` — Storage RLS
-5. `0005_civicfix_issue_images_bucket.sql` — Storage bucket creation
-6. `0006_civicfix_citizen_verification_status_sync.sql` — Citizen verification synchronization
-7. `0007_civicfix_officer_profile_read_scope.sql` — Officer profile scope
-8. `0008_civicfix_worker_workflow_access.sql` — Field worker permissions
-9. `0009_civicfix_resolution_images_bucket.sql` — Resolution images bucket
-10. `0010_civicfix_worker_resolution_review_state.sql` — Review state handling
-11. `0011_civicfix_worker_under_review_sync.sql` — Worker state sync
-12. `0012_civicfix_issue_status_transition_guard.sql` — Transition enforcement
-13. `0013_civicfix_reopen_clears_citizen_verification.sql` — Reopen cleanup
-14. `0014_civicfix_transition_concurrency_guards.sql` — Concurrency locking
-15. `0015_civicfix_add_department_manager_role.sql` — Add `DEPARTMENT_MANAGER` role and `PARTIALLY_COMPLETED` enum
-16. `0016_civicfix_department_assignment_architecture.sql` — 12 standard civic departments, multi-department assignment tables, manager triggers, and RLS
-17. `0017_civicfix_admin_staff_provisioning.sql` — Employee ID, designation, active status, avatar storage bucket & policies, and Admin staff management grants
-18. `0018_civicfix_fix_issue_dept_recursion.sql` — Non-recursive security definer RLS functions for `issue_department_assignments` and `department_worker_assignments`
+---
 
-Seed baseline roles and departments using `supabase/seed.sql`.
+## 26. Dataset Setup
 
-### 2. Storage Buckets
-
-Verify that the following public storage buckets exist in Supabase Storage:
-- `issue-images` (For citizen intake photos)
-- `resolution-images` (For field worker completion proof)
-- `avatars` (For staff profile photos and badge avatars)
-
-### 3. Deploying the Edge Function (For Admin Staff Creation)
+Reference datasets for district infrastructure intelligence live in `Datasets_Backend/`:
 
 ```bash
-supabase functions deploy admin-create-user
+# Datasets D1 through D7 are seeded via migrations:
+# 0058_civicfix_infrastructure_schema.sql
+# 0059_seed_canonical_jharkhand_districts.sql
+# 0060_seed_d1_population.sql
+# 0061_seed_d2_budget.sql
+# 0062_seed_d3_geography.sql
+# 0063_seed_d5_accessibility.sql
+# 0064_seed_d7_historical_projects.sql
+# 0069_seed_d6_socioeconomic.sql
+# 0070_seed_d4_infrastructure.sql
 ```
 
-Set the required environment secrets in Supabase:
+---
+
+## 27. Running the Application
 
 ```bash
-supabase secrets set SUPABASE_URL=https://your-project-id.supabase.co
-supabase secrets set SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
-supabase secrets set CLERK_SECRET_KEY=sk_test_your_clerk_secret_key
-supabase secrets set CLERK_PUBLISHABLE_KEY=pk_test_your_clerk_publishable_key
-supabase secrets set CIVICFIX_ALLOWED_ORIGINS=https://civicfix-rho.vercel.app,http://localhost:5173
-```
+# Start Vite development server
+npm run dev
 
----
-
-## 🔑 Clerk Authentication Setup
-
-1. Create an application in the [Clerk Dashboard](https://dashboard.clerk.com/).
-2. Under **Configure ➔ JWT Templates**, add a new **Supabase** template (or configure Clerk as a Third-Party Auth Provider in Supabase Auth settings by providing your Clerk Frontend API URL).
-3. Copy your **Publishable Key** into `VITE_CLERK_PUBLISHABLE_KEY`.
-4. In the Clerk Dashboard, configure the allowed redirect URLs:
-   - Development: `http://localhost:5173`
-   - Production: `https://civicfix-rho.vercel.app`
-
----
-
-## 🚀 Deployment Guide
-
-### Deploying to Vercel
-
-CivicFix is pre-configured for Vercel deployment with client-side SPA routing via `vercel.json`:
-
-```json
-{
-  "rewrites": [
-    {
-      "source": "/(.*)",
-      "destination": "/index.html"
-    }
-  ]
-}
-```
-
-#### Build Settings
-- **Framework Preset**: Vite
-- **Build Command**: `npm run build` (`tsc -b && vite build`)
-- **Output Directory**: `dist`
-
-#### Environment Variables in Vercel
-Add the following in your Vercel Project Settings:
-- `VITE_SUPABASE_URL`
-- `VITE_SUPABASE_PUBLISHABLE_KEY`
-- `VITE_CLERK_PUBLISHABLE_KEY`
-
----
-
-## 🎭 Public Demo
-
-CivicFix provides a **safe, isolated client-side sandbox demo** so visitors and evaluators can explore the **Municipal Officer** and **Field Worker** command centers without creating an account, entering credentials, or modifying production database records.
-
-### Live Demo Hub & Direct Links
-
-| Demo Experience | Sandbox URL | Description |
-| :--- | :--- | :--- |
-| **Demo Hub** | **[https://civicfix-rho.vercel.app/demo](https://civicfix-rho.vercel.app/demo)** | Public sandbox role selector and security overview |
-| **Demo Municipal Officer** | **[https://civicfix-rho.vercel.app/demo/officer](https://civicfix-rho.vercel.app/demo/officer)** | Interactive queue triage, priority verification, department dispatch & resolution review |
-| **Demo Field Worker** | **[https://civicfix-rho.vercel.app/demo/worker](https://civicfix-rho.vercel.app/demo/worker)** | Mobile field workbench, task status progression, and photo evidence submission |
-
-### 🔒 Sandbox Security & Isolation Guarantee
-
-- **Zero Production Mutations**: All actions (status changes, worker dispatching, evidence upload, resolution sign-offs) run entirely in-memory and in client-side `sessionStorage` (`civicfix-demo-*`).
-- **No Supabase Calls**: The demo mode never executes `INSERT`, `UPDATE`, or `DELETE` operations on the live Supabase PostgreSQL database or Storage buckets.
-- **Strict Authentication Protection**: Real Clerk authentication and PostgreSQL Row-Level Security (RLS) remain untouched and mandatory for production `/app/*` routes.
-- **One-Click State Reset**: Evaluators can instantly reset the sandbox back to fresh seed data at any time via the top banner.
-
-> **Note**: Demo mode is intended for UI/UX exploration and operational walkthroughs. It does not represent production persistence or backend operations.
-
----
-
-## 🎬 How to Demo CivicFix
-
-Follow this end-to-end walkthrough to evaluate the complete CivicFix lifecycle:
-
-```text
-Step 1: Sign up / Sign in as a Citizen
-        ➔ Go to https://civicfix-rho.vercel.app/
-        ➔ Click "Report an Issue" and register/sign in.
-
-Step 2: Submit a Civic Complaint
-        ➔ Navigate to "/app/citizen/report".
-        ➔ Enter a title (e.g., "Deep pothole near Metro Station Gate 2").
-        ➔ Select category ("Pothole"), add description, capture GPS location, attach a photo.
-        ➔ Submit the report and view the confirmation receipt.
-
-Step 3: Officer Triage & Assignment
-        ➔ Sign in with a Municipal Officer account.
-        ➔ Open "/app/officer/issues" and find the newly submitted complaint.
-        ➔ Click the issue to view details.
-        ➔ Click "Verify Complaint" (Status becomes VERIFIED).
-        ➔ Set priority to "High" and assign a Department and Field Worker.
-
-Step 4: Field Worker Resolution
-        ➔ Sign in with the assigned Field Worker account.
-        ➔ Open "/app/worker/assigned-issues".
-        ➔ Click the issue and press "Start Work" (Status becomes IN_PROGRESS).
-        ➔ Upload a completion photo and click "Submit Resolution" (Status becomes UNDER_REVIEW).
-
-Step 5: Officer Review & Approval
-        ➔ Switch back to the Municipal Officer account.
-        ➔ Open the issue in "/app/officer/issues".
-        ➔ Review the uploaded before/after evidence and click "Approve Resolution" (Status becomes RESOLVED).
-
-Step 6: Citizen Verification & Closure
-        ➔ Switch back to the Citizen account.
-        ➔ Open "/app/citizen/issues" and click the resolved issue.
-        ➔ Review the "Before" and "After" proof.
-        ➔ Click "Yes, Issue Resolved" (Status becomes CITIZEN_VERIFIED ✅).
-        ➔ Alternatively, test the reopen loop by selecting "No, Issue Still Exists" and clicking "Reopen Complaint" (Status resets to REOPENED 🔄).
-
-Step 7: Admin Oversight & Analytics
-        ➔ Sign in with an Admin account.
-        ➔ Navigate to "/app/admin/analytics" to view the updated status donut, throughput charts, and export data via CSV.
-        ➔ Visit "/app/admin/users" to test staff creation and role updates.
-```
-
----
-
-## 📸 Visual Walkthrough & Screenshots
-
-| Section | Description |
-| :--- | :--- |
-| **Landing Page** | Responsive presentation showcasing the 5-step workflow, trust metrics, role benefits, and call-to-action buttons. |
-| **Citizen Intake** | Mobile-optimized reporting form with image compression, GPS coordinate capture, and instant submission receipt. |
-| **Citizen Details & Verification** | Timeline view of status transitions, before/after evidence comparison, and interactive verification buttons. |
-| **Officer Triage Dashboard** | Queue management with category, priority, and status filtering, verification actions, and worker dispatch. |
-| **Worker Task Center** | Dedicated field interface with work step tracker (`Assigned` ➔ `In Progress` ➔ `Under Review`) and evidence uploader. |
-| **Admin Analytics Hub** | Live platform intelligence with dynamic SVG donut chart, resolution velocity, department comparisons, and CSV export. |
-
----
-
-## ✅ Current Implementation Status
-
-| Feature Area | Implementation Status | Notes |
-| :--- | :---: | :--- |
-| **Authentication & Profile Synchronization** | 🟢 Live | Clerk auth bridged to Supabase PostgreSQL profiles |
-| **Citizen Issue Reporting (Photo + GPS)** | 🟢 Live | Client-side image compression & browser geolocation |
-| **Role-Based Access Control (4 Roles)** | 🟢 Live | Citizen, Municipal Officer, Field Worker, Admin |
-| **Officer Verification & Assignment** | 🟢 Live | Triage workflow with department and worker routing |
-| **Worker Resolution & Evidence Upload** | 🟢 Live | Evidence photo upload to `resolution-images` bucket |
-| **Officer Evidence Review (Approve/Reject)** | 🟢 Live | Multi-tier review before final resolution |
-| **Citizen Verification & Reopen Workflow** | 🟢 Live | Ground-truth verification & automatic status regression |
-| **Admin User & Department Management** | 🟢 Live | Filter accounts, reassign roles, toggle departments |
-| **Serverless Staff Provisioning** | 🟢 Live | Edge Function `admin-create-user` via Clerk SDK |
-| **Interactive Analytics & CSV Export** | 🟢 Live | SVG charts, time-series, department velocity, data export |
-| **Production Cloud Deployment** | 🟢 Live | Deployed on Vercel with SPA rewrite rules |
-
----
-
-## 🗺️ Future Roadmap
-
-The following features represent planned enhancements for future iterations of CivicFix:
-
-- [ ] **AI-Powered Visual Classification**: Deep learning integration to automatically detect issue categories (potholes, garbage, streetlights) from citizen photos upon upload.
-- [ ] **Automated Urgency & Severity Scoring**: NLP analysis of issue descriptions combined with image assessment to recommend priority scores.
-- [ ] **Computer Vision Duplicate Detection**: Proximity-based and perceptual hash matching to flag duplicate complaint submissions in the same vicinity.
-- [ ] **Geospatial Heatmap View**: Interactive Mapbox / Leaflet citywide heatmap displaying live issue density and resolution hotspots.
-- [ ] **Citizen Push & SMS Notifications**: Web push, WhatsApp, and SMS alerts on status updates and resolution ready for verification.
-- [ ] **Native Mobile Application**: React Native / Expo mobile app with offline storage and background geolocation tracking for field workers.
-- [ ] **Municipal ERP & Smart City Integrations**: REST webhooks and OpenAPI connectors for integration with municipal government grievance redressal systems.
-
----
-
-## 💡 Engineering Challenges & Solutions
-
-### 1. Concurrency & Race Conditions in Status Transitions
-- **Challenge**: Multiple users or rapid double-clicking could trigger duplicate transitions or bypass intermediate states.
-- **Solution**: Implemented PostgreSQL transaction-level row locking (`FOR UPDATE`) inside `validate_issue_status_history_transition()` alongside UI submission guards and unique indexes (`issue_assignments_one_active_per_issue_idx`).
-
-### 2. High-Resolution Mobile Image Upload Latency
-- **Challenge**: Large smartphone camera photos (8–15 MB) cause slow uploads and high bandwidth consumption in the field.
-- **Solution**: Built an in-browser canvas-based image compression utility (`compressIssueImage` / `compressResolutionImage`) that dynamically scales photos down to standard HD dimensions and 82% JPEG quality before initiating multipart uploads.
-
-### 3. Resolution Authenticity & Verification Gaps
-- **Challenge**: Field staff marking complaints resolved without completing ground repairs.
-- **Solution**: Implemented a mandatory two-tier verification mechanism: workers must attach resolution photos to enter `UNDER_REVIEW`, officers must approve the evidence for `RESOLVED`, and citizens have ultimate veto authority via `CITIZEN_VERIFIED` or `REOPENED`.
-
-### 4. Zero Secret Key Leakage in Client Bundles
-- **Challenge**: Securely creating Municipal Officer and Field Worker credentials without embedding Clerk secret keys or Supabase service role keys in client code.
-- **Solution**: Delegated administrative creation to an isolated Deno-based Supabase Edge Function that verifies the calling user's admin role and invokes the Clerk Backend API server-side.
-
----
-
-## 🧪 Testing & Validation
-
-### Codebase Validation Commands
-
-```bash
-# Run ESLint across all TypeScript and React files
-npm run lint
-
-# Execute TypeScript typechecking and production build compilation
+# Run TypeScript compilation and production build
 npm run build
+
+# Validate i18n locale dictionaries
+npm run validate-i18n
+
+# Run automated scalability load tests
+npm run load-test
 ```
 
 ---
 
-## 🤝 Contributing
+## 28. Deployment Architecture
 
-Contributions to CivicFix are welcome. Please adhere to the standard fork-and-pull workflow:
+```
++-------------------+      +-----------------------+      +-----------------------+
+|  Frontend (Vercel)|      |  Backend (Supabase)   |      |  AI Engine (Google)   |
+|  - React 19 SPA   | <--> |  - PostgreSQL 15 + RLS| <--> |  - Gemini 2.5 Flash   |
+|  - Global CDN     |      |  - 7 Deno Edge Fn's   |      |  - Gemini 3.6 Flash   |
++-------------------+      +-----------------------+      +-----------------------+
+          ^                           ^
+          |                           |
+          +---- Clerk Auth (JWKS) ----+
+```
 
-1. **Fork** the repository.
-2. **Create a feature branch**:
-   ```bash
-   git checkout -b feature/your-feature-name
-   ```
-3. **Commit your changes**:
-   ```bash
-   git commit -m "feat: describe your change"
-   ```
-4. **Validate formatting and build**:
-   ```bash
-   npm run lint
-   npm run build
-   ```
-5. **Push to your branch**:
-   ```bash
-   git push origin feature/your-feature-name
-   ```
-6. **Open a Pull Request** with a detailed explanation of your changes.
+- **Frontend**: Hosted on Vercel with automatic single-page application (SPA) routing rewrites.
+- **Backend & Database**: Hosted on Supabase with PostgreSQL 15, PostGIS, `pgvector`, and serverless Deno Edge Functions.
+- **Identity & Auth**: Managed by Clerk with remote JWKS cryptographic verification on Supabase Edge Functions and PostgreSQL RLS mapping.
+- **AI Processing**: Google Gemini API via secure serverless Edge Function proxies.
 
 ---
 
-## 👥 Team
+## 29. Responsible Use & System Limitations
 
-| Name | Role | Primary Contribution |
-| :--- | :--- | :--- |
-| **Prashant Kumar** | Project Lead & Full-Stack Developer | System Architecture, Frontend Development, Supabase Migrations, Auth Integration & Deployment |
-
----
-
-## 📄 License
-
-> License information to be added.
+- **Decision-Support Scope**: CivicFix is an analytical and workflow coordination platform. It calculates metrics, recommendations, and candidate matches to assist human administrators. It does not replace official municipal governance, procurement regulations, statutory planning approvals, or legal due diligence.
+- **AI Output Review**: AI classifications, triage suggestions, and transcriptions are probabilistic and should be reviewed by authorized municipal staff before work order issuance.
+- **Dataset Dependencies**: Infrastructure analytical accuracy depends on the fidelity of underlying demographic, budget, and asset records (D1–D7).
+- **Synthetic Benchmark Isolation**: Dataset D8 contains synthetic benchmark records designed exclusively for load testing and performance validation.
 
 ---
 
-## 📬 Contact & Links
+## 30. Future Scope
 
-- **Live Application**: [https://civicfix-rho.vercel.app/](https://civicfix-rho.vercel.app/)
-- **GitHub Repository**: [https://github.com/Prashant952024/ConsoleLog](https://github.com/Prashant952024/ConsoleLog)
-- **Project Documentation**: [docs/architecture.png](docs/architecture.png)
+- **Real-Time IoT Telemetry**: Integration with municipal smart water meters, air quality sensors, and automated traffic telemetry.
+- **Expanded State Datasets**: Ingestion of granular sub-district (tehsil/block) datasets across all 36 States and Union Territories.
+- **Predictive Infrastructure Modeling**: Machine learning models for predictive maintenance on municipal water networks and road surfaces based on historical weather and traffic patterns.
+- **Public API & Open Data Portal**: Anonymized public data APIs enabling civic tech researchers to analyze municipal redressal trends.
 
 ---
 
-<div align="center">
-  <sub>Built with ❤️ for cleaner, safer, and smarter communities.</sub>
-</div>
+## 31. Demo Walkthrough
 
+### Demo 1: SIMPLE Track (Municipal Redressal)
+1. **Citizen Intake**: Navigate to `/citizen/new`, submit an issue with photo, voice recording, and location.
+2. **AI Triage**: Observe automated classification (category, severity, priority, department).
+3. **Officer Review**: Log in as `MUNICIPAL_OFFICER` (`/officer/dashboard`), inspect triage, confirm department assignment.
+4. **Field Execution**: Log in as `FIELD_WORKER` (`/worker/dashboard`), view assigned task, upload resolution photo proof.
+5. **Sign-off & Verification**: Manager and Officer approve resolution; Citizen reviews and confirms completion.
+
+### Demo 2: INFRASTRUCTURE Track (District Planning)
+1. **District Exploration**: Navigate to `/infrastructure/assessment`.
+2. **Select District & Sector**: Choose a canonical district (e.g. *Ranchi*) and Planning Sector (`DEPT-01: Roads & Transport`).
+3. **Context Aggregation**: Review aggregated demographics (D1), budget balances (D2), geography (D3), existing assets (D4), accessibility deficits (D5), socioeconomic gaps (D6), and historical project delivery (D7).
+4. **Atomic Assessment**: Submit an infrastructure assessment and observe atomic monotonic version creation.
+5. **Administrative Decision**: Review assessment as an authorized official and record a formal funding decision.
+
+### Demo 3: COMPLEX Track (Innovation Ecosystem)
+1. **Challenge Formulation**: Innovation Manager publishes a municipal challenge (`/innovation/challenges`).
+2. **Institution Discovery**: Matchmaking engine suggests compatible university research labs.
+3. **Proposal Submission**: University team submits an 11-section structured research proposal.
+4. **Pilot Tracking**: Approved proposal launches into a Pilot Execution Workspace (`/innovation/pilots`) with milestone tracking and KPI validation.
+
+---
+
+## 32. Project Status
+
+CivicFix is a fully implemented, end-to-end platform featuring:
+- Multimodal citizen grievance intake with AI triage and multilingual speech-to-text.
+- Multi-track workflows for routine municipal repairs, academic innovation, and capital infrastructure planning.
+- India-wide canonical district registry mapping with multi-dataset context aggregation.
+- 78 sequential database migrations with strict Row Level Security (RLS) and cryptographic JWT validation.
+- Validated performance under controlled concurrency load testing (up to 732.06 requests/second on indexed analytical queries).
+
+---
+
+## 33. License & Contributing
+
+- **License**: Private and proprietary. All rights reserved.
+- **Contributing**: Contributions are restricted to authorized project team members. Ensure all code changes pass TypeScript compilation (`npm run build`) and regression test suites before submitting pull requests.
